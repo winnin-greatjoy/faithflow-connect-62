@@ -15,6 +15,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 
 const AdminDashboard = () => {
   const [activeModule, setActiveModule] = useState('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const renderActiveModule = () => {
     switch (activeModule) {
@@ -44,17 +45,22 @@ const AdminDashboard = () => {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-50">
-        <AdminSidebar activeModule={activeModule} onModuleChange={setActiveModule} />
+        <AdminSidebar 
+          activeModule={activeModule} 
+          onModuleChange={setActiveModule}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+        />
         
-        <div className="flex-1 flex flex-col">
-          <AdminHeader />
+        <div className="flex-1 flex flex-col min-w-0">
+          <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
           
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto">
             {renderActiveModule()}
           </main>
           
-          <footer className="bg-white border-t px-6 py-4">
-            <p className="text-sm text-gray-500">
+          <footer className="bg-white border-t px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+            <p className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
               © 2024 Faith Healing Bible Church - Beccle St Branch. All rights reserved.
             </p>
           </footer>
