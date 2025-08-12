@@ -35,14 +35,7 @@ const ChurchNavbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <Link to="/" className="text-foreground hover:text-primary transition-colors">
-                    Home
-                  </Link>
-                </NavigationMenuItem>
-                
+            <NavigationMenu>  
                 <NavigationMenuItem>
                   <NavigationMenuTrigger>About</NavigationMenuTrigger>
                   <NavigationMenuContent>
@@ -134,7 +127,7 @@ const ChurchNavbar = () => {
               <Link to="/give" className="text-foreground hover:text-primary">Give</Link>
               <Link to="/contact" className="text-foreground hover:text-primary">Contact</Link>
               <Button asChild className="w-fit">
-                <Link to="/visit">Plan Your Visit</Link>
+                <Link to="/admin">Dashboard</Link>
               </Button>
             </div>
           </div>
