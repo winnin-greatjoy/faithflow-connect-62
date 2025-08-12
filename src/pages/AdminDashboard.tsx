@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
 import { MemberManagement } from '@/components/admin/MemberManagement';
+import { MensMinistryDashboard } from '@/components/admin/MensMinistryDashboard';
 import { CommunicationHub } from '@/components/admin/CommunicationHub';
 import { FinanceModule } from '@/components/admin/FinanceModule';
 import { EventsModule } from '@/components/admin/EventsModule';
-import { VolunteersModule } from '@/components/admin/VolunteersModule';
 import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
 import { ReportsModule } from '@/components/admin/ReportsModule';
 import { SettingsModule } from '@/components/admin/SettingsModule';
@@ -23,14 +23,14 @@ const AdminDashboard = () => {
         return <DashboardOverview />;
       case 'members':
         return <MemberManagement />;
+      case 'mens-ministry':
+        return <MensMinistryDashboard />;
       case 'communication':
         return <CommunicationHub />;
       case 'finance':
         return <FinanceModule />;
       case 'events':
         return <EventsModule />;
-      case 'volunteers':
-        return <VolunteersModule />;
       case 'departments':
         return <DepartmentsModule />;
       case 'reports':

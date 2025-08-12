@@ -1,76 +1,64 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Faith Healing Bible Church Design System */
 @layer base {
   :root {
+    /* Church Brand Colors - extracted from logo */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-
-    /* Primary - Deep Church Blue */
-    --primary: 220 91% 15%;
+    --primary: 14 88% 55%; /* Warm orange from logo */
     --primary-foreground: 210 40% 98%;
-
-    /* Secondary - Warm Gold */
-    --secondary: 45 93% 47%;
-    --secondary-foreground: 220 91% 15%;
-
-    /* Muted - Soft Gray */
-    --muted: 210 40% 96.1%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
-
-    /* Accent - Light Blue */
-    --accent: 210 100% 97%;
-    --accent-foreground: 220 91% 15%;
-
+    --accent: 43 96% 56%; /* Golden yellow from logo */
+    --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 220 91% 15%;
-
+    --ring: 14 88% 55%;
     --radius: 0.75rem;
-
-    /* Custom Church Colors */
-    --church-blue: 220 91% 15%;
-    --church-gold: 45 93% 47%;
-    --church-light-blue: 210 100% 97%;
-    --church-gray: 210 40% 96.1%;
-    
-    /* Gradients */
-    --hero-gradient: linear-gradient(135deg, hsl(220, 91%, 15%) 0%, hsl(220, 70%, 25%) 100%);
-    --card-gradient: linear-gradient(145deg, hsl(0, 0%, 100%) 0%, hsl(210, 40%, 98%) 100%);
+    --chart-1: 14 88% 55%;
+    --chart-2: 43 96% 56%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
 
   .dark {
-    --background: 220 91% 15%;
+    --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-    --card: 220 70% 20%;
+    --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
-    --popover: 220 70% 20%;
+    --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 220 91% 15%;
-    --secondary: 45 93% 47%;
-    --secondary-foreground: 220 91% 15%;
-    --muted: 220 50% 25%;
+    --primary: 14 88% 55%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 220 50% 25%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 43 96% 56%;
+    --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 220 50% 25%;
-    --input: 220 50% 25%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 14 88% 55%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
@@ -78,86 +66,18 @@
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground font-sans;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
-
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight;
-  }
-
-  h1 {
-    @apply text-4xl lg:text-6xl;
-  }
-
-  h2 {
-    @apply text-3xl lg:text-4xl;
-  }
-
-  h3 {
-    @apply text-2xl lg:text-3xl;
+    @apply font-serif;
   }
 }
 
-@layer components {
-  .hero-gradient {
-    background: var(--hero-gradient);
-  }
-
-  .card-gradient {
-    background: var(--card-gradient);
-  }
-
-  .text-gradient {
-    @apply bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 bg-clip-text text-transparent;
-  }
-
-  .church-shadow {
-    box-shadow: 0 10px 40px -10px rgba(45, 55, 135, 0.15);
-  }
-
-  .feature-card {
-    @apply bg-white rounded-2xl p-8 church-shadow border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1;
-  }
-
-  .btn-hero {
-    @apply bg-gradient-to-r from-blue-900 to-blue-800 text-white font-semibold px-8 py-4 rounded-xl hover:from-blue-800 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
-  }
-
-  .btn-secondary {
-    @apply bg-gradient-to-r from-yellow-500 to-yellow-400 text-blue-900 font-semibold px-8 py-4 rounded-xl hover:from-yellow-400 hover:to-yellow-300 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
-  }
+.font-serif {
+  font-family: 'Playfair Display', serif;
 }
 
-/* Custom animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out;
-}
-
-.animate-slide-in-right {
-  animation: slideInRight 0.6s ease-out;
+.font-sans {
+  font-family: 'Inter', sans-serif;
 }
