@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   NavigationMenu,
@@ -20,15 +20,16 @@ const ChurchNavbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">F</span>
-            </div>
-            <div className="hidden sm:block">
-              <span className="font-serif font-semibold text-lg text-foreground">
-                Faith Healing Bible Church
-              </span>
-              <p className="text-sm text-muted-foreground">Beccle St Branch</p>
+          <Link to="/" className="flex items-center gap-3">
+            <img
+              src="/lovable-uploads/5d36a4a9-6499-4550-9a40-87f4bc150872.png"
+              alt="Faith Healing Bible Church Logo"
+              className="w-10 h-10 rounded-sm"
+            />
+            <div>
+              <div className="font-serif font-bold text-primary text-lg leading-tight">Faith Healing</div>
+              <div className="font-serif font-bold text-primary text-base leading-tight">Bible Church</div>
+              <div className="text-xs text-muted-foreground">Beccle St Branch</div>
             </div>
           </Link>
 

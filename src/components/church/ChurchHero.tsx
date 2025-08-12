@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 const ChurchHero = () => {
   return (
-    <section className="relative bg-gradient-to-br from-primary/10 via-background to-accent/10 py-20 lg:py-32">
+    <section className="relative bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-20 lg:py-32">
       <div className="container mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-8">
@@ -33,8 +33,8 @@ const ChurchHero = () => {
             </div>
 
             {/* Service Times */}
-            <div className="bg-card/50 backdrop-blur rounded-lg p-6 space-y-4">
-              <h3 className="font-serif font-semibold text-lg">Join Us This Sunday</h3>
+            <div className="bg-card/50 backdrop-blur rounded-lg p-6 space-y-4 border border-primary/20">
+              <h3 className="font-serif font-semibold text-lg text-primary">Join Us This Sunday</h3>
               <div className="grid sm:grid-cols-3 gap-4 text-sm">
                 <div className="flex items-center space-x-2">
                   <Clock className="h-4 w-4 text-primary" />
@@ -53,26 +53,25 @@ const ChurchHero = () => {
           </div>
 
           <div className="relative">
-            <div className="aspect-[4/3] bg-gradient-to-br from-primary to-accent rounded-lg shadow-2xl flex items-center justify-center">
-              <div className="text-center text-primary-foreground">
-                <div className="w-24 h-24 bg-primary-foreground/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl font-bold">F</span>
-                </div>
-                <p className="text-sm opacity-90">Church Image Placeholder</p>
-              </div>
+            <div className="aspect-[4/3] bg-gradient-to-br from-primary to-secondary rounded-lg shadow-2xl flex items-center justify-center">
+              <img
+                src="/lovable-uploads/5d36a4a9-6499-4550-9a40-87f4bc150872.png"
+                alt="Faith Healing Bible Church Logo"
+                className="w-48 h-48 object-contain"
+              />
             </div>
             
             {/* Floating cards */}
-            <div className="absolute -bottom-6 -left-6 bg-card p-4 rounded-lg shadow-lg border">
+            <div className="absolute -bottom-6 -left-6 bg-card p-4 rounded-lg shadow-lg border border-primary/20">
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary">500+</div>
                 <div className="text-sm text-muted-foreground">Members</div>
               </div>
             </div>
             
-            <div className="absolute -top-6 -right-6 bg-card p-4 rounded-lg shadow-lg border">
+            <div className="absolute -top-6 -right-6 bg-card p-4 rounded-lg shadow-lg border border-secondary/20">
               <div className="text-center">
-                <div className="text-2xl font-bold text-accent">3</div>
+                <div className="text-2xl font-bold text-secondary">3</div>
                 <div className="text-sm text-muted-foreground">Branches</div>
               </div>
             </div>

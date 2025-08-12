@@ -9,7 +9,8 @@ import {
   UserCheck, 
   Building, 
   FileBarChart, 
-  Settings 
+  Settings,
+  User
 } from 'lucide-react';
 import {
   Sidebar,
@@ -32,6 +33,7 @@ interface AdminSidebarProps {
 const menuItems = [
   { id: 'overview', label: 'Dashboard Overview', icon: LayoutDashboard },
   { id: 'members', label: 'Members', icon: Users },
+  { id: 'mens-ministry', label: 'Men\'s Ministry', icon: User },
   { id: 'communication', label: 'Communication', icon: MessageCircle },
   { id: 'finance', label: 'Finance', icon: CreditCard },
   { id: 'events', label: 'Events', icon: Calendar },
@@ -65,13 +67,15 @@ export const AdminSidebar = ({ activeModule, onModuleChange, isOpen, onToggle }:
         <Sidebar className="w-full bg-white border-r">
           <SidebarContent>
             <div className="p-4 border-b lg:hidden">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-900 to-blue-800 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">FH</span>
-                </div>
+              <div className="flex items-center gap-3">
+                <img
+                  src="/lovable-uploads/5d36a4a9-6499-4550-9a40-87f4bc150872.png"
+                  alt="Faith Healing Bible Church Logo"
+                  className="w-8 h-8 rounded-sm"
+                />
                 <div>
-                  <h2 className="font-semibold text-gray-900 text-sm">Faith Healing</h2>
-                  <p className="text-xs text-gray-500">Beccle St Branch</p>
+                  <h2 className="font-serif font-semibold text-primary text-sm">Faith Healing</h2>
+                  <p className="text-xs text-muted-foreground">Beccle St Branch</p>
                 </div>
               </div>
             </div>
