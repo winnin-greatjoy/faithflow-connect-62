@@ -14,7 +14,8 @@ import {
   Eye,
   Edit,
   UserPlus,
-  Settings
+  Settings,
+  ArrowRight
 } from 'lucide-react';
 import { 
   mockMinistryMembers, 
@@ -25,9 +26,11 @@ import {
   mockMinistryEvents,
   mockFinancialSummary 
 } from '@/data/mockMinistryData';
+import { CommitteeWorkspace } from '@/components/committee/CommitteeWorkspace';
 
 export const MensMinistryDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedCommittee, setSelectedCommittee] = useState<number | null>(null);
 
   // Calculate stats
   const stats = {
@@ -38,6 +41,32 @@ export const MensMinistryDashboard = () => {
     upcomingEvents: mockMinistryEvents.filter(e => e.status === 'planned').length,
     publishedArticles: mockPublications.filter(p => p.status === 'published').length
   };
+
+  // If a committee is selected, show the committee workspace
+  if (selectedCommittee) {
+    const committee = mockCommittees.find(c => c.id === selectedCommittee);
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2 text-sm text-gray-600">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setSelectedCommittee(null)}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            Men's Ministry
+          </Button>
+          <ArrowRight className="h-4 w-4" />
+          <span>{committee?.name}</span>
+        </div>
+        <CommitteeWorkspace 
+          committeeId={selectedCommittee} 
+          committeeName={committee?.name || ''}
+          userRole="head" // In real app, this would be determined by user's role
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -300,7 +329,7 @@ export const MensMinistryDashboard = () => {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {mockCommittees.map((committee) => (
-              <Card key={committee.id}>
+              <Card key={committee.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     {committee.name}
@@ -329,7 +358,15 @@ export const MensMinistryDashboard = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2 mt-4">
-                    <Button variant="outline" size="sm">View Details</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setSelectedCommittee(committee.id)}
+                      className="flex-1"
+                    >
+                      <ArrowRight className="mr-1 h-3 w-3" />
+                      Open Workspace
+                    </Button>
                     <Button variant="ghost" size="sm">
                       <Edit className="h-4 w-4" />
                     </Button>
