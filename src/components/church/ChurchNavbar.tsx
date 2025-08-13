@@ -35,7 +35,8 @@ const ChurchNavbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <NavigationMenu>  
+            <NavigationMenu>
+              <NavigationMenuList>
                 <NavigationMenuItem>
                   <NavigationMenuTrigger>About</NavigationMenuTrigger>
                   <NavigationMenuContent>
