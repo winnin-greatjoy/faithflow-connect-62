@@ -230,7 +230,7 @@ export const mockCommitteeWorkspaces: CommitteeWorkspace[] = [
       totalTasks: 15,
       completedTasks: 8,
       pendingTasks: 5,
-      overdueTask: 2,
+      overdueTasks: 2,
       upcomingMeetings: 1,
       monthlyBudget: 2000,
       spent: 1245,
@@ -245,7 +245,7 @@ export const mockCommitteeWorkspaces: CommitteeWorkspace[] = [
       totalTasks: 8,
       completedTasks: 6,
       pendingTasks: 2,
-      overdueTask: 0,
+      overdueTasks: 0,
       upcomingMeetings: 0,
       monthlyBudget: 500,
       spent: 200,
@@ -260,11 +260,23 @@ export const mockCommitteeWorkspaces: CommitteeWorkspace[] = [
       totalTasks: 12,
       completedTasks: 9,
       pendingTasks: 2,
-      overdueTask: 1,
+      overdueTasks: 1,
       upcomingMeetings: 0,
       monthlyBudget: 1000,
       spent: 750,
       publications: 0
     }
   }
+];
+
+// Add the missing exports that CommitteeFinance is trying to import
+export const mockContributions = [
+  { id: 1, amount: 500, contributor: 'John Smith', date: '2024-01-15', method: 'Bank Transfer' },
+  { id: 2, amount: 250, contributor: 'Mary Johnson', date: '2024-01-20', method: 'Cash' },
+  { id: 3, amount: 750, contributor: 'David Wilson', date: '2024-01-25', method: 'Card' }
+];
+
+export const mockPledges = [
+  { id: 1, pledger: 'Robert Brown', amount: 1000, pledged: '2024-01-01', due: '2024-12-31', paid: 300 },
+  { id: 2, pledger: 'Sarah Davis', amount: 500, pledged: '2024-01-15', due: '2024-06-30', paid: 500 }
 ];

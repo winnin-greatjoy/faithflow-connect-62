@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -102,7 +101,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <div>
                 <p className="text-xs text-gray-600">Overdue</p>
-                <p className="text-lg font-bold">{workspace.stats.overdueTask}</p>
+                <p className="text-lg font-bold">{workspace.stats.overdueTasks}</p>
               </div>
             </div>
           </CardContent>
