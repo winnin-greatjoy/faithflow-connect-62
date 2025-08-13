@@ -73,16 +73,11 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
         {/* Logo and Church Name */}
         <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
           <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-900 to-blue-800 rounded-lg flex items-center justify-center flex-shrink-0">
-            <img
-                src="/lovable-uploads/5d36a4a9-6499-4550-9a40-87f4bc150872.png"
-                alt="Faith Healing Bible Church Logo"
-                className="w-10 h-10 rounded-sm"
-              />
+            <span className="text-white font-bold text-xs sm:text-sm">FH</span>
           </div>
           <div className="min-w-0 hidden sm:block">
-            <div className="font-serif font-bold text-primary text-lg leading-tight">Faith Healing</div>
-            <div className="font-serif font-bold text-primary text-base leading-tight">Bible Church</div>
-            <div className="text-xs text-muted-foreground">Beccle St Branch</div>
+            <h1 className="text-sm sm:text-lg font-semibold text-gray-900 truncate">Faith Healing Bible Church</h1>
+            <p className="text-xs sm:text-sm text-gray-500 truncate">Beccle St Branch</p>
           </div>
         </div>
 
