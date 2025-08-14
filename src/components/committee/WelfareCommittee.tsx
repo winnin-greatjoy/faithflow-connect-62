@@ -32,7 +32,7 @@ export const WelfareCommittee = ({ userRole, canManage }: WelfareCommitteeProps)
   const [visits] = useState<CaseVisit[]>(mockCaseVisits);
 
   const getCasesByStatus = (status: WelfareCase['status']) => {
-    return cases.filter(case => case.status === status);
+    return cases.filter(caseItem => caseItem.status === status);
   };
 
   const getUrgencyColor = (urgency: string) => {
