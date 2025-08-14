@@ -24,6 +24,10 @@ import { CommitteeFinance } from './CommitteeFinance';
 import { EducationCommittee } from './EducationCommittee';
 import { FinanceCommittee } from './FinanceCommittee';
 import { TreasuryCommittee } from './TreasuryCommittee';
+import { WelfareCommittee } from './WelfareCommittee';
+import { PRCommittee } from './PRCommittee';
+import { AuditCommittee } from './AuditCommittee';
+import { EthicsCommittee } from './EthicsCommittee';
 
 interface CommitteeWorkspaceProps {
   committeeId: number;
@@ -129,6 +133,114 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
         </div>
 
         <TreasuryCommittee userRole={userRole} canManage={canManage} />
+      </div>
+    );
+  }
+
+  if (committeeId === 3) { // Welfare Committee
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Welfare Committee</h1>
+            <p className="text-gray-600 mt-1">Member care and support services</p>
+            <div className="flex items-center mt-2 space-x-2">
+              <Badge variant="outline">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>
+              <Badge variant={getPermissionLevel(userRole) === 'full' ? 'default' : 'secondary'}>
+                {getPermissionLevel(userRole)} access
+              </Badge>
+            </div>
+          </div>
+          {canManage && (
+            <Button>
+              <Users className="mr-2 h-4 w-4" />
+              Manage Committee
+            </Button>
+          )}
+        </div>
+
+        <WelfareCommittee userRole={userRole} canManage={canManage} />
+      </div>
+    );
+  }
+
+  if (committeeId === 5) { // PR Committee
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">PR Committee</h1>
+            <p className="text-gray-600 mt-1">Communications and publications</p>
+            <div className="flex items-center mt-2 space-x-2">
+              <Badge variant="outline">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>
+              <Badge variant={getPermissionLevel(userRole) === 'full' ? 'default' : 'secondary'}>
+                {getPermissionLevel(userRole)} access
+              </Badge>
+            </div>
+          </div>
+          {canManage && (
+            <Button>
+              <Users className="mr-2 h-4 w-4" />
+              Manage Committee
+            </Button>
+          )}
+        </div>
+
+        <PRCommittee userRole={userRole} canManage={canManage} />
+      </div>
+    );
+  }
+
+  if (committeeId === 6) { // Audit Committee
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Audit Committee</h1>
+            <p className="text-gray-600 mt-1">Independent oversight and compliance</p>
+            <div className="flex items-center mt-2 space-x-2">
+              <Badge variant="outline">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>
+              <Badge variant={getPermissionLevel(userRole) === 'full' ? 'default' : 'secondary'}>
+                {getPermissionLevel(userRole)} access
+              </Badge>
+            </div>
+          </div>
+          {canManage && (
+            <Button>
+              <Users className="mr-2 h-4 w-4" />
+              Manage Committee
+            </Button>
+          )}
+        </div>
+
+        <AuditCommittee userRole={userRole} canManage={canManage} />
+      </div>
+    );
+  }
+
+  if (committeeId === 7) { // Ethics Committee
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Ethics Committee</h1>
+            <p className="text-gray-600 mt-1">Conduct and grievance management</p>
+            <div className="flex items-center mt-2 space-x-2">
+              <Badge variant="outline">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>
+              <Badge variant={getPermissionLevel(userRole) === 'full' ? 'default' : 'secondary'}>
+                {getPermissionLevel(userRole)} access
+              </Badge>
+            </div>
+          </div>
+          {canManage && (
+            <Button>
+              <Users className="mr-2 h-4 w-4" />
+              Manage Committee
+            </Button>
+          )}
+        </div>
+
+        <EthicsCommittee userRole={userRole} canManage={canManage} />
       </div>
     );
   }
