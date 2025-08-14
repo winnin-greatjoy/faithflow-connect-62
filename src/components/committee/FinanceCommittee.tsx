@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,17 +11,14 @@ import {
   Clock, 
   CheckCircle,
   XCircle,
-  AlertTriangle,
+  AlertCircle,
   Download,
+  Receipt,
   FileText,
-  PieChart,
-  Target
+  Settings as SettingsIcon,
+  Calendar
 } from 'lucide-react';
-import { 
-  mockBudgetEnvelopes, 
-  mockIncomeTransactions, 
-  mockExpenseRequests 
-} from '@/data/mockCommitteeData';
+import { mockBudgetEnvelopes, mockIncomeTransactions, mockExpenseRequests } from '@/data/mockCommitteeData';
 
 interface FinanceCommitteeProps {
   userRole: string;
@@ -30,22 +26,26 @@ interface FinanceCommitteeProps {
 }
 
 export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps) => {
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  // Calculate KPIs
-  const totalBudget = mockBudgetEnvelopes.reduce((sum, env) => sum + env.allocatedAmount, 0);
-  const totalSpent = mockBudgetEnvelopes.reduce((sum, env) => sum + env.spentAmount, 0);
-  const totalIncome = mockIncomeTransactions.reduce((sum, txn) => sum + txn.amount, 0);
-  const pendingRequests = mockExpenseRequests.filter(req => req.status === 'submitted').length;
-  const cashOnHand = totalIncome - totalSpent;
+  const [budgetEnvelopes] = useState(mockBudgetEnvelopes);
+  const [incomeTransactions] = useState(mockIncomeTransactions);
+  const [expenseRequests] = useState(mockExpenseRequests);
+
+  // Calculate financial summary
+  const totalBudget = budgetEnvelopes.reduce((sum, env) => sum + env.allocatedAmount, 0);
+  const totalSpent = budgetEnvelopes.reduce((sum, env) => sum + env.spentAmount, 0);
+  const totalIncome = incomeTransactions.reduce((sum, trans) => sum + trans.amount, 0);
+  const pendingExpenses = expenseRequests.filter(req => req.status === 'submitted').reduce((sum, req) => sum + req.amount, 0);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'approved': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'rejected': return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'submitted': return <Clock className="h-4 w-4 text-yellow-600" />;
-      case 'paid': return <DollarSign className="h-4 w-4 text-blue-600" />;
-      default: return <AlertTriangle className="h-4 w-4 text-gray-600" />;
+      case 'approved':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'rejected':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'submitted':
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-600" />;
     }
   };
 
@@ -54,9 +54,6 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'submitted': return 'bg-yellow-100 text-yellow-800';
-      case 'paid': return 'bg-blue-100 text-blue-800';
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'over_budget': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -64,14 +61,11 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Finance Committee</h2>
-          <p className="text-gray-600">Financial planning, budgets, and reporting</p>
-        </div>
+        <h2 className="text-xl font-semibold">Finance Committee</h2>
         <div className="flex space-x-2">
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" />
-            Export Reports
+            Export Report
           </Button>
           {canManage && (
             <Button>
@@ -82,12 +76,12 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
         </div>
       </div>
 
-      {/* KPI Overview */}
-      <div className="grid md:grid-cols-5 gap-4">
+      {/* Financial Overview */}
+      <div className="grid md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-blue-600" />
+              <DollarSign className="h-4 w-4 text-blue-600" />
               <div>
                 <p className="text-sm text-gray-600">Total Budget</p>
                 <p className="text-xl font-bold text-blue-600">£{totalBudget.toFixed(2)}</p>
@@ -126,21 +120,7 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
               <Clock className="h-4 w-4 text-yellow-600" />
               <div>
                 <p className="text-sm text-gray-600">Pending Requests</p>
-                <p className="text-xl font-bold text-yellow-600">{pendingRequests}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <DollarSign className={`h-4 w-4 ${cashOnHand >= 0 ? 'text-green-600' : 'text-red-600'}`} />
-              <div>
-                <p className="text-sm text-gray-600">Cash on Hand</p>
-                <p className={`text-xl font-bold ${cashOnHand >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  £{cashOnHand.toFixed(2)}
-                </p>
+                <p className="text-xl font-bold text-yellow-600">£{pendingExpenses.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
@@ -148,117 +128,17 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
       </div>
 
       {/* Finance Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="budgets">Budgets</TabsTrigger>
+      <Tabs defaultValue="budgets" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="budgets">Budget Envelopes</TabsTrigger>
           <TabsTrigger value="income">Income</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
+          <TabsTrigger value="expenses">Expense Requests</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Budget Envelopes */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Budget Envelopes</CardTitle>
-                <CardDescription>Current budget allocation and spending</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {mockBudgetEnvelopes.map((envelope) => (
-                  <div key={envelope.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-medium">{envelope.name}</h4>
-                        <p className="text-sm text-gray-600">{envelope.category}</p>
-                      </div>
-                      <Badge className={getStatusColor(envelope.status)}>
-                        {envelope.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Allocated:</span>
-                        <span className="font-medium">£{envelope.allocatedAmount}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Spent:</span>
-                        <span className="font-medium">£{envelope.spentAmount}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Remaining:</span>
-                        <span className={`font-medium ${envelope.remainingAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          £{envelope.remainingAmount}
-                        </span>
-                      </div>
-                      
-                      {/* Progress bar */}
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${envelope.status === 'over_budget' ? 'bg-red-500' : 'bg-green-500'}`}
-                          style={{ 
-                            width: `${Math.min((envelope.spentAmount / envelope.allocatedAmount) * 100, 100)}%` 
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Recent Transactions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Transactions</CardTitle>
-                <CardDescription>Latest income and expenses</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {mockIncomeTransactions.slice(0, 3).map((transaction) => (
-                  <div key={transaction.id} className="flex justify-between items-center border-b pb-2">
-                    <div>
-                      <p className="font-medium text-green-600">+£{transaction.amount}</p>
-                      <p className="text-sm text-gray-600">{transaction.description}</p>
-                      <p className="text-xs text-gray-500">{transaction.memberName}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="outline">{transaction.source}</Badge>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(transaction.recordedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                
-                {mockExpenseRequests.filter(req => req.status === 'approved').slice(0, 2).map((expense) => (
-                  <div key={expense.id} className="flex justify-between items-center border-b pb-2">
-                    <div>
-                      <p className="font-medium text-red-600">-£{expense.amount}</p>
-                      <p className="text-sm text-gray-600">{expense.description}</p>
-                      <p className="text-xs text-gray-500">{expense.requesterName}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge className={getStatusColor(expense.status)}>
-                        {getStatusIcon(expense.status)}
-                        <span className="ml-1">{expense.status}</span>
-                      </Badge>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {expense.submittedAt && new Date(expense.submittedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
         <TabsContent value="budgets" className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">Budget Envelopes</h3>
             {canManage && (
               <Button>
@@ -269,60 +149,67 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
           </div>
 
           <div className="grid gap-4">
-            {mockBudgetEnvelopes.map((envelope) => (
+            {budgetEnvelopes.map((envelope) => (
               <Card key={envelope.id}>
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h4 className="text-lg font-medium">{envelope.name}</h4>
-                      <p className="text-gray-600">{envelope.category} • FY {envelope.fiscalYear}</p>
+                      <h4 className="font-medium">{envelope.name}</h4>
+                      <p className="text-sm text-gray-600">{envelope.category} • FY {envelope.fiscalYear}</p>
                     </div>
-                    <Badge className={getStatusColor(envelope.status)}>
+                    <Badge 
+                      variant={envelope.status === 'over_budget' ? 'destructive' : 'secondary'}
+                    >
                       {envelope.status.replace('_', ' ')}
                     </Badge>
                   </div>
                   
-                  <div className="grid md:grid-cols-3 gap-4 mb-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600">£{envelope.allocatedAmount}</p>
-                      <p className="text-sm text-gray-600">Allocated</p>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-600">Allocated</p>
+                      <p className="font-bold text-blue-600">£{envelope.allocatedAmount.toFixed(2)}</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-red-600">£{envelope.spentAmount}</p>
-                      <p className="text-sm text-gray-600">Spent</p>
+                    <div>
+                      <p className="text-gray-600">Spent</p>
+                      <p className="font-bold text-red-600">£{envelope.spentAmount.toFixed(2)}</p>
                     </div>
-                    <div className="text-center">
-                      <p className={`text-2xl font-bold ${envelope.remainingAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        £{envelope.remainingAmount}
+                    <div>
+                      <p className="text-gray-600">Remaining</p>
+                      <p className={`font-bold ${envelope.remainingAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        £{envelope.remainingAmount.toFixed(2)}
                       </p>
-                      <p className="text-sm text-gray-600">Remaining</p>
                     </div>
                   </div>
-                  
-                  <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-                    <div 
-                      className={`h-3 rounded-full ${envelope.status === 'over_budget' ? 'bg-red-500' : 'bg-green-500'}`}
-                      style={{ 
-                        width: `${Math.min((envelope.spentAmount / envelope.allocatedAmount) * 100, 100)}%` 
-                      }}
-                    ></div>
+
+                  {/* Progress bar */}
+                  <div className="mt-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          envelope.spentAmount > envelope.allocatedAmount 
+                            ? 'bg-red-500' 
+                            : 'bg-blue-500'
+                        }`}
+                        style={{ 
+                          width: `${Math.min((envelope.spentAmount / envelope.allocatedAmount) * 100, 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {Math.round((envelope.spentAmount / envelope.allocatedAmount) * 100)}% utilized
+                    </p>
                   </div>
-                  
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm">
-                      <FileText className="mr-1 h-3 w-3" />
-                      View Details
-                    </Button>
-                    {canManage && (
-                      <div className="space-x-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm">
-                          <PieChart className="mr-1 h-3 w-3" />
-                          Analysis
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+
+                  {canManage && (
+                    <div className="flex space-x-2 mt-4">
+                      <Button variant="outline" size="sm">
+                        Edit Envelope
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        View Transactions
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -330,12 +217,75 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
         </TabsContent>
 
         <TabsContent value="income" className="space-y-4">
-          <div className="text-center py-8">
-            <TrendingUp className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Income Management</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Track dues, pledges, offerings, and donations
-            </p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Income Transactions</h3>
+            {canManage && (
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Record Income
+              </Button>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            {incomeTransactions.map((transaction) => (
+              <Card key={transaction.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">{transaction.description}</h4>
+                        <span className="text-lg font-bold text-green-600">
+                          £{transaction.amount.toFixed(2)}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                        <div>
+                          <span className="font-medium">Receipt No:</span>
+                          <p>{transaction.receiptNo}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Source:</span>
+                          <p className="capitalize">{transaction.source.replace('_', ' ')}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Method:</span>
+                          <p className="capitalize">{transaction.method.replace('_', ' ')}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Recorded by:</span>
+                          <p>{transaction.recordedBy}</p>
+                        </div>
+                      </div>
+                      
+                      {transaction.memberName && (
+                        <p className="text-sm text-gray-600 mt-2">
+                          From: {transaction.memberName}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-xs text-gray-500">
+                      Recorded: {new Date(transaction.recordedAt).toLocaleString()}
+                    </p>
+                    <div className="flex space-x-2">
+                      <Button variant="outline" size="sm">
+                        <Receipt className="mr-1 h-3 w-3" />
+                        View Receipt
+                      </Button>
+                      {canManage && (
+                        <Button variant="outline" size="sm">
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </TabsContent>
 
@@ -351,68 +301,59 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
           </div>
 
           <div className="space-y-4">
-            {mockExpenseRequests.map((expense) => (
-              <Card key={expense.id}>
+            {expenseRequests.map((request) => (
+              <Card key={request.id}>
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium">{expense.description}</h4>
+                        <h4 className="font-medium">{request.description}</h4>
                         <div className="flex items-center space-x-2">
-                          <span className="text-lg font-bold">£{expense.amount.toFixed(2)}</span>
-                          <Badge className={getStatusColor(expense.status)}>
-                            {getStatusIcon(expense.status)}
-                            <span className="ml-1">{expense.status}</span>
+                          <span className="text-lg font-bold">£{request.amount.toFixed(2)}</span>
+                          <Badge className={getStatusColor(request.status)}>
+                            {getStatusIcon(request.status)}
+                            <span className="ml-1 capitalize">{request.status}</span>
                           </Badge>
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                         <div>
                           <span className="font-medium">Envelope:</span>
-                          <p>{expense.envelopeName}</p>
+                          <p>{request.envelopeName}</p>
                         </div>
                         <div>
                           <span className="font-medium">Requested by:</span>
-                          <p>{expense.requesterName}</p>
+                          <p>{request.requesterName}</p>
                         </div>
                         <div>
-                          <span className="font-medium">Date:</span>
-                          <p>{expense.submittedAt && new Date(expense.submittedAt).toLocaleDateString()}</p>
+                          <span className="font-medium">Submitted:</span>
+                          <p>{request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'N/A'}</p>
                         </div>
-                        {expense.vendor && (
+                        {request.vendor && (
                           <div>
                             <span className="font-medium">Vendor:</span>
-                            <p>{expense.vendor}</p>
+                            <p>{request.vendor}</p>
                           </div>
                         )}
                       </div>
                       
-                      {expense.notes && (
-                        <p className="text-sm text-gray-600 mb-3">{expense.notes}</p>
+                      {request.notes && (
+                        <p className="text-sm text-gray-600 mt-2">{request.notes}</p>
                       )}
 
-                      {/* Approval Chain */}
-                      {expense.approvals.length > 0 && (
-                        <div className="border-t pt-3">
-                          <p className="text-sm font-medium mb-2">Approval Status:</p>
-                          <div className="space-y-2">
-                            {expense.approvals.map((approval) => (
-                              <div key={approval.id} className="flex items-center justify-between text-sm">
-                                <div className="flex items-center space-x-2">
-                                  {getStatusIcon(approval.status)}
-                                  <span>{approval.approverName} ({approval.approverRole})</span>
-                                </div>
-                                <div className="text-right">
-                                  <Badge className={getStatusColor(approval.status)}>
-                                    {approval.status}
-                                  </Badge>
-                                  {approval.timestamp && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                      {new Date(approval.timestamp).toLocaleDateString()}
-                                    </p>
-                                  )}
-                                </div>
+                      {/* Approval History */}
+                      {request.approvals.length > 0 && (
+                        <div className="mt-3">
+                          <h5 className="text-sm font-medium mb-2">Approval History</h5>
+                          <div className="space-y-1">
+                            {request.approvals.map((approval) => (
+                              <div key={approval.id} className="text-xs text-gray-600 flex items-center space-x-2">
+                                {getStatusIcon(approval.status)}
+                                <span>
+                                  {approval.approverName} ({approval.approverRole}) - {approval.status}
+                                  {approval.timestamp && ` on ${new Date(approval.timestamp).toLocaleDateString()}`}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -421,23 +362,20 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-4">
                     <div className="flex space-x-2">
-                      {expense.quoteUrl && (
+                      {request.quoteUrl && (
                         <Button variant="outline" size="sm">
                           <FileText className="mr-1 h-3 w-3" />
                           View Quote
                         </Button>
                       )}
-                      {expense.receiptUrl && (
-                        <Button variant="outline" size="sm">
-                          <FileText className="mr-1 h-3 w-3" />
-                          View Receipt
-                        </Button>
-                      )}
+                      <Button variant="outline" size="sm">
+                        View Details
+                      </Button>
                     </div>
                     
-                    {canManage && expense.status === 'submitted' && (
+                    {canManage && request.status === 'submitted' && (
                       <div className="flex space-x-2">
                         <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">
                           Approve
@@ -454,33 +392,47 @@ export const FinanceCommittee = ({ userRole, canManage }: FinanceCommitteeProps)
           </div>
         </TabsContent>
 
-        <TabsContent value="reconciliation" className="space-y-4">
-          <div className="text-center py-8">
-            <FileText className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Bank Reconciliation</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Import statements and reconcile accounts
-            </p>
-          </div>
-        </TabsContent>
-
         <TabsContent value="reports" className="space-y-4">
           <div className="text-center py-8">
-            <PieChart className="mx-auto h-12 w-12 text-gray-400" />
+            <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Financial Reports</h3>
             <p className="mt-1 text-sm text-gray-500">
-              P&L statements, budget vs actual, and audit trails
+              Generate budget vs actual, P&L, and audit reports
             </p>
+            {canManage && (
+              <div className="mt-6 space-x-2">
+                <Button variant="outline">
+                  <Download className="mr-2 h-4 w-4" />
+                  Budget Report
+                </Button>
+                <Button variant="outline">
+                  <Download className="mr-2 h-4 w-4" />
+                  Income Statement
+                </Button>
+                <Button variant="outline">
+                  <Download className="mr-2 h-4 w-4" />
+                  Expense Report
+                </Button>
+              </div>
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
           <div className="text-center py-8">
-            <Settings className="mx-auto h-12 w-12 text-gray-400" />
+            <SettingsIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Finance Settings</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Manage accounts, categories, and approval thresholds
+              Configure fiscal year, approval thresholds, and account settings
             </p>
+            {canManage && (
+              <div className="mt-6">
+                <Button>
+                  <SettingsIcon className="mr-2 h-4 w-4" />
+                  Configure Settings
+                </Button>
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

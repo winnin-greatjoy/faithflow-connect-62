@@ -15,6 +15,290 @@ import {
   EthicsReport,
   Investigation
 } from '@/types/committees';
+import { CommitteeTask, CommitteeMeeting, CommitteeExpense, CommitteeWorkspace } from '@/types/committee';
+
+// Committee Workspaces
+export const mockCommitteeWorkspaces: CommitteeWorkspace[] = [
+  {
+    id: 1,
+    name: 'Finance Committee',
+    description: 'Financial planning, budgets, and reporting',
+    stats: {
+      totalTasks: 12,
+      completedTasks: 8,
+      pendingTasks: 3,
+      overdueTasks: 1,
+      upcomingMeetings: 2,
+      monthlyBudget: 5000,
+      spent: 3750,
+      publications: 2
+    }
+  },
+  {
+    id: 2,
+    name: 'Education Committee',
+    description: 'Academic recognition and student awards',
+    stats: {
+      totalTasks: 8,
+      completedTasks: 5,
+      pendingTasks: 2,
+      overdueTasks: 1,
+      upcomingMeetings: 1,
+      monthlyBudget: 2500,
+      spent: 1800,
+      publications: 1
+    }
+  },
+  {
+    id: 3,
+    name: 'Welfare Committee',
+    description: 'Member care and support services',
+    stats: {
+      totalTasks: 15,
+      completedTasks: 10,
+      pendingTasks: 4,
+      overdueTasks: 1,
+      upcomingMeetings: 1,
+      monthlyBudget: 3000,
+      spent: 2200,
+      publications: 0
+    }
+  },
+  {
+    id: 4,
+    name: 'Treasury Committee',
+    description: 'Cash management and disbursement',
+    stats: {
+      totalTasks: 6,
+      completedTasks: 4,
+      pendingTasks: 2,
+      overdueTasks: 0,
+      upcomingMeetings: 1,
+      monthlyBudget: 1500,
+      spent: 900,
+      publications: 0
+    }
+  }
+];
+
+// Committee Tasks
+export const mockCommitteeTasks: CommitteeTask[] = [
+  {
+    id: 1,
+    title: 'Prepare Monthly Budget Report',
+    description: 'Compile income and expense report for January 2024',
+    status: 'in_progress',
+    assigneeId: 1,
+    assigneeName: 'David Clark',
+    dueDate: '2024-02-05',
+    priority: 'high',
+    tags: ['finance', 'report', 'monthly'],
+    attachments: ['/files/budget_template.xlsx'],
+    checklist: [
+      { id: 1, text: 'Gather income statements', completed: true },
+      { id: 2, text: 'Categorize expenses', completed: true },
+      { id: 3, text: 'Calculate variances', completed: false },
+      { id: 4, text: 'Create summary report', completed: false }
+    ],
+    comments: [
+      {
+        id: 1,
+        authorName: 'Pastor John Williams',
+        text: 'Please include breakdown by ministry',
+        timestamp: '2024-01-28T14:30:00Z'
+      }
+    ],
+    createdAt: '2024-01-25T09:00:00Z',
+    updatedAt: '2024-01-28T16:45:00Z'
+  },
+  {
+    id: 2,
+    title: 'Review Welfare Support Requests',
+    description: 'Assess pending welfare cases for Q1 support',
+    status: 'backlog',
+    assigneeId: 2,
+    assigneeName: 'Michael Brown',
+    dueDate: '2024-02-10',
+    priority: 'medium',
+    tags: ['welfare', 'assessment'],
+    attachments: [],
+    checklist: [
+      { id: 1, text: 'Review 5 pending cases', completed: false },
+      { id: 2, text: 'Conduct home visits', completed: false },
+      { id: 3, text: 'Submit recommendations', completed: false }
+    ],
+    comments: [],
+    createdAt: '2024-01-26T11:15:00Z',
+    updatedAt: '2024-01-26T11:15:00Z'
+  },
+  {
+    id: 3,
+    title: 'Update Ministry Website Content',
+    description: 'Refresh Men\'s Ministry page with recent activities',
+    status: 'done',
+    assigneeId: 3,
+    assigneeName: 'Emmanuel Tetteh',
+    dueDate: '2024-01-30',
+    priority: 'low',
+    tags: ['PR', 'website', 'content'],
+    attachments: ['/files/content_draft.docx'],
+    checklist: [
+      { id: 1, text: 'Write new content', completed: true },
+      { id: 2, text: 'Add photos', completed: true },
+      { id: 3, text: 'Get approval', completed: true },
+      { id: 4, text: 'Publish updates', completed: true }
+    ],
+    comments: [
+      {
+        id: 1,
+        authorName: 'Pastor John Williams',
+        text: 'Great work on the content!',
+        timestamp: '2024-01-30T10:00:00Z'
+      }
+    ],
+    createdAt: '2024-01-20T08:30:00Z',
+    updatedAt: '2024-01-30T15:20:00Z'
+  }
+];
+
+// Committee Meetings
+export const mockCommitteeMeetings: CommitteeMeeting[] = [
+  {
+    id: 1,
+    title: 'Monthly Finance Review',
+    date: '2024-02-03',
+    startTime: '09:00',
+    endTime: '11:00',
+    location: 'Church Conference Room',
+    agenda: [
+      { id: 1, item: 'Budget Review', duration: 30, presenter: 'David Clark' },
+      { id: 2, item: 'Q1 Projections', duration: 20, presenter: 'Michael Brown' },
+      { id: 3, item: 'Welfare Requests', duration: 25, presenter: 'James Thompson' },
+      { id: 4, item: 'Equipment Needs', duration: 15, presenter: 'Robert Wilson' }
+    ],
+    attendees: [
+      { memberId: 1, name: 'Pastor John Williams', status: 'present' },
+      { memberId: 2, name: 'David Clark', status: 'present' },
+      { memberId: 3, name: 'Michael Brown', status: 'present' },
+      { memberId: 4, name: 'James Thompson', status: 'late' },
+      { memberId: 5, name: 'Robert Wilson', status: 'absent' }
+    ],
+    minutes: 'Meeting focused on Q1 budget allocations and upcoming welfare needs. All committee heads reported satisfactory progress on assigned tasks.',
+    decisions: [
+      {
+        id: 1,
+        decision: 'Approve additional £500 for welfare emergency fund',
+        responsible: 'David Clark',
+        deadline: '2024-02-10'
+      },
+      {
+        id: 2,
+        decision: 'Schedule equipment assessment for sound system',
+        responsible: 'Robert Wilson',
+        deadline: '2024-02-15'
+      }
+    ],
+    followUpTasks: [1, 2],
+    status: 'completed'
+  },
+  {
+    id: 2,
+    title: 'Quarterly Planning Session',
+    date: '2024-02-17',
+    startTime: '10:00',
+    endTime: '12:00',
+    location: 'Church Hall',
+    agenda: [
+      { id: 1, item: 'Q2 Goals Setting', duration: 45, presenter: 'Pastor John Williams' },
+      { id: 2, item: 'Committee Reports', duration: 30, presenter: 'All Heads' },
+      { id: 3, item: 'Resource Planning', duration: 30, presenter: 'David Clark' },
+      { id: 4, item: 'Action Items', duration: 15, presenter: 'Secretary' }
+    ],
+    attendees: [
+      { memberId: 1, name: 'Pastor John Williams', status: 'present' },
+      { memberId: 2, name: 'David Clark', status: 'present' },
+      { memberId: 3, name: 'Michael Brown', status: 'present' },
+      { memberId: 4, name: 'James Thompson', status: 'present' },
+      { memberId: 5, name: 'Robert Wilson', status: 'present' }
+    ],
+    minutes: '',
+    decisions: [],
+    followUpTasks: [],
+    status: 'scheduled'
+  }
+];
+
+// Committee Expenses
+export const mockCommitteeExpenses: CommitteeExpense[] = [
+  {
+    id: 1,
+    description: 'Refreshments for Monthly Meeting',
+    amount: 150.00,
+    requestedBy: 'James Thompson',
+    requestedAt: '2024-01-25T14:30:00Z',
+    approvedBy: 'Pastor John Williams',
+    approvedAt: '2024-01-26T09:15:00Z',
+    status: 'paid',
+    category: 'Meetings & Events',
+    receiptUrl: '/receipts/meeting_refreshments_jan.pdf',
+    notes: 'Catering for 25 attendees at monthly committee meeting'
+  },
+  {
+    id: 2,
+    description: 'Office Supplies - Stationery',
+    amount: 85.50,
+    requestedBy: 'Michael Brown',
+    requestedAt: '2024-01-28T11:00:00Z',
+    status: 'pending',
+    category: 'Office Supplies',
+    notes: 'Pens, notebooks, and folders for committee work'
+  },
+  {
+    id: 3,
+    description: 'Welfare Emergency Support',
+    amount: 300.00,
+    requestedBy: 'Robert Wilson',
+    requestedAt: '2024-01-29T16:45:00Z',
+    approvedBy: 'Pastor John Williams',
+    approvedAt: '2024-01-30T08:30:00Z',
+    status: 'approved',
+    category: 'Welfare Support',
+    receiptUrl: '/receipts/medical_assistance_receipt.jpg',
+    notes: 'Emergency medical assistance for Brother Samuel'
+  }
+];
+
+// Mock Contributions and Pledges (for Finance Committee)
+export const mockContributions = [
+  {
+    id: 1,
+    amount: 500,
+    date: '2024-01-15',
+    member: 'John Smith',
+    type: 'Monthly Dues',
+    method: 'Bank Transfer'
+  },
+  {
+    id: 2,
+    amount: 250,
+    date: '2024-01-20',
+    member: 'Michael Brown',
+    type: 'Special Offering',
+    method: 'Cash'
+  }
+];
+
+export const mockPledges = [
+  {
+    id: 1,
+    member: 'David Clark',
+    amount: 1200,
+    pledged: 1200,
+    paid: 800,
+    remaining: 400,
+    dueDate: '2024-12-31'
+  }
+];
 
 // Finance Committee Mock Data
 export const mockBudgetEnvelopes: BudgetEnvelope[] = [
@@ -407,6 +691,3 @@ export const mockInvestigations: Investigation[] = [
     recommendations: 'Pending completion of interviews'
   }
 ];
-
-// Re-export existing committee data
-export * from './mockCommitteeData';
