@@ -21,6 +21,7 @@ import { mockCommitteeWorkspaces } from '@/data/mockCommitteeData';
 import { CommitteeTaskBoard } from './CommitteeTaskBoard';
 import { CommitteeMeetings } from './CommitteeMeetings';
 import { CommitteeFinance } from './CommitteeFinance';
+import { EducationCommittee } from './EducationCommittee';
 
 interface CommitteeWorkspaceProps {
   committeeId: number;
@@ -46,6 +47,34 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
 
   const canManage = ['head', 'secretary', 'treasurer'].includes(userRole);
   const canEdit = ['head', 'secretary', 'treasurer', 'member'].includes(userRole);
+
+  if (committeeId === 2) { // Education Committee
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{workspace.name}</h1>
+            <p className="text-gray-600 mt-1">{workspace.description}</p>
+            <div className="flex items-center mt-2 space-x-2">
+              <Badge variant="outline">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>
+              <Badge variant={getPermissionLevel(userRole) === 'full' ? 'default' : 'secondary'}>
+                {getPermissionLevel(userRole)} access
+              </Badge>
+            </div>
+          </div>
+          {canManage && (
+            <Button>
+              <Users className="mr-2 h-4 w-4" />
+              Manage Committee
+            </Button>
+          )}
+        </div>
+
+        <EducationCommittee userRole={userRole} canManage={canManage} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
