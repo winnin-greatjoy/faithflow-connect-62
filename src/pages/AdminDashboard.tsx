@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
 import { MemberManagement } from '@/components/admin/MemberManagement';
-import { MensMinistryDashboard } from '@/components/admin/MensMinistryDashboard';
+import MensMinistryDashboard from '@/components/admin/MensMinistryDashboard';
 import { CommunicationHub } from '@/components/admin/CommunicationHub';
 import { FinanceModule } from '@/components/admin/FinanceModule';
 import { EventsModule } from '@/components/admin/EventsModule';
