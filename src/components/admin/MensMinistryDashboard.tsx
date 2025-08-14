@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,12 +19,16 @@ import {
   ChevronRight,
   Activity,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Baby,
+  Zap
 } from 'lucide-react';
 import { CommitteeWorkspace } from '../committee/CommitteeWorkspace';
+import { MinistryRouter } from '../ministry/MinistryRouter';
 
 const MensMinistryDashboard = () => {
   const [selectedCommittee, setSelectedCommittee] = useState<number | null>(null);
+  const [selectedMinistry, setSelectedMinistry] = useState<'womens' | 'youth' | 'childrens' | null>(null);
   const [userRole] = useState<'head' | 'secretary' | 'treasurer' | 'member' | 'observer'>('head');
 
   const committees = [
@@ -106,6 +111,67 @@ const MensMinistryDashboard = () => {
     }
   ];
 
+  const ministries = [
+    {
+      id: 'womens',
+      name: "Women's Ministry",
+      description: 'Spiritual growth, fellowship, and community support',
+      icon: Heart,
+      color: 'text-pink-600',
+      bgColor: 'bg-pink-50',
+      members: 156,
+      activeGroups: 12,
+      nextEvent: '2024-02-08'
+    },
+    {
+      id: 'youth',
+      name: 'Youth & Young Adults',
+      description: 'Discipleship and leadership development (Ages 13-30)',
+      icon: Zap,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      members: 248,
+      activeGroups: 8,
+      nextEvent: '2024-02-10'
+    },
+    {
+      id: 'childrens',
+      name: "Children's Ministry",
+      description: 'Safe, age-appropriate discipleship (Ages 2-12)',
+      icon: Baby,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      members: 156,
+      activeGroups: 6,
+      nextEvent: '2024-02-04'
+    }
+  ];
+
+  // If a ministry is selected, show its dashboard
+  if (selectedMinistry) {
+    const ministry = ministries.find(m => m.id === selectedMinistry);
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b px-6 py-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setSelectedMinistry(null)}
+            className="mb-4"
+          >
+            ← Back to Dashboard
+          </Button>
+        </div>
+        
+        <div className="p-6">
+          <MinistryRouter 
+            ministryType={selectedMinistry}
+            userRole={userRole}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // If a committee is selected, show its workspace
   if (selectedCommittee) {
     const committee = committees.find(c => c.id === selectedCommittee);
@@ -138,7 +204,7 @@ const MensMinistryDashboard = () => {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Men's Ministry Dashboard</h1>
-          <p className="text-gray-600 mt-1">Comprehensive committee management and oversight</p>
+          <p className="text-gray-600 mt-1">Comprehensive committee and ministry management</p>
         </div>
         <Badge variant="outline" className="px-3 py-1">
           Ministry Head - Full Access
@@ -201,8 +267,9 @@ const MensMinistryDashboard = () => {
       </div>
 
       <Tabs defaultValue="committees" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="committees">Committees</TabsTrigger>
+          <TabsTrigger value="ministries">Other Ministries</TabsTrigger>
           <TabsTrigger value="overview">Ministry Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -258,6 +325,63 @@ const MensMinistryDashboard = () => {
           </div>
         </TabsContent>
 
+        <TabsContent value="ministries" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-medium">Other Church Ministries</h3>
+              <p className="text-sm text-gray-500">Access dashboards for other ministry branches</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ministries.map((ministry) => (
+              <Card 
+                key={ministry.id} 
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => setSelectedMinistry(ministry.id as any)}
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className={`p-3 rounded-lg ${ministry.bgColor}`}>
+                      <ministry.icon className={`h-6 w-6 ${ministry.color}`} />
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <CardTitle className="text-lg">{ministry.name}</CardTitle>
+                  <CardDescription>{ministry.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center space-x-1">
+                        <Users className="h-4 w-4 text-gray-500" />
+                        <span className="font-medium">{ministry.members}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Members</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center space-x-1">
+                        <Activity className="h-4 w-4 text-gray-500" />
+                        <span className="font-medium">{ministry.activeGroups}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Groups</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center space-x-1">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <span className="font-medium text-xs">
+                          {new Date(ministry.nextEvent).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Next Event</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
         <TabsContent value="overview" className="space-y-6">
           <div className="text-center py-12">
             <Target className="mx-auto h-12 w-12 text-gray-400" />
@@ -283,7 +407,7 @@ const MensMinistryDashboard = () => {
             <Award className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-lg font-medium text-gray-900">Ministry Reports</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Comprehensive reporting across all committees
+              Comprehensive reporting across all committees and ministries
             </p>
           </div>
         </TabsContent>
