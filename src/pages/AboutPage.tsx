@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,8 +14,8 @@ import {
   Target,
   Eye
 } from 'lucide-react';
-import { ChurchNavbar } from '@/components/church/ChurchNavbar';
-import { ChurchFooter } from '@/components/church/ChurchFooter';
+import ChurchNavbar from '@/components/church/ChurchNavbar';
+import ChurchFooter from '@/components/church/ChurchFooter';
 
 const AboutPage = () => {
   const leadership = [
