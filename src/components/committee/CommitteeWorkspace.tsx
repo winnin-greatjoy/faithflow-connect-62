@@ -22,6 +22,8 @@ import { CommitteeTaskBoard } from './CommitteeTaskBoard';
 import { CommitteeMeetings } from './CommitteeMeetings';
 import { CommitteeFinance } from './CommitteeFinance';
 import { EducationCommittee } from './EducationCommittee';
+import { FinanceCommittee } from './FinanceCommittee';
+import { TreasuryCommittee } from './TreasuryCommittee';
 
 interface CommitteeWorkspaceProps {
   committeeId: number;
@@ -48,6 +50,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
   const canManage = ['head', 'secretary', 'treasurer'].includes(userRole);
   const canEdit = ['head', 'secretary', 'treasurer', 'member'].includes(userRole);
 
+  // Committee-specific routing
   if (committeeId === 2) { // Education Committee
     return (
       <div className="space-y-6">
@@ -72,6 +75,60 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
         </div>
 
         <EducationCommittee userRole={userRole} canManage={canManage} />
+      </div>
+    );
+  }
+
+  if (committeeId === 1) { // Finance Committee
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Finance Committee</h1>
+            <p className="text-gray-600 mt-1">Financial planning, budgets, and reporting</p>
+            <div className="flex items-center mt-2 space-x-2">
+              <Badge variant="outline">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>
+              <Badge variant={getPermissionLevel(userRole) === 'full' ? 'default' : 'secondary'}>
+                {getPermissionLevel(userRole)} access
+              </Badge>
+            </div>
+          </div>
+          {canManage && (
+            <Button>
+              <Users className="mr-2 h-4 w-4" />
+              Manage Committee
+            </Button>
+          )}
+        </div>
+
+        <FinanceCommittee userRole={userRole} canManage={canManage} />
+      </div>
+    );
+  }
+
+  if (committeeId === 4) { // Treasury Committee
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Treasury Committee</h1>
+            <p className="text-gray-600 mt-1">Cash management and disbursement</p>
+            <div className="flex items-center mt-2 space-x-2">
+              <Badge variant="outline">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>
+              <Badge variant={getPermissionLevel(userRole) === 'full' ? 'default' : 'secondary'}>
+                {getPermissionLevel(userRole)} access
+              </Badge>
+            </div>
+          </div>
+          {canManage && (
+            <Button>
+              <Users className="mr-2 h-4 w-4" />
+              Manage Committee
+            </Button>
+          )}
+        </div>
+
+        <TreasuryCommittee userRole={userRole} canManage={canManage} />
       </div>
     );
   }

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,16 @@ import {
   mockFinancialSummary 
 } from '@/data/mockMinistryData';
 import { CommitteeWorkspace } from '@/components/committee/CommitteeWorkspace';
+
+const committees = [
+  { id: 1, name: 'Finance Committee', description: 'Financial planning and budgeting', members: 5, status: 'active' },
+  { id: 2, name: 'Education Committee', description: 'Student support and recognition', members: 4, status: 'active' },  
+  { id: 3, name: 'Welfare Committee', description: 'Member care and support', members: 6, status: 'active' },
+  { id: 4, name: 'Treasury Committee', description: 'Cash management and disbursements', members: 3, status: 'active' },
+  { id: 5, name: 'PR Committee', description: 'Communications and publications', members: 4, status: 'active' },
+  { id: 6, name: 'Audit Committee', description: 'Independent oversight and compliance', members: 3, status: 'active' },
+  { id: 7, name: 'Ethics Committee', description: 'Conduct and grievance handling', members: 5, status: 'active' }
+];
 
 export const MensMinistryDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');

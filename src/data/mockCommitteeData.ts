@@ -1,282 +1,412 @@
 
-import { CommitteeTask, CommitteeMeeting, CommitteeDocument, CommitteeExpense, CommitteePublication, CommitteeWorkspace } from '@/types/committee';
+import { 
+  BudgetEnvelope, 
+  IncomeTransaction, 
+  ExpenseRequest, 
+  CashAccount, 
+  Receipt, 
+  Disbursement,
+  WelfareCase,
+  CaseVisit,
+  Publication,
+  MediaAsset,
+  AuditException,
+  AuditFinding,
+  EthicsReport,
+  Investigation
+} from '@/types/committees';
 
-export const mockCommitteeTasks: CommitteeTask[] = [
+// Finance Committee Mock Data
+export const mockBudgetEnvelopes: BudgetEnvelope[] = [
   {
     id: 1,
-    title: 'Prepare Monthly Financial Report',
-    description: 'Compile all contributions and expenses for January 2024',
-    status: 'in_progress',
-    assigneeId: 3,
-    assigneeName: 'David Clark',
-    dueDate: '2024-01-31',
-    priority: 'high',
-    tags: ['finance', 'monthly', 'report'],
-    attachments: ['january_receipts.pdf'],
-    checklist: [
-      { id: 1, text: 'Gather all receipts', completed: true },
-      { id: 2, text: 'Reconcile bank statements', completed: true },
-      { id: 3, text: 'Create summary report', completed: false },
-      { id: 4, text: 'Get approval from committee head', completed: false }
-    ],
-    comments: [
-      { id: 1, authorName: 'David Clark', text: 'Working on the reconciliation', timestamp: '2024-01-25T10:30:00Z' }
-    ],
-    createdAt: '2024-01-20',
-    updatedAt: '2024-01-25'
+    name: 'Events & Programs',
+    category: 'Operations',
+    allocatedAmount: 5000,
+    spentAmount: 2750,
+    remainingAmount: 2250,
+    fiscalYear: '2024',
+    status: 'active'
   },
   {
     id: 2,
-    title: 'Organize Men\'s Retreat Registration',
-    description: 'Set up registration system and coordinate logistics',
-    status: 'backlog',
-    assigneeId: 2,
-    assigneeName: 'Michael Brown',
-    dueDate: '2024-02-01',
-    priority: 'medium',
-    tags: ['event', 'registration'],
-    attachments: [],
-    checklist: [
-      { id: 1, text: 'Create registration form', completed: false },
-      { id: 2, text: 'Set up payment processing', completed: false },
-      { id: 3, text: 'Coordinate with venue', completed: false }
-    ],
-    comments: [],
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-15'
+    name: 'Welfare Support',
+    category: 'Ministry',
+    allocatedAmount: 3000,
+    spentAmount: 1800,
+    remainingAmount: 1200,
+    fiscalYear: '2024',
+    status: 'active'
   },
   {
     id: 3,
-    title: 'Review Welfare Support Cases',
-    description: 'Weekly review of active welfare support cases and follow-ups',
-    status: 'done',
-    assigneeId: 1,
-    assigneeName: 'Pastor John Williams',
-    dueDate: '2024-01-22',
-    priority: 'high',
-    tags: ['welfare', 'review'],
-    attachments: ['case_summary.pdf'],
-    checklist: [
-      { id: 1, text: 'Review active cases', completed: true },
-      { id: 2, text: 'Schedule follow-up visits', completed: true },
-      { id: 3, text: 'Update case notes', completed: true }
-    ],
-    comments: [
-      { id: 1, authorName: 'Pastor John Williams', text: 'All cases reviewed. 3 require follow-up visits this week.', timestamp: '2024-01-22T14:15:00Z' }
-    ],
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-22'
+    name: 'Equipment & Supplies',
+    category: 'Capital',
+    allocatedAmount: 2000,
+    spentAmount: 2100,
+    remainingAmount: -100,
+    fiscalYear: '2024',
+    status: 'over_budget'
   }
 ];
 
-export const mockCommitteeMeetings: CommitteeMeeting[] = [
+export const mockIncomeTransactions: IncomeTransaction[] = [
   {
     id: 1,
-    title: 'Finance Committee Monthly Meeting',
-    date: '2024-02-03',
-    startTime: '09:00',
-    endTime: '10:30',
-    location: 'Church Conference Room',
-    agenda: [
-      { id: 1, item: 'Review January Financial Report', duration: 20, presenter: 'David Clark' },
-      { id: 2, item: 'Discuss Building Fund Progress', duration: 15, presenter: 'Pastor John Williams' },
-      { id: 3, item: 'Budget Planning for Q1 Events', duration: 30, presenter: 'Michael Brown' },
-      { id: 4, item: 'New Business', duration: 25, presenter: 'All' }
-    ],
-    attendees: [
-      { memberId: 1, name: 'Pastor John Williams', status: 'present' },
-      { memberId: 3, name: 'David Clark', status: 'present' },
-      { memberId: 5, name: 'Robert Wilson', status: 'present' }
-    ],
-    minutes: '',
-    decisions: [],
-    followUpTasks: [],
-    status: 'scheduled'
+    receiptNo: 'MIN-2024-001',
+    amount: 500,
+    source: 'dues',
+    method: 'bank_transfer',
+    memberId: 1,
+    memberName: 'John Smith',
+    description: 'Monthly dues - January 2024',
+    recordedBy: 'David Clark',
+    recordedAt: '2024-01-15T10:30:00Z',
+    envelopeId: 1
   },
   {
     id: 2,
-    title: 'Education Committee Planning Session',
-    date: '2024-01-21',
-    startTime: '14:00',
-    endTime: '15:30',
-    location: 'Church Library',
-    agenda: [
-      { id: 1, item: 'Review Student Performance Reports', duration: 30, presenter: 'James Thompson' },
-      { id: 2, item: 'Determine Support Packages', duration: 45, presenter: 'All' },
-      { id: 3, item: 'Budget Allocation', duration: 15, presenter: 'James Thompson' }
-    ],
-    attendees: [
-      { memberId: 4, name: 'James Thompson', status: 'present' },
-      { memberId: 1, name: 'Pastor John Williams', status: 'present' }
-    ],
-    minutes: 'Reviewed 12 student reports. Identified 3 top performers for support packages. Allocated £500 budget for educational materials.',
-    decisions: [
-      { id: 1, decision: 'Award £200 to Sarah Mensah for excellent GCSE results', responsible: 'James Thompson', deadline: '2024-01-30' },
-      { id: 2, decision: 'Purchase study materials for identified students', responsible: 'James Thompson', deadline: '2024-02-15' }
-    ],
-    followUpTasks: [1, 2],
-    status: 'completed'
+    receiptNo: 'MIN-2024-002',
+    amount: 1000,
+    source: 'pledge',
+    method: 'cash',
+    memberId: 2,
+    memberName: 'Michael Brown',
+    description: 'Building fund pledge payment',
+    recordedBy: 'David Clark',
+    recordedAt: '2024-01-20T14:15:00Z'
   }
 ];
 
-export const mockCommitteeDocuments: CommitteeDocument[] = [
+export const mockExpenseRequests: ExpenseRequest[] = [
   {
     id: 1,
-    title: 'Finance Committee Procedures Manual',
-    type: 'policy',
-    fileUrl: '/docs/finance_procedures.pdf',
-    uploadedBy: 'Pastor John Williams',
-    uploadedAt: '2024-01-10',
-    version: 2,
-    tags: ['finance', 'procedures', 'manual'],
-    accessLevel: 'committee'
-  },
-  {
-    id: 2,
-    title: 'Monthly Report Template',
-    type: 'template',
-    fileUrl: '/docs/monthly_report_template.docx',
-    uploadedBy: 'David Clark',
-    uploadedAt: '2024-01-15',
-    version: 1,
-    tags: ['template', 'report'],
-    accessLevel: 'committee'
-  },
-  {
-    id: 3,
-    title: 'Welfare Support Guidelines',
-    type: 'policy',
-    fileUrl: '/docs/welfare_guidelines.pdf',
-    uploadedBy: 'Pastor John Williams',
-    uploadedAt: '2024-01-05',
-    version: 1,
-    tags: ['welfare', 'guidelines', 'policy'],
-    accessLevel: 'leadership'
-  }
-];
-
-export const mockCommitteeExpenses: CommitteeExpense[] = [
-  {
-    id: 1,
-    description: 'Printing and stationery for meeting materials',
-    amount: 45.50,
-    requestedBy: 'David Clark',
-    requestedAt: '2024-01-20',
-    approvedBy: 'Pastor John Williams',
-    approvedAt: '2024-01-21',
+    requesterId: 3,
+    requesterName: 'James Thompson',
+    envelopeId: 1,
+    envelopeName: 'Events & Programs',
+    description: 'Refreshments for quarterly meeting',
+    amount: 150,
+    vendor: 'City Catering Services',
+    quoteUrl: '/files/quote_001.pdf',
     status: 'approved',
-    category: 'Office Supplies',
-    receiptUrl: '/receipts/receipt_001.jpg',
-    notes: 'Regular monthly printing expenses'
+    approvals: [
+      {
+        id: 1,
+        approverId: 1,
+        approverName: 'Pastor John Williams',
+        approverRole: 'Finance Head',
+        status: 'approved',
+        comments: 'Approved for quarterly meeting',
+        timestamp: '2024-01-25T09:00:00Z'
+      }
+    ],
+    submittedAt: '2024-01-22T16:30:00Z',
+    notes: 'Required for 50 attendees'
   },
   {
     id: 2,
-    description: 'Refreshments for committee meetings',
-    amount: 25.00,
-    requestedBy: 'Michael Brown',
-    requestedAt: '2024-01-22',
-    status: 'pending',
-    category: 'Hospitality',
-    notes: 'Tea, coffee, and biscuits for February meetings'
-  },
-  {
-    id: 3,
-    description: 'Educational materials for students',
-    amount: 150.00,
-    requestedBy: 'James Thompson',
-    requestedAt: '2024-01-25',
-    status: 'pending',
-    category: 'Education',
-    notes: 'Books and supplies for top-performing students'
+    requesterId: 4,
+    requesterName: 'Robert Wilson',
+    envelopeId: 2,
+    envelopeName: 'Welfare Support',
+    description: 'Emergency medical assistance',
+    amount: 500,
+    status: 'submitted',
+    approvals: [
+      {
+        id: 2,
+        approverId: 1,
+        approverName: 'Pastor John Williams',
+        approverRole: 'Finance Head',
+        status: 'pending'
+      }
+    ],
+    submittedAt: '2024-01-28T11:45:00Z',
+    notes: 'Urgent medical assistance for Brother Samuel'
   }
 ];
 
-export const mockCommitteePublications: CommitteePublication[] = [
+// Treasury Committee Mock Data
+export const mockCashAccounts: CashAccount[] = [
   {
     id: 1,
-    title: 'February 2024 Finance Update',
-    content: 'We are pleased to announce that the Men\'s Ministry has successfully raised £2,500 toward our quarterly goals...',
-    authorId: 3,
-    authorName: 'David Clark',
+    name: 'Main Church Account',
+    type: 'bank',
+    accountNumber: '****-4532',
+    balance: 15750.50,
+    lastReconciled: '2024-01-25'
+  },
+  {
+    id: 2,
+    name: 'Mobile Money Wallet',
+    type: 'mobile_wallet',
+    accountNumber: '0244-***-789',
+    balance: 2340.00,
+    lastReconciled: '2024-01-28'
+  },
+  {
+    id: 3,
+    name: 'Petty Cash',
+    type: 'petty_cash',
+    balance: 500.00,
+    lastReconciled: '2024-01-28'
+  }
+];
+
+export const mockReceipts: Receipt[] = [
+  {
+    id: 1,
+    receiptNo: 'RCP-2024-001',
+    amount: 100,
+    payerName: 'Sister Mary Johnson',
+    purpose: 'Monthly contribution',
+    method: 'cash',
+    issuedBy: 'David Clark',
+    issuedAt: '2024-01-28T09:15:00Z',
+    batchId: 1
+  },
+  {
+    id: 2,
+    receiptNo: 'RCP-2024-002',
+    amount: 250,
+    payerName: 'Brother Paul Anderson',
+    purpose: 'Event registration',
+    method: 'mobile_money',
+    issuedBy: 'Michael Brown',
+    issuedAt: '2024-01-28T11:30:00Z',
+    batchId: 1
+  }
+];
+
+export const mockDisbursements: Disbursement[] = [
+  {
+    id: 1,
+    beneficiaryName: 'Brother Samuel Osei',
+    amount: 300,
+    purpose: 'Medical assistance',
+    method: 'mobile_money',
+    accountId: 2,
+    approvedBy: 'Pastor John Williams',
+    disbursedBy: 'David Clark',
+    receiptUrl: '/receipts/disbursement_001.jpg',
+    disbursedAt: '2024-01-26T14:20:00Z',
+    notes: 'Emergency medical support approved by welfare committee'
+  }
+];
+
+// Welfare Committee Mock Data
+export const mockWelfareCases: WelfareCase[] = [
+  {
+    id: 1,
+    requesterId: 5,
+    requesterName: 'Sister Grace Mensah',
+    caseType: 'illness',
+    description: 'Chronic diabetes treatment support needed',
+    urgency: 'medium',
+    status: 'approved',
+    assignedTo: 'Brother Daniel Asante',
+    estimatedAmount: 800,
+    approvedAmount: 600,
+    disbursedAmount: 600,
+    privacyLevel: 'committee_only',
+    submittedAt: '2024-01-15T08:30:00Z',
+    lastUpdated: '2024-01-25T16:45:00Z',
+    notes: 'Monthly medication support approved for 3 months'
+  },
+  {
+    id: 2,
+    requesterId: 6,
+    requesterName: 'Brother Joseph Addo',
+    caseType: 'bereavement',
+    description: 'Funeral expenses support following wife\'s passing',
+    urgency: 'high',
+    status: 'assessment',
+    assignedTo: 'Sister Ruth Owusu',
+    estimatedAmount: 1500,
+    privacyLevel: 'leadership_only',
+    submittedAt: '2024-01-26T12:00:00Z',
+    lastUpdated: '2024-01-27T10:15:00Z',
+    notes: 'Home visit scheduled for assessment'
+  }
+];
+
+export const mockCaseVisits: CaseVisit[] = [
+  {
+    id: 1,
+    caseId: 1,
+    visitorName: 'Brother Daniel Asante',
+    visitDate: '2024-01-18',
+    visitType: 'home',
+    findings: 'Sister Grace is managing well with current medication but needs continued support',
+    recommendations: 'Continue monthly medication allowance for next 3 months',
+    followUpRequired: true,
+    followUpDate: '2024-02-18'
+  }
+];
+
+// PR Committee Mock Data
+export const mockPublications: Publication[] = [
+  {
+    id: 1,
+    title: 'Men\'s Ministry Quarterly Update - Q1 2024',
+    content: 'We are excited to share the progress and achievements of our Men\'s Ministry...',
+    type: 'newsletter',
+    authorId: 7,
+    authorName: 'Brother Emmanuel Tetteh',
+    status: 'published',
+    audience: 'church_wide',
+    publishDate: '2024-01-28',
+    reviewedBy: 'Pastor John Williams',
+    tags: ['newsletter', 'quarterly', 'ministry-update'],
+    mediaAssets: ['/media/mens-ministry-banner.jpg'],
+    analytics: {
+      views: 156,
+      clicks: 23,
+      shares: 8
+    },
+    createdAt: '2024-01-25T14:30:00Z',
+    updatedAt: '2024-01-27T16:20:00Z'
+  },
+  {
+    id: 2,
+    title: 'Upcoming Leadership Retreat - Register Now',
+    content: 'Join us for an inspiring weekend of fellowship and spiritual growth...',
+    type: 'event_promo',
+    authorId: 7,
+    authorName: 'Brother Emmanuel Tetteh',
     status: 'approved',
     audience: 'ministry_only',
     publishDate: '2024-02-01',
+    expiryDate: '2024-02-15',
     reviewedBy: 'Pastor John Williams',
-    tags: ['finance', 'update', 'progress'],
-    createdAt: '2024-01-28',
-    updatedAt: '2024-01-30'
-  },
-  {
-    id: 2,
-    title: 'Men\'s Ministry Educational Support Program',
-    content: 'The Education Committee is launching a new initiative to support our brightest young minds...',
-    authorId: 4,
-    authorName: 'James Thompson',
-    status: 'review',
-    audience: 'church_wide',
-    reviewNotes: 'Please add more details about application process',
-    tags: ['education', 'program', 'announcement'],
-    createdAt: '2024-01-26',
-    updatedAt: '2024-01-28'
+    tags: ['retreat', 'leadership', 'registration'],
+    mediaAssets: ['/media/retreat-flyer.png'],
+    analytics: {
+      views: 89,
+      clicks: 34,
+      shares: 12
+    },
+    createdAt: '2024-01-28T10:00:00Z',
+    updatedAt: '2024-01-28T15:45:00Z'
   }
 ];
 
-export const mockCommitteeWorkspaces: CommitteeWorkspace[] = [
+export const mockMediaAssets: MediaAsset[] = [
   {
     id: 1,
-    name: 'Finance Committee',
-    description: 'Managing financial resources and budgeting',
-    stats: {
-      totalTasks: 15,
-      completedTasks: 8,
-      pendingTasks: 5,
-      overdueTasks: 2,
-      upcomingMeetings: 1,
-      monthlyBudget: 2000,
-      spent: 1245,
-      publications: 3
-    }
-  },
-  {
-    id: 2,
-    name: 'Education Committee',
-    description: 'Supporting educational excellence in our community',
-    stats: {
-      totalTasks: 8,
-      completedTasks: 6,
-      pendingTasks: 2,
-      overdueTasks: 0,
-      upcomingMeetings: 0,
-      monthlyBudget: 500,
-      spent: 200,
-      publications: 1
-    }
-  },
-  {
-    id: 3,
-    name: 'Welfare Committee',
-    description: 'Providing support and care for members in need',
-    stats: {
-      totalTasks: 12,
-      completedTasks: 9,
-      pendingTasks: 2,
-      overdueTasks: 1,
-      upcomingMeetings: 0,
-      monthlyBudget: 1000,
-      spent: 750,
-      publications: 0
-    }
+    filename: 'mens-ministry-banner.jpg',
+    type: 'image',
+    url: '/media/mens-ministry-banner.jpg',
+    size: 245760,
+    uploadedBy: 'Brother Emmanuel Tetteh',
+    uploadedAt: '2024-01-25T13:15:00Z',
+    tags: ['banner', 'ministry', 'branding'],
+    description: 'Official Men\'s Ministry banner for publications'
   }
 ];
 
-// Add the missing exports that CommitteeFinance is trying to import
-export const mockContributions = [
-  { id: 1, amount: 500, contributor: 'John Smith', date: '2024-01-15', method: 'Bank Transfer' },
-  { id: 2, amount: 250, contributor: 'Mary Johnson', date: '2024-01-20', method: 'Cash' },
-  { id: 3, amount: 750, contributor: 'David Wilson', date: '2024-01-25', method: 'Card' }
+// Audit Committee Mock Data
+export const mockAuditExceptions: AuditException[] = [
+  {
+    id: 1,
+    type: 'threshold_breach',
+    severity: 'medium',
+    entityType: 'expense',
+    entityId: 1,
+    description: 'Expense request exceeds envelope allocation',
+    detectedAt: '2024-01-28T02:00:00Z',
+    status: 'investigating',
+    assignedTo: 'Brother Francis Owusu'
+  },
+  {
+    id: 2,
+    type: 'missing_receipt',
+    severity: 'high',
+    entityType: 'disbursement',
+    entityId: 1,
+    description: 'Disbursement made without proper receipt documentation',
+    detectedAt: '2024-01-27T01:30:00Z',
+    status: 'open',
+    assignedTo: 'Brother Francis Owusu'
+  }
 ];
 
-export const mockPledges = [
-  { id: 1, pledger: 'Robert Brown', amount: 1000, pledged: '2024-01-01', due: '2024-12-31', paid: 300 },
-  { id: 2, pledger: 'Sarah Davis', amount: 500, pledged: '2024-01-15', due: '2024-06-30', paid: 500 }
+export const mockAuditFindings: AuditFinding[] = [
+  {
+    id: 1,
+    title: 'Inadequate Documentation for Welfare Disbursements',
+    description: 'Several welfare disbursements lack proper beneficiary acknowledgment receipts',
+    severity: 'medium',
+    category: 'compliance',
+    affectedArea: 'Welfare Committee',
+    evidence: ['/audit/evidence_001.pdf', '/audit/evidence_002.pdf'],
+    recommendations: [
+      'Implement mandatory receipt collection for all disbursements',
+      'Create standardized disbursement forms',
+      'Provide training on documentation requirements'
+    ],
+    assignedTo: 'Brother Daniel Asante',
+    dueDate: '2024-02-15',
+    status: 'in_progress',
+    createdAt: '2024-01-20T09:00:00Z'
+  }
 ];
+
+// Ethics Committee Mock Data
+export const mockEthicsReports: EthicsReport[] = [
+  {
+    id: 1,
+    isAnonymous: true,
+    subject: 'Concerns about committee transparency',
+    description: 'There are concerns about the transparency of financial decisions in one of the committees...',
+    category: 'financial_impropriety',
+    severity: 'medium',
+    involvedParties: ['Committee Member A', 'Committee Member B'],
+    status: 'triaged',
+    assignedInvestigator: 'Elder Samuel Adjei',
+    submittedAt: '2024-01-22T16:45:00Z',
+    lastUpdated: '2024-01-25T11:30:00Z',
+    confidentialityLevel: 'leadership_only'
+  }
+];
+
+export const mockInvestigations: Investigation[] = [
+  {
+    id: 1,
+    reportId: 1,
+    investigatorId: 8,
+    investigatorName: 'Elder Samuel Adjei',
+    status: 'in_progress',
+    startDate: '2024-01-25',
+    expectedCompletionDate: '2024-02-08',
+    interviews: [
+      {
+        id: 1,
+        investigationId: 1,
+        intervieweeName: 'Committee Member C',
+        intervieweeRole: 'Witness',
+        scheduledDate: '2024-01-30T14:00:00Z',
+        location: 'Church Office - Room 2',
+        notes: 'Initial witness interview scheduled'
+      }
+    ],
+    evidence: [
+      {
+        id: 1,
+        investigationId: 1,
+        type: 'document',
+        description: 'Committee meeting minutes from December 2023',
+        fileUrl: '/evidence/minutes_dec_2023.pdf',
+        submittedBy: 'Elder Samuel Adjei',
+        submittedAt: '2024-01-26T10:00:00Z',
+        chainOfCustody: ['Elder Samuel Adjei']
+      }
+    ],
+    findings: 'Investigation ongoing - preliminary review completed',
+    recommendations: 'Pending completion of interviews'
+  }
+];
+
+// Re-export existing committee data
+export * from './mockCommitteeData';
