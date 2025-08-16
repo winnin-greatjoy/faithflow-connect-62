@@ -10,7 +10,8 @@ import {
   Building, 
   FileBarChart, 
   Settings,
-  User
+  User,
+  FileText
 } from 'lucide-react';
 import {
   Sidebar,
@@ -34,6 +35,7 @@ const menuItems = [
   { id: 'overview', label: 'Dashboard Overview', icon: LayoutDashboard },
   { id: 'members', label: 'Members', icon: Users },
   { id: 'mens-ministry', label: 'Men\'s Ministry', icon: User },
+  { id: 'cms', label: 'Content Management', icon: FileText },
   { id: 'communication', label: 'Communication', icon: MessageCircle },
   { id: 'finance', label: 'Finance', icon: CreditCard },
   { id: 'events', label: 'Events', icon: Calendar },
