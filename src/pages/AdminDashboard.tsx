@@ -50,8 +50,7 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader 
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        sidebarOpen={sidebarOpen}
+        onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
       />
       
       <div className="flex">
