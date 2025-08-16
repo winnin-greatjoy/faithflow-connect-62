@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Search, Settings, User, LogOut, Menu, X } from 'lucide-react';
+import { Bell, Search, Settings, User, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useToast } from '@/hooks/use-toast';
 
 interface AdminHeaderProps {
@@ -58,36 +59,23 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
   };
 
   return (
-    <header className="bg-white border-b px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-      <div className="flex items-center justify-between gap-4">
-        {/* Mobile Menu Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onMenuToggle}
-          className="lg:hidden"
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-
-        {/* Logo and Church Name */}
-        <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-900 to-blue-800 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-xs sm:text-sm">FH</span>
-          </div>
-          <div className="min-w-0 hidden sm:block">
-            <h1 className="text-sm sm:text-lg font-semibold text-gray-900 truncate">Faith Healing Bible Church</h1>
-            <p className="text-xs sm:text-sm text-gray-500 truncate">Beccle St Branch</p>
-          </div>
+    <header className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
+        {/* Desktop Sidebar Trigger */}
+        <div className="flex items-center gap-2">
+          <SidebarTrigger className="hidden md:flex" />
+          <h1 className="hidden sm:block text-lg lg:text-xl font-semibold text-foreground truncate">
+            Admin Dashboard
+          </h1>
         </div>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-md mx-2 sm:mx-4 lg:mx-8 hidden md:block">
+        <div className="flex-1 max-w-sm lg:max-w-md mx-2 sm:mx-4 hidden sm:block">
           <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Search members, events, ministries..."
-              className="pl-10 text-sm"
+              placeholder="Search..."
+              className="pl-10 text-sm h-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -95,21 +83,21 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
+        <div className="flex items-center space-x-1 sm:space-x-2">
           {/* Mobile Search */}
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Search className="w-5 h-5" />
+          <Button variant="ghost" size="sm" className="sm:hidden">
+            <Search className="w-4 h-4" />
           </Button>
 
           {/* Notifications */}
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             className="relative"
             onClick={handleNotifications}
           >
-            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-            <Badge variant="destructive" className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 text-xs p-0 flex items-center justify-center">
+            <Bell className="w-4 h-4" />
+            <Badge variant="destructive" className="absolute -top-1 -right-1 w-4 h-4 text-xs p-0 flex items-center justify-center">
               3
             </Badge>
           </Button>
@@ -117,14 +105,14 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
           {/* Profile Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center space-x-1 sm:space-x-2 p-1 sm:p-2">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center">
+              <Button variant="ghost" size="sm" className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-6 h-6 sm:w-7 sm:h-7 bg-muted rounded-full flex items-center justify-center">
                   <User className="w-3 h-3 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm hidden sm:inline">Admin</span>
+                <span className="text-xs sm:text-sm hidden lg:inline">Admin</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 sm:w-56 bg-white">
+            <DropdownMenuContent align="end" className="w-48 sm:w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSettings}>
