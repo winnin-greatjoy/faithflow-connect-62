@@ -13,10 +13,10 @@ import { VolunteersModule } from '@/components/admin/VolunteersModule';
 import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
 import { ReportsModule } from '@/components/admin/ReportsModule';
 import { SettingsModule } from '@/components/admin/SettingsModule';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 const AdminDashboard = () => {
   const [activeModule, setActiveModule] = useState('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const renderModule = () => {
     switch (activeModule) {
@@ -48,27 +48,21 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <AdminHeader 
-        onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
-      
-      <div className="flex">
+    <SidebarProvider>
+      <div className="min-h-screen w-full bg-gray-50 flex">
         <AdminSidebar
           activeModule={activeModule}
-          onModuleChange={(module) => {
-            setActiveModule(module);
-            setSidebarOpen(false); // Close sidebar on mobile after selection
-          }}
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          onModuleChange={setActiveModule}
         />
         
-        <main className="flex-1 p-6 lg:ml-0">
-          {renderModule()}
-        </main>
+        <SidebarInset className="flex-1">
+          <AdminHeader />
+          <main className="flex-1 p-6">
+            {renderModule()}
+          </main>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
