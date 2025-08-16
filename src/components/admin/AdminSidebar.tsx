@@ -11,13 +11,17 @@ import {
   FileBarChart, 
   Settings,
   User,
-  FileText
+  FileText,
+  Heart,
+  Zap,
+  Baby
 } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -29,10 +33,9 @@ interface AdminSidebarProps {
   onModuleChange: (module: string) => void;
 }
 
-const menuItems = [
+const mainMenuItems = [
   { id: 'overview', label: 'Dashboard Overview', icon: LayoutDashboard },
   { id: 'members', label: 'Members', icon: Users },
-  { id: 'mens-ministry', label: 'Men\'s Ministry', icon: User },
   { id: 'cms', label: 'Content Management', icon: FileText },
   { id: 'communication', label: 'Communication', icon: MessageCircle },
   { id: 'finance', label: 'Finance', icon: CreditCard },
@@ -41,6 +44,13 @@ const menuItems = [
   { id: 'departments', label: 'Departments & Ministries', icon: Building },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'settings', label: 'Settings', icon: Settings },
+];
+
+const ministryMenuItems = [
+  { id: 'mens-ministry', label: 'Men\'s Ministry', icon: User },
+  { id: 'womens-ministry', label: 'Women\'s Ministry', icon: Heart },
+  { id: 'youth-ministry', label: 'Youth Ministry', icon: Zap },
+  { id: 'childrens-ministry', label: 'Children\'s Ministry', icon: Baby },
 ];
 
 export const AdminSidebar = ({ activeModule, onModuleChange }: AdminSidebarProps) => {
@@ -67,9 +77,30 @@ export const AdminSidebar = ({ activeModule, onModuleChange }: AdminSidebarProps
       
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Administration</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {mainMenuItems.map((item) => (
+                <SidebarMenuItem key={item.id}>
+                  <SidebarMenuButton
+                    isActive={activeModule === item.id}
+                    onClick={() => handleModuleChange(item.id)}
+                    className="w-full justify-start p-3 text-sm font-medium"
+                  >
+                    <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Ministries</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {ministryMenuItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     isActive={activeModule === item.id}

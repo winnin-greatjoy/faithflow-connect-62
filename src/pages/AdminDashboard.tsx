@@ -5,6 +5,9 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
 import { MemberManagement } from '@/components/admin/MemberManagement';
 import MensMinistryDashboard from '@/components/admin/MensMinistryDashboard';
+import WomensMinistryDashboard from '@/components/ministry/WomensMinistryDashboard';
+import YouthMinistryDashboard from '@/components/ministry/YouthMinistryDashboard';
+import ChildrensMinistryDashboard from '@/components/ministry/ChildrensMinistryDashboard';
 import { CMSDashboard } from '@/components/cms/CMSDashboard';
 import { CommunicationHub } from '@/components/admin/CommunicationHub';
 import { FinanceModule } from '@/components/admin/FinanceModule';
@@ -26,6 +29,12 @@ const AdminDashboard = () => {
         return <MemberManagement />;
       case 'mens-ministry':
         return <MensMinistryDashboard />;
+      case 'womens-ministry':
+        return <WomensMinistryDashboard userRole="head" />;
+      case 'youth-ministry':
+        return <YouthMinistryDashboard userRole="head" />;
+      case 'childrens-ministry':
+        return <ChildrensMinistryDashboard userRole="head" />;
       case 'cms':
         return <CMSDashboard />;
       case 'communication':
