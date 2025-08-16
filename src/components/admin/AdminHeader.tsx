@@ -1,143 +1,33 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Bell, Search, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Bell, Search, Settings, User, LogOut, Menu, X } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useToast } from '@/hooks/use-toast';
 
-interface AdminHeaderProps {
-  onMenuToggle: () => void;
-}
-
-export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const { toast } = useToast();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      toast({
-        title: "Search",
-        description: `Searching for: ${searchQuery}`,
-      });
-      console.log('Searching for:', searchQuery);
-    }
-  };
-
-  const handleNotifications = () => {
-    toast({
-      title: "Notifications",
-      description: "Opening notification center...",
-    });
-    console.log('Opening notifications');
-  };
-
-  const handleSettings = () => {
-    toast({
-      title: "Settings",
-      description: "Opening user settings...",
-    });
-    console.log('Opening settings');
-  };
-
-  const handleLogout = () => {
-    toast({
-      title: "Logout",
-      description: "Logging out...",
-    });
-    console.log('Logging out');
-  };
-
+export const AdminHeader = () => {
   return (
-    <header className="bg-white border-b px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-      <div className="flex items-center justify-between gap-4">
-        {/* Mobile Menu Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onMenuToggle}
-          className="lg:hidden"
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-
-        {/* Logo and Church Name */}
-        <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-900 to-blue-800 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-xs sm:text-sm">FH</span>
-          </div>
-          <div className="min-w-0 hidden sm:block">
-            <h1 className="text-sm sm:text-lg font-semibold text-gray-900 truncate">Faith Healing Bible Church</h1>
-            <p className="text-xs sm:text-sm text-gray-500 truncate">Beccle St Branch</p>
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="flex-1 max-w-md mx-2 sm:mx-4 lg:mx-8 hidden md:block">
-          <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-14 items-center px-4 gap-4">
+        <SidebarTrigger />
+        
+        <div className="flex-1 flex items-center gap-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search members, events, ministries..."
-              className="pl-10 text-sm"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search..."
+              className="pl-8 h-9"
             />
-          </form>
+          </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
-          {/* Mobile Search */}
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Search className="w-5 h-5" />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Bell className="h-4 w-4" />
           </Button>
-
-          {/* Notifications */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="relative"
-            onClick={handleNotifications}
-          >
-            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-            <Badge variant="destructive" className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 text-xs p-0 flex items-center justify-center">
-              3
-            </Badge>
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <User className="h-4 w-4" />
           </Button>
-
-          {/* Profile Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center space-x-1 sm:space-x-2 p-1 sm:p-2">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                  <User className="w-3 h-3 sm:w-4 sm:h-4" />
-                </div>
-                <span className="text-xs sm:text-sm hidden sm:inline">Admin</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 sm:w-56 bg-white">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSettings}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </header>
