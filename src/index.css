@@ -1,0 +1,83 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Church Brand Colors - extracted from logo */
+    --background: 0 0% 100%;
+    --foreground: 220 100% 20%; /* Deep blue from logo */
+    --card: 0 0% 100%;
+    --card-foreground: 220 100% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 100% 20%;
+    --primary: 220 100% 40%; /* Blue from logo */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 70% 50%; /* Red from logo */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 0 70% 50%; /* Red accent */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 220 100% 40%;
+    --radius: 0.75rem;
+    --chart-1: 220 100% 40%;
+    --chart-2: 0 70% 50%;
+    --chart-3: 220 100% 60%;
+    --chart-4: 0 70% 70%;
+    --chart-5: 220 100% 80%;
+  }
+
+  .dark {
+    --background: 220 100% 4%;
+    --foreground: 0 0% 98%;
+    --card: 220 100% 4%;
+    --card-foreground: 0 0% 98%;
+    --popover: 220 100% 4%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 220 100% 60%;
+    --primary-foreground: 220 100% 4%;
+    --secondary: 0 70% 60%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 0 70% 60%;
+    --accent-foreground: 220 100% 4%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 220 100% 60%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 0 60% 45%;
+    --chart-3: 220 80% 55%;
+    --chart-4: 0 65% 60%;
+    --chart-5: 220 75% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+.font-serif {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-sans {
+  font-family: 'Inter', sans-serif;
+}
