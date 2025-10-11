@@ -17,6 +17,7 @@ import { SettingsModule } from '@/components/admin/SettingsModule';
 import { VolunteersModule } from '@/components/admin/VolunteersModule';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { CMSDashboard } from '@/components/cms/CMSDashboard';
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -77,6 +78,8 @@ const AdminDashboard = () => {
         return <EventsModule />;
       case 'departments':
         return <DepartmentsModule />;
+      case 'cms':
+        return <CMSDashboard />;
       case 'reports':
         return <ReportsModule />;
       case 'settings':

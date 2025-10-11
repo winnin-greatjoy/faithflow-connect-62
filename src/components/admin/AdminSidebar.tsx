@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  MoreVertical
+  MoreVertical,
+  FileText,
 } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -56,6 +57,7 @@ const secondaryItems: MenuItem[] = [
   { id: 'finance', label: 'Finance', icon: CreditCard },
   { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
   { id: 'departments', label: 'Dept & Ministries', icon: Building },
+  { id: 'cms', label: 'Content Management', icon: FileText },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
