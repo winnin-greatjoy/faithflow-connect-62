@@ -9,7 +9,6 @@ import {
   Building, 
   FileBarChart, 
   Settings,
-  User,
   ChevronLeft,
   ChevronRight,
   X,
@@ -53,11 +52,10 @@ const primaryTabs: MenuItem[] = [
 
 // Secondary items shown in the more menu
 const secondaryItems: MenuItem[] = [
-  { id: 'mens-ministry', label: 'Men\'s Ministry', icon: User },
   { id: 'communication', label: 'Communication', icon: MessageCircle },
   { id: 'finance', label: 'Finance', icon: CreditCard },
   { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
-  { id: 'departments', label: 'Departments', icon: Building },
+  { id: 'departments', label: 'Dept & Ministries', icon: Building },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];

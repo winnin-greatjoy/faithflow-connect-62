@@ -1,13 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
 import { OptimizedMemberManagement as MemberManagement } from '@/components/admin/OptimizedMemberManagement';
-import { MensMinistryDashboard } from '@/components/admin/MensMinistryDashboard';
+import { MensMinistryDashboard } from '@/components/ministry/MensMinistryDashboard';
+import WomensMinistryDashboard from '@/components/ministry/WomensMinistryDashboard';
+import YouthMinistryDashboard from '@/components/ministry/YouthMinistryDashboard';
+import ChildrensMinistryDashboard from '@/components/ministry/ChildrenMinistryDashboard';
 import { CommunicationHub } from '@/components/admin/CommunicationHub';
 import { FinanceModule } from '@/components/admin/FinanceModule';
 import { EventsModule } from '@/components/admin/EventsModule';
-import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
+import{ DepartmentsModule } from '@/components/admin/DepartmentsModule';
 import { ReportsModule } from '@/components/admin/ReportsModule';
 import { SettingsModule } from '@/components/admin/SettingsModule';
 import { VolunteersModule } from '@/components/admin/VolunteersModule';
@@ -15,9 +19,33 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { SidebarProvider } from '@/components/ui/sidebar';
 
 const AdminDashboard = () => {
-  const [activeModule, setActiveModule] = useState('overview');
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Determine active module based on URL path
+  const getActiveModuleFromPath = (pathname: string): string => {
+    if (pathname.startsWith('/admin/mens-ministry')) return 'mens-ministry';
+    if (pathname.startsWith('/admin/womens-ministry')) return 'womens-ministry';
+    if (pathname.startsWith('/admin/youth-ministry')) return 'youth-ministry';
+    if (pathname.startsWith('/admin/childrens-ministry')) return 'childrens-ministry';
+    if (pathname.startsWith('/admin/departments')) return 'departments';
+    if (pathname.startsWith('/admin/members')) return 'members';
+    if (pathname.startsWith('/admin/communication')) return 'communication';
+    if (pathname.startsWith('/admin/finance')) return 'finance';
+    if (pathname.startsWith('/admin/events')) return 'events';
+    if (pathname.startsWith('/admin/reports')) return 'reports';
+    if (pathname.startsWith('/admin/settings')) return 'settings';
+    if (pathname.startsWith('/admin/volunteers')) return 'volunteers';
+    return 'overview';
+  };
+
+  const [activeModule, setActiveModule] = useState(() => getActiveModuleFromPath(location.pathname));
+
+  // Update active module when location changes
+  useEffect(() => {
+    setActiveModule(getActiveModuleFromPath(location.pathname));
+  }, [location.pathname]);
   
   // Close mobile sidebar when module changes
   const handleModuleChange = (moduleId: string) => {
@@ -35,6 +63,12 @@ const AdminDashboard = () => {
         return <MemberManagement />;
       case 'mens-ministry':
         return <MensMinistryDashboard />;
+      case 'womens-ministry':
+        return <WomensMinistryDashboard userRole="head" />;
+      case 'youth-ministry':
+        return <YouthMinistryDashboard userRole="head" />;
+      case 'childrens-ministry':
+        return <ChildrensMinistryDashboard userRole="head" />;
       case 'communication':
         return <CommunicationHub />;
       case 'finance':

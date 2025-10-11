@@ -21,7 +21,8 @@ import {
   X,
   MessageSquare,
   Send,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import {
   mockMinistryMembers, 
   mockCommittees, 
@@ -161,6 +163,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
    =========================================================================== */
 export const MensMinistryDashboard: React.FC = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedCommittee, setSelectedCommittee] = useState<number | null>(null);
@@ -292,7 +295,20 @@ export const MensMinistryDashboard: React.FC = () => {
 
   return (
     <TooltipProvider>
-      <div className="container mx-auto p-4 md:p-6">
+      <div className="container mx-auto p-1 md:p-1">
+        {/* Back Button */}
+        <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/admin/departments')}
+            className="flex items-center text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back</span>
+          </Button>
+        </div>
+
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Men's Ministry Dashboard</h1>
@@ -409,26 +425,6 @@ export const MensMinistryDashboard: React.FC = () => {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
-          {/* Leadership Structure */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Leadership Structure</CardTitle>
-              <CardDescription>Current ministry leadership and roles</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockMinistryMembers.filter(m => m.role !== 'member' && m.role !== 'committee_member').map((leader) => (
-                  <div key={leader.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{leader.fullName}</h4>
-                      <p className="text-sm text-gray-600">{leader.leadershipPosition}</p>
-                    </div>
-                    <Badge variant="outline">{leader.role.replace('_', ' ')}</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
@@ -449,6 +445,26 @@ export const MensMinistryDashboard: React.FC = () => {
               <span className="text-xs sm:text-sm">New Event</span>
             </Button>
           </div>
+          {/* Leadership Structure */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Leadership Structure</CardTitle>
+              <CardDescription>Current ministry leadership and roles</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {mockMinistryMembers.filter(m => m.role !== 'member' && m.role !== 'committee_member').map((leader) => (
+                  <div key={leader.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 className="font-medium">{leader.fullName}</h4>
+                      <p className="text-sm text-gray-600">{leader.leadershipPosition}</p>
+                    </div>
+                    <Badge variant="outline">{leader.role.replace('_', ' ')}</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Recent Activity */}
           <Card>

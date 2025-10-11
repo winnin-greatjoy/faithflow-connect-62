@@ -58,7 +58,7 @@ export const AddDepartmentForm = ({ onAdd }: { onAdd?: (dept: any) => void }) =>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Department</DialogTitle>
+          <DialogTitle>Add New Department</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
