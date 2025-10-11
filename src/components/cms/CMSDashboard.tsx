@@ -1,20 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Plus,
-  FileText,
-  FileImage,
-  CheckCircle,
-  AlertCircle,
-  Settings,
-  Activity
-} from 'lucide-react';
+import { Plus, FileText, FileImage, CheckCircle, AlertCircle, Settings, Activity } from 'lucide-react';
 
 import { ContentList } from './ContentList';
 import { ContentEditor } from './ContentEditor';
@@ -153,55 +144,43 @@ export const CMSDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sticky Header with Tabs + Quick Actions */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-4">Content Management</h1>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-50 bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4">
 
-          <Tabs value={activeView} onValueChange={handleSetActiveView}>
-            <div className="flex items-center justify-between mb-4">
-              {/* Tabs */}
-              <TabsList className="grid grid-cols-5 flex-1">
+          {/* Top Row: Title + Quick Actions */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            {/* Title */}
+            <h1 className="text-2xl font-semibold text-gray-900">Content Management</h1>
+
+            {/* Quick Action Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline"><Plus className="mr-2 h-4 w-4"/> New Article</Button>
+              <Button size="sm" variant="outline"><FileImage className="mr-2 h-4 w-4"/> Upload Media</Button>
+              <Button size="sm" variant="outline"><CheckCircle className="mr-2 h-4 w-4"/> Review Queue</Button>
+              <Button size="sm" variant="outline"><FileText className="mr-2 h-4 w-4"/> Manage Content</Button>
+            </div>
+          </div>
+
+          {/* Tabs (full width) */}
+          <div className="w-full">
+            <Tabs value={activeView} onValueChange={handleSetActiveView}>
+              <TabsList className="grid grid-cols-5 gap-1 w-full">
                 <TabsTrigger value="dashboard"><Activity className="mr-2 h-4 w-4 inline"/> Dashboard</TabsTrigger>
                 <TabsTrigger value="content"><FileText className="mr-2 h-4 w-4 inline"/> Content</TabsTrigger>
                 <TabsTrigger value="media"><FileImage className="mr-2 h-4 w-4 inline"/> Media</TabsTrigger>
                 <TabsTrigger value="approvals"><CheckCircle className="mr-2 h-4 w-4 inline"/> Approvals</TabsTrigger>
                 <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4 inline"/> Settings</TabsTrigger>
               </TabsList>
-
-              {/* Quick Action Buttons */}
-              <div className="flex space-x-2 ml-4">
-                <Button size="sm" variant="outline" onClick={() => handleSetActiveView('editor')}>
-                  <Plus className="mr-2 h-4 w-4"/> New Article
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleSetActiveView('media')}>
-                  <FileImage className="mr-2 h-4 w-4"/> Upload Media
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleSetActiveView('approvals')}>
-                  <CheckCircle className="mr-2 h-4 w-4"/> Review Queue
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleSetActiveView('content')}>
-                  <FileText className="mr-2 h-4 w-4"/> Manage Content
-                </Button>
-              </div>
-            </div>
-          </Tabs>
+            </Tabs>
+          </div>
         </div>
       </div>
 
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeView}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
-          >
-            {renderMainContent()}
-          </motion.div>
-        </AnimatePresence>
+        {renderMainContent()}
       </div>
     </div>
   );
