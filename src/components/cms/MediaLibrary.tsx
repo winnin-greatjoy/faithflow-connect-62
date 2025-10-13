@@ -112,10 +112,10 @@ export const MediaLibrary = () => {
 
           {/* Media Grid/List */}
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 overflow-hidden">
               {filteredMedia.map((item) => (
-                <div key={item.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
-                  <div className="aspect-square bg-gray-100 rounded-md mb-2 flex items-center justify-center overflow-hidden">
+                <div key={item.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow w-full min-w-0">
+                  <div className="aspect-square bg-gray-100 rounded-md mb-2 flex items-center justify-center overflow-hidden w-full">
                     {item.type === 'image' ? (
                       <img 
                         src={item.url} 
@@ -129,7 +129,7 @@ export const MediaLibrary = () => {
                       </div>
                     )}
                   </div>
-                  <p className="text-sm font-medium truncate">{item.filename}</p>
+                  <p className="text-sm font-medium truncate w-full">{item.filename}</p>
                   <p className="text-xs text-muted-foreground">{formatFileSize(item.size)}</p>
                   <div className="flex items-center justify-between mt-2">
                     <Badge variant="outline" className="text-xs">

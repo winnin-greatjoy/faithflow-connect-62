@@ -40,6 +40,16 @@ export const CMSDashboard = () => {
               setSelectedContent(content);
               handleSetActiveView('editor');
             }}
+            onView={(content) => {
+              // For now, just show an alert. In a real app, this would open a view modal or navigate to a view page
+              alert(`Viewing content: ${content.title}`);
+            }}
+            onDelete={(contentId) => {
+              // Remove the content from mockCMSData
+              mockCMSData.content = mockCMSData.content.filter(c => c.id !== contentId);
+              // Force re-render by updating state or triggering a refresh
+              window.location.reload(); // Simple refresh for demo purposes
+            }}
           />
         );
       case 'editor':
@@ -63,20 +73,24 @@ export const CMSDashboard = () => {
         return (
           <div className="space-y-6">
             {/* Dashboard Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { title: 'Total Content', icon: <FileText className="h-4 w-4 text-muted-foreground" />, value: stats.totalContent },
                 { title: 'Pending Review', icon: <AlertCircle className="h-4 w-4 text-orange-500" />, value: stats.pendingApprovals, color: 'text-orange-600' },
                 { title: 'Published', icon: <CheckCircle className="h-4 w-4 text-green-500" />, value: stats.published, color: 'text-green-600' },
                 { title: 'Drafts', icon: <Plus className="h-4 w-4 text-muted-foreground" />, value: stats.drafts }
               ].map((item, i) => (
-                <Card key={i}>
-                  <CardHeader className="flex justify-between pb-2">
-                    <CardTitle>{item.title}</CardTitle>
-                    {item.icon}
-                  </CardHeader>
-                  <CardContent>
-                    <div className={`text-2xl font-bold ${item.color || 'text-gray-900'}`}>{item.value}</div>
+                <Card key={i} className="p-4">
+                  <CardContent className="p-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-medium text-gray-600">{item.title}</h3>
+                      <div className="flex-shrink-0">
+                        {item.icon}
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-bold ${item.color || 'text-gray-900'}`}>
+                      {item.value}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -85,63 +99,95 @@ export const CMSDashboard = () => {
             {/* Recent Content & Pending Approvals */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Recent Content</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Recent Content</CardTitle>
                   <CardDescription>Latest published and updated content</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {mockCMSData.content.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
+                    <div className="text-center py-8 text-muted-foreground">
                       <FileText className="mx-auto h-8 w-8 mb-2" />
                       <p>No content yet. Create your first post!</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {mockCMSData.content.slice(0, 5).map(item => (
-                        <div key={item.id} className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            <div>
-                              <p className="text-sm font-medium">{item.title}</p>
-                              <p className="text-xs text-muted-foreground">{item.type}</p>
+                    <div className="max-h-96 overflow-y-auto px-6 pb-6">
+                      <div className="space-y-3">
+                        {mockCMSData.content.slice(0, 10).map(item => (
+                          <div key={item.id} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-2">
+                                <div className={`w-1.5 h-1.5 rounded-full ${item.status === 'published' ? 'bg-green-500' : item.status === 'pending_review' ? 'bg-orange-500' : 'bg-gray-400'}`}></div>
+                                <Badge variant={item.status === 'published' ? 'default' : item.status === 'pending_review' ? 'secondary' : 'outline'} className="text-xs">
+                                  {item.status.replace('_', ' ')}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {item.type}
+                                </Badge>
+                              </div>
+                              <h4 className="font-medium text-sm leading-tight">{item.title}</h4>
+                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{item.summary}</p>
+                              <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                                <span>By {item.author}</span>
+                                <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                              </div>
                             </div>
                           </div>
-                          <Badge variant={item.status === 'published' ? 'default' : 'secondary'}>{item.status}</Badge>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle>Pending Approvals</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Pending Approvals</CardTitle>
                   <CardDescription>Content waiting for review</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {stats.pendingApprovals === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
+                    <div className="text-center py-8 text-muted-foreground">
                       <CheckCircle className="mx-auto h-8 w-8 mb-2 text-green-500" />
                       <p>All caught up! No pending approvals.</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {mockCMSData.content
-                        .filter(c => c.status === 'pending_review')
-                        .slice(0, 5)
-                        .map(item => (
-                          <div key={item.id} className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                              <div>
-                                <p className="text-sm font-medium">{item.title}</p>
-                                <p className="text-xs text-muted-foreground">by {item.author}</p>
+                    <div className="max-h-96 overflow-y-auto px-6 pb-6">
+                      <div className="space-y-3">
+                        {mockCMSData.content
+                          .filter(c => c.status === 'pending_review')
+                          .slice(0, 10)
+                          .map(item => (
+                            <div key={item.id} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                              <div className="space-y-2">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {item.status.replace('_', ' ')}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.type}
+                                  </Badge>
+                                </div>
+                                <h4 className="font-medium text-sm leading-tight">{item.title}</h4>
+                                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{item.summary}</p>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                                    <span>By {item.author}</span>
+                                    <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleSetActiveView('approvals')}
+                                    className="h-7 px-2 text-xs"
+                                  >
+                                    Review
+                                  </Button>
+                                </div>
                               </div>
                             </div>
-                            <Button size="sm" variant="outline">Review</Button>
-                          </div>
-                        ))}
+                          ))}
+                      </div>
                     </div>
                   )}
                 </CardContent>
