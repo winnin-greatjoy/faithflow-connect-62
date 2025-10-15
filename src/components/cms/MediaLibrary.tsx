@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,8 +43,16 @@ export const MediaLibrary = () => {
   const [selectedMedia, setSelectedMedia] = useState<any>(null);
   const [uploadFiles, setUploadFiles] = useState<any[]>([]);
   const [mediaItems, setMediaItems] = useState(mockCMSData.media);
+  const [loading, setLoading] = useState(false);
 
-  // Helpers
+  // Search debounce
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // --- Utilities ---
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -66,16 +74,18 @@ export const MediaLibrary = () => {
     }
   };
 
-  // Filtered view
-  const filteredMedia = mediaItems.filter((item) => {
-    const matchesSearch =
-      item.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.alt_text || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || item.type === filterType;
-    return matchesSearch && matchesType;
-  });
+  // --- Filter and Search ---
+  const filteredMedia = useMemo(() => {
+    return mediaItems.filter((item) => {
+      const matchesSearch =
+        item.filename.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (item.alt_text || '').toLowerCase().includes(debouncedSearch.toLowerCase());
+      const matchesType = filterType === 'all' || item.type === filterType;
+      return matchesSearch && matchesType;
+    });
+  }, [mediaItems, debouncedSearch, filterType]);
 
-  // Upload handling (selected files preview & rename)
+  // --- File Upload ---
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -103,8 +113,14 @@ export const MediaLibrary = () => {
     setUploadFiles((prev) => prev.map((f) => (f.id === id ? { ...f, filename: newName } : f)));
   };
 
-  const handleConfirmUpload = () => {
+  const handleConfirmUpload = async () => {
     if (uploadFiles.length === 0) return;
+
+    setLoading(true);
+
+    // Here you could add your backend API call:
+    // await fetch('/api/upload', { method: 'POST', body: formData })
+
     const newMedia = uploadFiles.map((f) => ({
       id: f.id,
       filename: f.filename,
@@ -116,23 +132,18 @@ export const MediaLibrary = () => {
       uploaded_by: 'You',
       created_at: new Date().toLocaleString(),
     }));
+
     setMediaItems((prev) => [...newMedia, ...prev]);
     setUploadFiles([]);
     setUploadOpen(false);
+    setLoading(false);
   };
 
-  // Preview modal
-  const openPreview = (item: any) => {
-    setSelectedMedia(item);
-    setPreviewOpen(true);
-  };
-
-  // Download action (works for both remote URLs and blob URLs)
+  // --- File Actions ---
   const handleDownload = (item: any) => {
     try {
       const link = document.createElement('a');
       link.href = item.url;
-      // if url is remote, browser will attempt to download; setting download attribute for same-origin/blobs
       link.setAttribute('download', item.filename || 'file');
       document.body.appendChild(link);
       link.click();
@@ -143,102 +154,96 @@ export const MediaLibrary = () => {
     }
   };
 
-  // Delete action with cleanup for blob URLs
   const handleDelete = (id: string | number) => {
-    const toDelete = mediaItems.find((m) => m.id === id);
-    if (!toDelete) return;
-    if (!confirm(`Delete "${toDelete.filename}"? This action cannot be undone.`)) return;
+    const target = mediaItems.find((m) => m.id === id);
+    if (!target) return;
+    if (!confirm(`Delete "${target.filename}"?`)) return;
 
-    // Revoke object URL if it was created locally
-    try {
-      if (toDelete.url && typeof toDelete.url === 'string' && toDelete.url.startsWith('blob:')) {
-        URL.revokeObjectURL(toDelete.url);
-      }
-    } catch (e) {
-      // ignore
+    if (target.url?.startsWith('blob:')) {
+      URL.revokeObjectURL(target.url);
     }
 
     setMediaItems((prev) => prev.filter((m) => m.id !== id));
-    // if the currently opened preview is the deleted item, close it
     if (selectedMedia?.id === id) {
       setPreviewOpen(false);
       setSelectedMedia(null);
     }
   };
 
-  // Remove selected upload (before confirm)
   const removePendingUpload = (id: number) => {
-    // revoke preview URL to avoid memory leaks
-    const f = uploadFiles.find((u) => u.id === id);
-    if (f?.previewUrl?.startsWith?.('blob:')) {
-      try {
-        URL.revokeObjectURL(f.previewUrl);
-      } catch {}
+    const file = uploadFiles.find((u) => u.id === id);
+    if (file?.previewUrl?.startsWith?.('blob:')) {
+      URL.revokeObjectURL(file.previewUrl);
     }
     setUploadFiles((prev) => prev.filter((u) => u.id !== id));
   };
 
+  const openPreview = (item: any) => {
+    setSelectedMedia(item);
+    setPreviewOpen(true);
+  };
+
+  // --- Render ---
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-between">
             <CardTitle>Media Library</CardTitle>
 
-            {/* Upload trigger */}
+            {/* Upload Dialog */}
             <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
               <DialogTrigger asChild>
                 <Button>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Media
+                  <Upload className="mr-2 h-4 w-4" /> Upload Media
                 </Button>
               </DialogTrigger>
-
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-xl rounded-lg">
                 <DialogHeader>
-                  <DialogTitle>Upload New Media</DialogTitle>
-                  <DialogDescription>
-                    Select files and optionally rename them before confirming.
-                  </DialogDescription>
+                  <DialogTitle>Upload Files</DialogTitle>
+                  <DialogDescription>Rename files before uploading.</DialogDescription>
                 </DialogHeader>
 
-                <Input type="file" multiple onChange={handleFileSelect} className="mb-4" />
+                <Input type="file" multiple onChange={handleFileSelect} className="mb-3" />
 
                 {uploadFiles.length > 0 ? (
-                  <div className="space-y-3 max-h-64 overflow-y-auto border rounded-md p-2">
+                  <div className="space-y-3 max-h-60 overflow-y-auto border rounded-md p-2">
                     {uploadFiles.map((file) => (
                       <div
                         key={file.id}
-                        className="flex items-center justify-between gap-3 p-2 border rounded-md bg-gray-50"
+                        className="flex items-center justify-between gap-3 p-2 border rounded bg-gray-50"
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gray-200 rounded overflow-hidden flex items-center justify-center">
                             {file.type === 'image' ? (
-                              <img src={file.previewUrl} alt={file.filename} className="w-full h-full object-cover" />
-                            ) : file.type === 'video' ? (
-                              <Film className="h-6 w-6 text-gray-500" />
-                            ) : file.type === 'audio' ? (
-                              <Music className="h-6 w-6 text-gray-500" />
+                              <img
+                                src={file.previewUrl}
+                                alt={file.filename}
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
-                              <FileText className="h-6 w-6 text-gray-500" />
+                              getFileIcon(file.type)
                             )}
                           </div>
-
                           <div>
                             <Input
                               value={file.filename}
                               onChange={(e) => handleRename(file.id, e.target.value)}
-                              className="text-sm font-medium w-64"
+                              className="text-sm font-medium w-56"
                             />
-                            <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(file.size)}
+                            </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => removePendingUpload(file.id)}>
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removePendingUpload(file.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -247,19 +252,14 @@ export const MediaLibrary = () => {
                 )}
 
                 <div className="mt-4 flex gap-2">
-                  <Button className="w-full" disabled={uploadFiles.length === 0} onClick={handleConfirmUpload}>
-                    Confirm Upload
+                  <Button className="w-full" onClick={handleConfirmUpload} disabled={!uploadFiles.length || loading}>
+                    {loading ? 'Uploading...' : 'Confirm Upload'}
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() => {
-                      // cleanup preview URLs for pending files
                       uploadFiles.forEach((f) => {
-                        if (f.previewUrl?.startsWith?.('blob:')) {
-                          try {
-                            URL.revokeObjectURL(f.previewUrl);
-                          } catch {}
-                        }
+                        if (f.previewUrl?.startsWith?.('blob:')) URL.revokeObjectURL(f.previewUrl);
                       });
                       setUploadFiles([]);
                       setUploadOpen(false);
@@ -274,23 +274,21 @@ export const MediaLibrary = () => {
         </CardHeader>
 
         <CardContent>
-          {/* Controls */}
-          <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
-            <div className="flex-1 min-w-0">
-              <Input
-                placeholder="Search media..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
+          {/* Filters + View Mode */}
+          <div className="flex flex-col md:flex-row gap-6 mb-4 items-center">
+            <Input
+              placeholder="Search media..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
             <div className="flex gap-2">
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
                 className="px-3 py-2 border rounded-md"
               >
-                <option value="all">All Types</option>
+                <option value="all">All</option>
                 <option value="image">Images</option>
                 <option value="video">Videos</option>
                 <option value="audio">Audio</option>
@@ -298,28 +296,39 @@ export const MediaLibrary = () => {
               </select>
 
               <div className="flex border rounded-md">
-                <Button size="sm" variant={viewMode === 'grid' ? 'default' : 'ghost'} onClick={() => setViewMode('grid')}>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  onClick={() => setViewMode('grid')}
+                >
                   <Grid3X3 className="h-4 w-4" />
                 </Button>
-                <Button size="sm" variant={viewMode === 'list' ? 'default' : 'ghost'} onClick={() => setViewMode('list')}>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  onClick={() => setViewMode('list')}
+                >
                   <List className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* Media Grid/List */}
+          {/* Grid/List */}
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
               {filteredMedia.map((item) => (
-                <div key={item.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
-                  <div className="aspect-square bg-gray-100 rounded-md mb-2 flex items-center justify-center overflow-hidden">
+                <div key={item.id} className="border rounded-lg p-3 hover:shadow-sm">
+                  <div
+                    className="aspect-square bg-gray-100 rounded-md mb-2 flex items-center justify-center overflow-hidden cursor-pointer"
+                    onClick={() => openPreview(item)}
+                  >
                     {item.type === 'image' ? (
-                      <img src={item.url} alt={item.alt_text || item.filename} className="w-full h-full object-cover" />
+                      <img src={item.url} alt={item.filename} className="w-full h-full object-cover" />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-gray-400">
                         {getFileIcon(item.type)}
-                        <span className="text-xs mt-1 uppercase">{item.type}</span>
+                        <span className="text-xs uppercase mt-1">{item.type}</span>
                       </div>
                     )}
                   </div>
@@ -327,11 +336,8 @@ export const MediaLibrary = () => {
                   <p className="text-sm font-medium truncate">{item.filename}</p>
                   <p className="text-xs text-muted-foreground">{formatFileSize(item.size)}</p>
 
-                  <div className="flex items-center justify-between mt-2">
-                    <Badge variant="outline" className="text-xs">
-                      {item.usage_count ?? 0} uses
-                    </Badge>
-
+                  <div className="flex justify-between mt-2">
+                    <Badge variant="outline">{item.usage_count ?? 0} uses</Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button size="sm" variant="ghost">
@@ -342,12 +348,13 @@ export const MediaLibrary = () => {
                         <DropdownMenuItem onClick={() => openPreview(item)}>
                           <Eye className="h-4 w-4 mr-2" /> Preview
                         </DropdownMenuItem>
-
                         <DropdownMenuItem onClick={() => handleDownload(item)}>
                           <Download className="h-4 w-4 mr-2" /> Download
                         </DropdownMenuItem>
-
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(item.id)}>
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(item.id)}
+                          className="text-red-600"
+                        >
                           <Trash2 className="h-4 w-4 mr-2" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -359,33 +366,35 @@ export const MediaLibrary = () => {
           ) : (
             <div className="space-y-2">
               {filteredMedia.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center space-x-3 min-w-0">
-                    <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                       {item.type === 'image' ? (
-                        <img src={item.url} alt={item.alt_text || item.filename} className="w-full h-full object-cover rounded" />
+                        <img
+                          src={item.url}
+                          alt={item.filename}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         getFileIcon(item.type)
                       )}
                     </div>
-                    <div className="min-w-0">
+                    <div>
                       <p className="font-medium truncate">{item.filename}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatFileSize(item.size)} • {item.uploaded_by ?? '—'} • {item.created_at ?? '—'}
+                      <p className="text-xs text-muted-foreground">
+                        {formatFileSize(item.size)} • {item.uploaded_by ?? '—'}
                       </p>
                     </div>
                   </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">{item.usage_count ?? 0} uses</Badge>
-                    <Button size="sm" variant="ghost" onClick={() => openPreview(item)}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                  <div className="flex items-center gap-2">
                     <Button size="sm" variant="ghost" onClick={() => handleDownload(item)}>
                       <Download className="h-4 w-4" />
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}>
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
                 </div>
@@ -395,28 +404,28 @@ export const MediaLibrary = () => {
         </CardContent>
       </Card>
 
-      {/* Preview Modal (smaller & constrained height) */}
+      {/* --- Compact Preview Dialog --- */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-lg max-h-[70vh] overflow-auto">
+        <DialogContent className="max-w-md rounded-lg p-4">
           <DialogHeader>
-            <DialogTitle className="truncate">{selectedMedia?.filename}</DialogTitle>
+            <DialogTitle>{selectedMedia?.filename}</DialogTitle>
           </DialogHeader>
 
           {selectedMedia && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {selectedMedia.type === 'image' ? (
                 <img
                   src={selectedMedia.url}
-                  alt={selectedMedia.alt_text || selectedMedia.filename}
-                  className="w-full rounded-lg max-h-[50vh] object-contain"
+                  alt={selectedMedia.filename}
+                  className="w-full max-h-[350px] rounded-lg object-contain"
                 />
               ) : selectedMedia.type === 'video' ? (
-                <video src={selectedMedia.url} controls className="w-full rounded-lg max-h-[50vh]" />
+                <video src={selectedMedia.url} controls className="w-full max-h-[350px] rounded-lg" />
               ) : selectedMedia.type === 'audio' ? (
                 <audio src={selectedMedia.url} controls className="w-full" />
               ) : (
                 <div className="flex items-center justify-center text-gray-500">
-                  <FileText className="h-8 w-8 mr-2" /> Document Preview Unavailable
+                  <FileText className="h-8 w-8 mr-2" /> Preview unavailable
                 </div>
               )}
 
@@ -429,7 +438,9 @@ export const MediaLibrary = () => {
 
               <div className="flex justify-end gap-2">
                 <Button onClick={() => handleDownload(selectedMedia)}>Download</Button>
-                <Button variant="destructive" onClick={() => handleDelete(selectedMedia.id)}>Delete</Button>
+                <Button variant="destructive" onClick={() => handleDelete(selectedMedia.id)}>
+                  Delete
+                </Button>
               </div>
             </div>
           )}
