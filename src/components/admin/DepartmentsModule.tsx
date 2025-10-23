@@ -133,7 +133,29 @@ export const DepartmentsModule = () => {
 
   // ✅ Department click handler
   const handleDepartmentClick = (dept: Department) => {
-    navigate(`/admin/departments/${dept.id}`);
+    // Navigate to the appropriate department dashboard based on department name
+    switch (dept.name.toLowerCase()) {
+      case 'choir':
+        navigate('/admin/departments/choir');
+        break;
+      case 'ushering':
+        navigate('/admin/departments/ushering');
+        break;
+      case 'prayer team':
+        navigate('/admin/departments/prayer');
+        break;
+      case 'evangelism':
+        navigate('/admin/departments/evangelism');
+        break;
+      case 'finance':
+        navigate('/admin/departments/finance-dept');
+        break;
+      case 'technical':
+        navigate('/admin/departments/technical');
+        break;
+      default:
+        navigate(`/admin/departments/${dept.id}`);
+    }
   };
 
   // ✅ Ministry click handler

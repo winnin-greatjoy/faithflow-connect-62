@@ -18,6 +18,7 @@ import { VolunteersModule } from '@/components/admin/VolunteersModule';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { CMSDashboard } from '@/components/cms/CMSDashboard';
+import { ChoirDashboard, UsheringDashboard, PrayerTeamDashboard, EvangelismDashboard, FinanceDashboard, TechnicalDashboard } from '@/components/departments';
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -30,6 +31,12 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/womens-ministry')) return 'womens-ministry';
     if (pathname.startsWith('/admin/youth-ministry')) return 'youth-ministry';
     if (pathname.startsWith('/admin/childrens-ministry')) return 'childrens-ministry';
+    if (pathname.startsWith('/admin/departments/1') || pathname.startsWith('/admin/departments/choir')) return 'choir';
+    if (pathname.startsWith('/admin/departments/2') || pathname.startsWith('/admin/departments/ushering')) return 'ushering';
+    if (pathname.startsWith('/admin/departments/3') || pathname.startsWith('/admin/departments/prayer')) return 'prayer-team';
+    if (pathname.startsWith('/admin/departments/4') || pathname.startsWith('/admin/departments/evangelism')) return 'evangelism';
+    if (pathname.startsWith('/admin/departments/5') || pathname.startsWith('/admin/departments/finance-dept')) return 'finance-dept';
+    if (pathname.startsWith('/admin/departments/6') || pathname.startsWith('/admin/departments/technical')) return 'technical';
     if (pathname.startsWith('/admin/departments')) return 'departments';
     if (pathname.startsWith('/admin/members')) return 'members';
     if (pathname.startsWith('/admin/communication')) return 'communication';
@@ -70,6 +77,18 @@ const AdminDashboard = () => {
         return <YouthMinistryDashboard userRole="head" />;
       case 'childrens-ministry':
         return <ChildrensMinistryDashboard userRole="head" />;
+      case 'choir':
+        return <ChoirDashboard />;
+      case 'ushering':
+        return <UsheringDashboard />;
+      case 'prayer-team':
+        return <PrayerTeamDashboard />;
+      case 'evangelism':
+        return <EvangelismDashboard />;
+      case 'finance-dept':
+        return <FinanceDashboard />;
+      case 'technical':
+        return <TechnicalDashboard />;
       case 'communication':
         return <CommunicationHub />;
       case 'finance':
