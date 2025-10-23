@@ -249,7 +249,7 @@ export const ReportsModule = () => {
                     </div>
                     <div className="flex flex-col xs:flex-row gap-2 mt-3 sm:mt-4">
                       <Button 
-                        size="xs" 
+                        size="sm" 
                         className="flex-1 h-8 text-xs sm:text-sm"
                         onClick={() => handleGeneratePDF(report.id)}
                       >
@@ -258,7 +258,7 @@ export const ReportsModule = () => {
                       </Button>
                       <Button 
                         variant="outline" 
-                        size="xs" 
+                        size="sm" 
                         className="flex-1 h-8 text-xs sm:text-sm"
                         onClick={() => handleGenerateExcel(report.id)}
                       >

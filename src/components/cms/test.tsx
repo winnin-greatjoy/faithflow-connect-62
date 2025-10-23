@@ -50,6 +50,9 @@ export const CMSDashboard = () => {
         return <ContentEditor content={selectedContent} onBack={() => {
           setSelectedContent(null);
           setActiveView('content');
+        }} onSave={(content) => {
+          console.log('Saving content:', content);
+          setActiveView('content');
         }} />;
       case 'media':
         return <MediaLibrary />;

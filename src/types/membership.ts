@@ -10,8 +10,9 @@ export type FollowUpStatus = 'pending' | 'called' | 'visited' | 'completed';
 export interface Child {
   id?: string;
   name: string;
-  dateOfBirth: string;
-  gender: Gender;
+  age?: number;
+  dateOfBirth?: string;
+  gender?: Gender;
   notes?: string;
 }
 
