@@ -6,12 +6,20 @@ import MinistriesSection from '@/components/church/MinistriesSection';
 import ChurchFooter from '@/components/church/ChurchFooter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Heart, Users, BookOpen, ArrowRight } from 'lucide-react';
+import { Calendar, Heart, Users, BookOpen, ArrowRight, LogIn } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Index = () => {
   return (
     <div className="min-h-screen">
+      <div className="fixed top-4 right-4 z-50">
+        <Button asChild variant="outline" className="gap-2">
+          <Link to="/auth">
+            <LogIn className="h-4 w-4" />
+            Sign In
+          </Link>
+        </Button>
+      </div>
       <ChurchNavbar />
       <ChurchHero />
       

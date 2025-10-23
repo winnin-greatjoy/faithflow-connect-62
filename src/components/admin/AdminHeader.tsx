@@ -1,5 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,12 +14,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AdminHeaderProps {
   onMenuToggle: () => void;
 }
 
 export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -114,12 +118,21 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
     console.log('Opening settings');
   };
 
-  const handleLogout = () => {
-    toast({
-      title: "Logout",
-      description: "Logging out...",
-    });
-    console.log('Logging out');
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+      toast({
+        title: "Success",
+        description: "Logged out successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to logout",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -231,7 +244,9 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                 <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center">
                   <User className="w-3 h-3 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm hidden sm:inline">Admin</span>
+                <span className="text-xs sm:text-sm hidden sm:inline">
+                  {user?.email?.split('@')[0] || 'Admin'}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 sm:w-56 bg-white">
