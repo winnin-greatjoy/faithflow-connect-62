@@ -1,6 +1,36 @@
 -- Portal RBAC and provisioning migrations
 -- Run with Supabase CLI or apply in your database
 
+-- 0) RBAC helper function compatible with current schema (no roles table)
+create or replace function public.has_role(role text, user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_roles ur
+    where ur.user_id::uuid = user_id
+      and ur.role = role::public.app_role
+  );
+$$;
+
+-- Overload for enum app_role + uuid
+create or replace function public.has_role(role public.app_role, user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_roles ur
+    where ur.user_id::uuid = user_id
+      and ur.role = role
+  );
+$$;
+
 -- 1) Enum: permission_action (safe create)
 DO $$
 BEGIN
@@ -98,7 +128,10 @@ ALTER TABLE public.account_provisioning_jobs ENABLE ROW LEVEL SECURITY;
 -- RLS: admins read/write queue
 DO $$ BEGIN
   CREATE POLICY apj_read ON public.account_provisioning_jobs
-  FOR SELECT USING (public.has_role('admin', auth.uid()) OR public.has_role('pastor', auth.uid()));
+  FOR SELECT USING (
+    public.has_role('admin', auth.uid())
+    OR public.has_role('pastor', auth.uid())
+  );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN

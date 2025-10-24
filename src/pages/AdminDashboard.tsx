@@ -17,6 +17,7 @@ import { SettingsModule } from '@/components/admin/SettingsModule';
 import { VolunteersModule } from '@/components/admin/VolunteersModule';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { useAuthz } from '@/hooks/useAuthz';
 import { CMSDashboard } from '@/components/cms/CMSDashboard';
 import { ChoirDashboard, UsheringDashboard, PrayerTeamDashboard, EvangelismDashboard, FinanceDashboard, TechnicalDashboard } from '@/components/departments';
 
@@ -24,6 +25,7 @@ const AdminDashboard = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const { loading: authzLoading, can } = useAuthz();
 
   // Determine active module based on URL path
   const getActiveModuleFromPath = (pathname: string): string => {
@@ -64,11 +66,17 @@ const AdminDashboard = () => {
   };
 
   const renderActiveModule = () => {
+    if (authzLoading) return <div className="p-6">Loading...</div>;
+    const denied = (
+      <div className="p-6 rounded-lg bg-white border">
+        <div className="text-gray-700">You do not have access to this module.</div>
+      </div>
+    );
     switch (activeModule) {
       case 'overview':
         return <DashboardOverview />;
       case 'members':
-        return <MemberManagement />;
+        return can('admin', 'view') ? <MemberManagement /> : denied;
       case 'mens-ministry':
         return <MensMinistryDashboard />;
       case 'womens-ministry':
@@ -78,33 +86,33 @@ const AdminDashboard = () => {
       case 'childrens-ministry':
         return <ChildrensMinistryDashboard userRole="head" />;
       case 'choir':
-        return <ChoirDashboard />;
+        return can('choir', 'view') ? <ChoirDashboard /> : denied;
       case 'ushering':
-        return <UsheringDashboard />;
+        return can('ushering', 'view') ? <UsheringDashboard /> : denied;
       case 'prayer-team':
-        return <PrayerTeamDashboard />;
+        return can('prayer', 'view') ? <PrayerTeamDashboard /> : denied;
       case 'evangelism':
-        return <EvangelismDashboard />;
+        return can('evangelism', 'view') ? <EvangelismDashboard /> : denied;
       case 'finance-dept':
-        return <FinanceDashboard />;
+        return can('finance', 'view') ? <FinanceDashboard /> : denied;
       case 'technical':
         return <TechnicalDashboard />;
       case 'communication':
-        return <CommunicationHub />;
+        return can('admin', 'view') ? <CommunicationHub /> : denied;
       case 'finance':
-        return <FinanceModule />;
+        return can('finance', 'view') ? <FinanceModule /> : denied;
       case 'events':
         return <EventsModule />;
       case 'departments':
-        return <DepartmentsModule />;
+        return can('admin', 'view') ? <DepartmentsModule /> : denied;
       case 'cms':
         return <CMSDashboard />;
       case 'reports':
-        return <ReportsModule />;
+        return can('admin', 'view') ? <ReportsModule /> : denied;
       case 'settings':
-        return <SettingsModule />;
+        return can('admin', 'manage') ? <SettingsModule /> : denied;
       case 'volunteers':
-        return <VolunteersModule />;
+        return can('admin', 'view') ? <VolunteersModule /> : denied;
       default:
         return <DashboardOverview />;
     }
