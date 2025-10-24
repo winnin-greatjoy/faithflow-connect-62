@@ -46,6 +46,47 @@ export interface DepartmentMember extends DepartmentAssignmentRow {
     date_joined: string;
     status: Database['public']['Enums']['member_status'];
   };
+  // Department-specific fields (stored in member profile or computed)
+  voice_part?: 'soprano' | 'alto' | 'tenor' | 'bass';
+  years_experience?: number;
+  attendance_rate?: number;
+  station?: string;
+  availability?: string[];
+  certifications?: string[];
+  specialization?: string;
+  prayer_hours_weekly?: number;
+  requests_handled?: number;
+  outreach_area?: string;
+  conversions?: number;
+  events_led?: number;
+  follow_ups_pending?: number;
+  transactions_processed?: number;
+  accuracy_rate?: number;
+  access_level?: 'read' | 'write' | 'admin';
+  skill_level?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  tickets_resolved?: number;
+  uptime_hours?: number;
+  leadership_role?: 'elder' | 'deacon' | 'mentor';
+  mentoring_pairs?: number;
+  discipleship_groups?: number;
+  retreat_attendance?: number;
+  ministry_focus?: 'prayer' | 'fellowship' | 'service' | 'discipleship' | 'mentoring';
+  small_groups?: string[];
+  service_projects?: number;
+  age?: number;
+  grade_level?: number;
+  school?: string;
+  parent_contact?: string;
+  small_group?: string;
+  camp_attendance?: number;
+  baptism_status?: boolean;
+  parent_id?: string;
+  parent_name?: string;
+  allergies?: string[];
+  emergency_contact?: string;
+  classroom?: string;
+  check_in_time?: string;
+  check_out_time?: string;
 }
 
 export interface DepartmentStats {
@@ -103,9 +144,9 @@ export interface MinistryEvent {
   status: 'planned' | 'completed' | 'cancelled';
 }
 
-// Department-specific Types
+// Department-specific Types (using existing tables)
 
-// Choir Department
+// Choir Department - using DepartmentMember with choir-specific fields
 export interface ChoirMember extends DepartmentMember {
   voice_part: 'soprano' | 'alto' | 'tenor' | 'bass';
   years_experience: number;
@@ -123,19 +164,7 @@ export interface ChoirPerformance {
   notes?: string;
 }
 
-export interface ChoirRepertoire {
-  id: string;
-  title: string;
-  composer?: string;
-  arranger?: string;
-  category: 'hymn' | 'gospel' | 'contemporary' | 'classical' | 'traditional';
-  difficulty: 'easy' | 'medium' | 'hard';
-  key_signature?: string;
-  performance_count: number;
-  last_performed?: string;
-}
-
-// Ushering Department
+// Ushering Department - using DepartmentMember with ushering-specific fields
 export interface UsherMember extends DepartmentMember {
   station: string;
   experience_years: number;
@@ -164,7 +193,7 @@ export interface UsherStation {
   is_active: boolean;
 }
 
-// Prayer Team Department
+// Prayer Team Department - using DepartmentMember with prayer-specific fields
 export interface PrayerTeamMember extends DepartmentMember {
   specialization: string;
   prayer_hours_weekly: number;
@@ -189,21 +218,7 @@ export interface PrayerRequest {
   answered_date?: string;
 }
 
-export interface PrayerSession {
-  id: string;
-  title: string;
-  description?: string;
-  session_date: string;
-  start_time: string;
-  end_time: string;
-  type: 'group' | 'intercession' | 'healing' | 'special';
-  attendees: number;
-  leader: string;
-  notes?: string;
-  requests_covered?: string[];
-}
-
-// Evangelism Department
+// Evangelism Department - using DepartmentMember with evangelism-specific fields
 export interface EvangelismMember extends DepartmentMember {
   outreach_area: string;
   conversions: number;
@@ -232,21 +247,7 @@ export interface OutreachEvent {
   notes?: string;
 }
 
-export interface FollowUpContact {
-  id: string;
-  contact_name: string;
-  contact_info: string;
-  source_event?: string;
-  status: 'new' | 'contacted' | 'interested' | 'converted' | 'not_interested';
-  assigned_to: string;
-  last_contact_date: string;
-  next_contact_date?: string;
-  notes: string[];
-  conversion_date?: string;
-  church_integration?: string;
-}
-
-// Finance Department
+// Finance Department - using DepartmentMember with finance-specific fields
 export interface FinanceMember extends DepartmentMember {
   specialization: 'budgeting' | 'reporting' | 'bookkeeping' | 'audit' | 'compliance';
   transactions_processed: number;
@@ -287,7 +288,7 @@ export interface BudgetCategory {
   branch_id: string;
 }
 
-// Technical Department
+// Technical Department - using DepartmentMember with technical-specific fields
 export interface TechnicalMember extends DepartmentMember {
   specialization: 'av_systems' | 'lighting' | 'streaming' | 'network' | 'maintenance' | 'support';
   certifications: string[];
@@ -334,26 +335,7 @@ export interface SupportTicket {
   actual_time?: number;
 }
 
-export interface MaintenanceSchedule {
-  id: string;
-  title: string;
-  description?: string;
-  equipment_id: string;
-  scheduled_date: string;
-  start_time?: string;
-  end_time?: string;
-  type: 'preventive' | 'corrective' | 'inspection' | 'upgrade';
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  assigned_to: string;
-  estimated_duration: number;
-  actual_duration?: number;
-  notes?: string;
-  next_maintenance?: string;
-  recurring?: boolean;
-  recurring_interval?: number; // days
-}
-
-// Ministry-specific Types
+// Ministry-specific Types (using existing tables)
 
 // Men's Ministry
 export interface MensMinistryMember extends MinistryMember {

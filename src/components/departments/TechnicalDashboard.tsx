@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,8 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Users,
   Calendar,
-  Activity,
-  TrendingUp,
   Monitor,
   Headphones,
   Wrench,
@@ -20,111 +18,60 @@ import {
   Filter,
   Plus,
   ArrowLeft,
-  Wifi,
-  Shield,
-  Zap,
-  AlertTriangle
+  Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { technicalApi } from '@/services/departments/technicalApi';
+import type { DepartmentMember, DepartmentStats } from '@/types/api';
 
-interface TechnicalMember {
-  id: number;
-  name: string;
-  role: string;
-  status: 'active' | 'inactive';
-  joinDate: string;
-  email?: string;
-  phone?: string;
+interface TechnicalMember extends DepartmentMember {
   specialization: string;
-  ticketsResolved: number;
-  uptimeHours: number;
   certifications: string[];
+  skill_level: string;
+  tickets_resolved: number;
+  uptime_hours: number;
+  availability: string[];
 }
 
-interface Equipment {
-  id: number;
+interface EquipmentItem {
+  id: string;
   name: string;
   type: string;
-  status: 'operational' | 'maintenance' | 'offline' | 'repair';
+  category: string;
+  model?: string;
+  serial_number?: string;
+  purchase_date?: string;
+  warranty_expiry?: string;
+  status: string;
   location: string;
-  lastMaintenance: string;
-  nextMaintenance: string;
-  assignedTo?: string;
+  assigned_to?: string;
+  last_maintenance?: string;
+  next_maintenance?: string;
+  notes?: string;
+  specifications?: Record<string, any>;
 }
 
 interface SupportTicket {
-  id: number;
+  id: string;
   title: string;
-  requester: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'in-progress' | 'resolved' | 'closed';
-  category: string;
-  dateCreated: string;
-  assignedTo?: string;
   description: string;
-  resolution?: string;
+  category: string;
+  priority: string;
+  status: string;
+  requester: string;
+  assigned_to?: string;
+  created_date: string;
+  updated_date: string;
+  resolved_date?: string;
+  resolution_notes?: string;
+  equipment_id?: string;
+  event_id?: string;
+  estimated_time?: number;
+  actual_time?: number;
 }
-
-interface ServiceEvent {
-  id: number;
-  title: string;
-  date: string;
-  type: string;
-  equipment: string[];
-  status: 'scheduled' | 'completed' | 'cancelled';
-  assignedTo: string;
-  notes?: string;
-}
-
-// Mock data for Technical department
-const mockTechnicalStats = {
-  totalMembers: 8,
-  activeMembers: 7,
-  equipmentCount: 24,
-  supportTickets: 15,
-  uptimePercentage: 99.2,
-  monthlyGrowth: 25,
-  openTickets: 3,
-  systemHealth: 95
-};
-
-const mockTechnicalMembers: TechnicalMember[] = [
-  { id: 1, name: 'Mike Davis', role: 'Technical Director', status: 'active', joinDate: '2019-08-15', email: 'mike@example.com', phone: '555-0501', specialization: 'AV Systems', ticketsResolved: 145, uptimeHours: 8760, certifications: ['CTS', 'Dante Level 2', 'Network+'] },
-  { id: 2, name: 'Sarah Johnson', role: 'Audio Engineer', status: 'active', joinDate: '2020-11-20', email: 'sarah@example.com', phone: '555-0502', specialization: 'Audio Systems', ticketsResolved: 89, uptimeHours: 4320, certifications: ['Pro Tools', 'Dante Level 1'] },
-  { id: 3, name: 'David Wilson', role: 'Video Technician', status: 'active', joinDate: '2021-05-10', email: 'david@example.com', phone: '555-0503', specialization: 'Video Systems', ticketsResolved: 67, uptimeHours: 2880, certifications: ['Blackmagic Certified', 'Streaming Tech'] },
-  { id: 4, name: 'Lisa Brown', role: 'IT Support', status: 'active', joinDate: '2022-02-14', email: 'lisa@example.com', phone: '555-0504', specialization: 'Network & IT', ticketsResolved: 123, uptimeHours: 5760, certifications: ['CompTIA A+', 'Network+', 'Security+'] },
-  { id: 5, name: 'Robert Smith', role: 'Lighting Technician', status: 'active', joinDate: '2023-01-08', email: 'robert@example.com', phone: '555-0505', specialization: 'Lighting Systems', ticketsResolved: 45, uptimeHours: 2160, certifications: ['ETC Certified', 'DMX Protocol'] },
-  { id: 6, name: 'Emily Davis', role: 'Streaming Specialist', status: 'active', joinDate: '2022-09-12', email: 'emily@example.com', phone: '555-0506', specialization: 'Live Streaming', ticketsResolved: 78, uptimeHours: 3600, certifications: ['OBS Specialist', 'YouTube Certified'] },
-  { id: 7, name: 'James Wilson', role: 'Maintenance Tech', status: 'inactive', joinDate: '2021-12-05', email: 'james@example.com', phone: '555-0507', specialization: 'Equipment Maintenance', ticketsResolved: 34, uptimeHours: 1440, certifications: ['Electrical Safety', 'Equipment Repair'] }
-];
-
-const mockEquipment: Equipment[] = [
-  { id: 1, name: 'Main Sound Board', type: 'Audio Mixer', status: 'operational', location: 'Sound Booth', lastMaintenance: '2024-01-15', nextMaintenance: '2024-04-15', assignedTo: 'Sarah Johnson' },
-  { id: 2, name: 'Projector 1', type: 'Video Projector', status: 'operational', location: 'Sanctuary', lastMaintenance: '2024-01-10', nextMaintenance: '2024-07-10', assignedTo: 'David Wilson' },
-  { id: 3, name: 'Live Stream Encoder', type: 'Streaming Equipment', status: 'maintenance', location: 'Media Room', lastMaintenance: '2024-01-20', nextMaintenance: '2024-01-30', assignedTo: 'Emily Davis' },
-  { id: 4, name: 'Wireless Microphone System', type: 'Audio Equipment', status: 'operational', location: 'Storage', lastMaintenance: '2024-01-05', nextMaintenance: '2024-03-05', assignedTo: 'Sarah Johnson' },
-  { id: 5, name: 'Network Switch', type: 'Network Equipment', status: 'operational', location: 'Server Room', lastMaintenance: '2024-01-12', nextMaintenance: '2024-06-12', assignedTo: 'Lisa Brown' },
-  { id: 6, name: 'Stage Lighting Console', type: 'Lighting Equipment', status: 'offline', location: 'Stage Left', lastMaintenance: '2023-12-20', nextMaintenance: '2024-02-20', assignedTo: 'Robert Smith' }
-];
-
-const mockSupportTickets: SupportTicket[] = [
-  { id: 1, title: 'Sound System Feedback', requester: 'Pastor Mark', priority: 'high', status: 'in-progress', category: 'Audio', dateCreated: '2024-01-25', assignedTo: 'Sarah Johnson', description: 'High-pitched feedback during Sunday service', resolution: 'Adjusted EQ settings and checked microphone placement' },
-  { id: 2, title: 'Projector Not Turning On', requester: 'Media Team', priority: 'medium', status: 'resolved', category: 'Video', dateCreated: '2024-01-24', assignedTo: 'David Wilson', description: 'Main sanctuary projector failed to power on', resolution: 'Replaced faulty power supply' },
-  { id: 3, title: 'WiFi Connection Issues', requester: 'Office Staff', priority: 'low', status: 'open', category: 'Network', dateCreated: '2024-01-23', assignedTo: 'Lisa Brown', description: 'Intermittent WiFi connectivity in admin office' },
-  { id: 4, title: 'Streaming Quality Poor', requester: 'Online Ministry', priority: 'medium', status: 'in-progress', category: 'Streaming', dateCreated: '2024-01-22', assignedTo: 'Emily Davis', description: 'Low resolution and buffering during live stream' },
-  { id: 5, title: 'Stage Light Flickering', requester: 'Worship Team', priority: 'low', status: 'open', category: 'Lighting', dateCreated: '2024-01-21', assignedTo: 'Robert Smith', description: 'Left stage light flickering during rehearsal' }
-];
-
-const mockServiceEvents: ServiceEvent[] = [
-  { id: 1, title: 'Sunday Service Setup', date: '2024-01-28', type: 'Service Support', equipment: ['Main Sound Board', 'Projector 1', 'Wireless Microphone System'], status: 'scheduled', assignedTo: 'Mike Davis', notes: 'Full AV setup for 9AM and 11AM services' },
-  { id: 2, title: 'Equipment Maintenance', date: '2024-01-26', type: 'Maintenance', equipment: ['Live Stream Encoder'], status: 'scheduled', assignedTo: 'Emily Davis', notes: 'Monthly maintenance and software updates' },
-  { id: 3, title: 'Youth Service AV', date: '2024-01-25', type: 'Youth Ministry', equipment: ['Projector 1', 'Sound System'], status: 'completed', assignedTo: 'Sarah Johnson', notes: 'Setup completed successfully' },
-  { id: 4, title: 'Concert Sound Check', date: '2024-01-20', type: 'Special Event', equipment: ['Main Sound Board', 'Stage Lighting Console'], status: 'completed', assignedTo: 'Mike Davis', notes: 'Full system test completed' },
-  { id: 5, title: 'Network Security Update', date: '2024-01-18', type: 'IT Maintenance', equipment: ['Network Switch'], status: 'completed', assignedTo: 'Lisa Brown', notes: 'Security patches applied successfully' }
-];
 
 export const TechnicalDashboard: React.FC = () => {
   const { toast } = useToast();
@@ -134,21 +81,92 @@ export const TechnicalDashboard: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
 
+  // API state
+  const [stats, setStats] = useState<DepartmentStats | null>(null);
+  const [members, setMembers] = useState<DepartmentMember[]>([]);
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load data on component mount
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Load stats and data in parallel
+        const [statsResult, membersResult, equipmentResult, ticketsResult] = await Promise.all([
+          technicalApi.getTechnicalStats(),
+          technicalApi.getTechnicalMembers({
+            sort: { field: 'member.full_name', direction: 'asc' }
+          }),
+          technicalApi.getEquipment(),
+          technicalApi.getSupportTickets()
+        ]);
+
+        if (statsResult.error) {
+          throw new Error(statsResult.error.message);
+        }
+
+        if (membersResult.error) {
+          throw new Error(membersResult.error.message);
+        }
+
+        if (equipmentResult.error) {
+          throw new Error(equipmentResult.error.message);
+        }
+
+        if (ticketsResult.error) {
+          throw new Error(ticketsResult.error.message);
+        }
+
+        setStats(statsResult.data);
+        setMembers(membersResult.data || []);
+        setEquipment(equipmentResult.data || []);
+        setTickets(ticketsResult.data || []);
+      } catch (err: any) {
+        setError(err.message);
+        toast({
+          title: 'Error',
+          description: 'Failed to load dashboard data',
+          variant: 'destructive'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, [toast]);
+
+  // Transform members to include technical-specific fields
+  const technicalMembers: TechnicalMember[] = members.map(member => ({
+    ...member,
+    specialization: 'av_systems', // Would come from API response
+    certifications: ['CTS', 'Dante Level 2'], // Would come from API response
+    skill_level: 'expert', // Would come from API response
+    tickets_resolved: 145, // Would be calculated
+    uptime_hours: 8760, // Would be calculated
+    availability: ['Sunday', 'Wednesday'], // Would come from API response
+  }));
+
   // Filter tickets
   const filteredTickets = useMemo(() => {
-    return mockSupportTickets.filter(ticket => {
+    return tickets.filter(ticket => {
       const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            ticket.requester.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
       const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
       return matchesSearch && matchesStatus && matchesPriority;
     });
-  }, [searchTerm, statusFilter, priorityFilter]);
+  }, [tickets, searchTerm, statusFilter, priorityFilter]);
 
   // Quick actions
   const quickActions = [
     { label: 'Add Member', icon: UserPlus, onClick: () => toast({ title: 'Add Member', description: 'Add new technical team member form would open here' }), variant: 'default' as const },
-    { label: 'New Ticket', icon: AlertTriangle, onClick: () => toast({ title: 'New Ticket', description: 'Support ticket form would open here' }), variant: 'outline' as const },
+    { label: 'New Ticket', icon: Headphones, onClick: () => toast({ title: 'New Ticket', description: 'Support ticket form would open here' }), variant: 'outline' as const },
     { label: 'Add Equipment', icon: Monitor, onClick: () => toast({ title: 'Add Equipment', description: 'Equipment registration form would open here' }), variant: 'outline' as const },
     { label: 'Schedule Maintenance', icon: Wrench, onClick: () => toast({ title: 'Schedule Maintenance', description: 'Maintenance scheduling form would open here' }), variant: 'outline' as const }
   ];
@@ -157,35 +175,34 @@ export const TechnicalDashboard: React.FC = () => {
     navigate('/admin/departments');
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'operational': return 'bg-green-100 text-green-800';
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800';
-      case 'offline': return 'bg-red-100 text-red-800';
-      case 'repair': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading technical dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const getTicketStatusColor = (status: string) => {
-    switch (status) {
-      case 'resolved': return 'bg-green-100 text-green-800';
-      case 'closed': return 'bg-gray-100 text-gray-800';
-      case 'in-progress': return 'bg-blue-100 text-blue-800';
-      case 'open': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'critical': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
-    }
-  };
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">⚠️</div>
+            <p className="text-gray-600 mb-4">Failed to load dashboard data</p>
+            <Button onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -217,7 +234,7 @@ export const TechnicalDashboard: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
@@ -226,7 +243,7 @@ export const TechnicalDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Team</p>
-                <p className="text-2xl font-bold text-gray-900">{mockTechnicalStats.totalMembers}</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.totalMembers || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -240,7 +257,7 @@ export const TechnicalDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Equipment</p>
-                <p className="text-2xl font-bold text-gray-900">{mockTechnicalStats.equipmentCount}</p>
+                <p className="text-2xl font-bold text-gray-900">{equipment.length}</p>
               </div>
             </div>
           </CardContent>
@@ -254,7 +271,7 @@ export const TechnicalDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Tickets</p>
-                <p className="text-2xl font-bold text-gray-900">{mockTechnicalStats.supportTickets}</p>
+                <p className="text-2xl font-bold text-gray-900">{tickets.length}</p>
               </div>
             </div>
           </CardContent>
@@ -264,39 +281,11 @@ export const TechnicalDashboard: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
               <div className="bg-purple-50 p-2 rounded-full">
-                <Zap className="h-4 w-4 text-purple-600" />
+                <div className="w-3 h-3 rounded-full bg-green-500" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Uptime</p>
-                <p className="text-2xl font-bold text-gray-900">{mockTechnicalStats.uptimePercentage}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-indigo-50 p-2 rounded-full">
-                <TrendingUp className="h-4 w-4 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Growth</p>
-                <p className="text-2xl font-bold text-gray-900">+{mockTechnicalStats.monthlyGrowth}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-yellow-50 p-2 rounded-full">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Open</p>
-                <p className="text-2xl font-bold text-gray-900">{mockTechnicalStats.openTickets}</p>
+                <p className="text-2xl font-bold text-gray-900">99.2%</p>
               </div>
             </div>
           </CardContent>
@@ -306,25 +295,11 @@ export const TechnicalDashboard: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
               <div className="bg-emerald-50 p-2 rounded-full">
-                <Shield className="h-4 w-4 text-emerald-600" />
+                <div className="w-3 h-3 rounded-full bg-green-500" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Health</p>
-                <p className="text-2xl font-bold text-gray-900">{mockTechnicalStats.systemHealth}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-red-50 p-2 rounded-full">
-                <Activity className="h-4 w-4 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-gray-900">{mockTechnicalStats.activeMembers}</p>
+                <p className="text-2xl font-bold text-gray-900">95%</p>
               </div>
             </div>
           </CardContent>
@@ -379,7 +354,7 @@ export const TechnicalDashboard: React.FC = () => {
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
                       <div>Uptime: {system.uptime}</div>
-                      <div>Status: <Badge className={getStatusColor(system.status)}>{system.status}</Badge></div>
+                      <div>Status: <Badge className={system.status === 'operational' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>{system.status}</Badge></div>
                       <div>Open Issues: {system.issues}</div>
                     </div>
                   </div>
@@ -396,19 +371,19 @@ export const TechnicalDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mockEquipment.slice(0, 6).map((equipment) => (
-                  <div key={equipment.id} className="p-4 border rounded-lg">
+                {equipment.slice(0, 6).map((item) => (
+                  <div key={item.id} className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">{equipment.name}</span>
-                      <Badge className={getStatusColor(equipment.status)}>
-                        {equipment.status}
+                      <span className="font-medium">{item.name}</span>
+                      <Badge className={item.status === 'operational' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {item.status}
                       </Badge>
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
-                      <div>{equipment.type}</div>
-                      <div>Location: {equipment.location}</div>
-                      <div>Next Maintenance: {equipment.nextMaintenance}</div>
-                      {equipment.assignedTo && <div>Assigned: {equipment.assignedTo}</div>}
+                      <div>{item.type}</div>
+                      <div>Location: {item.location}</div>
+                      <div>Next Maintenance: {item.next_maintenance}</div>
+                      {item.assigned_to && <div>Assigned: {item.assigned_to}</div>}
                     </div>
                   </div>
                 ))}
@@ -424,21 +399,21 @@ export const TechnicalDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockSupportTickets.slice(0, 4).map((ticket) => (
+                {tickets.slice(0, 4).map((ticket) => (
                   <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${getPriorityColor(ticket.priority)}`} />
+                      <div className={`w-3 h-3 rounded-full ${ticket.priority === 'critical' ? 'bg-red-500' : ticket.priority === 'high' ? 'bg-orange-500' : 'bg-yellow-500'}`} />
                       <div>
                         <h4 className="font-medium">{ticket.title}</h4>
                         <p className="text-sm text-gray-600">{ticket.requester} • {ticket.category}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <Badge className={getTicketStatusColor(ticket.status)}>
+                      <Badge className={ticket.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
                         {ticket.status}
                       </Badge>
                       <div className="text-xs text-gray-500 mt-1">
-                        {ticket.dateCreated}
+                        {ticket.created_date}
                       </div>
                     </div>
                   </div>
@@ -458,15 +433,26 @@ export const TechnicalDashboard: React.FC = () => {
             </Button>
           </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center text-gray-500">
-                <Monitor className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>Equipment management coming soon</p>
-                <p className="text-sm">Register, track, and manage all technical equipment</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {equipment.map((item) => (
+              <Card key={item.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium">{item.name}</span>
+                    <Badge className={item.status === 'operational' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                      {item.status}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <div>{item.type} • {item.category}</div>
+                    <div>Location: {item.location}</div>
+                    <div>Next Maintenance: {item.next_maintenance}</div>
+                    {item.assigned_to && <div>Assigned: {item.assigned_to}</div>}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         {/* Support Tab */}
@@ -475,7 +461,7 @@ export const TechnicalDashboard: React.FC = () => {
             <h3 className="text-lg font-medium">Support Tickets</h3>
             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <Button size="sm">
-                <AlertTriangle className="mr-2 h-4 w-4" />
+                <Headphones className="mr-2 h-4 w-4" />
                 New Ticket
               </Button>
               <Button size="sm" variant="outline">
@@ -503,7 +489,7 @@ export const TechnicalDashboard: React.FC = () => {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="resolved">Resolved</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
               </SelectContent>
@@ -549,12 +535,12 @@ export const TechnicalDashboard: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
-                            <div className={`w-3 h-3 rounded-full ${getPriorityColor(ticket.priority)}`} />
+                            <div className={`w-3 h-3 rounded-full ${ticket.priority === 'critical' ? 'bg-red-500' : ticket.priority === 'high' ? 'bg-orange-500' : 'bg-yellow-500'}`} />
                             <span className="text-sm capitalize">{ticket.priority}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge className={getTicketStatusColor(ticket.status)}>
+                          <Badge className={ticket.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
                             {ticket.status}
                           </Badge>
                         </td>
@@ -562,10 +548,10 @@ export const TechnicalDashboard: React.FC = () => {
                           <Badge variant="outline">{ticket.category}</Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ticket.assignedTo || 'Unassigned'}
+                          {ticket.assigned_to || 'Unassigned'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ticket.dateCreated}
+                          {ticket.created_date}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">
@@ -596,15 +582,42 @@ export const TechnicalDashboard: React.FC = () => {
             </Button>
           </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center text-gray-500">
-                <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>Team management coming soon</p>
-                <p className="text-sm">Manage technical team members and certifications</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {technicalMembers.map((member) => (
+              <Card key={member.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Users className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{member.member.full_name}</h4>
+                      <p className="text-sm text-gray-600">{member.member.email}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Specialization:</span>
+                      <span className="font-medium capitalize">{(member as any).specialization?.replace('_', ' ')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tickets Resolved:</span>
+                      <span className="font-medium">{(member as any).tickets_resolved}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Certifications:</span>
+                      <span className="font-medium">{(member as any).certifications?.length || 0}</span>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <Badge variant={member.status === 'approved' ? 'default' : 'secondary'}>
+                      {member.status}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         {/* Schedule Tab */}

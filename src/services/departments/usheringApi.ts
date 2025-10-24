@@ -3,21 +3,20 @@ import { BaseApiService } from '@/utils/api';
 import type {
   ApiResult,
   ListRequest,
-  UsherMember,
-  UsherShift,
-  UsherStation,
+  DepartmentMember,
   DepartmentStats,
 } from '@/types/api';
 
 // Ushering Department API Service
 export class UsheringApiService extends BaseApiService {
   constructor() {
-    super('usher_assignments'); // Custom table for ushering-specific data
+    super('department_assignments'); // Using existing table for assignments
   }
 
   // Get ushering team members
-  async getUsherMembers(request?: ListRequest): Promise<ApiResult<UsherMember[]>> {
+  async getUsherMembers(request?: ListRequest): Promise<ApiResult<DepartmentMember[]>> {
     try {
+      // Get members assigned to ushering department using existing tables
       let query = supabase
         .from('department_assignments')
         .select(`
@@ -28,23 +27,31 @@ export class UsheringApiService extends BaseApiService {
             email,
             phone,
             date_joined,
-            status
+            status,
+            assigned_department
           )
-        `)
-        .eq('department_id', 'ushering-department-id');
+        `);
 
       // Apply filters
       if (request?.filters?.search) {
-        query = query.or(`member.full_name.ilike.%${request.filters.search}%,member.email.ilike.%${request.filters.search}%`);
+        // Note: Search filtering on joined tables is complex in PostgREST
+        // For now, we'll filter after the query
+        const searchTerm = request.filters.search.toLowerCase();
+        query = query; // Keep the base query
       }
 
       if (request?.filters?.status) {
-        query = query.eq('status', request.filters.status);
+        query = query.eq('status', request.filters.status as 'pending' | 'approved' | 'rejected');
       }
 
-      // Apply sorting
+      // Apply sorting - avoid sorting on joined table fields
       if (request?.sort) {
-        query = query.order(request.sort.field, { ascending: request.sort.direction === 'asc' });
+        // For now, only sort on department_assignments fields
+        if (request.sort.field.startsWith('member.')) {
+          query = query.order('assigned_date', { ascending: false });
+        } else {
+          query = query.order(request.sort.field, { ascending: request.sort.direction === 'asc' });
+        }
       } else {
         query = query.order('assigned_date', { ascending: false });
       }
@@ -61,17 +68,39 @@ export class UsheringApiService extends BaseApiService {
         return { data: null, error: { message: error.message } };
       }
 
+      // Filter results to only include members assigned to ushering department
+      let filteredData = (data || []).filter(assignment =>
+        assignment.member?.assigned_department === 'ushering'
+      );
+
+      // Apply search filtering on client side
+      if (request?.filters?.search) {
+        const searchTerm = request.filters.search.toLowerCase();
+        filteredData = filteredData.filter(assignment =>
+          assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
+          assignment.member?.email?.toLowerCase().includes(searchTerm)
+        );
+      }
+
       // Transform data to UsherMember format
-      const usherMembers: UsherMember[] = (data || []).map(assignment => ({
+      const usherMembers: DepartmentMember[] = filteredData.map(assignment => ({
         id: assignment.id,
         member_id: assignment.member_id,
         department_id: assignment.department_id,
         assigned_date: assignment.assigned_date,
         status: assignment.status,
         member: assignment.member,
+        // Include all required fields from DepartmentAssignmentRow
+        approved_by: assignment.approved_by,
+        approved_date: assignment.approved_date,
+        assigned_by: assignment.assigned_by,
+        created_at: assignment.created_at,
+        reason: assignment.reason,
+        type: assignment.type,
+        updated_at: assignment.updated_at,
         // Usher-specific fields
         station: 'Main Entrance', // Would come from extended profile
-        experience_years: 2, // Would be calculated
+        years_experience: 2, // Would be calculated
         availability: ['Sunday 9AM', 'Sunday 11AM'], // Would come from profile
         certifications: ['Basic Usher Training'], // Would come from certifications table
       }));
@@ -85,34 +114,39 @@ export class UsheringApiService extends BaseApiService {
   // Get ushering statistics
   async getUsheringStats(): Promise<ApiResult<DepartmentStats>> {
     try {
-      // Get member counts
+      // Get member counts directly from members table using assigned_department field
+      // This avoids any issues with the departments table
       const { data: totalMembers } = await supabase
-        .from('department_assignments')
-        .select('member_id', { count: 'exact' })
-        .eq('department_id', 'ushering-department-id')
-        .eq('status', 'approved');
+        .from('members')
+        .select('id', { count: 'exact' })
+        .eq('assigned_department', 'ushering');
 
       const { data: activeMembers } = await supabase
-        .from('department_assignments')
-        .select('member_id', { count: 'exact' })
-        .eq('department_id', 'ushering-department-id')
-        .eq('status', 'approved')
-        .eq('member.status', 'active');
+        .from('members')
+        .select('id', { count: 'exact' })
+        .eq('assigned_department', 'ushering')
+        .eq('status', 'active');
 
-      // Get upcoming services count
-      const upcomingEvents = 4;
+      // Get upcoming events count (using events table)
+      const { data: upcomingEvents } = await supabase
+        .from('events')
+        .select('id', { count: 'exact' })
+        .gte('event_date', new Date().toISOString().split('T')[0]);
 
-      // Get completed services count
-      const completedActivities = 28;
+      // Get completed events count (using events table)
+      const { data: completedEvents } = await supabase
+        .from('events')
+        .select('id', { count: 'exact' })
+        .lt('event_date', new Date().toISOString().split('T')[0]);
 
-      // Calculate monthly growth
+      // Calculate monthly growth (placeholder - would need historical data)
       const monthlyGrowth = 15;
 
       const stats: DepartmentStats = {
         totalMembers: totalMembers?.length || 0,
         activeMembers: activeMembers?.length || 0,
-        upcomingEvents,
-        completedActivities,
+        upcomingEvents: upcomingEvents?.length || 0,
+        completedActivities: completedEvents?.length || 0,
         monthlyGrowth,
       };
 
@@ -129,14 +163,14 @@ export class UsheringApiService extends BaseApiService {
     availability: string[];
     experience_years?: number;
     certifications?: string[];
-  }): Promise<ApiResult<UsherMember>> {
+  }): Promise<ApiResult<DepartmentMember>> {
     try {
-      // Create department assignment
+      // Create department assignment directly without needing departments table
       const { data: assignment, error: assignmentError } = await supabase
         .from('department_assignments')
         .insert({
           member_id: memberData.member_id,
-          department_id: 'ushering-department-id',
+          department_id: 'ushering-dept', // Use a simple identifier
           assigned_by: (await supabase.auth.getUser()).data.user?.id,
           assigned_date: new Date().toISOString(),
           status: 'approved',
@@ -158,37 +192,54 @@ export class UsheringApiService extends BaseApiService {
         })
         .eq('id', memberData.member_id);
 
-      // Get the updated member data
-      const { data: member } = await supabase
-        .from('members')
-        .select('*')
-        .eq('id', memberData.member_id)
+      // Get the updated member data with department assignment
+      const { data: updatedAssignment } = await supabase
+        .from('department_assignments')
+        .select(`
+          *,
+          member:members!department_assignments_member_id_fkey(*)
+        `)
+        .eq('id', assignment.id)
         .single();
 
-      const usherMember: UsherMember = {
-        id: assignment.id,
-        member_id: assignment.member_id,
-        department_id: assignment.department_id,
-        assigned_date: assignment.assigned_date,
-        status: assignment.status,
-        member,
-        station: memberData.station,
-        experience_years: memberData.experience_years || 0,
-        availability: memberData.availability,
-        certifications: memberData.certifications || [],
-      };
+      if (updatedAssignment) {
+        return {
+          data: {
+            id: updatedAssignment.id,
+            member_id: updatedAssignment.member_id,
+            department_id: updatedAssignment.department_id,
+            assigned_date: updatedAssignment.assigned_date,
+            status: updatedAssignment.status,
+            member: updatedAssignment.member,
+            // Include all required fields from DepartmentAssignmentRow
+            approved_by: updatedAssignment.approved_by,
+            approved_date: updatedAssignment.approved_date,
+            assigned_by: updatedAssignment.assigned_by,
+            created_at: updatedAssignment.created_at,
+            reason: updatedAssignment.reason,
+            type: updatedAssignment.type,
+            updated_at: updatedAssignment.updated_at,
+            // Usher-specific fields
+            station: memberData.station,
+            years_experience: memberData.experience_years || 0,
+            availability: memberData.availability,
+            certifications: memberData.certifications || [],
+          },
+          error: null
+        };
+      }
 
-      return { data: usherMember, error: null };
+      return { data: null, error: { message: 'Failed to retrieve updated member data' } };
     } catch (error: any) {
       return { data: null, error: { message: error.message } };
     }
   }
 
-  // Get usher stations
-  async getUsherStations(): Promise<ApiResult<UsherStation[]>> {
+  // Get usher stations (mock data for now)
+  async getUsherStations(): Promise<ApiResult<any[]>> {
     try {
-      // This would query a stations table
-      const stations: UsherStation[] = [
+      // Return mock stations data since we don't have a stations table yet
+      const stations = [
         {
           id: '1',
           name: 'Main Entrance',
@@ -216,15 +267,6 @@ export class UsheringApiService extends BaseApiService {
           equipment: ['Flashlight', 'Safety vest'],
           is_active: true,
         },
-        {
-          id: '4',
-          name: 'Children\'s Area',
-          description: 'Children\'s ministry area',
-          capacity: 1,
-          requirements: ['Child-friendly', 'Background check'],
-          equipment: ['Check-in system', 'Security badges'],
-          is_active: false, // Currently offline
-        },
       ];
 
       return { data: stations, error: null };
@@ -233,36 +275,27 @@ export class UsheringApiService extends BaseApiService {
     }
   }
 
-  // Get upcoming ushering schedule
-  async getUpcomingSchedule(): Promise<ApiResult<UsherShift[]>> {
+  // Get upcoming ushering schedule (using events table)
+  async getUpcomingSchedule(): Promise<ApiResult<any[]>> {
     try {
-      // This would query a shifts table
-      const shifts: UsherShift[] = [
-        {
-          id: '1',
-          service_date: '2024-01-28',
-          service_time: '9:00 AM',
-          station: 'Main Entrance',
-          attendance_count: 0,
-          assigned_by: 'admin-user-id',
-        },
-        {
-          id: '2',
-          service_date: '2024-01-28',
-          service_time: '11:00 AM',
-          station: 'Main Entrance',
-          attendance_count: 0,
-          assigned_by: 'admin-user-id',
-        },
-        {
-          id: '3',
-          service_date: '2024-01-31',
-          service_time: '7:00 PM',
-          station: 'Sanctuary Doors',
-          attendance_count: 0,
-          assigned_by: 'admin-user-id',
-        },
-      ];
+      // Get upcoming events that could need ushering
+      const { data: upcomingEvents } = await supabase
+        .from('events')
+        .select('*')
+        .gte('event_date', new Date().toISOString().split('T')[0])
+        .order('event_date', { ascending: true })
+        .limit(5);
+
+      // Transform events to shift format
+      const shifts = (upcomingEvents || []).map(event => ({
+        id: event.id,
+        service_date: event.event_date,
+        service_time: event.start_time || '9:00 AM',
+        station: 'Main Entrance', // Default station
+        attendance_count: 0,
+        notes: event.description,
+        assigned_by: event.created_by,
+      }));
 
       return { data: shifts, error: null };
     } catch (error: any) {
@@ -270,27 +303,70 @@ export class UsheringApiService extends BaseApiService {
     }
   }
 
-  // Assign usher to a service
+  // Assign usher to a service (using attendance table)
   async assignUsherToService(shiftData: {
     member_id: string;
     service_date: string;
     service_time: string;
     station: string;
     notes?: string;
-  }): Promise<ApiResult<UsherShift>> {
+  }): Promise<ApiResult<any>> {
     try {
-      // This would insert into a shifts table
-      const shift: UsherShift = {
-        id: Date.now().toString(),
-        service_date: shiftData.service_date,
-        service_time: shiftData.service_time,
-        station: shiftData.station,
-        attendance_count: 0,
-        notes: shiftData.notes,
-        assigned_by: (await supabase.auth.getUser()).data.user?.id || 'system',
-      };
+      // Find or create an event for this service
+      let { data: event } = await supabase
+        .from('events')
+        .select('*')
+        .eq('event_date', shiftData.service_date)
+        .eq('start_time', shiftData.service_time)
+        .single();
 
-      return { data: shift, error: null };
+      if (!event) {
+        // Create a new event if it doesn't exist
+        const { data: newEvent, error: eventError } = await supabase
+          .from('events')
+          .insert({
+            title: `Service - ${shiftData.service_date}`,
+            event_date: shiftData.service_date,
+            start_time: shiftData.service_time,
+            branch_id: 'main-branch-id', // Should be actual branch ID
+            created_by: (await supabase.auth.getUser()).data.user?.id,
+          })
+          .select()
+          .single();
+
+        if (eventError) {
+          return { data: null, error: { message: eventError.message } };
+        }
+        event = newEvent;
+      }
+
+      // Record the assignment in attendance table
+      const { error: attendanceError } = await supabase
+        .from('attendance')
+        .insert({
+          member_id: shiftData.member_id,
+          event_id: event.id,
+          attendance_date: shiftData.service_date,
+          branch_id: 'main-branch-id', // Required field
+          notes: `Assigned to ${shiftData.station}. ${shiftData.notes || ''}`,
+        });
+
+      if (attendanceError) {
+        return { data: null, error: { message: attendanceError.message } };
+      }
+
+      return {
+        data: {
+          id: Date.now().toString(),
+          service_date: shiftData.service_date,
+          service_time: shiftData.service_time,
+          station: shiftData.station,
+          attendance_count: 0,
+          notes: shiftData.notes,
+          assigned_by: (await supabase.auth.getUser()).data.user?.id || 'system',
+        },
+        error: null
+      };
     } catch (error: any) {
       return { data: null, error: { message: error.message } };
     }
@@ -298,12 +374,17 @@ export class UsheringApiService extends BaseApiService {
 
   // Record attendance for a service
   async recordServiceAttendance(
-    shiftId: string,
+    eventId: string,
     attendanceCount: number,
     notes?: string
   ): Promise<ApiResult<void>> {
     try {
-      // This would update the attendance count in the shifts table
+      // Update the event with attendance count
+      await supabase
+        .from('events')
+        .update({ description: `Attendance: ${attendanceCount}. ${notes || ''}` })
+        .eq('id', eventId);
+
       return { data: undefined, error: null };
     } catch (error: any) {
       return { data: null, error: { message: error.message } };
@@ -316,37 +397,38 @@ export class UsheringApiService extends BaseApiService {
     availability: string[]
   ): Promise<ApiResult<void>> {
     try {
-      // This would update the member's availability in their profile
+      // Update member profile with availability (would need extended profile table)
+      // For now, just return success
       return { data: undefined, error: null };
     } catch (error: any) {
       return { data: null, error: { message: error.message } };
     }
   }
 
-  // Get service history for a member
-  async getMemberServiceHistory(memberId: string): Promise<ApiResult<UsherShift[]>> {
+  // Get service history for a member (using attendance table)
+  async getMemberServiceHistory(memberId: string): Promise<ApiResult<any[]>> {
     try {
-      // This would query shifts where the member was assigned
-      const history: UsherShift[] = [
-        {
-          id: '1',
-          service_date: '2024-01-21',
-          service_time: '9:00 AM',
-          station: 'Main Entrance',
-          attendance_count: 156,
-          notes: 'Good service',
-          assigned_by: 'admin-user-id',
-        },
-        {
-          id: '2',
-          service_date: '2024-01-21',
-          service_time: '11:00 AM',
-          station: 'Main Entrance',
-          attendance_count: 203,
-          notes: 'Very busy service',
-          assigned_by: 'admin-user-id',
-        },
-      ];
+      // Get attendance records for this member
+      const { data: attendanceRecords } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          event:events!attendance_event_id_fkey(*)
+        `)
+        .eq('member_id', memberId)
+        .order('attendance_date', { ascending: false })
+        .limit(10);
+
+      // Transform to shift history format
+      const history = (attendanceRecords || []).map(record => ({
+        id: record.id,
+        service_date: record.event?.event_date || record.attendance_date,
+        service_time: record.event?.start_time || '9:00 AM',
+        station: 'Main Entrance', // Would need to be stored in attendance notes
+        attendance_count: 0, // Would need to be calculated
+        notes: record.notes,
+        assigned_by: 'system',
+      }));
 
       return { data: history, error: null };
     } catch (error: any) {
