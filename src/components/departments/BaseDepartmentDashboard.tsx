@@ -31,6 +31,8 @@ export interface DepartmentMember {
   joinDate: string;
   email?: string;
   phone?: string;
+  skill_level?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  voice_part?: string;
 }
 
 export interface DepartmentEvent {

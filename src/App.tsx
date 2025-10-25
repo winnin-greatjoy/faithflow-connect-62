@@ -6,7 +6,8 @@ import { useAuth } from "./hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
-import PortalLayout from "./pages/portal/PortalLayout";
+import { PortalLayout } from "./pages/portal/PortalLayout";
+import { PortalDashboard } from "./pages/portal/PortalDashboard";
 import { ProfilePage } from "./pages/portal/ProfilePage";
 import { EventsPage } from "./pages/portal/EventsPage";
 import { DepartmentsPage } from "./pages/portal/DepartmentsPage";
@@ -42,7 +43,7 @@ const App = () => (
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/portal/profile" replace />} />
+          <Route index element={<PortalDashboard />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="departments" element={<DepartmentsPage />} />

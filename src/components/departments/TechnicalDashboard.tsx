@@ -27,10 +27,10 @@ import { useNavigate } from 'react-router-dom';
 import { technicalApi } from '@/services/departments/technicalApi';
 import type { DepartmentMember, DepartmentStats } from '@/types/api';
 
-interface TechnicalMember extends DepartmentMember {
+interface TechnicalMember extends Omit<DepartmentMember, 'skill_level'> {
   specialization: string;
   certifications: string[];
-  skill_level: string;
+  skill_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   tickets_resolved: number;
   uptime_hours: number;
   availability: string[];

@@ -244,6 +244,57 @@ export type Database = {
           },
         ]
       }
+      department_join_requests: {
+        Row: {
+          action: string
+          department_id: string
+          id: string
+          member_id: string
+          notes: string | null
+          processed_at: string | null
+          processed_by: string | null
+          requested_at: string | null
+          status: string
+        }
+        Insert: {
+          action: string
+          department_id: string
+          id?: string
+          member_id: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string | null
+          status?: string
+        }
+        Update: {
+          action?: string
+          department_id?: string
+          id?: string
+          member_id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_join_requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_join_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           branch_id: string
@@ -283,6 +334,54 @@ export type Database = {
           {
             foreignKeyName: "departments_head_id_fkey"
             columns: ["head_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_rsvps: {
+        Row: {
+          created_at: string | null
+          event_id: string
+          guests_count: number | null
+          id: string
+          member_id: string
+          notes: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id: string
+          guests_count?: number | null
+          id?: string
+          member_id: string
+          notes?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string
+          guests_count?: number | null
+          id?: string
+          member_id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvps_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_rsvps_member_id_fkey"
+            columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
@@ -597,6 +696,139 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ministries: {
+        Row: {
+          branch_id: string
+          created_at: string | null
+          description: string | null
+          head_id: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string | null
+          description?: string | null
+          head_id?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string | null
+          description?: string | null
+          head_id?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ministries_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ministry_events: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_time: string | null
+          event_date: string
+          id: string
+          location: string | null
+          ministry_id: string
+          start_time: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_date: string
+          id?: string
+          location?: string | null
+          ministry_id: string
+          start_time?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_date?: string
+          id?: string
+          location?: string | null
+          ministry_id?: string
+          start_time?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ministry_events_ministry_id_fkey"
+            columns: ["ministry_id"]
+            isOneToOne: false
+            referencedRelation: "ministries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ministry_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          joined_date: string
+          member_id: string
+          ministry_id: string
+          role: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          joined_date?: string
+          member_id: string
+          ministry_id: string
+          role?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          joined_date?: string
+          member_id?: string
+          ministry_id?: string
+          role?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ministry_members_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ministry_members_ministry_id_fkey"
+            columns: ["ministry_id"]
+            isOneToOne: false
+            referencedRelation: "ministries"
             referencedColumns: ["id"]
           },
         ]
