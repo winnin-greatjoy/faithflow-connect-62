@@ -45,11 +45,15 @@ export const provisioningApi = {
     }
   }
   ,
-  async create(memberId: string, type: ProvisioningJob['type'] = 'admin_initiated'): Promise<ApiResult<ProvisioningJob>> {
+  async create(
+    memberId: string,
+    type: ProvisioningJob['type'] = 'admin_initiated',
+    delivery_method: 'invite' | 'temp_password' = 'invite'
+  ): Promise<ApiResult<ProvisioningJob>> {
     try {
       const { data, error } = await supabase
         .from('account_provisioning_jobs')
-        .insert({ member_id: memberId, type })
+        .insert({ member_id: memberId, type, delivery_method })
         .select('*')
         .single();
 

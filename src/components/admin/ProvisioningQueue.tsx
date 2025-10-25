@@ -17,6 +17,7 @@ export const ProvisioningQueue: React.FC = () => {
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<{ id: string; full_name: string; email: string | null } | null>(null);
   const [newType, setNewType] = useState<ProvisioningJob['type']>('admin_initiated');
+  const [deliveryMethod, setDeliveryMethod] = useState<'invite' | 'temp_password'>('invite');
   const [creating, setCreating] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,7 +37,7 @@ export const ProvisioningQueue: React.FC = () => {
   const createJob = async () => {
     if (!selectedMember?.id) return;
     setCreating(true);
-    const res = await provisioningApi.create(selectedMember.id, newType);
+    const res = await provisioningApi.create(selectedMember.id, newType, deliveryMethod);
     if (!res.error) {
       setSelectedMember(null);
       await load();
@@ -173,6 +174,15 @@ export const ProvisioningQueue: React.FC = () => {
             <SelectContent>
               <SelectItem value="admin_initiated">Admin initiated</SelectItem>
               <SelectItem value="auto_baptized">Auto (baptized)</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={deliveryMethod} onValueChange={(v: any) => setDeliveryMethod(v)}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Delivery" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="invite">Invite link</SelectItem>
+              <SelectItem value="temp_password">Temp password</SelectItem>
             </SelectContent>
           </Select>
           <Button size="sm" onClick={createJob} disabled={creating || !selectedMember?.id}>

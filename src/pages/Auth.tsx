@@ -16,18 +16,32 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   // Self-signup disabled: accounts are provisioned by admins only
 
+  const decideAndNavigate = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const [{ data: profile }, { data: roles }] = await Promise.all([
+      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      supabase.from('user_roles').select('role').eq('user_id', user.id)
+    ]);
+    const top = (profile as any)?.role as string | null;
+    const extra = (roles as any[] | null)?.map(r => r.role) || [];
+    const all = [top, ...extra].filter(Boolean) as string[];
+    const isAdmin = all.includes('admin') || all.includes('super_admin');
+    navigate(isAdmin ? '/admin' : '/portal', { replace: true });
+  };
+
   useEffect(() => {
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate('/admin');
+        decideAndNavigate();
       }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate('/admin');
+        decideAndNavigate();
       }
     });
 
@@ -50,6 +64,7 @@ const Auth = () => {
         title: 'Success',
         description: 'Signed in successfully',
       });
+      await decideAndNavigate();
     } catch (error: any) {
       toast({
         title: 'Error',

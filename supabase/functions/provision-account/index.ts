@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl, serviceKey);
 async function handleProvision() {
   const { data: jobs, error } = await supabase
     .from('account_provisioning_jobs')
-    .select('id, member_id, status, type')
+    .select('id, member_id, status, type, delivery_method')
     .eq('status', 'pending')
     .limit(10);
 
@@ -51,20 +51,38 @@ async function handleProvision() {
       const role = sub === 'leader' ? 'leader' : sub === 'worker' ? 'worker' : 'member';
       const is_baptized = String(member.membership_level) === 'baptized';
 
-      // Generate a temporary password
-      const password = generateTempPassword();
-
-      // Create auth user & profile via RPC
-      const { data: newUserId, error: rpcErr } = await (supabase as any).rpc('create_user_with_profile', {
-        branch_slug: branch.slug,
-        email: member.email,
-        first_name,
-        is_baptized,
-        last_name,
-        password,
-        role,
-      });
-      if (rpcErr || !newUserId) throw new Error(rpcErr?.message || 'RPC create_user_with_profile failed');
+      let newUserId: string | null = null;
+      let auditReason = '';
+      if ((job as any).delivery_method === 'invite') {
+        // Send invite and create user without password
+        const { data: inviteRes, error: invErr } = await supabase.auth.admin.inviteUserByEmail(member.email, {
+          data: { first_name, last_name, role, is_baptized, branch_slug: branch.slug }
+        } as any);
+        if (invErr) throw new Error('Failed to send invite: ' + invErr.message);
+        newUserId = inviteRes?.user?.id || null;
+        if (!newUserId) throw new Error('Invite did not return a user id');
+        // Upsert profile
+        const { error: profErr } = await supabase
+          .from('profiles')
+          .upsert({ id: newUserId, first_name, last_name, branch_id: member.branch_id, role } as any);
+        if (profErr) throw new Error('Failed to upsert profile: ' + profErr.message);
+        auditReason = `invited:${newUserId}`;
+      } else {
+        // Default to temp_password path using RPC
+        const password = generateTempPassword();
+        const { data: rpcUserId, error: rpcErr } = await (supabase as any).rpc('create_user_with_profile', {
+          branch_slug: branch.slug,
+          email: member.email,
+          first_name,
+          is_baptized,
+          last_name,
+          password,
+          role,
+        });
+        if (rpcErr || !rpcUserId) throw new Error(rpcErr?.message || 'RPC create_user_with_profile failed');
+        newUserId = String(rpcUserId);
+        auditReason = `temp_password:user:${newUserId}`;
+      }
 
       // Assign scoped role to branch (optional but useful)
       const { error: urErr } = await supabase
@@ -74,12 +92,14 @@ async function handleProvision() {
           role: role,
           branch_id: member.branch_id,
         } as any);
-      if (urErr) throw new Error('Failed to assign user role: ' + urErr.message);
+      if (urErr && !String(urErr.message || '').includes('duplicate')) {
+        throw new Error('Failed to assign user role: ' + urErr.message);
+      }
 
       // Done
       await supabase
         .from('account_provisioning_jobs')
-        .update({ status: 'done', reason: null, processed_at: new Date().toISOString() })
+        .update({ status: 'done', reason: auditReason, processed_at: new Date().toISOString() })
         .eq('id', job.id);
       processed += 1;
     } catch (e: any) {
