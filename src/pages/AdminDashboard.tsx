@@ -20,6 +20,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { useAuthz } from '@/hooks/useAuthz';
 import { CMSDashboard } from '@/components/cms/CMSDashboard';
 import { ProvisioningQueue } from '@/components/admin/ProvisioningQueue';
+import { JoinRequests } from '@/components/admin/JoinRequests';
 import { ChoirDashboard, UsheringDashboard, PrayerTeamDashboard, EvangelismDashboard, FinanceDashboard, TechnicalDashboard } from '@/components/departments';
 
 const AdminDashboard = () => {
@@ -41,6 +42,7 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/departments/5') || pathname.startsWith('/admin/departments/finance-dept')) return 'finance-dept';
     if (pathname.startsWith('/admin/departments/6') || pathname.startsWith('/admin/departments/technical')) return 'technical';
     if (pathname.startsWith('/admin/departments')) return 'departments';
+    if (pathname.startsWith('/admin/join-requests')) return 'join-requests';
     if (pathname.startsWith('/admin/members')) return 'members';
     if (pathname.startsWith('/admin/communication')) return 'communication';
     if (pathname.startsWith('/admin/finance')) return 'finance';
@@ -109,6 +111,8 @@ const AdminDashboard = () => {
         return <EventsModule />;
       case 'departments':
         return can('admin', 'view') ? <DepartmentsModule /> : denied;
+      case 'join-requests':
+        return can('admin', 'view') ? <JoinRequests /> : denied;
       case 'cms':
         return <CMSDashboard />;
       case 'reports':

@@ -51,17 +51,13 @@ export const provisioningApi = {
     delivery_method: 'invite' | 'temp_password' = 'invite'
   ): Promise<ApiResult<ProvisioningJob>> {
     try {
-      const { data, error } = await supabase
-        .from('account_provisioning_jobs')
-        .insert({ member_id: memberId, type, delivery_method })
-        .select('*')
-        .single();
-
-      if (error) {
-        return handleApiError(error);
-      }
-
-      return createApiResponse(data as unknown as ProvisioningJob);
+      const { data, error } = await supabase.functions.invoke('admin-create-provisioning-job', {
+        body: { member_id: memberId, type, delivery_method }
+      });
+      if (error) return handleApiError(error);
+      const payload = data as any;
+      const row = (payload?.data ?? payload) as ProvisioningJob;
+      return createApiResponse(row);
     } catch (error) {
       return handleApiError(error);
     }

@@ -75,6 +75,8 @@ export const OptimizedMemberManagement: React.FC = () => {
   const [editingFirstTimer, setEditingFirstTimer] = useState<FirstTimer | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [addedMembers, setAddedMembers] = useState<Member[]>([]);
+  const [addedFirstTimers, setAddedFirstTimers] = useState<FirstTimer[]>([]);
 
   // Composer
   const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -85,19 +87,32 @@ export const OptimizedMemberManagement: React.FC = () => {
 
   useEffect(() => setCurrentPage(1), [activeTab, debouncedSearchTerm, membershipFilter, branchFilter]);
 
+  const allMembers = useMemo(() => {
+    const map = new Map<number, Member>();
+    mockMembers.forEach(m => map.set(m.id, m));
+    addedMembers.forEach(m => map.set(m.id, m));
+    return Array.from(map.values());
+  }, [addedMembers]);
+  const allFirstTimers = useMemo(() => {
+    const map = new Map<number, FirstTimer>();
+    mockFirstTimers.forEach(f => map.set(f.id, f));
+    addedFirstTimers.forEach(f => map.set(f.id, f));
+    return Array.from(map.values());
+  }, [addedFirstTimers]);
+
   const memberStats: MemberStats = useMemo(() => ({
-    total: mockMembers.length,
-    baptized: mockMembers.filter(m => m.membershipLevel === 'baptized').length,
-    converts: mockMembers.filter(m => m.membershipLevel === 'convert').length,
-    visitors: mockFirstTimers.length,
-    leaders: mockMembers.filter(m => !!m.leaderRole).length,
-    workers: mockMembers.filter(m => m.baptizedSubLevel === 'worker').length,
-  }), []);
+    total: allMembers.length,
+    baptized: allMembers.filter(m => m.membershipLevel === 'baptized').length,
+    converts: allMembers.filter(m => m.membershipLevel === 'convert').length,
+    visitors: allFirstTimers.length,
+    leaders: allMembers.filter(m => !!m.leaderRole).length,
+    workers: allMembers.filter(m => m.baptizedSubLevel === 'worker').length,
+  }), [allMembers, allFirstTimers]);
 
   // Filtered members (paginated)
   const { filteredMembers, totalPages } = useMemo(() => {
     const q = debouncedSearchTerm.toLowerCase();
-    const filtered = mockMembers.filter(member => {
+    const filtered = allMembers.filter(member => {
       // Tab: workers includes both workers and disciples
       const matchesTab =
         activeTab === 'workers' ? (member.baptizedSubLevel === 'worker' || member.baptizedSubLevel === 'disciple') :
@@ -120,13 +135,13 @@ export const OptimizedMemberManagement: React.FC = () => {
     const paginated = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     const pages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
     return { filteredMembers: paginated, totalPages: pages };
-  }, [activeTab, debouncedSearchTerm, membershipFilter, branchFilter, currentPage]);
+  }, [activeTab, debouncedSearchTerm, membershipFilter, branchFilter, currentPage, allMembers]);
 
   // Filtered first timers (only used when activeTab === 'visitors')
   const { filteredFirstTimers, firstTimerTotalPages } = useMemo(() => {
     if (activeTab !== 'visitors') return { filteredFirstTimers: [], firstTimerTotalPages: 0 };
     const q = debouncedSearchTerm.toLowerCase();
-    const filtered = mockFirstTimers.filter(ft => {
+    const filtered = allFirstTimers.filter(ft => {
       const matchesSearch = ft.fullName.toLowerCase().includes(q) || (ft.phone && ft.phone.includes(debouncedSearchTerm));
       const matchesBranch = branchFilter === 'all' || (ft.branchId && ft.branchId.toString() === branchFilter);
       return matchesSearch && matchesBranch;
@@ -136,7 +151,7 @@ export const OptimizedMemberManagement: React.FC = () => {
     const paginated = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     const pages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
     return { filteredFirstTimers: paginated, firstTimerTotalPages: pages };
-  }, [activeTab, debouncedSearchTerm, branchFilter, currentPage]);
+  }, [activeTab, debouncedSearchTerm, branchFilter, currentPage, allFirstTimers]);
 
   const handlePageChange = useCallback((newPage: number) => {
     const max = activeTab === 'visitors' ? firstTimerTotalPages : totalPages;
@@ -162,6 +177,89 @@ export const OptimizedMemberManagement: React.FC = () => {
     } as Member);
     setShowMemberForm(true);
   };
+
+  // Listen for quick-created member from ProvisioningQueue
+  useEffect(() => {
+    const handleIncoming = () => {
+      try {
+        const stored = sessionStorage.getItem('mm:newMember');
+        if (!stored) return;
+        const detail = JSON.parse(stored);
+        sessionStorage.removeItem('mm:newMember');
+        if (!detail) return;
+        const now = new Date().toISOString();
+        if (detail.membershipLevel === 'visitor') {
+          const ft: FirstTimer = {
+            id: Date.now(),
+            fullName: detail.fullName,
+            community: '',
+            area: '',
+            street: '',
+            publicLandmark: '',
+            phone: detail.phone || '',
+            email: detail.email || '',
+            serviceDate: now,
+            invitedBy: '',
+            followUpStatus: 'pending',
+            branchId: detail.branchId || 1,
+            firstVisit: now,
+            visitDate: now,
+            status: 'new',
+            followUpNotes: '',
+            notes: '',
+            createdAt: now,
+          };
+          setAddedFirstTimers(prev => [ft, ...prev]);
+        } else {
+          const m: Member = {
+            id: Date.now(),
+            fullName: detail.fullName,
+            profilePhoto: '',
+            dateOfBirth: '2000-01-01',
+            gender: 'male',
+            maritalStatus: 'single',
+            spouseName: '',
+            numberOfChildren: 0,
+            children: [],
+            email: detail.email || '',
+            phone: detail.phone || '',
+            community: '',
+            area: '',
+            street: '',
+            publicLandmark: '',
+            branchId: detail.branchId || 1,
+            dateJoined: now,
+            membershipLevel: detail.membershipLevel,
+            baptizedSubLevel: detail.baptizedSubLevel && detail.baptizedSubLevel !== 'none' ? detail.baptizedSubLevel : undefined,
+            leaderRole: undefined,
+            baptismDate: '',
+            joinDate: now,
+            lastVisit: now,
+            progress: 0,
+            baptismOfficiator: '',
+            spiritualMentor: '',
+            discipleshipClass1: false,
+            discipleshipClass2: false,
+            discipleshipClass3: false,
+            assignedDepartment: '',
+            status: 'active',
+            ministry: '',
+            prayerNeeds: '',
+            pastoralNotes: '',
+            lastAttendance: '',
+            createdAt: now,
+            updatedAt: now,
+          } as Member;
+          setAddedMembers(prev => [m, ...prev]);
+        }
+      } catch {}
+    };
+    const listener = () => handleIncoming();
+    window.addEventListener('member:created', listener);
+    // Also check once on mount
+    handleIncoming();
+    return () => window.removeEventListener('member:created', listener);
+  }, []);
   const handleAddFirstTimer = () => { setEditingFirstTimer(null); setShowFirstTimerForm(true); };
   const handleEditMember = (m: Member) => { setEditingMember(m); setShowMemberForm(true); };
   const handleEditFirstTimer = (ft: FirstTimer) => { setEditingFirstTimer(ft); setShowFirstTimerForm(true); };
@@ -480,6 +578,57 @@ export const OptimizedMemberManagement: React.FC = () => {
             member={editingMember ?? undefined}
             onCancel={() => setShowMemberForm(false)}
             onSubmit={(data) => {
+              const id = editingMember?.id ?? Date.now();
+              const now = new Date().toISOString();
+              const updated: Member = {
+                id,
+                fullName: data.fullName,
+                profilePhoto: data.profilePhoto || '',
+                dateOfBirth: data.dateOfBirth,
+                gender: data.gender,
+                maritalStatus: data.maritalStatus,
+                spouseName: data.spouseName || '',
+                numberOfChildren: data.numberOfChildren ?? 0,
+                children: (data.children ?? []).map((c: any) => ({
+                  id: c.id,
+                  name: c.name,
+                  dateOfBirth: c.dateOfBirth,
+                  gender: c.gender,
+                  notes: c.notes,
+                })),
+                email: data.email,
+                phone: data.phone,
+                community: data.community,
+                area: data.area,
+                street: data.street,
+                publicLandmark: data.publicLandmark || '',
+                branchId: data.branchId,
+                dateJoined: data.joinDate,
+                membershipLevel: data.membershipLevel,
+                baptizedSubLevel: data.membershipLevel === 'baptized' ? (data.baptizedSubLevel as any) : undefined,
+                leaderRole: data.leaderRole as any,
+                baptismDate: data.baptismDate || '',
+                joinDate: data.joinDate,
+                lastVisit: now,
+                progress: 0,
+                baptismOfficiator: data.baptismOfficiator || '',
+                spiritualMentor: data.spiritualMentor || '',
+                discipleshipClass1: false,
+                discipleshipClass2: false,
+                discipleshipClass3: false,
+                assignedDepartment: data.assignedDepartment || '',
+                status: 'active',
+                ministry: '',
+                prayerNeeds: data.prayerNeeds || '',
+                pastoralNotes: data.pastoralNotes || '',
+                lastAttendance: '',
+                createdAt: now,
+                updatedAt: now,
+              };
+              setAddedMembers(prev => {
+                const exists = prev.some(m => m.id === id);
+                return exists ? prev.map(m => (m.id === id ? updated : m)) : [updated, ...prev];
+              });
               toast({ title: editingMember ? 'Member updated' : 'Member added', description: 'Saved successfully.' });
               setShowMemberForm(false);
             }}
@@ -492,6 +641,32 @@ export const OptimizedMemberManagement: React.FC = () => {
             firstTimer={editingFirstTimer ?? undefined}
             onCancel={() => setShowFirstTimerForm(false)}
             onSubmit={(data) => {
+              const id = editingFirstTimer?.id ?? Date.now();
+              const now = new Date().toISOString();
+              const updated: FirstTimer = {
+                id,
+                fullName: data.fullName,
+                community: data.community || '',
+                area: data.area || '',
+                street: data.street || '',
+                publicLandmark: data.publicLandmark || '',
+                phone: data.phone || '',
+                email: '',
+                serviceDate: data.serviceDate || now,
+                invitedBy: data.invitedBy || '',
+                followUpStatus: 'pending',
+                branchId: data.branchId || 1,
+                firstVisit: now,
+                visitDate: now,
+                status: 'new',
+                followUpNotes: '',
+                notes: data.notes || '',
+                createdAt: now,
+              } as any;
+              setAddedFirstTimers(prev => {
+                const exists = prev.some(f => f.id === id);
+                return exists ? prev.map(f => (f.id === id ? updated : f)) : [updated, ...prev];
+              });
               toast({ title: editingFirstTimer ? 'First timer updated' : 'First timer added', description: 'Saved successfully.' });
               setShowFirstTimerForm(false);
             }}

@@ -57,6 +57,7 @@ const secondaryItems: MenuItem[] = [
   { id: 'finance', label: 'Finance', icon: CreditCard },
   { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
   { id: 'departments', label: 'Dept & Ministries', icon: Building },
+  { id: 'join-requests', label: 'Join Requests', icon: UserCheck },
   { id: 'cms', label: 'Content Management', icon: FileText },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'provisioning', label: 'Provisioning', icon: FileText },

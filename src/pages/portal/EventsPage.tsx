@@ -7,6 +7,7 @@ export const EventsPage: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [rsvps, setRsvps] = useState<Record<string, 'going'|'maybe'|'not_going'|undefined>>({});
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<Record<string, { going: number; maybe: number; not_going: number }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -15,14 +16,23 @@ export const EventsPage: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const today = new Date().toISOString().slice(0,10);
-        const [{ data: evs }, { data: myRsvps }] = await Promise.all([
-          supabase.from('events').select('*').gte('event_date', today).order('event_date', { ascending: true }).limit(20),
-          supabase.from('event_rsvps').select('event_id, status').eq('member_id', user.id)
-        ]);
+        const { data: evs } = await supabase.from('events').select('*').gte('event_date', today).order('event_date', { ascending: true }).limit(20);
         setEvents(evs || []);
+        const ids = (evs || []).map(e => e.id);
+        const [{ data: myRsvps }, { data: allRsvps }] = await Promise.all([
+          supabase.from('event_rsvps').select('event_id, status').eq('member_id', user.id).in('event_id', ids),
+          ids.length ? supabase.from('event_rsvps').select('event_id, status').in('event_id', ids) : Promise.resolve({ data: [], error: null } as any)
+        ]);
         const map: Record<string, 'going'|'maybe'|'not_going'> = {};
         (myRsvps || []).forEach((r: any) => { map[r.event_id] = r.status; });
         setRsvps(map);
+        const c: Record<string, { going: number; maybe: number; not_going: number }> = {};
+        (allRsvps || []).forEach((row: any) => {
+          const eid = row.event_id;
+          if (!c[eid]) c[eid] = { going: 0, maybe: 0, not_going: 0 };
+          c[eid][row.status] = (c[eid][row.status] || 0) + 1;
+        });
+        setCounts(c);
       }
       setLoading(false);
     })();
@@ -35,7 +45,18 @@ export const EventsPage: React.FC = () => {
     const { error } = await supabase
       .from('event_rsvps')
       .upsert({ event_id: eventId, member_id: user.id, status }, { onConflict: 'event_id,member_id' });
-    if (!error) setRsvps(prev => ({ ...prev, [eventId]: status }));
+    if (!error) {
+      setRsvps(prev => ({ ...prev, [eventId]: status }));
+      // Optimistically bump counts
+      setCounts(prev => {
+        const cur = prev[eventId] || { going: 0, maybe: 0, not_going: 0 };
+        const prevStatus = rsvps[eventId];
+        const next = { ...cur };
+        if (prevStatus) next[prevStatus] = Math.max(0, next[prevStatus] - 1);
+        next[status] = (next[status] || 0) + 1;
+        return { ...prev, [eventId]: next };
+      });
+    }
     setSavingId(null);
   };
 
@@ -52,9 +73,15 @@ export const EventsPage: React.FC = () => {
               <div className="text-sm text-gray-600">{new Date(ev.event_date).toLocaleDateString()} • {ev.location || 'TBD'}</div>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant={rsvps[ev.id] === 'going' ? 'default' : 'outline'} disabled={savingId === ev.id} onClick={() => setRsvp(ev.id, 'going')}>Going</Button>
-              <Button size="sm" variant={rsvps[ev.id] === 'maybe' ? 'default' : 'outline'} disabled={savingId === ev.id} onClick={() => setRsvp(ev.id, 'maybe')}>Maybe</Button>
-              <Button size="sm" variant={rsvps[ev.id] === 'not_going' ? 'default' : 'outline'} disabled={savingId === ev.id} onClick={() => setRsvp(ev.id, 'not_going')}>Not going</Button>
+              <Button size="sm" variant={rsvps[ev.id] === 'going' ? 'default' : 'outline'} disabled={savingId === ev.id} onClick={() => setRsvp(ev.id, 'going')}>
+                Going{typeof counts[ev.id]?.going === 'number' ? ` (${counts[ev.id].going})` : ''}
+              </Button>
+              <Button size="sm" variant={rsvps[ev.id] === 'maybe' ? 'default' : 'outline'} disabled={savingId === ev.id} onClick={() => setRsvp(ev.id, 'maybe')}>
+                Maybe{typeof counts[ev.id]?.maybe === 'number' ? ` (${counts[ev.id].maybe})` : ''}
+              </Button>
+              <Button size="sm" variant={rsvps[ev.id] === 'not_going' ? 'default' : 'outline'} disabled={savingId === ev.id} onClick={() => setRsvp(ev.id, 'not_going')}>
+                Not going{typeof counts[ev.id]?.not_going === 'number' ? ` (${counts[ev.id].not_going})` : ''}
+              </Button>
             </div>
           </div>
         ))}
