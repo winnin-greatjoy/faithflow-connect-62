@@ -20,12 +20,24 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
   }
   try {
-    const { action, id, data } = await req.json();
-    if (!action || !data || (action === 'update' && !id)) {
-      return new Response(JSON.stringify({ error: 'Missing action/data or id' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    const { action, id, data, target } = await req.json();
+    const table = (target === 'first_timers') ? 'first_timers' : 'members';
+    if (!action || ((action === 'insert' || action === 'update') && !data) || ((action === 'update' || action === 'delete') && !id)) {
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
     if (action === 'insert') {
+      // rudimentary unique email guard
+      if (data?.email) {
+        const { data: dup } = await supabase
+          .from('members')
+          .select('id')
+          .ilike('email', data.email)
+          .limit(1);
+        if ((dup || []).length > 0) {
+          return new Response(JSON.stringify({ error: 'A member with this email already exists.' }), { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+      }
       const { data: row, error } = await supabase
         .from('members')
         .insert(data)
@@ -37,13 +49,22 @@ serve(async (req: Request) => {
 
     if (action === 'update') {
       const { data: row, error } = await supabase
-        .from('members')
+        .from(table)
         .update(data)
         .eq('id', id)
-        .select('id, full_name, email, phone, profile_photo, status, membership_level')
+        .select('*')
         .single();
       if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
       return new Response(JSON.stringify({ ok: true, data: row }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    }
+
+    if (action === 'delete') {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
+      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });

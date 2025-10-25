@@ -11,6 +11,14 @@ import { PortalDashboard } from "./pages/portal/PortalDashboard";
 import { ProfilePage } from "./pages/portal/ProfilePage";
 import { EventsPage } from "./pages/portal/EventsPage";
 import { DepartmentsPage } from "./pages/portal/DepartmentsPage";
+import DirectoryPage from "./pages/portal/DirectoryPage";
+import RegistrationsPage from "./pages/portal/RegistrationsPage";
+import AttendancePage from "./pages/portal/AttendancePage";
+import GroupsPage from "./pages/portal/GroupsPage";
+import CalendarPage from "./pages/portal/CalendarPage";
+import NotificationsPage from "./pages/portal/NotificationsPage";
+import SettingsPage from "./pages/portal/SettingsPage";
+import ShareAppPage from "./pages/portal/ShareAppPage";
 
 const queryClient = new QueryClient();
 
@@ -45,7 +53,14 @@ const App = () => (
         >
           <Route index element={<PortalDashboard />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="events" element={<EventsPage />} />
+          <Route path="directory" element={<DirectoryPage />} />
+          <Route path="registrations" element={<RegistrationsPage />} />
+          <Route path="attendance" element={<AttendancePage />} />
+          <Route path="groups" element={<GroupsPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="share" element={<ShareAppPage />} />
           <Route path="departments" element={<DepartmentsPage />} />
         </Route>
         <Route

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // -------------------- Types -------------------- 
 type MembershipLevel = 'baptized' | 'convert' | 'visitor';
@@ -40,7 +41,7 @@ type Member = {
   phone?: string;
   membershipLevel?: MembershipLevel;
   baptizedSubLevel?: 'worker' | 'disciple' | 'none';
-  branchId?: number;
+  branchId?: string;
   ministry?: string;
   progress?: number; // 0-100
   status?: string;
@@ -52,31 +53,14 @@ type FirstTimer = {
   phone?: string;
   community?: string;
   invitedBy?: string;
-  branchId?: number;
+  branchId?: string;
   serviceDate?: string;
   status?: string;
 };
 
-type Branch = { id: number; name: string };
+type Branch = { id: string; name: string };
 
-// -------------------- Mock data (kept locally) --------------------
-const initialBranches: Branch[] = [
-  { id: 1, name: 'Central' },
-  { id: 2, name: 'North' },
-  { id: 3, name: 'East' },
-];
-
-const initialMembers: Member[] = [
-  { id: 1, fullName: 'John Doe', email: 'john@example.com', phone: '232-88-111222', membershipLevel: 'baptized', baptizedSubLevel: 'worker', branchId: 1, ministry: 'Music', progress: 85, status: 'active' },
-  { id: 2, fullName: 'Sarah Williams', email: 'sarah@example.com', phone: '232-88-333444', membershipLevel: 'baptized', baptizedSubLevel: 'disciple', branchId: 2, ministry: 'Outreach', progress: 60, status: 'active' },
-  { id: 3, fullName: 'Peter Smith', email: 'peter@example.com', phone: '232-88-555666', membershipLevel: 'convert', baptizedSubLevel: 'none', branchId: 1, ministry: 'None', progress: 30, status: 'new' },
-  { id: 4, fullName: 'Mary Johnson', email: 'mary@example.com', phone: '232-88-777888', membershipLevel: 'baptized', baptizedSubLevel: 'worker', branchId: 3, ministry: 'Ushering', progress: 95, status: 'active' },
-];
-
-const initialFirstTimers: FirstTimer[] = [
-  { id: 1, fullName: 'James Doe', phone: '232-77-111222', community: 'Kissy', invitedBy: 'Peter', branchId: 1, serviceDate: new Date().toISOString(), status: 'new' },
-  { id: 2, fullName: 'Angela White', phone: '232-77-333444', community: 'Riverside', invitedBy: '', branchId: 2, serviceDate: new Date().toISOString(), status: 'contacted' },
-];
+// -------------------- Mock placeholders removed; loading live data --------------------
 
 // -------------------- Helper: paginate --------------------
 function paginate<T>(items: T[], pageSize: number, page: number) {
@@ -93,10 +77,10 @@ function paginate<T>(items: T[], pageSize: number, page: number) {
 
 // -------------------- Component --------------------
 export const MemberManagement: React.FC = () => {
-  // data state (mock, editable)
-  const [branches] = useState<Branch[]>(initialBranches);
-  const [members, setMembers] = useState<Member[]>(initialMembers);
-  const [firstTimers, setFirstTimers] = useState<FirstTimer[]>(initialFirstTimers);
+  // data state (live)
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [firstTimers, setFirstTimers] = useState<FirstTimer[]>([]);
 
   // UI state
   const [activeTab, setActiveTab] = useState<'workers_disciples' | 'converts' | 'visitors'>('workers_disciples');
@@ -122,6 +106,66 @@ export const MemberManagement: React.FC = () => {
 
   const { toast } = useToast();
 
+  // Map local numeric ids to DB UUIDs for server actions
+  const memberMetaRef = useRef(new Map<number, { dbId: string }>());
+  const firstTimerMetaRef = useRef(new Map<number, { dbId: string }>());
+
+  const toLocalId = (s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
+    return Math.abs(h) + 1;
+  };
+
+  // Load branches, members, and first timers from Supabase
+  useEffect(() => {
+    (async () => {
+      const [br, mr, fr] = await Promise.all([
+        supabase.from('church_branches').select('id, name').order('name'),
+        supabase
+          .from('members')
+          .select('id, full_name, email, phone, branch_id, membership_level, baptized_sub_level, status')
+          .order('full_name'),
+        supabase
+          .from('first_timers')
+          .select('id, full_name, phone, community, invited_by, branch_id, service_date, status')
+          .order('service_date', { ascending: false }),
+      ]);
+      setBranches((br.data || []) as any);
+      const mappedMembers: Member[] = (mr.data || []).map((row: any) => {
+        const lid = toLocalId(row.id);
+        memberMetaRef.current.set(lid, { dbId: row.id });
+        return {
+          id: lid,
+          fullName: row.full_name,
+          email: row.email || '',
+          phone: row.phone || '',
+          membershipLevel: row.membership_level,
+          baptizedSubLevel: (row.baptized_sub_level || 'none') as any,
+          branchId: row.branch_id,
+          ministry: '',
+          progress: 0,
+          status: row.status || 'active',
+        } as Member;
+      });
+      setMembers(mappedMembers);
+      const mappedFT: FirstTimer[] = (fr.data || []).map((row: any) => {
+        const lid = toLocalId(row.id);
+        firstTimerMetaRef.current.set(lid, { dbId: row.id });
+        return {
+          id: lid,
+          fullName: row.full_name,
+          phone: row.phone || '',
+          community: row.community || '',
+          invitedBy: row.invited_by || '',
+          branchId: row.branch_id,
+          serviceDate: row.service_date || new Date().toISOString(),
+          status: row.status || 'new',
+        } as FirstTimer;
+      });
+      setFirstTimers(mappedFT);
+    })();
+  }, []);
+
   // -------------------- Derived / filtered data --------------------
   const MEMBERSHIP_LEVELS: MembershipLevel[] = ['baptized', 'convert', 'visitor'];
 
@@ -138,7 +182,7 @@ export const MemberManagement: React.FC = () => {
 
       const matchesSearch = !q || m.fullName.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q) || (m.phone || '').includes(q);
       const matchesMembership = membershipFilter === 'all' || m.membershipLevel === membershipFilter;
-      const matchesBranch = branchFilter === 'all' || (m.branchId && m.branchId.toString() === branchFilter);
+      const matchesBranch = branchFilter === 'all' || (m.branchId && m.branchId === branchFilter);
 
       return matchesTab && matchesSearch && matchesMembership && matchesBranch;
     });
@@ -149,7 +193,7 @@ export const MemberManagement: React.FC = () => {
     const q = searchTerm.trim().toLowerCase();
     return firstTimers.filter(ft => {
       const matchesSearch = !q || ft.fullName.toLowerCase().includes(q) || (ft.phone || '').includes(q);
-      const matchesBranch = branchFilter === 'all' || (ft.branchId && ft.branchId.toString() === branchFilter);
+      const matchesBranch = branchFilter === 'all' || (ft.branchId && ft.branchId === branchFilter);
       return matchesSearch && matchesBranch;
     });
   }, [firstTimers, searchTerm, branchFilter, activeTab]);
@@ -203,32 +247,56 @@ export const MemberManagement: React.FC = () => {
     setIsDeleteConfirmOpen(true);
   };
 
-  const deleteItem = () => {
+  const deleteItem = async () => {
     if (!deleting) return;
-    if ('membershipLevel' in deleting) {
-      // Member
-      setMembers(prev => prev.filter(m => m.id !== deleting.id));
-      setSelectedMemberIds(prev => prev.filter(x => x !== deleting.id));
+    try {
+      if ('membershipLevel' in deleting) {
+        const meta = memberMetaRef.current.get(deleting.id);
+        if (meta?.dbId) {
+          const { error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId } } as any);
+          if (error) throw new Error(error.message || 'Edge function error');
+        }
+        setMembers(prev => prev.filter(m => m.id !== deleting.id));
+        setSelectedMemberIds(prev => prev.filter(x => x !== deleting.id));
+      } else {
+        const meta = firstTimerMetaRef.current.get(deleting.id);
+        if (meta?.dbId) {
+          const { error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId, target: 'first_timers' } } as any);
+          if (error) throw new Error(error.message || 'Edge function error');
+        }
+        setFirstTimers(prev => prev.filter(f => f.id !== deleting.id));
+        setSelectedFirstTimerIds(prev => prev.filter(x => x !== deleting.id));
+      }
       toast({ title: 'Deleted', description: `${deleting.fullName} removed.` });
-    } else {
-      // FirstTimer
-      setFirstTimers(prev => prev.filter(f => f.id !== deleting.id));
-      setSelectedFirstTimerIds(prev => prev.filter(x => x !== deleting.id));
-      toast({ title: 'Deleted', description: `${deleting.fullName} removed.` });
+    } catch (e: any) {
+      toast({ title: 'Delete failed', description: String(e?.message || e), variant: 'destructive' });
+    } finally {
+      setIsDeleteConfirmOpen(false);
+      setDeleting(null);
     }
-    setIsDeleteConfirmOpen(false);
-    setDeleting(null);
   };
 
-  const deleteSelected = () => {
-    if (activeTab === 'visitors') {
-      setFirstTimers(prev => prev.filter(ft => !selectedFirstTimerIds.includes(ft.id)));
-      toast({ title: 'Deleted', description: `${selectedFirstTimerIds.length} visitor(s) removed.` });
-      setSelectedFirstTimerIds([]);
-    } else {
-      setMembers(prev => prev.filter(m => !selectedMemberIds.includes(m.id)));
-      toast({ title: 'Deleted', description: `${selectedMemberIds.length} member(s) removed.` });
-      setSelectedMemberIds([]);
+  const deleteSelected = async () => {
+    try {
+      if (activeTab === 'visitors') {
+        await Promise.all(selectedFirstTimerIds.map(async (id) => {
+          const meta = firstTimerMetaRef.current.get(id);
+          if (meta?.dbId) await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId, target: 'first_timers' } } as any);
+        }));
+        setFirstTimers(prev => prev.filter(ft => !selectedFirstTimerIds.includes(ft.id)));
+        toast({ title: 'Deleted', description: `${selectedFirstTimerIds.length} visitor(s) removed.` });
+        setSelectedFirstTimerIds([]);
+      } else {
+        await Promise.all(selectedMemberIds.map(async (id) => {
+          const meta = memberMetaRef.current.get(id);
+          if (meta?.dbId) await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId } } as any);
+        }));
+        setMembers(prev => prev.filter(m => !selectedMemberIds.includes(m.id)));
+        toast({ title: 'Deleted', description: `${selectedMemberIds.length} member(s) removed.` });
+        setSelectedMemberIds([]);
+      }
+    } catch (e: any) {
+      toast({ title: 'Delete failed', description: String(e?.message || e), variant: 'destructive' });
     }
   };
 
@@ -276,7 +344,7 @@ export const MemberManagement: React.FC = () => {
   };
 
   // -------------------- small helpers --------------------
-  const getBranchName = (id?: number) => branches.find(b => b.id === id)?.name || 'N/A';
+  const getBranchName = (id?: string) => branches.find(b => b.id === id)?.name || 'N/A';
 
   // -------------------- UI --------------------
   return (
@@ -301,7 +369,7 @@ export const MemberManagement: React.FC = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Branches</SelectItem>
-              {branches.map(b => <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>)}
+              {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
 
@@ -686,7 +754,7 @@ export const MemberManagement: React.FC = () => {
                   phone: (data.get('phone') as string) || editing.phone,
                   ministry: (data.get('ministry') as string) || editing.ministry,
                   progress: Number(data.get('progress')) || editing.progress || 0,
-                  branchId: Number(data.get('branchId')) || editing.branchId,
+                  branchId: (data.get('branchId') as string) || editing.branchId || branches[0]?.id,
                 };
 
                 // If new id (mock add)

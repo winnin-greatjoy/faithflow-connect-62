@@ -70,8 +70,9 @@ export const ProvisioningQueue: React.FC = () => {
     setSearching(true);
     let query = supabase
       .from('members')
-      .select('id, full_name, email, phone, branch_id, profile_photo, status, membership_level')
+      .select('id, full_name, email, phone, branch_id, profile_photo, status, membership_level, baptized_sub_level')
       .eq('membership_level', 'baptized')
+      .in('baptized_sub_level', ['worker','disciple'] as any)
       .order('full_name')
       .limit(10);
     if (branchId && limitToBranch) {
@@ -101,8 +102,10 @@ export const ProvisioningQueue: React.FC = () => {
     setSearching(true);
     let query = supabase
       .from('members')
-      .select('id, full_name, email, phone, branch_id, profile_photo, status, membership_level')
+      .select('id, full_name, email, phone, branch_id, profile_photo, status, membership_level, baptized_sub_level')
       .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+      .eq('membership_level', 'baptized')
+      .in('baptized_sub_level', ['worker','disciple'] as any)
       .limit(10);
     if (branchId && limitToBranch) {
       query = query.eq('branch_id', branchId);
@@ -456,77 +459,103 @@ export const ProvisioningQueue: React.FC = () => {
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" type="button" onClick={() => setShowCreateMember(false)}>Cancel</Button>
-              <Button type="button" onClick={async () => {
-                const today = new Date().toISOString().slice(0,10);
-                const base: any = {
-                  full_name: newMember.full_name,
-                  email: newMember.email || null,
-                  profile_photo: null,
-                  date_of_birth: '2000-01-01',
-                  gender: 'male',
-                  marital_status: 'single',
-                  spouse_name: null,
-                  number_of_children: 0,
-                  phone: newMember.phone || '-',
-                  community: '-',
-                  area: '-',
-                  street: '-',
-                  public_landmark: null,
-                  branch_id: newMember.branch_id,
-                  date_joined: today,
-                  membership_level: newMember.membership_level,
-                  baptized_sub_level: newMember.membership_level === 'baptized' ? 'worker' : null,
-                  leader_role: null,
-                };
-                if (editMemberId) {
-                  const { data, error } = await supabase.functions.invoke('admin-create-member', {
-                    body: { action: 'update', id: editMemberId, data: base }
-                  } as any);
-                  if (error) { toast({ title: 'Update failed', description: error.message || 'Edge function error', variant: 'destructive' }); return; }
-                  const payload = data as any;
-                  const row = payload?.data ?? payload;
-                  setSelectedMember(row as any);
-                  setResults([row as any, ...results.filter(r => r.id !== (row as any).id)]);
-                  setShowCreateMember(false);
-                } else {
-                  const { data, error } = await supabase.functions.invoke('admin-create-member', {
-                    body: { action: 'insert', data: base }
-                  } as any);
-                  if (error) { toast({ title: 'Create failed', description: error.message || 'Edge function error', variant: 'destructive' }); return; }
-                  const payload = data as any;
-                  const row = payload?.data ?? payload;
-                  setSelectedMember(row as any);
-                  setResults([row as any]);
-                  setShowCreateMember(false);
+              <Button
+                type="button"
+                onClick={async () => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  const base: any = {
+                    full_name: newMember.full_name,
+                    email: newMember.email || null,
+                    profile_photo: null,
+                    date_of_birth: '2000-01-01',
+                    gender: 'male',
+                    marital_status: 'single',
+                    spouse_name: null,
+                    number_of_children: 0,
+                    phone: newMember.phone || '-',
+                    community: '-',
+                    area: '-',
+                    street: '-',
+                    public_landmark: null,
+                    branch_id: newMember.branch_id,
+                    date_joined: today,
+                    membership_level: newMember.membership_level,
+                    baptized_sub_level: newMember.membership_level === 'baptized' ? 'worker' : null,
+                    leader_role: null,
+                  };
                   try {
-                    const mmPayload = {
-                      id: Date.now(),
-                      fullName: (row as any).full_name || newMember.full_name,
-                      email: (row as any).email || newMember.email || '',
-                      phone: (row as any).phone || newMember.phone || '',
-                      membershipLevel: ((row as any).membership_level || newMember.membership_level) as any,
-                      baptizedSubLevel: ((row as any).baptized_sub_level || (newMember.membership_level === 'baptized' ? 'worker' : 'none')) as any,
-                      branchId: 1,
-                      status: 'active',
-                    };
-                    sessionStorage.setItem('mm:newMember', JSON.stringify(mmPayload));
-                    window.dispatchEvent(new CustomEvent('member:created', { detail: mmPayload }));
-                  } catch {}
-                  if (autoCreateJob) {
-                    if ((row as any).membership_level === 'baptized') {
-                      const res = await provisioningApi.create((row as any).id, newType, dialogDelivery);
-                      await load();
-                      toast({ title: 'Create Job', description: 'Provisioning job created.' });
+                    if (editMemberId) {
+                      const { data, error } = await supabase.functions.invoke('admin-create-member', {
+                        body: { action: 'update', id: editMemberId, data: base }
+                      } as any);
+                      if (error) {
+                        toast({ title: 'Update failed', description: error.message || 'Edge function error', variant: 'destructive' });
+                        return;
+                      }
+                      const payload = data as any;
+                      const row = (payload?.data ?? payload) as any;
+                      setSelectedMember(row as any);
+                      setResults([row as any, ...results.filter(r => r.id !== row.id)]);
+                      setShowCreateMember(false);
                     } else {
-                      toast({ title: 'Job not created', description: 'Jobs can only be created for baptized members.', variant: 'destructive' });
+                      if (newMember.email) {
+                        const { data: dup } = await supabase
+                          .from('members')
+                          .select('id')
+                          .ilike('email', newMember.email)
+                          .limit(1);
+                        if ((dup || []).length > 0) {
+                          toast({ title: 'Duplicate email', description: 'A member with this email already exists.', variant: 'destructive' });
+                          return;
+                        }
+                      }
+                      const { data, error } = await supabase.functions.invoke('admin-create-member', {
+                        body: { action: 'insert', data: base }
+                      } as any);
+                      if (error) {
+                        toast({ title: 'Create failed', description: error.message || 'Edge function error', variant: 'destructive' });
+                        return;
+                      }
+                      const payload = data as any;
+                      const row = (payload?.data ?? payload) as any;
+                      setSelectedMember(row as any);
+                      setResults([row as any]);
+                      setShowCreateMember(false);
+                      try {
+                        const mmPayload = {
+                          id: Date.now(),
+                          fullName: row.full_name || newMember.full_name,
+                          email: row.email || newMember.email || '',
+                          phone: row.phone || newMember.phone || '',
+                          membershipLevel: (row.membership_level || newMember.membership_level) as any,
+                          baptizedSubLevel: (row.baptized_sub_level || (newMember.membership_level === 'baptized' ? 'worker' : 'none')) as any,
+                          branchId: 1,
+                          status: 'active',
+                        };
+                        sessionStorage.setItem('mm:newMember', JSON.stringify(mmPayload));
+                        window.dispatchEvent(new CustomEvent('member:created', { detail: mmPayload }));
+                      } catch {}
+                      if (autoCreateJob) {
+                        if ((row as any).membership_level === 'baptized') {
+                          const res = await provisioningApi.create((row as any).id, newType, dialogDelivery);
+                          await load();
+                          toast({ title: 'Create Job', description: 'Provisioning job created.' });
+                        } else {
+                          toast({ title: 'Job not created', description: 'Jobs can only be created for baptized members.', variant: 'destructive' });
+                        }
+                      }
+                      setSearchTerm('');
+                      await loadDefaultMembers();
+                      setPickerOpen(true);
                     }
+                  } catch (e: any) {
+                    toast({ title: 'Save failed', description: String(e?.message || e), variant: 'destructive' });
                   }
-                  // Refresh default baptized list in picker for immediate selection
-                  setSearchTerm('');
-                  await loadDefaultMembers();
-                  setPickerOpen(true);
-                }
-              }} disabled={!newMember.full_name || !newMember.branch_id || !emailValid}>Save</Button>
+                }}
+                disabled={!newMember.full_name || !newMember.branch_id || !emailValid}
+              >
+                Save
+              </Button>
             </div>
             <div className="text-xs text-gray-500">Defaults are applied for required fields; you can complete the profile later in Members.</div>
           </div>

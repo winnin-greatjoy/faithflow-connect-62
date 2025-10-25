@@ -1,5 +1,5 @@
 // src/components/admin/OptimizedMemberManagement.tsx
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Member, FirstTimer, type MembershipLevel } from '@/types/membership';
-import { mockMembers, mockFirstTimers, mockBranches } from '@/data/mockMembershipData';
+import { supabase } from '@/integrations/supabase/client';
 import { getMembershipLevelDisplay } from '@/utils/membershipUtils';
 import { MemberForm } from './MemberForm';
 import { FirstTimerForm } from './FirstTimerForm';
@@ -78,6 +78,122 @@ export const OptimizedMemberManagement: React.FC = () => {
   const [addedMembers, setAddedMembers] = useState<Member[]>([]);
   const [addedFirstTimers, setAddedFirstTimers] = useState<FirstTimer[]>([]);
 
+  // Live data state
+  const [dbMembers, setDbMembers] = useState<Member[]>([]);
+  const [dbFirstTimers, setDbFirstTimers] = useState<FirstTimer[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+
+  // Map local numeric IDs to DB UUIDs and branch IDs for actions/display
+  const memberMetaRef = useRef(new Map<number, { dbId: string; branchId: string }>());
+  const firstTimerMetaRef = useRef(new Map<number, { dbId: string; branchId: string }>());
+
+  // Stable numeric ID from UUID for local selection keys
+  const toLocalId = useCallback((s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h) + 1;
+  }, []);
+
+  // Load branches, members, and first timers from Supabase
+  useEffect(() => {
+    (async () => {
+      try {
+        setIsLoading(true);
+        const [br, mr, fr] = await Promise.all([
+          supabase.from('church_branches').select('id, name').order('name'),
+          supabase
+            .from('members')
+            .select('id, full_name, email, phone, branch_id, membership_level, baptized_sub_level, status, date_joined, updated_at, last_attendance, created_at')
+            .order('full_name'),
+          supabase
+            .from('first_timers')
+            .select('id, full_name, email, phone, branch_id, service_date, community, area, street, public_landmark, invited_by, follow_up_status, status, created_at, first_visit, updated_at, notes, follow_up_notes')
+            .order('service_date', { ascending: false }),
+        ]);
+
+        setBranches(br.data || []);
+
+        const mappedMembers: Member[] = (mr.data || []).map((row: any) => {
+          const lid = toLocalId(row.id);
+          memberMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
+          const m: Member = {
+            id: lid,
+            fullName: row.full_name,
+            profilePhoto: '',
+            dateOfBirth: '2000-01-01',
+            gender: 'male',
+            maritalStatus: 'single',
+            spouseName: '',
+            numberOfChildren: 0,
+            children: [],
+            email: row.email || '',
+            phone: row.phone || '',
+            community: '',
+            area: '',
+            street: '',
+            publicLandmark: '',
+            branchId: 0,
+            dateJoined: row.date_joined || '',
+            membershipLevel: row.membership_level as any,
+            baptizedSubLevel: row.baptized_sub_level || undefined,
+            leaderRole: undefined,
+            baptismDate: '',
+            joinDate: row.date_joined || '',
+            lastVisit: row.updated_at || row.last_attendance || '',
+            progress: 0,
+            baptismOfficiator: '',
+            spiritualMentor: '',
+            discipleshipClass1: false,
+            discipleshipClass2: false,
+            discipleshipClass3: false,
+            assignedDepartment: '',
+            status: (row.status as any) || 'active',
+            ministry: '',
+            prayerNeeds: '',
+            pastoralNotes: '',
+            lastAttendance: row.last_attendance || '',
+            createdAt: row.created_at || '',
+            updatedAt: row.updated_at || '',
+          } as Member;
+          return m;
+        });
+        setDbMembers(mappedMembers);
+
+        const mappedFirstTimers: FirstTimer[] = (fr.data || []).map((row: any) => {
+          const lid = toLocalId(row.id);
+          firstTimerMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
+          const ft: FirstTimer = {
+            id: lid,
+            fullName: row.full_name,
+            community: row.community || '',
+            area: row.area || '',
+            street: row.street || '',
+            publicLandmark: row.public_landmark || '',
+            phone: row.phone || '',
+            email: row.email || '',
+            serviceDate: row.service_date || new Date().toISOString(),
+            invitedBy: row.invited_by || '',
+            followUpStatus: (row.follow_up_status as any) || 'pending',
+            branchId: 0,
+            firstVisit: row.first_visit || row.service_date || new Date().toISOString(),
+            visitDate: row.service_date || new Date().toISOString(),
+            status: (row.status as any) || 'new',
+            followUpNotes: row.follow_up_notes || '',
+            notes: row.notes || '',
+            createdAt: row.created_at || new Date().toISOString(),
+          } as FirstTimer;
+          return ft;
+        });
+        setDbFirstTimers(mappedFirstTimers);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [toLocalId]);
+
   // Composer
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composerText, setComposerText] = useState('');
@@ -89,16 +205,16 @@ export const OptimizedMemberManagement: React.FC = () => {
 
   const allMembers = useMemo(() => {
     const map = new Map<number, Member>();
-    mockMembers.forEach(m => map.set(m.id, m));
+    dbMembers.forEach(m => map.set(m.id, m));
     addedMembers.forEach(m => map.set(m.id, m));
     return Array.from(map.values());
-  }, [addedMembers]);
+  }, [addedMembers, dbMembers]);
   const allFirstTimers = useMemo(() => {
     const map = new Map<number, FirstTimer>();
-    mockFirstTimers.forEach(f => map.set(f.id, f));
+    dbFirstTimers.forEach(f => map.set(f.id, f));
     addedFirstTimers.forEach(f => map.set(f.id, f));
     return Array.from(map.values());
-  }, [addedFirstTimers]);
+  }, [addedFirstTimers, dbFirstTimers]);
 
   const memberStats: MemberStats = useMemo(() => ({
     total: allMembers.length,
@@ -126,7 +242,7 @@ export const OptimizedMemberManagement: React.FC = () => {
         (member.phone && member.phone.includes(debouncedSearchTerm));
 
       const matchesMembership = membershipFilter === 'all' || member.membershipLevel === membershipFilter;
-      const matchesBranch = branchFilter === 'all' || (member.branchId && member.branchId.toString() === branchFilter);
+      const matchesBranch = branchFilter === 'all' || (memberMetaRef.current.get(member.id)?.branchId === branchFilter);
 
       return matchesTab && matchesSearch && matchesMembership && matchesBranch;
     });
@@ -143,7 +259,7 @@ export const OptimizedMemberManagement: React.FC = () => {
     const q = debouncedSearchTerm.toLowerCase();
     const filtered = allFirstTimers.filter(ft => {
       const matchesSearch = ft.fullName.toLowerCase().includes(q) || (ft.phone && ft.phone.includes(debouncedSearchTerm));
-      const matchesBranch = branchFilter === 'all' || (ft.branchId && ft.branchId.toString() === branchFilter);
+      const matchesBranch = branchFilter === 'all' || (firstTimerMetaRef.current.get(ft.id)?.branchId === branchFilter);
       return matchesSearch && matchesBranch;
     });
 
@@ -263,8 +379,28 @@ export const OptimizedMemberManagement: React.FC = () => {
   const handleAddFirstTimer = () => { setEditingFirstTimer(null); setShowFirstTimerForm(true); };
   const handleEditMember = (m: Member) => { setEditingMember(m); setShowMemberForm(true); };
   const handleEditFirstTimer = (ft: FirstTimer) => { setEditingFirstTimer(ft); setShowFirstTimerForm(true); };
-  const handleDeleteMember = (id: number) => toast({ title: 'Member deleted', description: 'The member has been removed.' });
-  const handleDeleteFirstTimer = (id: number) => toast({ title: 'First timer deleted', description: 'Removed.' });
+  const handleDeleteMember = async (id: number) => {
+    const dbId = memberMetaRef.current.get(id)?.dbId;
+    if (!dbId) { toast({ title: 'Delete failed', description: 'Unable to resolve member id.', variant: 'destructive' }); return; }
+    const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: dbId } } as any);
+    if (error) { toast({ title: 'Delete failed', description: error.message || 'Edge function error', variant: 'destructive' }); return; }
+    setAddedMembers(prev => prev.filter(m => m.id !== id));
+    setDbMembers(prev => prev.filter(m => m.id !== id));
+    setSelectedMembers(prev => prev.filter(x => x !== id));
+    memberMetaRef.current.delete(id);
+    toast({ title: 'Member deleted', description: 'The member has been removed.' });
+  };
+  const handleDeleteFirstTimer = async (id: number) => {
+    const dbId = firstTimerMetaRef.current.get(id)?.dbId;
+    if (!dbId) { toast({ title: 'Delete failed', description: 'Unable to resolve visitor id.', variant: 'destructive' }); return; }
+    const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: dbId, target: 'first_timers' } } as any);
+    if (error) { toast({ title: 'Delete failed', description: error.message || 'Edge function error', variant: 'destructive' }); return; }
+    setAddedFirstTimers(prev => prev.filter(f => f.id !== id));
+    setDbFirstTimers(prev => prev.filter(f => f.id !== id));
+    setSelectedFirstTimers(prev => prev.filter(x => x !== id));
+    firstTimerMetaRef.current.delete(id);
+    toast({ title: 'First timer deleted', description: 'Removed.' });
+  };
 
   // Selection helpers
   const handleSelectMember = (id: number, checked: boolean) => {
@@ -314,10 +450,10 @@ export const OptimizedMemberManagement: React.FC = () => {
   // Composer helpers
   const totalRecipientsCount = selectedMembers.length + selectedFirstTimers.length;
   const composerRecipientsPreview = useMemo(() => {
-    const members = mockMembers.filter(m => selectedMembers.includes(m.id)).map(m => m.fullName);
-    const timers = mockFirstTimers.filter(t => selectedFirstTimers.includes(t.id)).map(t => t.fullName);
+    const members = allMembers.filter(m => selectedMembers.includes(m.id)).map(m => m.fullName);
+    const timers = allFirstTimers.filter(t => selectedFirstTimers.includes(t.id)).map(t => t.fullName);
     return [...members, ...timers].slice(0, 6);
-  }, [selectedMembers, selectedFirstTimers]);
+  }, [selectedMembers, selectedFirstTimers, allMembers, allFirstTimers]);
 
   const openComposer = () => {
     if (totalRecipientsCount === 0) {
@@ -430,7 +566,7 @@ export const OptimizedMemberManagement: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>
-                {mockBranches.map(b => <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>)}
+                {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
               </SelectContent>
             </Select>
 
@@ -542,7 +678,7 @@ export const OptimizedMemberManagement: React.FC = () => {
                               {getMembershipLevelDisplay(member.membershipLevel)}{member.baptizedSubLevel ? ` (${member.baptizedSubLevel})` : ''}
                             </Badge>
                           </TableCell>
-                          <TableCell className="hidden md:table-cell">{mockBranches.find(b => b.id === member.branchId)?.name || 'N/A'}</TableCell>
+                          <TableCell className="hidden md:table-cell">{(() => { const bid = memberMetaRef.current.get(member.id)?.branchId; const found = branches.find(b => b.id === bid); return found?.name || 'N/A'; })()}</TableCell>
                           <TableCell className="hidden md:table-cell">
                             <div className="text-sm">{member.lastVisit ? new Date(member.lastVisit).toLocaleDateString() : '—'}</div>
                           </TableCell>

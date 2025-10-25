@@ -14,6 +14,10 @@ import {
   X,
   MoreVertical,
   FileText,
+  Home,
+  User,
+  Bell,
+  LogOut,
 } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -41,6 +45,12 @@ interface AdminSidebarProps {
   onToggle: () => void;
   isCollapsed?: boolean;
   onCollapse?: (collapsed: boolean) => void;
+  /**
+   * variant: 'admin' (default) or 'portal' to render a simplified portal menu
+   * menuItems: optional override for full control
+   */
+  variant?: 'admin' | 'portal';
+  menuItems?: MenuItem[];
 }
 
 // Primary tabs shown in the bottom bar (max 4 for good mobile UX)
@@ -67,6 +77,21 @@ const secondaryItems: MenuItem[] = [
 // All menu items combined for the desktop sidebar
 const allMenuItems = [...primaryTabs.filter(tab => tab.id !== 'more'), ...secondaryItems];
 
+// Portal-specific, simplified menu
+const portalMenuItems: MenuItem[] = [
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'profile', label: 'My Profile', icon: User },
+  { id: 'directory', label: 'Directory', icon: Users },
+  { id: 'registrations', label: 'My Registrations', icon: FileText },
+  { id: 'attendance', label: 'My Attendance', icon: UserCheck },
+  { id: 'groups', label: 'Groups', icon: Users },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'share', label: 'Share App', icon: FileText },
+  { id: 'logout', label: 'Log Out', icon: LogOut },
+];
+
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeModule,
   onModuleChange,
@@ -74,6 +99,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onToggle,
   isCollapsed: externalIsCollapsed = false,
   onCollapse,
+  variant = 'admin',
+  menuItems,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
@@ -269,34 +296,34 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             {/* Menu Items */}
             <SidebarGroup className="flex-1 overflow-y-auto">
               <SidebarMenu>
-                {allMenuItems.map(({ id, label, icon: Icon }) => (
-                  <SidebarMenuItem key={id}>
-                    <SidebarMenuButton
-                      isActive={activeModule === id}
-                      onClick={() => handleModuleChange(id)}
-                      className="group relative w-full justify-start px-4 py-3 text-sm font-medium"
-                    >
-                      <Icon className={cn(
-                        "h-5 w-5 flex-shrink-0 transition-all duration-300",
-                        showFullSidebar ? "mr-3" : "mx-auto"
-                      )} />
-                      <span className={cn(
-                        "truncate transition-all duration-300",
-                        showFullSidebar ? "opacity-100 w-auto" : "opacity-0 w-0"
-                      )}>
-                        {label}
-                      </span>
-                      
-                      {/* Tooltip for collapsed state */}
-                      {!showFullSidebar && (
-                        <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  {(menuItems ?? (variant === 'portal' ? portalMenuItems : allMenuItems)).map(({ id, label, icon: Icon }) => (
+                    <SidebarMenuItem key={id}>
+                      <SidebarMenuButton
+                        isActive={activeModule === id}
+                        onClick={() => handleModuleChange(id)}
+                        className="group relative w-full justify-start px-4 py-3 text-sm font-medium"
+                      >
+                        <Icon className={cn(
+                          "h-5 w-5 flex-shrink-0 transition-all duration-300",
+                          showFullSidebar ? "mr-3" : "mx-auto"
+                        )} />
+                        <span className={cn(
+                          "truncate transition-all duration-300",
+                          showFullSidebar ? "opacity-100 w-auto" : "opacity-0 w-0"
+                        )}>
                           {label}
                         </span>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
+                      
+                        {/* Tooltip for collapsed state */}
+                        {!showFullSidebar && (
+                          <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            {label}
+                          </span>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
             </SidebarGroup>
             
             {/* Collapse Toggle - Desktop Only */}
