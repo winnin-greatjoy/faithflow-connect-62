@@ -138,18 +138,28 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
   return (
     <header className="sticky top-0 z-30 bg-white border-b px-3 sm:px-4 lg:px-6 py-3 sm:py-4 shadow-sm">
       <div className="flex items-center justify-between gap-4">
-        {/* Logo */}
-        <div className="lg:hidden h-10 w-10 flex-shrink-0 flex items-center justify-center">
-          <img
-            src="/faithhealing.png"
-            alt="Church Logo"
-            className="h-8 w-8 object-contain"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.onerror = null;
-              target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0ZGRiIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgM3MtMy0xLjM0LTMtMyAxLjM0LTMgMy0zem0wIDE0LjJjLTIuNSAwLTQuNzEtMS4yOC02LTMuMjIuMDMtMS45OSA0LTMuMDggNi0zLjA4IDEuOTkgMCA1Ljk3IDEuMSA2IDMuMDgtMS4yOSAxLjk5LTMuNSAzLjIyLTYgMy4yMnoiLz48L3N2Zz4=';
-            }}
-          />
+        {/* Mobile menu toggle + Logo */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onMenuToggle}
+            className="lg:hidden p-2 rounded-md hover:bg-gray-100"
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center">
+            <img
+              src="/faithhealing.png"
+              alt="Church Logo"
+              className="h-8 w-8 object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0ZGRiIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgM3MtMy0xLjM0LTMtMyAxLjM0LTMgMy0zem0wIDE0LjJjLTIuNSAwLTQuNzEtMS4yOC02LTMuMjIuMDMtMS45OSA0LTMuMDggNi0zLjA4IDEuOTkgMCA1Ljk3IDEuMSA2IDMuMDgtMS4yOSAxLjk5LTMuNSAzLjIyLTYgMy4yMnoiLz48L3N2Zz4=';
+              }}
+            />
+          </div>
         </div>
 
         {/* Search Bar */}

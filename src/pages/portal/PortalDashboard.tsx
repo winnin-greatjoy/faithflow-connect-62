@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useAuth } from '@/hooks/useAuth';
 import { Users, Calendar, BookOpen, Settings, User, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -16,11 +17,49 @@ export const PortalDashboard: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeModule, setActiveModule] = useState('overview');
+  const [events, setEvents] = useState<any[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   const handleModuleChange = (moduleId: string) => {
     setActiveModule(moduleId);
     if (window.innerWidth < 1024) setSidebarOpen(false);
   };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingEvents(true);
+        const today = new Date();
+        const start = today.toISOString().slice(0, 10);
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 30);
+        const end = endDate.toISOString().slice(0, 10);
+
+        const { data: evs, error } = await supabase
+          .from('events')
+          .select('*')
+          .gte('event_date', start)
+          .lte('event_date', end)
+          .order('event_date', { ascending: true })
+          .limit(20);
+
+        if (error) {
+          console.error('Error fetching events', error);
+        }
+
+        if (mounted) setEvents(evs || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (mounted) setLoadingEvents(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <SidebarProvider>
@@ -87,29 +126,6 @@ export const PortalDashboard: React.FC = () => {
                 </Card>
               </div>
 
-              {/* Upcoming Events */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upcoming events in 30 days</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Example events - replace with dynamic data later */}
-                  <div>
-                    <div className="text-sm font-medium text-blue-600">Elementary</div>
-                    <div className="text-xs text-gray-600">Sun 26 Oct 2025 | 07:00 PM To 08:00 PM</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-blue-600">Preschool</div>
-                    <div className="text-xs text-gray-600">Sun 09 Nov 2025 | 09:00 PM To 10:00 PM</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-blue-600">Nursery</div>
-                    <div className="text-xs text-gray-600">Sun 26 Oct 2025 | 08:00 PM To 09:00 PM</div>
-                  </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Next 30 days</p>
-                </CardContent>
-              </Card>
-
               {/* Quick Actions */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                 <Link to="/portal/profile">
@@ -131,6 +147,34 @@ export const PortalDashboard: React.FC = () => {
                   </Button>
                 </Link>
               </div>
+
+              {/* Upcoming Events */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upcoming events in 30 days</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {loadingEvents ? (
+                    <div className="text-sm text-gray-500">Loading events…</div>
+                  ) : events.length === 0 ? (
+                    <div className="text-sm text-gray-500">No upcoming events in the next 30 days</div>
+                  ) : (
+                    events.map((ev) => {
+                      const title = ev.title || ev.name || 'Event';
+                      const dateStr = ev.event_date ? new Date(ev.event_date).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                      const timeStr = ev.start_time ? `${ev.start_time}${ev.end_time ? ' To ' + ev.end_time : ''}` : '';
+                      const key = ev.id || ev.event_id || title + dateStr;
+                      return (
+                        <div key={key}>
+                          <div className="text-sm font-medium text-blue-600">{title}</div>
+                          <div className="text-xs text-gray-600">{dateStr}{timeStr ? ` | ${timeStr}` : ''}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Next 30 days</p>
+                </CardContent>
+              </Card>
 
               {/* Recent Activity */}
               <Card className="overflow-hidden">

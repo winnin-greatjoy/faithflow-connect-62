@@ -20,6 +20,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -117,13 +118,43 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     }
   };
 
+  // useNavigate instance for navigation in portal variant
+  const _navigate = useNavigate();
+
   const handleModuleChange = (moduleId: string) => {
     onModuleChange(moduleId);
     // close mobile drawer after selection
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       onToggle();
     }
+
+    // If this sidebar is used as the portal variant, also navigate to portal routes
+    // Map portal menu ids to portal routes
+    if (variant === 'portal') {
+      try {
+        const navigate = _navigate;
+        const mapping: Record<string, string> = {
+          home: '/portal',
+          profile: '/portal/profile',
+          directory: '/portal/directory',
+          registrations: '/portal/registrations',
+          attendance: '/portal/attendance',
+          groups: '/portal/groups',
+          calendar: '/portal/calendar',
+          notifications: '/portal/notifications',
+          settings: '/portal/settings',
+          share: '/portal/share',
+          logout: '/auth/logout',
+        };
+
+        const to = mapping[moduleId];
+        if (to) navigate(to);
+      } catch (e) {
+        // ignore navigation errors
+      }
+    }
   };
+
 
   // Show full sidebar on desktop when not collapsed OR when hovered
   const showFullSidebar = !isCollapsed || isHovered;
