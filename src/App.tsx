@@ -6,6 +6,10 @@ import { useAuth } from "./hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
+import PortalLayout from "./pages/portal/PortalLayout";
+import { ProfilePage } from "./pages/portal/ProfilePage";
+import { EventsPage } from "./pages/portal/EventsPage";
+import { DepartmentsPage } from "./pages/portal/DepartmentsPage";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +34,19 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
+        <Route
+          path="/portal"
+          element={
+            <ProtectedRoute>
+              <PortalLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/portal/profile" replace />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="events" element={<EventsPage />} />
+          <Route path="departments" element={<DepartmentsPage />} />
+        </Route>
         <Route
           path="/admin"
           element={

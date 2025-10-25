@@ -59,6 +59,7 @@ const secondaryItems: MenuItem[] = [
   { id: 'departments', label: 'Dept & Ministries', icon: Building },
   { id: 'cms', label: 'Content Management', icon: FileText },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
+  { id: 'provisioning', label: 'Provisioning', icon: FileText },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

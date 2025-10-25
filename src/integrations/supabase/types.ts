@@ -10,10 +10,51 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
+      account_provisioning_jobs: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          member_id: string
+          processed_at: string | null
+          reason: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          type: Database["public"]["Enums"]["provision_type"]
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          member_id: string
+          processed_at?: string | null
+          reason?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          type: Database["public"]["Enums"]["provision_type"]
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          member_id?: string
+          processed_at?: string | null
+          reason?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          type?: Database["public"]["Enums"]["provision_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_provisioning_jobs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance: {
         Row: {
           attendance_date: string
@@ -560,6 +601,80 @@ export type Database = {
           },
         ]
       }
+      module_role_permissions: {
+        Row: {
+          allowed_actions: Database["public"]["Enums"]["permission_action"][]
+          branch_id: string | null
+          created_at: string | null
+          department_id: string | null
+          id: string
+          ministry_id: string | null
+          module_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          scope_type: string
+        }
+        Insert: {
+          allowed_actions: Database["public"]["Enums"]["permission_action"][]
+          branch_id?: string | null
+          created_at?: string | null
+          department_id?: string | null
+          id?: string
+          ministry_id?: string | null
+          module_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          scope_type: string
+        }
+        Update: {
+          allowed_actions?: Database["public"]["Enums"]["permission_action"][]
+          branch_id?: string | null
+          created_at?: string | null
+          department_id?: string | null
+          id?: string
+          ministry_id?: string | null
+          module_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          scope_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_role_permissions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modules: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           branch_id: string | null
@@ -611,21 +726,27 @@ export type Database = {
         Row: {
           branch_id: string | null
           created_at: string | null
+          department_id: string | null
           id: string
+          ministry_id: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           branch_id?: string | null
           created_at?: string | null
+          department_id?: string | null
           id?: string
+          ministry_id?: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           branch_id?: string | null
           created_at?: string | null
+          department_id?: string | null
           id?: string
+          ministry_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -657,13 +778,22 @@ export type Database = {
         Returns: string
       }
       has_branch_access: { Args: { p_branch_id: string }; Returns: boolean }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      has_role:
+        | { Args: { role: string; user_id: string }; Returns: boolean }
+        | {
+            Args: {
+              role: Database["public"]["Enums"]["app_role"]
+              user_id: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
       is_user_baptized: { Args: never; Returns: boolean }
     }
     Enums: {
@@ -680,6 +810,7 @@ export type Database = {
       first_timer_status: "new" | "contacted" | "followed_up" | "converted"
       follow_up_status: "pending" | "called" | "visited" | "completed"
       gender: "male" | "female"
+      job_status: "pending" | "processing" | "done" | "error"
       leader_role:
         | "pastor"
         | "assistant_pastor"
@@ -688,6 +819,8 @@ export type Database = {
       marital_status: "single" | "married" | "widowed" | "divorced"
       member_status: "active" | "inactive" | "suspended" | "transferred"
       membership_level: "baptized" | "convert" | "visitor"
+      permission_action: "view" | "create" | "update" | "delete" | "manage"
+      provision_type: "auto_baptized" | "admin_initiated"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -829,6 +962,7 @@ export const Constants = {
       first_timer_status: ["new", "contacted", "followed_up", "converted"],
       follow_up_status: ["pending", "called", "visited", "completed"],
       gender: ["male", "female"],
+      job_status: ["pending", "processing", "done", "error"],
       leader_role: [
         "pastor",
         "assistant_pastor",
@@ -838,6 +972,8 @@ export const Constants = {
       marital_status: ["single", "married", "widowed", "divorced"],
       member_status: ["active", "inactive", "suspended", "transferred"],
       membership_level: ["baptized", "convert", "visitor"],
+      permission_action: ["view", "create", "update", "delete", "manage"],
+      provision_type: ["auto_baptized", "admin_initiated"],
     },
   },
 } as const
