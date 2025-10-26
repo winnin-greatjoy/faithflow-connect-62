@@ -105,6 +105,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
+  const sidebarRef = React.useRef<HTMLDivElement | null>(null);
   const isControlled = typeof externalIsCollapsed !== 'undefined' && typeof onCollapse === 'function';
   const [internalCollapsed, setInternalCollapsed] = React.useState(false);
   
@@ -241,6 +242,55 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     </div>
   );
 
+  // Focus trap and Esc-to-close for mobile drawer
+  React.useEffect(() => {
+    if (!isOpen) return;
+    // only trap on mobile sizes
+    if (typeof window === 'undefined' || window.innerWidth >= 1024) return;
+
+    const el = sidebarRef.current;
+    if (!el) return;
+
+    const focusable = Array.from(el.querySelectorAll<HTMLElement>('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])'));
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const prevActive = document.activeElement as HTMLElement | null;
+
+    if (first) first.focus();
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMoreMenu(false);
+        onToggle();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        if (!focusable.length) return;
+        const active = document.activeElement as HTMLElement;
+        if (e.shiftKey) {
+          if (active === first) {
+            e.preventDefault();
+            last?.focus();
+          }
+        } else {
+          if (active === last) {
+            e.preventDefault();
+            first?.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKey);
+
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      if (prevActive) prevActive.focus();
+    };
+  }, [isOpen, onToggle]);
+
   return (
     <>
       {/* Desktop sidebar overlay */}
@@ -274,10 +324,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           // allow hover to expand on desktop
           isCollapsed ? "lg:hover:w-64" : ""
         )}
+        ref={sidebarRef}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         role="navigation"
         aria-label="Main navigation"
+        tabIndex={-1}
       >
         <Sidebar className="w-full h-full flex flex-col">
           <SidebarContent>

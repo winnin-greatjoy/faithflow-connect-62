@@ -6,8 +6,8 @@ import { useAuth } from "./hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
-import { PortalLayout } from "./pages/portal/PortalLayout";
-import { PortalDashboard } from "./pages/portal/PortalDashboard";
+import PortalDashboard from "./pages/portal/PortalDashboard";
+import { HomePage } from "./pages/portal/HomePage";
 import { ProfilePage } from "./pages/portal/ProfilePage";
 import { EventsPage } from "./pages/portal/EventsPage";
 import { DepartmentsPage } from "./pages/portal/DepartmentsPage";
@@ -47,11 +47,12 @@ const App = () => (
           path="/portal"
           element={
             <ProtectedRoute>
-              <PortalLayout />
+              <PortalDashboard />
             </ProtectedRoute>
           }
+
         >
-          <Route index element={<PortalDashboard />} />
+          <Route index element={<HomePage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="directory" element={<DirectoryPage />} />
           <Route path="registrations" element={<RegistrationsPage />} />
