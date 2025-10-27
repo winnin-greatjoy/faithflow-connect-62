@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { QrCode, ShieldCheck, KeyRound, Settings, FileEdit, UserCog } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -29,6 +30,7 @@ interface MemberInfo {
 }
 
 export const ProfilePage: React.FC = () => {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ first_name: '', last_name: '', phone: '' });
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ export const ProfilePage: React.FC = () => {
   const [zipCode, setZipCode] = useState('');
   const [doNotEmail, setDoNotEmail] = useState(false);
   const [doNotText, setDoNotText] = useState(false);
+  const [memberId, setMemberId] = useState<string | null>(null);
   const [memberInfo, setMemberInfo] = useState<MemberInfo>({
     birthdate: null,
     gender: null,
@@ -90,6 +93,7 @@ export const ProfilePage: React.FC = () => {
         }
 
         if (memberRes && memberRes.data) {
+          setMemberId((memberRes.data as any).id);
           setMemberInfo(prev => ({
             ...prev,
             birthdate: memberRes.data.date_of_birth,
@@ -114,7 +118,9 @@ export const ProfilePage: React.FC = () => {
         setSaving(false);
         return;
       }
-      const { error } = await supabase
+      
+      // Update profiles table
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({
           first_name: form.first_name.trim(),
@@ -122,16 +128,38 @@ export const ProfilePage: React.FC = () => {
           phone: form.phone.trim() || null,
         })
         .eq('id', user.id);
-      if (error) {
-        toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Saved', description: 'Profile updated.' });
-        setMemberInfo(prev => ({
-          ...prev,
-          mobilePhone: form.phone.trim() || prev.mobilePhone,
-        }));
-        setEditOpen(false);
+      
+      if (profileError) {
+        toast({ title: 'Save failed', description: profileError.message, variant: 'destructive' });
+        setSaving(false);
+        return;
       }
+
+      // Update members table if member exists
+      if (memberId && user.email) {
+        const { error: memberError } = await supabase
+          .from('members')
+          .update({
+            full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
+            phone: form.phone.trim() || null,
+            date_of_birth: memberInfo.birthdate || null,
+            gender: (memberInfo.gender as any) || null,
+            marital_status: (memberInfo.maritalStatus as any) || null,
+            membership_level: (memberInfo.membershipLevel as any) || null,
+          })
+          .eq('email', user.email);
+        
+        if (memberError) {
+          toast({ title: 'Warning', description: 'Profile updated but member info update failed: ' + memberError.message, variant: 'destructive' });
+        }
+      }
+
+      toast({ title: 'Saved', description: 'Profile updated successfully.' });
+      setMemberInfo(prev => ({
+        ...prev,
+        mobilePhone: form.phone.trim() || prev.mobilePhone,
+      }));
+      setEditOpen(false);
     }
     setSaving(false);
   };
@@ -182,8 +210,8 @@ export const ProfilePage: React.FC = () => {
     setUploading(false);
   };
 
-  const handleComingSoon = (feature: string) => {
-    toast({ title: `${feature} coming soon`, description: 'This feature will be available in a future update.' });
+  const handleNavigation = (path: string) => {
+    navigate(path);
   };
 
   const formatDate = (value: string | null) => {
@@ -222,11 +250,11 @@ export const ProfilePage: React.FC = () => {
   }
 
   const actionButtons = [
-    { label: 'QR Code', icon: QrCode, onClick: () => handleComingSoon('QR Code') },
-    { label: 'Two-Factor Authentication', icon: ShieldCheck, onClick: () => handleComingSoon('Two-Factor Authentication') },
-    { label: 'Change Password', icon: KeyRound, onClick: () => handleComingSoon('Change Password') },
-    { label: 'Directory Settings', icon: Settings, onClick: () => handleComingSoon('Directory Settings') },
-    { label: 'Edit Account Info', icon: FileEdit, onClick: () => handleComingSoon('Edit Account Info') },
+    { label: 'QR Code', icon: QrCode, onClick: () => handleNavigation('/portal/qr-code') },
+    { label: 'Two-Factor Authentication', icon: ShieldCheck, onClick: () => handleNavigation('/portal/two-factor-auth') },
+    { label: 'Change Password', icon: KeyRound, onClick: () => handleNavigation('/portal/change-password') },
+    { label: 'Directory Settings', icon: Settings, onClick: () => handleNavigation('/portal/directory-settings') },
+    { label: 'Edit Account Info', icon: FileEdit, onClick: () => handleNavigation('/portal/edit-account') },
   ];
 
   return (
@@ -247,12 +275,12 @@ export const ProfilePage: React.FC = () => {
           </DialogTrigger>
         </div>
 
-        <DialogContent className="w-full max-h-[80vh] overflow-hidden p-0 sm:max-w-4xl">
-          <div className="flex h-full flex-col">
-            <DialogHeader className="px-6 pt-6 pb-4">
+        <DialogContent className="w-full max-h-[85vh] overflow-hidden p-0 sm:max-w-4xl">
+          <div className="flex h-full max-h-[85vh] flex-col">
+            <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b">
               <DialogTitle>Edit Person</DialogTitle>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 pb-6">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-4 rounded-lg bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
@@ -467,7 +495,14 @@ export const ProfilePage: React.FC = () => {
                           <div className="font-medium">Add Family Member</div>
                           <div className="text-sm text-muted-foreground">Link related family members to this profile.</div>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => handleComingSoon('Family member linking')}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => toast({ 
+                            title: 'Coming Soon', 
+                            description: 'Family member linking will be available in a future update.' 
+                          })}
+                        >
                           + New Person
                         </Button>
                       </div>

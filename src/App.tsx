@@ -19,6 +19,11 @@ import CalendarPage from "./pages/portal/CalendarPage";
 import NotificationsPage from "./pages/portal/NotificationsPage";
 import SettingsPage from "./pages/portal/SettingsPage";
 import ShareAppPage from "./pages/portal/ShareAppPage";
+import QRCodePage from "./pages/portal/QRCodePage";
+import TwoFactorAuthPage from "./pages/portal/TwoFactorAuthPage";
+import ChangePasswordPage from "./pages/portal/ChangePasswordPage";
+import DirectorySettingsPage from "./pages/portal/DirectorySettingsPage";
+import EditAccountInfoPage from "./pages/portal/EditAccountInfoPage";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +68,11 @@ const App = () => (
           <Route path="settings" element={<SettingsPage />} />
           <Route path="share" element={<ShareAppPage />} />
           <Route path="departments" element={<DepartmentsPage />} />
+          <Route path="qr-code" element={<QRCodePage />} />
+          <Route path="two-factor-auth" element={<TwoFactorAuthPage />} />
+          <Route path="change-password" element={<ChangePasswordPage />} />
+          <Route path="directory-settings" element={<DirectorySettingsPage />} />
+          <Route path="edit-account" element={<EditAccountInfoPage />} />
         </Route>
         <Route
           path="/admin"
