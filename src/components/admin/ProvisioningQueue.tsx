@@ -159,14 +159,18 @@ export const ProvisioningQueue: React.FC = () => {
 
   const manageAuth = async (action: 'resend_invite' | 'send_password_reset', email: string, jobId: string) => {
     if (!email) return;
-    await fetch('/functions/v1/manage-auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, email })
-    });
-    const suffix = action === 'resend_invite' ? `;resent:${new Date().toISOString()}` : `;reset_sent:${new Date().toISOString()}`;
-    await supabase.from('account_provisioning_jobs').update({ reason: (supabase as any).sql`coalesce(reason,'') || ${suffix}` } as any).eq('id', jobId);
-    await load();
+    try {
+      const { error } = await supabase.functions.invoke('manage-auth', {
+        body: { action, email }
+      });
+      if (error) throw error;
+      const suffix = action === 'resend_invite' ? `;resent:${new Date().toISOString()}` : `;reset_sent:${new Date().toISOString()}`;
+      await supabase.from('account_provisioning_jobs').update({ reason: (supabase as any).sql`coalesce(reason,'') || ${suffix}` } as any).eq('id', jobId);
+      await load();
+      toast({ title: 'Success', description: action === 'resend_invite' ? 'Invite resent' : 'Password reset sent' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message || 'Failed to perform action', variant: 'destructive' });
+    }
   };
 
   const StatusBadge = ({ status }: { status: ProvisioningJob['status'] }) => {

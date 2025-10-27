@@ -253,16 +253,18 @@ export const MemberManagement: React.FC = () => {
       if ('membershipLevel' in deleting) {
         const meta = memberMetaRef.current.get(deleting.id);
         if (meta?.dbId) {
-          const { error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId } } as any);
+          const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId } });
           if (error) throw new Error(error.message || 'Edge function error');
+          if (data && (data as any).error) throw new Error((data as any).error);
         }
         setMembers(prev => prev.filter(m => m.id !== deleting.id));
         setSelectedMemberIds(prev => prev.filter(x => x !== deleting.id));
       } else {
         const meta = firstTimerMetaRef.current.get(deleting.id);
         if (meta?.dbId) {
-          const { error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId, target: 'first_timers' } } as any);
+          const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId, target: 'first_timers' } });
           if (error) throw new Error(error.message || 'Edge function error');
+          if (data && (data as any).error) throw new Error((data as any).error);
         }
         setFirstTimers(prev => prev.filter(f => f.id !== deleting.id));
         setSelectedFirstTimerIds(prev => prev.filter(x => x !== deleting.id));
@@ -279,20 +281,28 @@ export const MemberManagement: React.FC = () => {
   const deleteSelected = async () => {
     try {
       if (activeTab === 'visitors') {
-        await Promise.all(selectedFirstTimerIds.map(async (id) => {
+        const results = await Promise.allSettled(selectedFirstTimerIds.map(async (id) => {
           const meta = firstTimerMetaRef.current.get(id);
-          if (meta?.dbId) await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId, target: 'first_timers' } } as any);
+          if (meta?.dbId) {
+            const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId, target: 'first_timers' } });
+            if (error || (data && (data as any).error)) throw new Error(error?.message || (data as any)?.error || 'Delete failed');
+          }
         }));
+        const failed = results.filter(r => r.status === 'rejected').length;
         setFirstTimers(prev => prev.filter(ft => !selectedFirstTimerIds.includes(ft.id)));
-        toast({ title: 'Deleted', description: `${selectedFirstTimerIds.length} visitor(s) removed.` });
+        toast({ title: 'Deleted', description: `${selectedFirstTimerIds.length - failed} visitor(s) removed${failed > 0 ? `, ${failed} failed` : ''}.` });
         setSelectedFirstTimerIds([]);
       } else {
-        await Promise.all(selectedMemberIds.map(async (id) => {
+        const results = await Promise.allSettled(selectedMemberIds.map(async (id) => {
           const meta = memberMetaRef.current.get(id);
-          if (meta?.dbId) await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId } } as any);
+          if (meta?.dbId) {
+            const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId } });
+            if (error || (data && (data as any).error)) throw new Error(error?.message || (data as any)?.error || 'Delete failed');
+          }
         }));
+        const failed = results.filter(r => r.status === 'rejected').length;
         setMembers(prev => prev.filter(m => !selectedMemberIds.includes(m.id)));
-        toast({ title: 'Deleted', description: `${selectedMemberIds.length} member(s) removed.` });
+        toast({ title: 'Deleted', description: `${selectedMemberIds.length - failed} member(s) removed${failed > 0 ? `, ${failed} failed` : ''}.` });
         setSelectedMemberIds([]);
       }
     } catch (e: any) {

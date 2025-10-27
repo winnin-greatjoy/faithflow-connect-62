@@ -27,16 +27,21 @@ serve(async (req: Request) => {
     }
 
     if (action === 'insert') {
-      // rudimentary unique email guard
+      // Robust unique email guard
       if (data?.email) {
-        const { data: dup } = await supabase
+        const normalizedEmail = String(data.email).trim().toLowerCase();
+        const { data: dup, error: dupErr } = await supabase
           .from('members')
           .select('id')
-          .ilike('email', data.email)
+          .ilike('email', normalizedEmail)
           .limit(1);
+        if (dupErr) {
+          return new Response(JSON.stringify({ error: 'Failed to check for duplicate email: ' + dupErr.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
         if ((dup || []).length > 0) {
           return new Response(JSON.stringify({ error: 'A member with this email already exists.' }), { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
         }
+        data.email = normalizedEmail;
       }
       const { data: row, error } = await supabase
         .from('members')
