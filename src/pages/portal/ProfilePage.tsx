@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
+import { usePersistentState } from '@/hooks/use-persistent-state';
 import { QrCode, ShieldCheck, KeyRound, Settings, FileEdit, UserCog } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -29,6 +30,28 @@ interface MemberInfo {
   homePhone: string | null;
 }
 
+interface PersistedProfileState {
+  form: {
+    first_name: string;
+    last_name: string;
+    phone: string;
+  };
+  middleName: string;
+  nickname: string;
+  addressLine: string;
+  addressState: string;
+  city: string;
+  zipCode: string;
+  doNotEmail: boolean;
+  doNotText: boolean;
+  memberInfo: MemberInfo;
+  editOpen: boolean;
+}
+
+const STORAGE_KEY_PREFIX = 'profile_page_state';
+
+const buildStorageKey = (userId: string) => `${STORAGE_KEY_PREFIX}:${userId}`;
+
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ first_name: '', last_name: '', phone: '' });
@@ -36,7 +59,13 @@ export const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [persistedState, setPersistedState] = usePersistentState<PersistedProfileState | null>(
+    currentUserId ? buildStorageKey(currentUserId) : null,
+    () => null,
+  );
   const [middleName, setMiddleName] = useState('');
   const [nickname, setNickname] = useState('');
   const [addressLine, setAddressLine] = useState('');
@@ -58,11 +87,39 @@ export const ProfilePage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
+  const refreshPhotoUrl = useCallback(
+    async (path: string | null) => {
+      if (!path) {
+        setPhotoUrl(null);
+        return;
+      }
+
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        setPhotoUrl(path);
+        return;
+      }
+
+      const { data, error } = await supabase.storage
+        .from('profile-photos')
+        .createSignedUrl(path, 60 * 60 * 24);
+
+      if (error) {
+        console.error('Failed to create signed URL for profile photo', error);
+        setPhotoUrl(null);
+        return;
+      }
+
+      setPhotoUrl(data?.signedUrl ?? null);
+    },
+    []
+  );
+
   useEffect(() => {
     (async () => {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setCurrentUserId(user.id);
         setEmail(user.email || '');
         const [profileRes, memberRes] = await Promise.all([
           supabase
@@ -85,11 +142,16 @@ export const ProfilePage: React.FC = () => {
             last_name: profileRes.data.last_name || '',
             phone: profileRes.data.phone || '',
           });
-          setPhotoUrl((profileRes.data as any).profile_photo || null);
+          const storedPhoto = (profileRes.data as any).profile_photo as string | null;
+          setPhotoPath(storedPhoto || null);
+          await refreshPhotoUrl(storedPhoto || null);
           setMemberInfo(prev => ({
             ...prev,
             mobilePhone: profileRes.data.phone || prev.mobilePhone,
           }));
+        } else {
+          setPhotoPath(null);
+          await refreshPhotoUrl(null);
         }
 
         if (memberRes && memberRes.data) {
@@ -104,10 +166,76 @@ export const ProfilePage: React.FC = () => {
             mobilePhone: prev.mobilePhone || memberRes.data.phone || prev.mobilePhone,
           }));
         }
+
+        if (persistedState) {
+          setForm(prev => ({ ...prev, ...persistedState.form }));
+          setMiddleName(persistedState.middleName ?? '');
+          setNickname(persistedState.nickname ?? '');
+          setAddressLine(persistedState.addressLine ?? '');
+          setState(persistedState.addressState ?? '');
+          setCity(persistedState.city ?? '');
+          setZipCode(persistedState.zipCode ?? '');
+          setDoNotEmail(persistedState.doNotEmail ?? false);
+          setDoNotText(persistedState.doNotText ?? false);
+          if (persistedState.memberInfo) {
+            setMemberInfo(prev => ({ ...prev, ...persistedState.memberInfo }));
+          }
+          setEditOpen(persistedState.editOpen ?? false);
+        }
+      } else {
+        setCurrentUserId(null);
+        setPhotoPath(null);
+        await refreshPhotoUrl(null);
       }
       setLoading(false);
     })();
-  }, []);
+  }, [persistedState, refreshPhotoUrl]);
+
+  useEffect(() => {
+    if (!photoPath) return;
+    const interval = setInterval(() => {
+      refreshPhotoUrl(photoPath);
+    }, 12 * 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [photoPath, refreshPhotoUrl]);
+
+  useEffect(() => {
+    if (editOpen) {
+      refreshPhotoUrl(photoPath);
+    }
+  }, [editOpen, photoPath, refreshPhotoUrl]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    setPersistedState({
+      form,
+      middleName,
+      nickname,
+      addressLine,
+      addressState: state,
+      city,
+      zipCode,
+      doNotEmail,
+      doNotText,
+      memberInfo,
+      editOpen,
+    });
+  }, [
+    addressLine,
+    city,
+    currentUserId,
+    doNotEmail,
+    doNotText,
+    editOpen,
+    form,
+    memberInfo,
+    middleName,
+    nickname,
+    setPersistedState,
+    state,
+    zipCode,
+  ]);
 
   const save = async () => {
     setSaving(true);
@@ -176,22 +304,38 @@ export const ProfilePage: React.FC = () => {
       return;
     }
     setUploading(true);
+    const previousPath = photoPath;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setUploading(false); return; }
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const path = `${user.id}/${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from('profile-photos').upload(path, file, { upsert: true, contentType: file.type });
     if (upErr) {
+      console.error('Profile photo upload failed', upErr);
       toast({ title: 'Upload failed', description: upErr.message, variant: 'destructive' });
       setUploading(false);
       return;
     }
-    const { data: pub } = supabase.storage.from('profile-photos').getPublicUrl(path);
-    const publicUrl = pub?.publicUrl || null;
-    if (publicUrl) {
-      await supabase.from('profiles').update({ profile_photo: publicUrl }).eq('id', user.id);
-      setPhotoUrl(publicUrl);
-      toast({ title: 'Photo updated' });
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({ profile_photo: path })
+      .eq('id', user.id);
+
+    if (updateErr) {
+      toast({ title: 'Upload failed', description: updateErr.message, variant: 'destructive' });
+      setUploading(false);
+      return;
+    }
+
+    setPhotoPath(path);
+    await refreshPhotoUrl(path);
+    toast({ title: 'Photo updated' });
+
+    if (previousPath && previousPath !== path) {
+      const { error: removeErr } = await supabase.storage.from('profile-photos').remove([previousPath]);
+      if (removeErr) {
+        console.error('Failed to remove previous profile photo', removeErr);
+      }
     }
     setUploading(false);
   };
@@ -200,11 +344,19 @@ export const ProfilePage: React.FC = () => {
     setUploading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setUploading(false); return; }
+    const currentPath = photoPath;
     const { error } = await supabase.from('profiles').update({ profile_photo: null }).eq('id', user.id);
     if (error) {
       toast({ title: 'Remove failed', description: error.message, variant: 'destructive' });
     } else {
-      setPhotoUrl(null);
+      if (currentPath) {
+        const { error: removeErr } = await supabase.storage.from('profile-photos').remove([currentPath]);
+        if (removeErr) {
+          console.error('Failed to delete profile photo from storage', removeErr);
+        }
+      }
+      setPhotoPath(null);
+      await refreshPhotoUrl(null);
       toast({ title: 'Photo removed' });
     }
     setUploading(false);
@@ -275,34 +427,55 @@ export const ProfilePage: React.FC = () => {
           </DialogTrigger>
         </div>
 
-        <DialogContent className="w-full max-h-[85vh] overflow-hidden p-0 sm:max-w-4xl">
-          <div className="flex h-full max-h-[85vh] flex-col">
-            <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b">
+        <DialogContent className="w-full h-[80vh] max-h-[80vh] overflow-hidden p-0 sm:max-w-4xl">
+          <div className="flex h-full flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4">
               <DialogTitle>Edit Person</DialogTitle>
+              <DialogDescription className="text-muted-foreground">Update your personal details and contact preferences.</DialogDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-4 rounded-lg bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-20 w-20 border border-muted-foreground/30">
-                      <AvatarImage src={photoUrl || undefined} alt={displayName} />
-                      <AvatarFallback>{displayName?.[0] || '?'}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="h-20 w-20 border border-muted-foreground/30">
+                        <AvatarImage src={photoUrl || undefined} alt={displayName} />
+                        <AvatarFallback>{displayName?.[0] || '?'}</AvatarFallback>
+                      </Avatar>
+                      <input ref={fileInputRef as any} type="file" accept="image/*" className="hidden" onChange={onUpload} />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        className="absolute right-0 top-0 h-7 w-7 rounded-full border border-border/60 bg-background/90 text-foreground shadow-sm hover:bg-background"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                      >
+                        <span className="sr-only">Change photo</span>
+                        {uploading ? (
+                          <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/70 border-t-transparent" />
+                        ) : (
+                          <FileEdit className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      {photoUrl && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="absolute left-0 bottom-0 h-7 w-7 rounded-full bg-background/90 text-destructive shadow-sm"
+                          onClick={removePhoto}
+                          disabled={uploading}
+                        >
+                          <span className="sr-only">Remove photo</span>
+                          <span className="text-lg leading-none">×</span>
+                        </Button>
+                      )}
+                    </div>
                     <div>
                       <div className="text-lg font-semibold">{displayName}</div>
                       <div className="text-sm text-muted-foreground">Update personal details below</div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input ref={fileInputRef as any} type="file" accept="image/*" className="hidden" onChange={onUpload} />
-                    <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                      {uploading ? 'Uploading…' : 'Change Photo'}
-                    </Button>
-                    {photoUrl && (
-                      <Button variant="ghost" size="sm" onClick={removePhoto} disabled={uploading}>
-                        Remove
-                      </Button>
-                    )}
                   </div>
                 </div>
 

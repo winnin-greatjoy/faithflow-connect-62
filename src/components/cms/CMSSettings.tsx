@@ -20,11 +20,12 @@ import {
   Settings, Workflow, Shield, Globe, AlertTriangle, Save 
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { usePersistentState } from '@/hooks/use-persistent-state';
 
 export const CMSSettings = () => {
   const { toast } = useToast();
 
-  const [settings, setSettings] = useState({
+  const [persistedSettings, setPersistedSettings] = usePersistentState('cms_settings', () => ({
     site_name: 'Faith Healing Bible Church',
     site_url: 'https://faithhealing.church',
     default_author: 'Admin',
@@ -37,20 +38,19 @@ export const CMSSettings = () => {
     content_moderation: true,
     media_virus_scan: true,
     consent_required: true,
-  });
+  }));
 
-  // Load saved settings from localStorage
+  const [settings, setSettings] = useState(persistedSettings);
+
   useEffect(() => {
-    const saved = localStorage.getItem('cms_settings');
-    if (saved) setSettings(JSON.parse(saved));
-  }, []);
+    setSettings(persistedSettings);
+  }, [persistedSettings]);
 
-  // Auto-save to localStorage
   useEffect(() => {
     if (settings.auto_save) {
-      localStorage.setItem('cms_settings', JSON.stringify(settings));
+      setPersistedSettings(settings);
     }
-  }, [settings]);
+  }, [settings, setPersistedSettings]);
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
