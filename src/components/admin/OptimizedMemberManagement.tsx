@@ -117,6 +117,10 @@ export const OptimizedMemberManagement: React.FC = () => {
         setBranches(br.data || []);
 
         const mappedMembers: Member[] = (mr.data || []).map((row: any) => {
+          const membershipLevel = (row.membership_level?.toLowerCase() ?? 'visitor') as MembershipLevel;
+          const baptizedSubLevel = row.baptized_sub_level
+            ? (row.baptized_sub_level.toLowerCase() as Member['baptizedSubLevel'])
+            : undefined;
           const lid = toLocalId(row.id);
           memberMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
           const m: Member = {
@@ -137,8 +141,8 @@ export const OptimizedMemberManagement: React.FC = () => {
             publicLandmark: '',
             branchId: 0,
             dateJoined: row.date_joined || '',
-            membershipLevel: row.membership_level as any,
-            baptizedSubLevel: row.baptized_sub_level || undefined,
+            membershipLevel,
+            baptizedSubLevel,
             leaderRole: undefined,
             baptismDate: '',
             joinDate: row.date_joined || '',

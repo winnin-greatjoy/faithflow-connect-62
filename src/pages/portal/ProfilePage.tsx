@@ -52,6 +52,50 @@ const STORAGE_KEY_PREFIX = 'profile_page_state';
 
 const buildStorageKey = (userId: string) => `${STORAGE_KEY_PREFIX}:${userId}`;
 
+const DEFAULT_MEMBER_INFO: MemberInfo = {
+  birthdate: null,
+  gender: null,
+  maritalStatus: null,
+  membershipLevel: null,
+  mobilePhone: null,
+  homePhone: null,
+};
+
+const isMemberInfoEqual = (a?: MemberInfo | null, b?: MemberInfo | null) => {
+  const infoA = a ?? DEFAULT_MEMBER_INFO;
+  const infoB = b ?? DEFAULT_MEMBER_INFO;
+  return (
+    infoA.birthdate === infoB.birthdate &&
+    infoA.gender === infoB.gender &&
+    infoA.maritalStatus === infoB.maritalStatus &&
+    infoA.membershipLevel === infoB.membershipLevel &&
+    infoA.mobilePhone === infoB.mobilePhone &&
+    infoA.homePhone === infoB.homePhone
+  );
+};
+
+const isPersistedStateEqual = (
+  prev: PersistedProfileState | null | undefined,
+  next: PersistedProfileState,
+) => {
+  if (!prev) return false;
+  return (
+    prev.form.first_name === next.form.first_name &&
+    prev.form.last_name === next.form.last_name &&
+    prev.form.phone === next.form.phone &&
+    prev.middleName === next.middleName &&
+    prev.nickname === next.nickname &&
+    prev.addressLine === next.addressLine &&
+    prev.addressState === next.addressState &&
+    prev.city === next.city &&
+    prev.zipCode === next.zipCode &&
+    prev.doNotEmail === next.doNotEmail &&
+    prev.doNotText === next.doNotText &&
+    prev.editOpen === next.editOpen &&
+    isMemberInfoEqual(prev.memberInfo, next.memberInfo)
+  );
+};
+
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ first_name: '', last_name: '', phone: '' });
@@ -62,7 +106,7 @@ export const ProfilePage: React.FC = () => {
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [persistedState, setPersistedState] = usePersistentState<PersistedProfileState | null>(
+  const [persistedState, setPersistedState, persistedMeta] = usePersistentState<PersistedProfileState | null>(
     currentUserId ? buildStorageKey(currentUserId) : null,
     () => null,
   );
@@ -75,14 +119,7 @@ export const ProfilePage: React.FC = () => {
   const [doNotEmail, setDoNotEmail] = useState(false);
   const [doNotText, setDoNotText] = useState(false);
   const [memberId, setMemberId] = useState<string | null>(null);
-  const [memberInfo, setMemberInfo] = useState<MemberInfo>({
-    birthdate: null,
-    gender: null,
-    maritalStatus: null,
-    membershipLevel: null,
-    mobilePhone: null,
-    homePhone: null,
-  });
+  const [memberInfo, setMemberInfo] = useState<MemberInfo>({ ...DEFAULT_MEMBER_INFO });
   const [editOpen, setEditOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
@@ -166,22 +203,6 @@ export const ProfilePage: React.FC = () => {
             mobilePhone: prev.mobilePhone || memberRes.data.phone || prev.mobilePhone,
           }));
         }
-
-        if (persistedState) {
-          setForm(prev => ({ ...prev, ...persistedState.form }));
-          setMiddleName(persistedState.middleName ?? '');
-          setNickname(persistedState.nickname ?? '');
-          setAddressLine(persistedState.addressLine ?? '');
-          setState(persistedState.addressState ?? '');
-          setCity(persistedState.city ?? '');
-          setZipCode(persistedState.zipCode ?? '');
-          setDoNotEmail(persistedState.doNotEmail ?? false);
-          setDoNotText(persistedState.doNotText ?? false);
-          if (persistedState.memberInfo) {
-            setMemberInfo(prev => ({ ...prev, ...persistedState.memberInfo }));
-          }
-          setEditOpen(persistedState.editOpen ?? false);
-        }
       } else {
         setCurrentUserId(null);
         setPhotoPath(null);
@@ -189,7 +210,62 @@ export const ProfilePage: React.FC = () => {
       }
       setLoading(false);
     })();
-  }, [persistedState, refreshPhotoUrl]);
+  }, [refreshPhotoUrl]);
+
+  useEffect(() => {
+    if (!persistedMeta.isHydrated) return;
+    if (!currentUserId) return;
+    if (!persistedState) return;
+
+    const memberInfoMatches = isMemberInfoEqual(persistedState.memberInfo, memberInfo);
+    const stateMatches =
+      persistedState.form.first_name === form.first_name &&
+      persistedState.form.last_name === form.last_name &&
+      persistedState.form.phone === form.phone &&
+      persistedState.middleName === middleName &&
+      persistedState.nickname === nickname &&
+      persistedState.addressLine === addressLine &&
+      persistedState.addressState === state &&
+      persistedState.city === city &&
+      persistedState.zipCode === zipCode &&
+      persistedState.doNotEmail === doNotEmail &&
+      persistedState.doNotText === doNotText &&
+      persistedState.editOpen === editOpen &&
+      memberInfoMatches;
+
+    if (stateMatches) {
+      return;
+    }
+
+    setForm(prev => ({ ...prev, ...persistedState.form }));
+    setMiddleName(persistedState.middleName ?? '');
+    setNickname(persistedState.nickname ?? '');
+    setAddressLine(persistedState.addressLine ?? '');
+    setState(persistedState.addressState ?? '');
+    setCity(persistedState.city ?? '');
+    setZipCode(persistedState.zipCode ?? '');
+    setDoNotEmail(persistedState.doNotEmail ?? false);
+    setDoNotText(persistedState.doNotText ?? false);
+    if (persistedState.memberInfo) {
+      setMemberInfo(prev => ({ ...prev, ...persistedState.memberInfo }));
+    }
+    setEditOpen(persistedState.editOpen ?? false);
+  }, [
+    addressLine,
+    city,
+    currentUserId,
+    doNotEmail,
+    doNotText,
+    editOpen,
+    form,
+    memberInfo,
+    middleName,
+    nickname,
+    persistedMeta.isHydrated,
+    persistedState,
+    state,
+    zipCode,
+  ]);
 
   useEffect(() => {
     if (!photoPath) return;
@@ -207,19 +283,28 @@ export const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     if (!currentUserId) return;
+    if (!persistedMeta.isHydrated) return;
 
-    setPersistedState({
-      form,
-      middleName,
-      nickname,
-      addressLine,
-      addressState: state,
-      city,
-      zipCode,
-      doNotEmail,
-      doNotText,
-      memberInfo,
-      editOpen,
+    setPersistedState(prev => {
+      const next: PersistedProfileState = {
+        form,
+        middleName,
+        nickname,
+        addressLine,
+        addressState: state,
+        city,
+        zipCode,
+        doNotEmail,
+        doNotText,
+        memberInfo,
+        editOpen,
+      };
+
+      if (isPersistedStateEqual(prev, next)) {
+        return prev as PersistedProfileState;
+      }
+
+      return next;
     });
   }, [
     addressLine,
@@ -229,6 +314,7 @@ export const ProfilePage: React.FC = () => {
     doNotText,
     editOpen,
     form,
+    persistedMeta.isHydrated,
     memberInfo,
     middleName,
     nickname,
