@@ -172,13 +172,13 @@ export const MemberManagement: React.FC = () => {
   const filteredMembers = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     return members.filter(m => {
-      // tab filter
+      // tab filter - strict filtering based on database values
       const matchesTab =
         activeTab === 'workers_disciples'
-          ? (m.baptizedSubLevel === 'worker' || m.baptizedSubLevel === 'disciple')
+          ? m.membershipLevel === 'baptized' && (m.baptizedSubLevel === 'worker' || m.baptizedSubLevel === 'disciple')
           : activeTab === 'converts'
             ? m.membershipLevel === 'convert'
-            : true;
+            : m.membershipLevel === 'visitor';
 
       const matchesSearch = !q || m.fullName.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q) || (m.phone || '').includes(q);
       const matchesMembership = membershipFilter === 'all' || m.membershipLevel === membershipFilter;

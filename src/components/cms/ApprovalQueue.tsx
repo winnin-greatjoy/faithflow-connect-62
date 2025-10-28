@@ -15,13 +15,13 @@ import {
   Eye,
   ArrowRight
 } from 'lucide-react';
-import { mockCMSData } from '@/data/mockCMSData';
 
 export const ApprovalQueue = () => {
   const [selectedContent, setSelectedContent] = useState<any>(null);
   const [reviewComment, setReviewComment] = useState('');
+  const [content, setContent] = useState<any[]>([]);
 
-  const pendingContent = mockCMSData.content.filter(c => c.status === 'pending_review');
+  const pendingContent = content.filter(c => c.status === 'pending_review');
 
   const handleApprove = (contentId: string) => {
     console.log(`Approving content ${contentId}`);
@@ -177,7 +177,7 @@ export const ApprovalQueue = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockCMSData.content
+            {content
               .filter(c => c.status === 'published' || c.status === 'rejected')
               .slice(0, 5)
               .map((item) => (

@@ -77,33 +77,17 @@ export function ProvisioningQueue() {
   }
 
   async function loadMembers() {
-    // Try the richer relational select first. If the REST endpoint returns
-    // an unexpected 404 or other error (sometimes caused by missing foreign
-    // relationship metadata or RLS), fall back to a simpler select so the
-    // UI can still operate and we get better diagnostics in the console.
+    // Load only baptized members with worker or disciple sub-level
     const res: any = await supabase
       .from('members')
-      .select('id, full_name, email, phone, membership_level, branch:church_branches(name)')
-      .ilike('membership_level', 'baptized')
+      .select('id, full_name, email, phone, membership_level, baptized_sub_level, branch:church_branches(name)')
+      .eq('membership_level', 'baptized')
+      .in('baptized_sub_level', ['worker', 'disciple'])
       .order('full_name');
 
     if (res.error) {
-      // Log full response for debugging (network payload and PostgREST details)
-      console.error('Failed to load members (relational select). Response:', res);
-      // Try a safe fallback without the relational embed to see if the table is reachable
-      const simple: any = await supabase
-        .from('members')
-        .select('id, full_name, email, phone, membership_level')
-        .ilike('membership_level', 'baptized')
-        .order('full_name');
-
-      if (simple.error) {
-        console.error('Fallback members query also failed:', simple);
-        toast.error('Failed to load members');
-        return;
-      }
-
-      setMembers((simple.data || []) as Member[]);
+      console.error('Failed to load members:', res);
+      toast.error('Failed to load members');
       return;
     }
 

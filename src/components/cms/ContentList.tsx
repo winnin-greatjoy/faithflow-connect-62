@@ -23,7 +23,6 @@ import {
   ArrowUp, ArrowDown, ArrowUpDown, CheckCircle, AlertCircle,
   XCircle, FileText, Loader2,
 } from 'lucide-react';
-import { mockCMSData } from '@/data/mockCMSData';
 
 interface ContentListProps {
   onEdit: (content: any) => void;
@@ -35,7 +34,7 @@ type SortField = 'title' | 'type' | 'status' | 'author' | 'updated_at' | 'create
 type SortDirection = 'asc' | 'desc';
 
 export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
-  const [data, setData] = useState(mockCMSData.content);
+  const [data, setData] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');

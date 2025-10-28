@@ -18,7 +18,6 @@ import {
   Download,
   Trash2,
 } from 'lucide-react';
-import { mockCMSData } from '@/data/mockCMSData';
 import {
   Dialog,
   DialogContent,
@@ -42,7 +41,7 @@ export const MediaLibrary = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<any>(null);
   const [uploadFiles, setUploadFiles] = useState<any[]>([]);
-  const [mediaItems, setMediaItems] = useState(mockCMSData.media);
+  const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Search debounce

@@ -13,17 +13,17 @@ import { ContentEditor } from './ContentEditor';
 import { MediaLibrary } from './MediaLibrary';
 import { ApprovalQueue } from './ApprovalQueue';
 import { CMSSettings } from './CMSSettings';
-import { mockCMSData } from '@/data/mockCMSData';
 
 export const CMSDashboard = () => {
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedContent, setSelectedContent] = useState(null);
+  const [content, setContent] = useState<any[]>([]);
 
   const stats = {
-    totalContent: mockCMSData.content.length,
-    pendingApprovals: mockCMSData.content.filter(c => c.status === 'pending_review').length,
-    published: mockCMSData.content.filter(c => c.status === 'published').length,
-    drafts: mockCMSData.content.filter(c => c.status === 'draft').length,
+    totalContent: content.length,
+    pendingApprovals: content.filter(c => c.status === 'pending_review').length,
+    published: content.filter(c => c.status === 'published').length,
+    drafts: content.filter(c => c.status === 'draft').length,
   };
 
   const handleSetActiveView = (view: string) => {
@@ -45,8 +45,7 @@ export const CMSDashboard = () => {
               alert(`Viewing content: ${content.title}`);
             }}
             onDelete={(contentId) => {
-              // Remove the content from mockCMSData
-              mockCMSData.content = mockCMSData.content.filter(c => c.id !== contentId);
+              setContent(prev => prev.filter(c => c.id !== contentId));
               // Force re-render by updating state or triggering a refresh
               window.location.reload(); // Simple refresh for demo purposes
             }}
@@ -58,7 +57,7 @@ export const CMSDashboard = () => {
             content={selectedContent}
             onBack={() => handleSetActiveView('content')}
             onSave={(newContent) => {
-              mockCMSData.content.push(newContent);
+              setContent(prev => [...prev, newContent]);
               handleSetActiveView('content');
             }}
           />
@@ -104,7 +103,7 @@ export const CMSDashboard = () => {
                   <CardDescription>Latest published and updated content</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                  {mockCMSData.content.length === 0 ? (
+                  {content.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="mx-auto h-8 w-8 mb-2" />
                       <p>No content yet. Create your first post!</p>
@@ -112,7 +111,7 @@ export const CMSDashboard = () => {
                   ) : (
                     <div className="max-h-96 overflow-y-auto px-6 pb-6">
                       <div className="space-y-3">
-                        {mockCMSData.content.slice(0, 10).map(item => (
+                        {content.slice(0, 10).map(item => (
                           <div key={item.id} className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
                             <div className="space-y-2">
                               <div className="flex items-center space-x-2">
@@ -153,7 +152,7 @@ export const CMSDashboard = () => {
                   ) : (
                     <div className="max-h-96 overflow-y-auto px-6 pb-6">
                       <div className="space-y-3">
-                        {mockCMSData.content
+                        {content
                           .filter(c => c.status === 'pending_review')
                           .slice(0, 10)
                           .map(item => (
