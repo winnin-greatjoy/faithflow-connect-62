@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,48 +16,45 @@ import {
   Download,
   Receipt
 } from 'lucide-react';
-import { mockCommitteeExpenses, mockContributions, mockPledges } from '@/data/mockCommitteeData';
-import { CommitteeExpense } from '@/types/committee';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CommitteeFinanceProps {
-  committeeId: number;
+  committeeId: string | number;
   userRole: string;
   canManage: boolean;
 }
 
 export const CommitteeFinance = ({ committeeId, userRole, canManage }: CommitteeFinanceProps) => {
-  const [expenses] = useState<CommitteeExpense[]>(mockCommitteeExpenses);
-  
-  // Calculate financial summary
-  const totalIncome = mockContributions.reduce((sum, contrib) => sum + contrib.amount, 0);
-  const totalExpenses = expenses.filter(e => e.status === 'paid').reduce((sum, exp) => sum + exp.amount, 0);
-  const pendingExpenses = expenses.filter(e => e.status === 'pending').reduce((sum, exp) => sum + exp.amount, 0);
+  const [records, setRecords] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const cid = String(committeeId);
+      const { data: cm } = await (supabase as any)
+        .from('committee_members')
+        .select('member_id')
+        .eq('committee_id', cid);
+      const memberIds = (cm || []).map((r: any) => r.member_id).filter(Boolean);
+      if (memberIds.length === 0) { setRecords([]); return; }
+      const { data } = await (supabase as any)
+        .from('finance_records')
+        .select('id, amount, category, description, transaction_date, type, member_id')
+        .in('member_id', memberIds)
+        .order('transaction_date', { ascending: false });
+      setRecords(data || []);
+    })();
+  }, [committeeId]);
+
+  // Calculate financial summary based on finance_records
+  const totalIncome = records.filter(r => r.type === 'income').reduce((sum, r) => sum + (r.amount || 0), 0);
+  const totalExpenses = records.filter(r => r.type === 'expense').reduce((sum, r) => sum + (r.amount || 0), 0);
+  const pendingExpenses = 0; // No status field in finance_records; adjust when workflow added
   const netBalance = totalIncome - totalExpenses;
 
-  const getStatusIcon = (status: CommitteeExpense['status']) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'rejected':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'paid':
-        return <DollarSign className="h-4 w-4 text-blue-600" />;
-      case 'pending':
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  const getStatusColor = (status: CommitteeExpense['status']) => {
-    switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'paid': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  // Using category badges instead of status (finance_records has no status)
+  const getCategoryBadge = (category?: string) => (
+    <Badge className="bg-gray-100 text-gray-800">{category || 'uncategorized'}</Badge>
+  );
 
   return (
     <div className="space-y-6">
@@ -141,51 +138,42 @@ export const CommitteeFinance = ({ committeeId, userRole, canManage }: Committee
 
         <TabsContent value="expenses" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Expense Requests</h3>
+            <h3 className="text-lg font-medium">Expenses</h3>
             {canManage && (
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                New Expense Request
+                Record Expense
               </Button>
             )}
           </div>
 
           <div className="space-y-4">
-            {expenses.map((expense) => (
+            {records.filter(r => r.type === 'expense').map((expense) => (
               <Card key={expense.id}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium">{expense.description}</h4>
+                        <h4 className="font-medium">{expense.description || 'Expense'}</h4>
                         <div className="flex items-center space-x-2">
-                          <span className="text-lg font-bold">£{expense.amount.toFixed(2)}</span>
-                          <Badge className={getStatusColor(expense.status)}>
-                            {getStatusIcon(expense.status)}
-                            <span className="ml-1">{expense.status}</span>
-                          </Badge>
+                          <span className="text-lg font-bold">£{(expense.amount || 0).toFixed(2)}</span>
+                          {getCategoryBadge(expense.category)}
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                         <div>
                           <span className="font-medium">Category:</span>
-                          <p>{expense.category}</p>
+                          <p>{expense.category || '-'}</p>
                         </div>
                         <div>
-                          <span className="font-medium">Requested by:</span>
-                          <p>{expense.requestedBy}</p>
+                          <span className="font-medium">Type:</span>
+                          <p>{expense.type}</p>
                         </div>
                         <div>
-                          <span className="font-medium">Requested:</span>
-                          <p>{new Date(expense.requestedAt).toLocaleDateString()}</p>
+                          <span className="font-medium">Date:</span>
+                          <p>{expense.transaction_date ? new Date(expense.transaction_date).toLocaleDateString() : '-'}</p>
                         </div>
-                        {expense.approvedBy && (
-                          <div>
-                            <span className="font-medium">Approved by:</span>
-                            <p>{expense.approvedBy}</p>
-                          </div>
-                        )}
                       </div>
                       
                       {expense.notes && (
@@ -207,16 +195,7 @@ export const CommitteeFinance = ({ committeeId, userRole, canManage }: Committee
                       </Button>
                     </div>
                     
-                    {canManage && expense.status === 'pending' && (
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">
-                          Approve
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50">
-                          Reject
-                        </Button>
-                      </div>
-                    )}
+                    {/* Workflow actions pending schema support */}
                   </div>
                 </CardContent>
               </Card>

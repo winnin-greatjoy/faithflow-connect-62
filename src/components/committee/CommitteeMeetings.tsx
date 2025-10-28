@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,17 +14,62 @@ import {
   XCircle,
   AlertCircle
 } from 'lucide-react';
-import { mockCommitteeMeetings } from '@/data/mockCommitteeData';
 import { CommitteeMeeting } from '@/types/committee';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CommitteeMeetingsProps {
-  committeeId: number;
+  committeeId: string | number;
   userRole: string;
   canManage: boolean;
 }
 
 export const CommitteeMeetings = ({ committeeId, userRole, canManage }: CommitteeMeetingsProps) => {
-  const [meetings] = useState<CommitteeMeeting[]>(mockCommitteeMeetings);
+  const [meetings, setMeetings] = useState<CommitteeMeeting[]>([]);
+
+  const toLocalId = (s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h) + 1;
+  };
+
+  useEffect(() => {
+    (async () => {
+      const cid: any = committeeId as any;
+      const { data: committeeRow } = await (supabase as any)
+        .from('committees')
+        .select('ministry_id')
+        .eq('id', String(cid))
+        .single();
+      const ministryId = committeeRow?.ministry_id;
+      if (!ministryId) { setMeetings([]); return; }
+
+      const { data } = await (supabase as any)
+        .from('ministry_events')
+        .select('id, title, event_date, start_time, end_time, location, description')
+        .eq('ministry_id', ministryId)
+        .order('event_date', { ascending: false });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const mapped: CommitteeMeeting[] = (data || []).map((e: any) => ({
+        id: toLocalId(e.id),
+        title: e.title,
+        date: e.event_date,
+        startTime: e.start_time || '',
+        endTime: e.end_time || '',
+        location: e.location || '',
+        agenda: [],
+        attendees: [],
+        minutes: '',
+        decisions: [],
+        followUpTasks: [],
+        status: e.event_date < today ? 'completed' : 'scheduled',
+      }));
+      setMeetings(mapped);
+    })();
+  }, [committeeId]);
 
   const getStatusIcon = (status: CommitteeMeeting['status']) => {
     switch (status) {

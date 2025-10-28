@@ -1,5 +1,5 @@
 -- Create ministries table
-CREATE TABLE public.ministries (
+CREATE TABLE IF NOT EXISTS public.ministries (
   id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   name TEXT NOT NULL,
   description TEXT,
@@ -10,7 +10,7 @@ CREATE TABLE public.ministries (
 );
 
 -- Create ministry_members junction table
-CREATE TABLE public.ministry_members (
+CREATE TABLE IF NOT EXISTS public.ministry_members (
   id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
   ministry_id UUID NOT NULL REFERENCES public.ministries(id) ON DELETE CASCADE,
@@ -22,7 +22,7 @@ CREATE TABLE public.ministry_members (
 );
 
 -- Create ministry_events table
-CREATE TABLE public.ministry_events (
+CREATE TABLE IF NOT EXISTS public.ministry_events (
   id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   ministry_id UUID NOT NULL REFERENCES public.ministries(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE public.ministry_events (
 );
 
 -- Create department_join_requests table
-CREATE TABLE public.department_join_requests (
+CREATE TABLE IF NOT EXISTS public.department_join_requests (
   id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
   department_id UUID NOT NULL REFERENCES public.departments(id) ON DELETE CASCADE,
@@ -50,7 +50,7 @@ CREATE TABLE public.department_join_requests (
 );
 
 -- Create event_rsvps table
-CREATE TABLE public.event_rsvps (
+CREATE TABLE IF NOT EXISTS public.event_rsvps (
   id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
@@ -70,112 +70,140 @@ ALTER TABLE public.department_join_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_rsvps ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for ministries
-CREATE POLICY "Ministries viewable by branch users"
-  ON public.ministries FOR SELECT
-  USING (has_branch_access(branch_id));
+DO $$ BEGIN
+  CREATE POLICY "Ministries viewable by branch users"
+    ON public.ministries FOR SELECT
+    USING (has_branch_access(branch_id));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "Admins can manage ministries"
-  ON public.ministries FOR ALL
-  USING (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role))
-  WITH CHECK (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role));
+DO $$ BEGIN
+  CREATE POLICY "Admins can manage ministries"
+    ON public.ministries FOR ALL
+    USING (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role))
+    WITH CHECK (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- RLS Policies for ministry_members
-CREATE POLICY "Ministry members viewable by branch users"
-  ON public.ministry_members FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM public.ministries m
-    WHERE m.id = ministry_members.ministry_id AND has_branch_access(m.branch_id)
-  ));
+DO $$ BEGIN
+  CREATE POLICY "Ministry members viewable by branch users"
+    ON public.ministry_members FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM public.ministries m
+      WHERE m.id = ministry_members.ministry_id AND has_branch_access(m.branch_id)
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "Leaders can manage ministry members"
-  ON public.ministry_members FOR ALL
-  USING (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role))
-  WITH CHECK (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role));
+DO $$ BEGIN
+  CREATE POLICY "Leaders can manage ministry members"
+    ON public.ministry_members FOR ALL
+    USING (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role))
+    WITH CHECK (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- RLS Policies for ministry_events
-CREATE POLICY "Ministry events viewable by branch users"
-  ON public.ministry_events FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM public.ministries m
-    WHERE m.id = ministry_events.ministry_id AND has_branch_access(m.branch_id)
-  ));
+DO $$ BEGIN
+  CREATE POLICY "Ministry events viewable by branch users"
+    ON public.ministry_events FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM public.ministries m
+      WHERE m.id = ministry_events.ministry_id AND has_branch_access(m.branch_id)
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "Leaders can manage ministry events"
-  ON public.ministry_events FOR ALL
-  USING (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role))
-  WITH CHECK (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role));
+DO $$ BEGIN
+  CREATE POLICY "Leaders can manage ministry events"
+    ON public.ministry_events FOR ALL
+    USING (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role))
+    WITH CHECK (has_role(auth.uid(), 'super_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- RLS Policies for department_join_requests
-CREATE POLICY "Users can view their own requests"
-  ON public.department_join_requests FOR SELECT
-  USING (
-    member_id IN (SELECT id FROM public.members WHERE id IN (
-      SELECT member_id FROM public.profiles WHERE id = auth.uid()
-    ))
-    OR has_role(auth.uid(), 'admin'::app_role)
-    OR has_role(auth.uid(), 'pastor'::app_role)
-    OR has_role(auth.uid(), 'leader'::app_role)
-  );
+DO $$ BEGIN
+  CREATE POLICY "Users can view their own requests"
+    ON public.department_join_requests FOR SELECT
+    USING (
+      member_id IN (SELECT id FROM public.members WHERE id IN (
+        SELECT member_id FROM public.profiles WHERE id = auth.uid()
+      ))
+      OR has_role(auth.uid(), 'admin'::app_role)
+      OR has_role(auth.uid(), 'pastor'::app_role)
+      OR has_role(auth.uid(), 'leader'::app_role)
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "Users can create join requests"
-  ON public.department_join_requests FOR INSERT
-  WITH CHECK (
-    member_id IN (SELECT id FROM public.members WHERE id IN (
-      SELECT member_id FROM public.profiles WHERE id = auth.uid()
-    ))
-  );
+DO $$ BEGIN
+  CREATE POLICY "Users can create join requests"
+    ON public.department_join_requests FOR INSERT
+    WITH CHECK (
+      member_id IN (SELECT id FROM public.members WHERE id IN (
+        SELECT member_id FROM public.profiles WHERE id = auth.uid()
+      ))
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "Leaders can manage requests"
-  ON public.department_join_requests FOR UPDATE
-  USING (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role))
-  WITH CHECK (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role));
+DO $$ BEGIN
+  CREATE POLICY "Leaders can manage requests"
+    ON public.department_join_requests FOR UPDATE
+    USING (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role))
+    WITH CHECK (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'pastor'::app_role) OR has_role(auth.uid(), 'leader'::app_role));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- RLS Policies for event_rsvps
-CREATE POLICY "Users can view RSVPs for visible events"
-  ON public.event_rsvps FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM public.events e
-    WHERE e.id = event_rsvps.event_id AND has_branch_access(e.branch_id)
-  ));
+DO $$ BEGIN
+  CREATE POLICY "Users can view RSVPs for visible events"
+    ON public.event_rsvps FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM public.events e
+      WHERE e.id = event_rsvps.event_id AND has_branch_access(e.branch_id)
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "Users can manage their own RSVPs"
-  ON public.event_rsvps FOR ALL
-  USING (
-    member_id IN (SELECT id FROM public.members WHERE id IN (
-      SELECT member_id FROM public.profiles WHERE id = auth.uid()
-    ))
-    OR has_role(auth.uid(), 'admin'::app_role)
-    OR has_role(auth.uid(), 'leader'::app_role)
-  )
-  WITH CHECK (
-    member_id IN (SELECT id FROM public.members WHERE id IN (
-      SELECT member_id FROM public.profiles WHERE id = auth.uid()
-    ))
-    OR has_role(auth.uid(), 'admin'::app_role)
-    OR has_role(auth.uid(), 'leader'::app_role)
-  );
+DO $$ BEGIN
+  CREATE POLICY "Users can manage their own RSVPs"
+    ON public.event_rsvps FOR ALL
+    USING (
+      member_id IN (SELECT id FROM public.members WHERE id IN (
+        SELECT member_id FROM public.profiles WHERE id = auth.uid()
+      ))
+      OR has_role(auth.uid(), 'admin'::app_role)
+      OR has_role(auth.uid(), 'leader'::app_role)
+    )
+    WITH CHECK (
+      member_id IN (SELECT id FROM public.members WHERE id IN (
+        SELECT member_id FROM public.profiles WHERE id = auth.uid()
+      ))
+      OR has_role(auth.uid(), 'admin'::app_role)
+      OR has_role(auth.uid(), 'leader'::app_role)
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Create indexes for performance
-CREATE INDEX idx_ministry_members_member ON public.ministry_members(member_id);
-CREATE INDEX idx_ministry_members_ministry ON public.ministry_members(ministry_id);
-CREATE INDEX idx_ministry_events_ministry ON public.ministry_events(ministry_id);
-CREATE INDEX idx_dept_join_requests_member ON public.department_join_requests(member_id);
-CREATE INDEX idx_dept_join_requests_dept ON public.department_join_requests(department_id);
-CREATE INDEX idx_event_rsvps_event ON public.event_rsvps(event_id);
-CREATE INDEX idx_event_rsvps_member ON public.event_rsvps(member_id);
+CREATE INDEX IF NOT EXISTS idx_ministry_members_member ON public.ministry_members(member_id);
+CREATE INDEX IF NOT EXISTS idx_ministry_members_ministry ON public.ministry_members(ministry_id);
+CREATE INDEX IF NOT EXISTS idx_ministry_events_ministry ON public.ministry_events(ministry_id);
+CREATE INDEX IF NOT EXISTS idx_dept_join_requests_member ON public.department_join_requests(member_id);
+CREATE INDEX IF NOT EXISTS idx_dept_join_requests_dept ON public.department_join_requests(department_id);
+CREATE INDEX IF NOT EXISTS idx_event_rsvps_event ON public.event_rsvps(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_rsvps_member ON public.event_rsvps(member_id);
 
 -- Triggers for updated_at
-CREATE TRIGGER update_ministries_updated_at
-  BEFORE UPDATE ON public.ministries
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
+DO $$ BEGIN
+  CREATE TRIGGER update_ministries_updated_at
+    BEFORE UPDATE ON public.ministries
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TRIGGER update_ministry_events_updated_at
-  BEFORE UPDATE ON public.ministry_events
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
+DO $$ BEGIN
+  CREATE TRIGGER update_ministry_events_updated_at
+    BEFORE UPDATE ON public.ministry_events
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TRIGGER update_event_rsvps_updated_at
-  BEFORE UPDATE ON public.event_rsvps
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
+DO $$ BEGIN
+  CREATE TRIGGER update_event_rsvps_updated_at
+    BEFORE UPDATE ON public.event_rsvps
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

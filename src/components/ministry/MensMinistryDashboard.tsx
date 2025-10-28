@@ -38,16 +38,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import {
-  mockMinistryMembers, 
-  mockCommittees, 
-  mockContributions, 
-  mockPledges,
-  mockPublications,
-  mockMinistryEvents,
-  mockFinancialSummary 
-} from '@/data/mockMinistryData';
+import { useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { CommitteeWorkspace } from '@/components/committee/CommitteeWorkspace';
 import { cn } from '@/lib/utils';
 
@@ -102,6 +94,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       setIsSending(false);
     }
   };
+
+  
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { setMessage(''); } onOpenChange(v); }}>
@@ -164,9 +158,55 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 export const MensMinistryDashboard: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { ministryId: ministryParam } = useParams();
 
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedCommittee, setSelectedCommittee] = useState<number | null>(null);
+  const [selectedCommittee, setSelectedCommittee] = useState<string | null>(null);
+  const [selectedCommitteeName, setSelectedCommitteeName] = useState<string>('');
+  const [ministryId, setMinistryId] = useState<string | null>(null);
+  const [ministriesList, setMinistriesList] = useState<Array<{ id: string; name: string }>>([]);
+  const [members, setMembers] = useState<Array<{
+    id: number;
+    fullName: string;
+    email?: string;
+    phone?: string;
+    role: string;
+    committeeAssignments: string[];
+    dateJoined: string;
+    isActive: boolean;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [financeRecords, setFinanceRecords] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [memberMap, setMemberMap] = useState<Record<string, string>>({});
+  const [committees, setCommittees] = useState<Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    is_active: boolean;
+    head_member_id?: string | null;
+    meeting_schedule?: string | null;
+  }>>([]);
+  const [ministryMembers, setMinistryMembers] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Add Member modal state
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberCandidates, setMemberCandidates] = useState<Array<{ id: string; name: string; email?: string | null }>>([]);
+  const [selectedMemberIdToAdd, setSelectedMemberIdToAdd] = useState<string | null>(null);
+  const [addMemberRole, setAddMemberRole] = useState('member');
+  const [addMemberStatus, setAddMemberStatus] = useState('active');
+  const [savingAddMember, setSavingAddMember] = useState(false);
+
+  // Committee create/edit modal state
+  const [showCommitteeModal, setShowCommitteeModal] = useState(false);
+  const [editingCommitteeId, setEditingCommitteeId] = useState<string | null>(null);
+  const [cName, setCName] = useState('');
+  const [cDesc, setCDesc] = useState('');
+  const [cActive, setCActive] = useState(true);
+  const [cHeadId, setCHeadId] = useState<string | undefined>(undefined);
+  const [cMeeting, setCMeeting] = useState('');
+  const [savingCommittee, setSavingCommittee] = useState(false);
   
   // State for search and filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -177,7 +217,7 @@ export const MensMinistryDashboard: React.FC = () => {
   // Filter members based on search term and role filter
   const filteredMembers = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return mockMinistryMembers.filter(member => {
+    return members.filter(member => {
       const matchesSearch =
         !q ||
         member.fullName.toLowerCase().includes(q) ||
@@ -187,7 +227,7 @@ export const MensMinistryDashboard: React.FC = () => {
       
       return matchesSearch && matchesRole;
     });
-  }, [searchTerm, roleFilter]);
+  }, [searchTerm, roleFilter, members]);
 
   // Handle member selection
   const toggleMemberSelection = (memberId: number) => {
@@ -257,19 +297,345 @@ export const MensMinistryDashboard: React.FC = () => {
     setSelectedMembers([]);
   };
 
+  // Temporary placeholder for Add Member action
+  const handleAddMember = () => {
+    setSelectedMemberIdToAdd(null);
+    setMemberSearch('');
+    setAddMemberRole('member');
+    setAddMemberStatus('active');
+    setShowAddMemberModal(true);
+  };
+
+  // Load member candidates when modal opens or search changes
+  useEffect(() => {
+    (async () => {
+      if (!showAddMemberModal) return;
+      // Fetch basic member list filtered by search term
+      let query = supabase
+        .from('members')
+        .select('id, full_name, email')
+        .order('full_name', { ascending: true })
+        .limit(50);
+      if (memberSearch.trim()) {
+        // best-effort case-insensitive search
+        query = query.ilike('full_name', `%${memberSearch.trim()}%`);
+      }
+      const { data, error } = await query;
+      if (error) {
+        console.error(error);
+        setMemberCandidates([]);
+        return;
+      }
+      const excludeIds = new Set(ministryMembers.map(m => m.id));
+      const candidates = (data || [])
+        .filter((m: any) => !excludeIds.has(m.id))
+        .map((m: any) => ({ id: m.id, name: m.full_name, email: m.email }));
+      setMemberCandidates(candidates);
+    })();
+  }, [showAddMemberModal, memberSearch, ministryMembers]);
+
+  const saveAddMember = async () => {
+    if (!ministryId) {
+      toast({ title: 'Missing ministry', description: 'No ministry selected', variant: 'destructive' });
+      return;
+    }
+    if (!selectedMemberIdToAdd) {
+      toast({ title: 'Select a member', description: 'Choose a member to add.' });
+      return;
+    }
+    setSavingAddMember(true);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const { error } = await supabase
+        .from('ministry_members')
+        .insert({
+          member_id: selectedMemberIdToAdd,
+          ministry_id: ministryId,
+          role: addMemberRole,
+          status: addMemberStatus,
+          joined_date: today,
+        });
+      if (error) throw error;
+      const added = memberCandidates.find(m => m.id === selectedMemberIdToAdd);
+      // Update light-weight local lists
+      if (added) {
+        setMinistryMembers(prev => [...prev, { id: added.id, name: added.name }]);
+        setMembers(prev => [
+          ...prev,
+          {
+            id: Math.floor(Math.random() * 1000000),
+            fullName: added.name,
+            email: added.email || '',
+            phone: '',
+            role: addMemberRole,
+            committeeAssignments: [],
+            dateJoined: today,
+            isActive: addMemberStatus === 'active',
+          }
+        ]);
+      }
+      toast({ title: 'Member added', description: `${added?.name || 'Member'} was added to the ministry.` });
+      setShowAddMemberModal(false);
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'Add failed', description: e?.message || 'Unable to add member', variant: 'destructive' });
+    } finally {
+      setSavingAddMember(false);
+    }
+  };
+
   // Calculate stats (memoized)
   const stats = useMemo(() => ({
-    totalMembers: mockMinistryMembers.filter(m => m.isActive).length,
-    totalCommittees: mockCommittees.filter(c => c.isActive).length,
-    monthlyContributions: mockFinancialSummary.totalContributions,
-    activePledges: mockPledges.filter(p => p.status === 'active').length,
-    upcomingEvents: mockMinistryEvents.filter(e => e.status === 'planned').length,
-    publishedArticles: mockPublications.filter(p => p.status === 'published').length
-  }), []);
+    totalMembers: members.filter(m => m.isActive).length,
+    totalCommittees: committees.length,
+    monthlyContributions: 0,
+    activePledges: 0,
+    upcomingEvents: 0,
+    publishedArticles: 0
+  }), [members, committees]);
 
-  // If a committee is selected, show the committee workspace (strict null check)
+  // helper to create a stable numeric id from uuid
+  const toLocalId = (s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h) + 1;
+  };
+
+  // Load ministry and members
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        // Select a ministry to scope the dashboard; fallback to first available
+        const { data: mins } = await supabase.from('ministries').select('id, name').order('created_at');
+        setMinistriesList(mins || []);
+        const candidate = (ministryParam as string | undefined) || null;
+        const chosen = mins && mins.length > 0
+          ? (candidate && mins.some(m => m.id === candidate) ? candidate : mins[0].id)
+          : null;
+        setMinistryId(chosen);
+        if (!chosen) {
+          setMembers([]);
+          return;
+        }
+
+        const { data: mm } = await supabase
+          .from('ministry_members')
+          .select('id, role, status, joined_date, member:members(id, full_name, email, phone)')
+          .eq('ministry_id', chosen)
+          .order('joined_date', { ascending: false });
+
+        const mapped = (mm || []).map((row: any) => ({
+          id: toLocalId(row.id),
+          fullName: row.member?.full_name || 'Unknown',
+          email: row.member?.email || '',
+          phone: row.member?.phone || '',
+          role: row.role || 'member',
+          committeeAssignments: [],
+          dateJoined: row.joined_date || '',
+          isActive: (row.status || 'active') === 'active',
+        }));
+
+        setMembers(mapped);
+
+        // Build member name map and fetch finance records for these members
+        const memberIds = (mm || [])
+          .map((row: any) => row.member?.id)
+          .filter((x: any) => !!x);
+        const nameMap: Record<string, string> = {};
+        const mmembers: Array<{ id: string; name: string }> = [];
+        (mm || []).forEach((row: any) => {
+          if (row.member?.id) nameMap[row.member.id] = row.member.full_name || 'Unknown';
+          if (row.member?.id) mmembers.push({ id: row.member.id, name: row.member.full_name || 'Unknown' });
+        });
+        setMemberMap(nameMap);
+        setMinistryMembers(mmembers);
+
+        if (memberIds.length > 0) {
+          const { data: fr } = await supabase
+            .from('finance_records')
+            .select('id, amount, category, description, transaction_date, type, member_id')
+            .in('member_id', memberIds as string[])
+            .order('transaction_date', { ascending: false });
+          setFinanceRecords(fr || []);
+        } else {
+          setFinanceRecords([]);
+        }
+
+        // Load ministry events
+        const { data: ev } = await supabase
+          .from('ministry_events')
+          .select('id, title, description, event_date, start_time, end_time, location')
+          .eq('ministry_id', chosen)
+          .order('event_date', { ascending: false });
+        setEvents(ev || []);
+
+        // Load committees for this ministry
+        const { data: cms } = await supabase
+          .from('committees')
+          .select('id, name, description, is_active, head_member_id, meeting_schedule')
+          .eq('ministry_id', chosen)
+          .order('created_at', { ascending: false });
+        setCommittees(cms || []);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [ministryParam]);
+
+  const reloadCommittees = async () => {
+    if (!ministryId) return;
+    const { data: cms, error } = await supabase
+      .from('committees')
+      .select('id, name, description, is_active, head_member_id, meeting_schedule')
+      .eq('ministry_id', ministryId)
+      .order('created_at', { ascending: false });
+    if (!error) setCommittees(cms || []);
+  };
+
+  // Reload core ministry data when ministryId changes
+  useEffect(() => {
+    (async () => {
+      if (!ministryId) return;
+      setLoading(true);
+      try {
+        const { data: mm } = await supabase
+          .from('ministry_members')
+          .select('id, role, status, joined_date, member:members(id, full_name, email, phone)')
+          .eq('ministry_id', ministryId)
+          .order('joined_date', { ascending: false });
+
+        const mapped = (mm || []).map((row: any) => ({
+          id: toLocalId(row.id),
+          fullName: row.member?.full_name || 'Unknown',
+          email: row.member?.email || '',
+          phone: row.member?.phone || '',
+          role: row.role || 'member',
+          committeeAssignments: [],
+          dateJoined: row.joined_date || '',
+          isActive: (row.status || 'active') === 'active',
+        }));
+        setMembers(mapped);
+
+        const memberIds = (mm || [])
+          .map((row: any) => row.member?.id)
+          .filter((x: any) => !!x);
+        const nameMap: Record<string, string> = {};
+        const mmembers: Array<{ id: string; name: string }> = [];
+        (mm || []).forEach((row: any) => {
+          if (row.member?.id) nameMap[row.member.id] = row.member.full_name || 'Unknown';
+          if (row.member?.id) mmembers.push({ id: row.member.id, name: row.member.full_name || 'Unknown' });
+        });
+        setMemberMap(nameMap);
+        setMinistryMembers(mmembers);
+
+        if (memberIds.length > 0) {
+          const { data: fr } = await supabase
+            .from('finance_records')
+            .select('id, amount, category, description, transaction_date, type, member_id')
+            .in('member_id', memberIds as string[])
+            .order('transaction_date', { ascending: false });
+          setFinanceRecords(fr || []);
+        } else {
+          setFinanceRecords([]);
+        }
+
+        const { data: ev } = await supabase
+          .from('ministry_events')
+          .select('id, title, description, event_date, start_time, end_time, location')
+          .eq('ministry_id', ministryId)
+          .order('event_date', { ascending: false });
+        setEvents(ev || []);
+
+        await reloadCommittees();
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [ministryId]);
+
+  const openCreateCommittee = () => {
+    if (!ministryId) {
+      toast({ title: 'Select a ministry', description: 'Please select a ministry before creating a committee.' });
+      return;
+    }
+    setEditingCommitteeId(null);
+    setCName('');
+    setCDesc('');
+    setCActive(true);
+    setCHeadId(undefined);
+    setCMeeting('');
+    setShowCommitteeModal(true);
+  };
+
+  const openEditCommittee = (c: { id: string; name: string; description?: string | null; is_active: boolean; head_member_id?: string | null; meeting_schedule?: string | null; }) => {
+    setEditingCommitteeId(c.id);
+    setCName(c.name || '');
+    setCDesc(c.description || '');
+    setCActive(!!c.is_active);
+    setCHeadId(c.head_member_id || undefined);
+    setCMeeting(c.meeting_schedule || '');
+    setShowCommitteeModal(true);
+  };
+
+  const saveCommittee = async () => {
+    if (!ministryId) {
+      toast({ title: 'Missing ministry', description: 'No ministry selected', variant: 'destructive' });
+      return;
+    }
+    if (!cName.trim()) {
+      toast({ title: 'Name required', description: 'Please enter a committee name', variant: 'destructive' });
+      return;
+    }
+    setSavingCommittee(true);
+    try {
+      if (editingCommitteeId) {
+        const { error } = await supabase
+          .from('committees')
+          .update({
+            name: cName.trim(),
+            description: cDesc || null,
+            is_active: cActive,
+            head_member_id: cHeadId || null,
+            meeting_schedule: cMeeting || null,
+          })
+          .eq('id', editingCommitteeId);
+        if (error) throw error;
+        toast({ title: 'Committee updated', description: 'Changes saved.' });
+      } else {
+        const { error } = await supabase
+          .from('committees')
+          .insert({
+            ministry_id: ministryId,
+            name: cName.trim(),
+            description: cDesc || null,
+            is_active: cActive,
+            head_member_id: cHeadId || null,
+            meeting_schedule: cMeeting || null,
+          });
+        if (error) throw error;
+        toast({ title: 'Committee created', description: 'A new committee has been added.' });
+      }
+      setShowCommitteeModal(false);
+      await reloadCommittees();
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'Save failed', description: e?.message || 'Unable to save committee', variant: 'destructive' });
+    } finally {
+      setSavingCommittee(false);
+    }
+  };
+
+  // Finance derived metrics
+  const totalContributions = financeRecords.filter(r => r.type === 'income').reduce((s, r) => s + (r.amount || 0), 0);
+  const totalExpenses = financeRecords.filter(r => r.type === 'expense').reduce((s, r) => s + (r.amount || 0), 0);
+  const netBalance = totalContributions - totalExpenses;
+
+  // If a committee is selected, show the workspace (now using real UUID + name)
   if (selectedCommittee !== null) {
-    const committee = mockCommittees.find(c => c.id === selectedCommittee);
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -282,11 +648,11 @@ export const MensMinistryDashboard: React.FC = () => {
             Men's Ministry
           </Button>
           <ArrowRight className="h-4 w-4" />
-          <span>{committee?.name}</span>
+          <span>{selectedCommitteeName || 'Committee'}</span>
         </div>
         <CommitteeWorkspace 
           committeeId={selectedCommittee} 
-          committeeName={committee?.name || ''}
+          committeeName={selectedCommitteeName || 'Committee'}
           userRole="head"
         />
       </div>
@@ -428,7 +794,7 @@ export const MensMinistryDashboard: React.FC = () => {
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-            <Button className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 p-2">
+            <Button className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 p-2" onClick={handleAddMember}>
               <UserPlus className="h-5 w-5 sm:h-6 sm:w-6" />
               <span className="text-xs sm:text-sm">Add Member</span>
             </Button>
@@ -453,11 +819,11 @@ export const MensMinistryDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockMinistryMembers.filter(m => m.role !== 'member' && m.role !== 'committee_member').map((leader) => (
+                {members.filter(m => m.role !== 'member' && m.role !== 'committee_member').map((leader) => (
                   <div key={leader.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <h4 className="font-medium">{leader.fullName}</h4>
-                      <p className="text-sm text-gray-600">{leader.leadershipPosition}</p>
+                      <p className="text-sm text-gray-600">{leader.role.replace('_', ' ')}</p>
                     </div>
                     <Badge variant="outline">{leader.role.replace('_', ' ')}</Badge>
                   </div>
@@ -499,6 +865,138 @@ export const MensMinistryDashboard: React.FC = () => {
           </Card>
         </TabsContent>
 
+        {/* Add Member Modal */}
+        <Dialog open={showAddMemberModal} onOpenChange={setShowAddMemberModal}>
+          <DialogContent className="sm:max-w-[520px]">
+            <DialogHeader>
+              <DialogTitle>Add Member to Ministry</DialogTitle>
+              <DialogDescription>Select an existing member and assign a role/status.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Search Members</Label>
+                <div className="mt-1 relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                  <Input
+                    className="pl-8"
+                    placeholder="Type name..."
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Member</Label>
+                <Select value={selectedMemberIdToAdd || ''} onValueChange={(v) => setSelectedMemberIdToAdd(v || null)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a member" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {memberCandidates.length === 0 && (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">No results</div>
+                    )}
+                    {memberCandidates.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{m.name}</span>
+                          {m.email && <span className="ml-2 text-xs text-muted-foreground">{m.email}</span>}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Role</Label>
+                  <Select value={addMemberRole} onValueChange={setAddMemberRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="assistant">Assistant</SelectItem>
+                      <SelectItem value="leader">Leader</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={addMemberStatus} onValueChange={setAddMemberStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddMemberModal(false)}>Cancel</Button>
+              <Button onClick={saveAddMember} disabled={savingAddMember || !selectedMemberIdToAdd} className="flex items-center gap-2">
+                {savingAddMember && <Loader2 className="h-4 w-4 animate-spin" />}
+                Add Member
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create/Edit Committee Modal (global) */}
+        <Dialog open={showCommitteeModal} onOpenChange={(v) => setShowCommitteeModal(v)}>
+          <DialogContent className="sm:max-w-[520px]">
+            <DialogHeader>
+              <DialogTitle>{editingCommitteeId ? 'Edit Committee' : 'Create Committee'}</DialogTitle>
+              <DialogDescription>
+                {editingCommitteeId ? 'Update committee details' : 'Create a new committee for this ministry'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Name</Label>
+                <Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="e.g. Events Committee" />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} placeholder="What is this committee responsible for?" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Head</Label>
+                  <Select value={cHeadId || ''} onValueChange={(v) => setCHeadId(v === '__none' ? undefined : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select head" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Unassigned</SelectItem>
+                      {ministryMembers.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Meeting schedule</Label>
+                  <Input value={cMeeting} onChange={(e) => setCMeeting(e.target.value)} placeholder="e.g. First Monday monthly" />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="active" checked={cActive} onCheckedChange={(v) => setCActive(!!v)} />
+                <Label htmlFor="active">Active</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCommitteeModal(false)}>Cancel</Button>
+              <Button onClick={saveCommittee} disabled={savingCommittee || !cName.trim()} className="flex items-center gap-2">
+                {savingCommittee && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Members Tab */}
         <TabsContent value="members" className="space-y-4">
           <div className="flex flex-col space-y-3">
@@ -524,7 +1022,7 @@ export const MensMinistryDashboard: React.FC = () => {
                   <Send className="mr-1.5 h-3.5 w-3.5" />
                   {selectedMembers.length > 0 ? `Send Message (${selectedMembers.length})` : 'Send Message'}
                 </Button>
-                <Button size="sm" className="w-full sm:w-auto">
+                <Button size="sm" className="w-full sm:w-auto" onClick={handleAddMember}>
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
                   Add Member
                 </Button>
@@ -698,13 +1196,13 @@ export const MensMinistryDashboard: React.FC = () => {
         <TabsContent value="committees" className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h3 className="text-lg font-medium">Committees</h3>
-            <Button size="sm" className="w-full sm:w-auto">
+            <Button size="sm" className="w-full sm:w-auto" onClick={openCreateCommittee} disabled={!ministryId}>
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Create Committee
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {mockCommittees.map((committee) => (
+            {committees.map((committee) => (
               <Card key={committee.id} className="hover:shadow-md transition-shadow h-full flex flex-col">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
@@ -712,15 +1210,17 @@ export const MensMinistryDashboard: React.FC = () => {
                       {committee.name}
                     </CardTitle>
                     <Badge 
-                      variant={committee.isActive ? "default" : "secondary"}
+                      variant={committee.is_active ? 'default' : 'secondary'}
                       className="h-5 text-xs"
                     >
-                      {committee.isActive ? "Active" : "Inactive"}
+                      {committee.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </div>
-                  <CardDescription className="line-clamp-2 text-xs sm:text-sm">
-                    {committee.description}
-                  </CardDescription>
+                  {committee.description && (
+                    <CardDescription className="line-clamp-2 text-xs sm:text-sm">
+                      {committee.description}
+                    </CardDescription>
+                  )}
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col">
                   <div className="space-y-2 text-xs sm:text-sm">
@@ -728,32 +1228,28 @@ export const MensMinistryDashboard: React.FC = () => {
                       <Users className="h-3.5 w-3.5 mr-2 text-gray-400 flex-shrink-0" />
                       <span className="font-medium">Head: </span>
                       <span className="ml-1 truncate">
-                        {committee.headId 
-                          ? mockMinistryMembers.find(m => m.id === committee.headId)?.fullName || 'TBD'
-                          : 'TBD'
-                        }
+                        {committee.head_member_id 
+                          ? (memberMap[committee.head_member_id] || 'TBD')
+                          : 'TBD'}
                       </span>
                     </div>
-                    <div className="flex items-center">
-                      <UserPlus className="h-3.5 w-3.5 mr-2 text-gray-400 flex-shrink-0" />
-                      <span className="font-medium">Members: </span>
-                      <span className="ml-1">{committee.members.length}</span>
-                    </div>
-                    <div className="flex items-start">
-                      <Calendar className="h-3.5 w-3.5 mt-0.5 mr-2 text-gray-400 flex-shrink-0" />
-                      <div>
-                        <span className="font-medium">Meeting: </span>
-                        <span className="text-gray-700">
-                          {committee.meetingSchedule || 'TBD'}
-                        </span>
+                    {committee.meeting_schedule && (
+                      <div className="flex items-start">
+                        <Calendar className="h-3.5 w-3.5 mt-0.5 mr-2 text-gray-400 flex-shrink-0" />
+                        <div>
+                          <span className="font-medium">Meeting: </span>
+                          <span className="text-gray-700">
+                            {committee.meeting_schedule}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   <div className="flex space-x-2 mt-4 pt-3 border-t border-gray-100">
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => setSelectedCommittee(committee.id)}
+                      onClick={() => { setSelectedCommittee(committee.id); setSelectedCommitteeName(committee.name); }}
                       className="flex-1 text-xs sm:text-sm h-8 sm:h-9"
                     >
                       <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
@@ -764,6 +1260,7 @@ export const MensMinistryDashboard: React.FC = () => {
                       size="sm" 
                       className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                       title="Edit committee"
+                      onClick={() => openEditCommittee(committee)}
                     >
                       <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </Button>
@@ -771,7 +1268,14 @@ export const MensMinistryDashboard: React.FC = () => {
                 </CardContent>
               </Card>
             ))}
+            {committees.length === 0 && (
+              <div className="col-span-full text-center py-8 text-gray-600 border border-dashed rounded-lg">
+                <p className="text-sm">No committees defined yet.</p>
+              </div>
+            )}
           </div>
+
+          
         </TabsContent>
 
         {/* Finance Tab */}
@@ -790,7 +1294,7 @@ export const MensMinistryDashboard: React.FC = () => {
               <CardContent className="p-3 sm:p-4">
                 <div className="text-center">
                   <p className="text-xs sm:text-sm text-gray-600">Total Contributions</p>
-                  <p className="text-lg sm:text-2xl font-bold text-green-600">£{mockFinancialSummary.totalContributions}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-green-600">£{totalContributions.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -810,7 +1314,7 @@ export const MensMinistryDashboard: React.FC = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <p className="text-lg sm:text-2xl font-bold text-blue-600">£{mockFinancialSummary.pledgePayments.toLocaleString()}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-blue-600">£0</p>
                 </div>
               </CardContent>
             </Card>
@@ -830,7 +1334,7 @@ export const MensMinistryDashboard: React.FC = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <p className="text-lg sm:text-2xl font-bold text-orange-600">£{mockFinancialSummary.totalExpenses.toLocaleString()}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-orange-600">£{totalExpenses.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -850,9 +1354,9 @@ export const MensMinistryDashboard: React.FC = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <p className={`text-lg sm:text-2xl font-bold ${mockFinancialSummary.netBalance >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
-                    £{Math.abs(mockFinancialSummary.netBalance).toLocaleString()}
-                    {mockFinancialSummary.netBalance < 0 && ' (Deficit)'}
+                  <p className={`text-lg sm:text-2xl font-bold ${netBalance >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                    £{Math.abs(netBalance).toLocaleString()}
+                    {netBalance < 0 && ' (Deficit)'}
                   </p>
                 </div>
               </CardContent>
@@ -877,17 +1381,17 @@ export const MensMinistryDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {mockContributions.map((contribution) => (
+                    {financeRecords.filter(r => r.type === 'income').map((contribution) => (
                       <tr key={contribution.id} className="border-b">
-                        <td className="p-2">{contribution.date}</td>
+                        <td className="p-2">{contribution.transaction_date ? new Date(contribution.transaction_date).toISOString().slice(0,10) : ''}</td>
                         <td className="p-2">
-                          {mockMinistryMembers.find(m => m.id === contribution.memberId)?.fullName}
+                          {memberMap[contribution.member_id] || 'Member'}
                         </td>
                         <td className="p-2">
-                          <Badge variant="outline">{contribution.type.replace('_', ' ')}</Badge>
+                          <Badge variant="outline">{(contribution.category || contribution.type || '').toString().replace('_',' ')}</Badge>
                         </td>
-                        <td className="p-2 font-medium">£{contribution.amount}</td>
-                        <td className="p-2 text-sm text-gray-600">{contribution.description}</td>
+                        <td className="p-2 font-medium">£{(contribution.amount || 0).toLocaleString()}</td>
+                        <td className="p-2 text-sm text-gray-600">{contribution.description || ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -907,48 +1411,8 @@ export const MensMinistryDashboard: React.FC = () => {
             </Button>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockPublications.map((publication) => (
-              <Card key={publication.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{publication.title}</CardTitle>
-                    <Badge variant={
-                      publication.status === 'published' ? 'default' :
-                      publication.status === 'draft' ? 'secondary' : 'outline'
-                    }>
-                      {publication.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <span>{mockMinistryMembers.find(m => m.id === publication.authorId)?.fullName}</span>
-                    <span>•</span>
-                    <span>{publication.publishDate || publication.createdAt}</span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600 line-clamp-3 mb-4">
-                    {publication.content.substring(0, 150)}...
-                  </p>
-                  <div className="flex flex-wrap gap-1 mb-4">
-                    {publication.tags.map((tag, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Eye className="mr-1 h-3 w-3" />
-                      View
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="text-center py-8 text-gray-600 border border-dashed rounded-lg">
+            <p className="text-sm">Publications module pending CMS schema integration.</p>
           </div>
         </TabsContent>
 
@@ -963,44 +1427,23 @@ export const MensMinistryDashboard: React.FC = () => {
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockMinistryEvents.map((event) => (
+            {events.map((event) => (
               <Card key={event.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <CardTitle className="text-lg">{event.title}</CardTitle>
-                    <Badge variant={
-                      event.status === 'completed' ? 'default' :
-                      event.status === 'planned' ? 'secondary' :
-                      event.status === 'active' ? 'default' : 'outline'
-                    }>
-                      {event.status}
-                    </Badge>
                   </div>
                   <div className="text-sm text-gray-500">
-                    {event.startDate} {event.startDate !== event.endDate && `- ${event.endDate}`}
+                    {event.event_date}
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600 mb-3">{event.description}</p>
+                  <p className="text-sm text-gray-600 mb-3">{event.description || ''}</p>
                   <div className="space-y-2 text-sm">
                     <div>
                       <span className="font-medium">Location: </span>
-                      {event.location}
+                      {event.location || 'TBD'}
                     </div>
-                    <div>
-                      <span className="font-medium">Organizer: </span>
-                      {mockMinistryMembers.find(m => m.id === event.organizerId)?.fullName}
-                    </div>
-                    <div>
-                      <span className="font-medium">Attendees: </span>
-                      {event.attendees.length}
-                    </div>
-                    {event.budget && (
-                      <div>
-                        <span className="font-medium">Budget: </span>
-                        £{event.budget}
-                      </div>
-                    )}
                   </div>
                   <div className="flex space-x-2 mt-4">
                     <Button variant="outline" size="sm">View Details</Button>

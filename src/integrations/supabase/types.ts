@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_provisioning_jobs: {
@@ -183,6 +208,159 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      committee_members: {
+        Row: {
+          committee_id: string
+          created_at: string | null
+          id: string
+          joined_at: string | null
+          member_id: string
+          role: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          committee_id: string
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          member_id: string
+          role?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          committee_id?: string
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          member_id?: string
+          role?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "committee_members_committee_id_fkey"
+            columns: ["committee_id"]
+            isOneToOne: false
+            referencedRelation: "committees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "committee_members_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      committee_tasks: {
+        Row: {
+          assignee_id: string | null
+          assignee_name: string | null
+          attachments: string[] | null
+          checklist: Json | null
+          comments: Json | null
+          committee_id: string
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: Database["public"]["Enums"]["priority_level"]
+          status: Database["public"]["Enums"]["task_status"]
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assignee_id?: string | null
+          assignee_name?: string | null
+          attachments?: string[] | null
+          checklist?: Json | null
+          comments?: Json | null
+          committee_id: string
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["priority_level"]
+          status?: Database["public"]["Enums"]["task_status"]
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assignee_id?: string | null
+          assignee_name?: string | null
+          attachments?: string[] | null
+          checklist?: Json | null
+          comments?: Json | null
+          committee_id?: string
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["priority_level"]
+          status?: Database["public"]["Enums"]["task_status"]
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      committees: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          head_member_id: string | null
+          id: string
+          is_active: boolean
+          meeting_schedule: string | null
+          ministry_id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          head_member_id?: string | null
+          id?: string
+          is_active?: boolean
+          meeting_schedule?: string | null
+          ministry_id: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          head_member_id?: string | null
+          id?: string
+          is_active?: boolean
+          meeting_schedule?: string | null
+          ministry_id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "committees_head_member_id_fkey"
+            columns: ["head_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "committees_ministry_id_fkey"
+            columns: ["ministry_id"]
+            isOneToOne: false
+            referencedRelation: "ministries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       department_assignments: {
         Row: {
@@ -1052,7 +1230,9 @@ export type Database = {
       member_status: "active" | "inactive" | "suspended" | "transferred"
       membership_level: "baptized" | "convert" | "visitor"
       permission_action: "view" | "create" | "update" | "delete" | "manage"
+      priority_level: "low" | "medium" | "high"
       provision_type: "auto_baptized" | "admin_initiated"
+      task_status: "backlog" | "in_progress" | "done"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1178,6 +1358,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [
@@ -1205,7 +1388,9 @@ export const Constants = {
       member_status: ["active", "inactive", "suspended", "transferred"],
       membership_level: ["baptized", "convert", "visitor"],
       permission_action: ["view", "create", "update", "delete", "manage"],
+      priority_level: ["low", "medium", "high"],
       provision_type: ["auto_baptized", "admin_initiated"],
+      task_status: ["backlog", "in_progress", "done"],
     },
   },
 } as const

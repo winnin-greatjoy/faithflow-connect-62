@@ -198,6 +198,94 @@ export const OptimizedMemberManagement: React.FC = () => {
     })();
   }, [toLocalId]);
 
+  // Reload helpers
+  const reloadMembers = useCallback(async () => {
+    const { data: mr } = await supabase
+      .from('members')
+      .select('id, full_name, email, phone, branch_id, membership_level, baptized_sub_level, status, date_joined, updated_at, last_attendance, created_at')
+      .order('full_name');
+
+    const mappedMembers: Member[] = (mr || []).map((row: any) => {
+      const lid = toLocalId(row.id);
+      memberMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
+      const m: Member = {
+        id: lid,
+        fullName: row.full_name,
+        profilePhoto: '',
+        dateOfBirth: '2000-01-01',
+        gender: 'male',
+        maritalStatus: 'single',
+        spouseName: '',
+        numberOfChildren: 0,
+        children: [],
+        email: row.email || '',
+        phone: row.phone || '',
+        community: '',
+        area: '',
+        street: '',
+        publicLandmark: '',
+        branchId: 0,
+        dateJoined: row.date_joined || '',
+        membershipLevel: (row.membership_level as any),
+        baptizedSubLevel: row.baptized_sub_level || undefined,
+        leaderRole: undefined,
+        baptismDate: '',
+        joinDate: row.date_joined || '',
+        lastVisit: row.updated_at || row.last_attendance || '',
+        progress: 0,
+        baptismOfficiator: '',
+        spiritualMentor: '',
+        discipleshipClass1: false,
+        discipleshipClass2: false,
+        discipleshipClass3: false,
+        assignedDepartment: '',
+        status: (row.status as any) || 'active',
+        ministry: '',
+        prayerNeeds: '',
+        pastoralNotes: '',
+        lastAttendance: row.last_attendance || '',
+        createdAt: row.created_at || '',
+        updatedAt: row.updated_at || '',
+      } as Member;
+      return m;
+    });
+    setDbMembers(mappedMembers);
+  }, [toLocalId]);
+
+  const reloadFirstTimers = useCallback(async () => {
+    const { data: fr } = await supabase
+      .from('first_timers')
+      .select('id, full_name, email, phone, branch_id, service_date, community, area, street, public_landmark, invited_by, follow_up_status, status, created_at, first_visit, updated_at, notes, follow_up_notes')
+      .order('service_date', { ascending: false });
+
+    const mappedFirstTimers: FirstTimer[] = (fr || []).map((row: any) => {
+      const lid = toLocalId(row.id);
+      firstTimerMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
+      const ft: FirstTimer = {
+        id: lid,
+        fullName: row.full_name,
+        community: row.community || '',
+        area: row.area || '',
+        street: row.street || '',
+        publicLandmark: row.public_landmark || '',
+        phone: row.phone || '',
+        email: row.email || '',
+        serviceDate: row.service_date || new Date().toISOString(),
+        invitedBy: row.invited_by || '',
+        followUpStatus: (row.follow_up_status as any) || 'pending',
+        branchId: 0,
+        firstVisit: row.first_visit || row.service_date || new Date().toISOString(),
+        visitDate: row.service_date || new Date().toISOString(),
+        status: (row.status as any) || 'new',
+        followUpNotes: row.follow_up_notes || '',
+        notes: row.notes || '',
+        createdAt: row.created_at || new Date().toISOString(),
+      } as FirstTimer;
+      return ft;
+    });
+    setDbFirstTimers(mappedFirstTimers);
+  }, [toLocalId]);
+
   // Composer
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composerText, setComposerText] = useState('');
@@ -717,60 +805,55 @@ export const OptimizedMemberManagement: React.FC = () => {
           <MemberForm
             member={editingMember ?? undefined}
             onCancel={() => setShowMemberForm(false)}
-            onSubmit={(data) => {
-              const id = editingMember?.id ?? Date.now();
-              const now = new Date().toISOString();
-              const updated: Member = {
-                id,
-                fullName: data.fullName,
-                profilePhoto: data.profilePhoto || '',
-                dateOfBirth: data.dateOfBirth,
-                gender: data.gender,
-                maritalStatus: data.maritalStatus,
-                spouseName: data.spouseName || '',
-                numberOfChildren: data.numberOfChildren ?? 0,
-                children: (data.children ?? []).map((c: any) => ({
-                  id: c.id,
-                  name: c.name,
-                  dateOfBirth: c.dateOfBirth,
-                  gender: c.gender,
-                  notes: c.notes,
-                })),
-                email: data.email,
-                phone: data.phone,
-                community: data.community,
-                area: data.area,
-                street: data.street,
-                publicLandmark: data.publicLandmark || '',
-                branchId: data.branchId,
-                dateJoined: data.joinDate,
-                membershipLevel: data.membershipLevel,
-                baptizedSubLevel: data.membershipLevel === 'baptized' ? (data.baptizedSubLevel as any) : undefined,
-                leaderRole: data.leaderRole as any,
-                baptismDate: data.baptismDate || '',
-                joinDate: data.joinDate,
-                lastVisit: now,
-                progress: 0,
-                baptismOfficiator: data.baptismOfficiator || '',
-                spiritualMentor: data.spiritualMentor || '',
-                discipleshipClass1: false,
-                discipleshipClass2: false,
-                discipleshipClass3: false,
-                assignedDepartment: data.assignedDepartment || '',
-                status: 'active',
-                ministry: '',
-                prayerNeeds: data.prayerNeeds || '',
-                pastoralNotes: data.pastoralNotes || '',
-                lastAttendance: '',
-                createdAt: now,
-                updatedAt: now,
-              };
-              setAddedMembers(prev => {
-                const exists = prev.some(m => m.id === id);
-                return exists ? prev.map(m => (m.id === id ? updated : m)) : [updated, ...prev];
-              });
-              toast({ title: editingMember ? 'Member updated' : 'Member added', description: 'Saved successfully.' });
-              setShowMemberForm(false);
+            onSubmit={async (data) => {
+              try {
+                const payload: any = {
+                  full_name: data.fullName,
+                  email: data.email,
+                  phone: data.phone,
+                  community: data.community,
+                  area: data.area,
+                  street: data.street,
+                  public_landmark: data.publicLandmark || null,
+                  branch_id: data.branchId,
+                  date_joined: data.joinDate,
+                  date_of_birth: data.dateOfBirth,
+                  gender: data.gender as any,
+                  marital_status: data.maritalStatus as any,
+                  membership_level: data.membershipLevel as any,
+                  baptized_sub_level: data.membershipLevel === 'baptized' ? (data.baptizedSubLevel as any) : null,
+                  leader_role: (data.leaderRole as any) || null,
+                  status: 'active',
+                };
+
+                if (editingMember) {
+                  const dbId = memberMetaRef.current.get(editingMember.id)?.dbId;
+                  if (!dbId) throw new Error('Unable to resolve member id');
+                  const { error } = await supabase.from('members').update(payload).eq('id', dbId);
+                  if (error) throw error;
+                } else {
+                  const { data: inserted, error } = await supabase.from('members').insert(payload).select('id').single();
+                  if (error) throw error;
+                  const memberId = inserted?.id as string;
+                  const children = (data.children ?? []) as any[];
+                  if (memberId && children.length) {
+                    const childRows = children.map(c => ({
+                      member_id: memberId,
+                      name: c.name,
+                      date_of_birth: c.dateOfBirth,
+                      gender: c.gender as any,
+                      notes: c.notes || null,
+                    }));
+                    await supabase.from('children').insert(childRows);
+                  }
+                }
+
+                await reloadMembers();
+                toast({ title: editingMember ? 'Member updated' : 'Member added', description: 'Saved successfully.' });
+                setShowMemberForm(false);
+              } catch (err: any) {
+                toast({ title: 'Save failed', description: err.message || 'Database error', variant: 'destructive' });
+              }
             }}
           />
         )}
@@ -780,35 +863,41 @@ export const OptimizedMemberManagement: React.FC = () => {
           <FirstTimerForm
             firstTimer={editingFirstTimer ?? undefined}
             onCancel={() => setShowFirstTimerForm(false)}
-            onSubmit={(data) => {
-              const id = editingFirstTimer?.id ?? Date.now();
-              const now = new Date().toISOString();
-              const updated: FirstTimer = {
-                id,
-                fullName: data.fullName,
-                community: data.community || '',
-                area: data.area || '',
-                street: data.street || '',
-                publicLandmark: data.publicLandmark || '',
-                phone: data.phone || '',
-                email: '',
-                serviceDate: data.serviceDate || now,
-                invitedBy: data.invitedBy || '',
-                followUpStatus: 'pending',
-                branchId: data.branchId || 1,
-                firstVisit: now,
-                visitDate: now,
-                status: 'new',
-                followUpNotes: '',
-                notes: data.notes || '',
-                createdAt: now,
-              } as any;
-              setAddedFirstTimers(prev => {
-                const exists = prev.some(f => f.id === id);
-                return exists ? prev.map(f => (f.id === id ? updated : f)) : [updated, ...prev];
-              });
-              toast({ title: editingFirstTimer ? 'First timer updated' : 'First timer added', description: 'Saved successfully.' });
-              setShowFirstTimerForm(false);
+            onSubmit={async (data) => {
+              try {
+                const payload: any = {
+                  full_name: data.fullName,
+                  community: data.community,
+                  area: data.area,
+                  street: data.street,
+                  public_landmark: data.publicLandmark || null,
+                  phone: data.phone || null,
+                  email: null,
+                  service_date: data.serviceDate,
+                  invited_by: data.invitedBy || null,
+                  follow_up_status: 'pending',
+                  branch_id: data.branchId,
+                  first_visit: data.serviceDate,
+                  status: 'new',
+                  notes: data.notes || null,
+                };
+
+                if (editingFirstTimer) {
+                  const dbId = firstTimerMetaRef.current.get(editingFirstTimer.id)?.dbId;
+                  if (!dbId) throw new Error('Unable to resolve visitor id');
+                  const { error } = await supabase.from('first_timers').update(payload).eq('id', dbId);
+                  if (error) throw error;
+                } else {
+                  const { error } = await supabase.from('first_timers').insert(payload);
+                  if (error) throw error;
+                }
+
+                await reloadFirstTimers();
+                toast({ title: editingFirstTimer ? 'First timer updated' : 'First timer added', description: 'Saved successfully.' });
+                setShowFirstTimerForm(false);
+              } catch (err: any) {
+                toast({ title: 'Save failed', description: err.message || 'Database error', variant: 'destructive' });
+              }
             }}
           />
         )}

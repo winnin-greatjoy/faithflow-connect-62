@@ -8,7 +8,7 @@ import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
 import PortalDashboard from "./pages/portal/PortalDashboard";
 import { HomePage } from "./pages/portal/HomePage";
-import { ProfilePage } from "./pages/portal/ProfilePage";
+import { ProfilePage } from "./pages/portal/profilepage/ProfilePage";
 import { EventsPage } from "./pages/portal/EventsPage";
 import { DepartmentsPage } from "./pages/portal/DepartmentsPage";
 import DirectoryPage from "./pages/portal/DirectoryPage";
@@ -19,11 +19,11 @@ import CalendarPage from "./pages/portal/CalendarPage";
 import NotificationsPage from "./pages/portal/NotificationsPage";
 import SettingsPage from "./pages/portal/SettingsPage";
 import ShareAppPage from "./pages/portal/ShareAppPage";
-import QRCodePage from "./pages/portal/QRCodePage";
-import TwoFactorAuthPage from "./pages/portal/TwoFactorAuthPage";
-import ChangePasswordPage from "./pages/portal/ChangePasswordPage";
-import DirectorySettingsPage from "./pages/portal/DirectorySettingsPage";
-import EditAccountInfoPage from "./pages/portal/EditAccountInfoPage";
+import QRCodePage from "./pages/portal/profilepage/QRCodePage";
+import TwoFactorAuthPage from "./pages/portal/profilepage/TwoFactorAuthPage";
+import ChangePasswordPage from "./pages/portal/profilepage/ChangePasswordPage";
+import DirectorySettingsPage from "./pages/portal/profilepage/DirectorySettingsPage";
+import EditAccountInfoPage from "./pages/portal/profilepage/EditAccountInfoPage";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +76,38 @@ const App = () => (
         </Route>
         <Route
           path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/mens-ministry/:ministryId"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/womens-ministry/:ministryId"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/youth-ministry/:ministryId"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/childrens-ministry/:ministryId"
           element={
             <ProtectedRoute>
               <AdminDashboard />

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,8 @@ import {
   Shield,
   ArrowLeft
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WomensMinistryDashboardProps {
   userRole: 'head' | 'vice_head' | 'committee_head' | 'group_leader' | 'mentor' | 'member';
@@ -30,11 +31,12 @@ interface WomensMinistryDashboardProps {
 const WomensMinistryDashboard = ({ userRole }: WomensMinistryDashboardProps) => {
   const [activeTab, setActiveTab] = useState('overview');
   const navigate = useNavigate();
+  const { ministryId } = useParams();
 
   const canManage = ['head', 'vice_head', 'committee_head'].includes(userRole);
   const canLead = ['head', 'vice_head', 'committee_head', 'group_leader'].includes(userRole);
 
-  const stats = {
+  const [stats, setStats] = useState({
     totalMembers: 156,
     activeGroups: 12,
     upcomingEvents: 5,
@@ -42,8 +44,29 @@ const WomensMinistryDashboard = ({ userRole }: WomensMinistryDashboardProps) => 
     monthlyBudget: 3500,
     spent: 2100,
     publications: 6,
-    completionRate: 89
-  };
+    completionRate: 89,
+  });
+
+  useEffect(() => {
+    (async () => {
+      if (!ministryId) return;
+      const membersQuery = supabase
+        .from('ministry_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('ministry_id', ministryId);
+      const eventsQuery = supabase
+        .from('ministry_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('ministry_id', ministryId)
+        .gte('event_date', new Date().toISOString().slice(0, 10));
+      const [mmCountRes, evCountRes] = await Promise.all([membersQuery, eventsQuery]);
+      setStats((s) => ({
+        ...s,
+        totalMembers: mmCountRes.count ?? s.totalMembers,
+        upcomingEvents: evCountRes.count ?? s.upcomingEvents,
+      }));
+    })();
+  }, [ministryId]);
 
   const mockGroups = [
     {

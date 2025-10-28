@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -17,22 +17,83 @@ import {
   AlertTriangle,
   TrendingUp
 } from 'lucide-react';
-import { mockCommitteeWorkspaces } from '@/data/mockCommitteeData';
 import { CommitteeTaskBoard } from './CommitteeTaskBoard';
 import { CommitteeMeetings } from './CommitteeMeetings';
 import { CommitteeFinance } from './CommitteeFinance';
+import { supabase } from '@/integrations/supabase/client';
+import { ContentList } from '@/components/cms/ContentList';
 
 interface CommitteeWorkspaceProps {
-  committeeId: number;
+  committeeId: string | number;
   committeeName: string;
   userRole: 'head' | 'secretary' | 'treasurer' | 'member' | 'observer';
 }
 
 export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: CommitteeWorkspaceProps) => {
   const [activeTab, setActiveTab] = useState('home');
-  
-  // Find the workspace data (in real app, this would be fetched based on committeeId)
-  const workspace = mockCommitteeWorkspaces.find(w => w.id === committeeId) || mockCommitteeWorkspaces[0];
+  const [stats, setStats] = useState({
+    totalTasks: 0,
+    pendingTasks: 0,
+    overdueTasks: 0,
+    upcomingMeetings: 0,
+    monthlyBudget: 0,
+    spent: 0,
+    publications: 0,
+    completedTasks: 0,
+  });
+
+  useEffect(() => {
+    (async () => {
+      const cid = String(committeeId);
+      const { data: tasks } = await (supabase as any)
+        .from('committee_tasks')
+        .select('id, status, due_date')
+        .eq('committee_id', cid);
+      const totalTasks = (tasks || []).length;
+      const completedTasks = (tasks || []).filter((t: any) => t.status === 'done').length;
+      const pendingTasks = (tasks || []).filter((t: any) => t.status !== 'done').length;
+      const today = new Date().toISOString().slice(0, 10);
+      const overdueTasks = (tasks || []).filter((t: any) => t.status !== 'done' && t.due_date && t.due_date < today).length;
+
+      const { data: committeeRow } = await (supabase as any)
+        .from('committees')
+        .select('ministry_id')
+        .eq('id', cid)
+        .single();
+      let upcomingMeetings = 0;
+      if (committeeRow?.ministry_id) {
+        const { data: ev } = await (supabase as any)
+          .from('ministry_events')
+          .select('id, event_date')
+          .eq('ministry_id', committeeRow.ministry_id)
+          .gte('event_date', today);
+        upcomingMeetings = (ev || []).length;
+      }
+
+      const { data: cm } = await (supabase as any)
+        .from('committee_members')
+        .select('member_id')
+        .eq('committee_id', cid);
+      const memberIds = (cm || []).map((r: any) => r.member_id).filter(Boolean);
+      let monthlyBudget = 0;
+      let spent = 0;
+      if (memberIds.length > 0) {
+        const now = new Date();
+        const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+        const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+        const { data: fr } = await (supabase as any)
+          .from('finance_records')
+          .select('amount, type, transaction_date, member_id')
+          .in('member_id', memberIds)
+          .gte('transaction_date', start)
+          .lt('transaction_date', nextMonth);
+        monthlyBudget = (fr || []).filter((r: any) => r.type === 'income').reduce((s: number, r: any) => s + (r.amount || 0), 0);
+        spent = (fr || []).filter((r: any) => r.type === 'expense').reduce((s: number, r: any) => s + (r.amount || 0), 0);
+      }
+
+      setStats({ totalTasks, pendingTasks, overdueTasks, upcomingMeetings, monthlyBudget, spent, publications: 0, completedTasks });
+    })();
+  }, [committeeId]);
 
   const getPermissionLevel = (role: string) => {
     switch (role) {
@@ -52,8 +113,8 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{workspace.name}</h1>
-          <p className="text-gray-600 mt-1">{workspace.description}</p>
+          <h1 className="text-3xl font-bold text-gray-900">{committeeName}</h1>
+          <p className="text-gray-600 mt-1">Committee workspace</p>
           <div className="flex items-center mt-2 space-x-2">
             <Badge variant="outline">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>
             <Badge variant={getPermissionLevel(userRole) === 'full' ? 'default' : 'secondary'}>
@@ -77,7 +138,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <CheckSquare className="h-4 w-4 text-blue-600" />
               <div>
                 <p className="text-xs text-gray-600">Total Tasks</p>
-                <p className="text-lg font-bold">{workspace.stats.totalTasks}</p>
+                <p className="text-lg font-bold">{stats.totalTasks}</p>
               </div>
             </div>
           </CardContent>
@@ -89,7 +150,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <Clock className="h-4 w-4 text-green-600" />
               <div>
                 <p className="text-xs text-gray-600">Pending</p>
-                <p className="text-lg font-bold">{workspace.stats.pendingTasks}</p>
+                <p className="text-lg font-bold">{stats.pendingTasks}</p>
               </div>
             </div>
           </CardContent>
@@ -101,7 +162,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <div>
                 <p className="text-xs text-gray-600">Overdue</p>
-                <p className="text-lg font-bold">{workspace.stats.overdueTasks}</p>
+                <p className="text-lg font-bold">{stats.overdueTasks}</p>
               </div>
             </div>
           </CardContent>
@@ -113,7 +174,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <Calendar className="h-4 w-4 text-purple-600" />
               <div>
                 <p className="text-xs text-gray-600">Meetings</p>
-                <p className="text-lg font-bold">{workspace.stats.upcomingMeetings}</p>
+                <p className="text-lg font-bold">{stats.upcomingMeetings}</p>
               </div>
             </div>
           </CardContent>
@@ -125,7 +186,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <DollarSign className="h-4 w-4 text-primary" />
               <div>
                 <p className="text-xs text-gray-600">Budget</p>
-                <p className="text-lg font-bold">£{workspace.stats.monthlyBudget}</p>
+                <p className="text-lg font-bold">£{stats.monthlyBudget}</p>
               </div>
             </div>
           </CardContent>
@@ -137,7 +198,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <TrendingUp className="h-4 w-4 text-orange-600" />
               <div>
                 <p className="text-xs text-gray-600">Spent</p>
-                <p className="text-lg font-bold">£{workspace.stats.spent}</p>
+                <p className="text-lg font-bold">£{stats.spent}</p>
               </div>
             </div>
           </CardContent>
@@ -149,7 +210,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <FileText className="h-4 w-4 text-indigo-600" />
               <div>
                 <p className="text-xs text-gray-600">Publications</p>
-                <p className="text-lg font-bold">{workspace.stats.publications}</p>
+                <p className="text-lg font-bold">{stats.publications}</p>
               </div>
             </div>
           </CardContent>
@@ -161,9 +222,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
               <BarChart3 className="h-4 w-4 text-green-600" />
               <div>
                 <p className="text-xs text-gray-600">Progress</p>
-                <p className="text-lg font-bold">
-                  {Math.round((workspace.stats.completedTasks / workspace.stats.totalTasks) * 100)}%
-                </p>
+                <p className="text-lg font-bold">0%</p>
               </div>
             </div>
           </CardContent>
@@ -282,8 +341,8 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
         </TabsContent>
 
         <TabsContent value="tasks">
-          <CommitteeTaskBoard 
-            committeeId={committeeId} 
+      <CommitteeTaskBoard 
+        committeeId={committeeId} 
             userRole={userRole}
             canEdit={canEdit}
           />
@@ -314,10 +373,21 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
         </TabsContent>
 
         <TabsContent value="publications">
-          <div className="text-center py-8">
-            <Megaphone className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Publications Module</h3>
-            <p className="mt-1 text-sm text-gray-500">Coming soon - Content management and publishing</p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Publications</h2>
+              {canManage && (
+                <Button>
+                  <Megaphone className="mr-2 h-4 w-4" />
+                  New Publication
+                </Button>
+              )}
+            </div>
+            <ContentList 
+              onEdit={() => {}}
+              onView={() => {}}
+              onDelete={() => {}}
+            />
           </div>
         </TabsContent>
 

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,8 @@ import {
   CheckCircle,
   ArrowLeft
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ChildrensMinistryDashboardProps {
   userRole: 'head' | 'vice_head' | 'teacher' | 'volunteer' | 'observer';
@@ -31,12 +32,13 @@ interface ChildrensMinistryDashboardProps {
 const ChildrensMinistryDashboard = ({ userRole }: ChildrensMinistryDashboardProps) => {
   const [activeTab, setActiveTab] = useState('overview');
   const navigate = useNavigate();
+  const { ministryId } = useParams();
 
   const canManage = ['head', 'vice_head'].includes(userRole);
   const canTeach = ['head', 'vice_head', 'teacher'].includes(userRole);
   const canVolunteer = ['head', 'vice_head', 'teacher', 'volunteer'].includes(userRole);
 
-  const stats = {
+  const [stats, setStats] = useState({
     totalChildren: 156,
     toddlers: 28, // 2-3
     preschool: 45, // 4-5
@@ -45,7 +47,29 @@ const ChildrensMinistryDashboard = ({ userRole }: ChildrensMinistryDashboardProp
     checkedInToday: 89,
     volunteersOnDuty: 12,
     incidentsThisMonth: 2
-  };
+  });
+
+  useEffect(() => {
+    (async () => {
+      if (!ministryId) return;
+      const membersQuery = supabase
+        .from('ministry_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('ministry_id', ministryId);
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const eventsTodayQuery = supabase
+        .from('ministry_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('ministry_id', ministryId)
+        .eq('event_date', todayIso);
+      const [mmCountRes, evTodayRes] = await Promise.all([membersQuery, eventsTodayQuery]);
+      setStats((s) => ({
+        ...s,
+        totalChildren: mmCountRes.count ?? s.totalChildren,
+        checkedInToday: evTodayRes.count ?? s.checkedInToday,
+      }));
+    })();
+  }, [ministryId]);
 
   const mockClasses = [
     {

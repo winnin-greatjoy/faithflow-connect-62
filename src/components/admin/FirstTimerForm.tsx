@@ -1,5 +1,5 @@
 // src/components/admin/FirstTimerForm.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { FirstTimer } from '@/types/membership';
-import { mockBranches, mockMembers } from '@/data/mockMembershipData';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const firstTimerSchema = z.object({
@@ -22,7 +22,7 @@ const firstTimerSchema = z.object({
   phone: z.string().min(7, 'Phone number must be at least 7 characters'),
   serviceDate: z.string().min(1, 'Service date is required'),
   invitedBy: z.string().optional(),
-  branchId: z.coerce.number().min(1, 'Branch is required'),
+  branchId: z.string().min(1, 'Branch is required'),
   notes: z.string().optional()
 });
 
@@ -36,6 +36,19 @@ interface FirstTimerFormProps {
 
 export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSubmit, onCancel }) => {
   const { toast } = useToast();
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [members, setMembers] = useState<{ id: string; full_name: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: br }, { data: mr }] = await Promise.all([
+        supabase.from('church_branches').select('id, name').order('name'),
+        supabase.from('members').select('id, full_name').order('full_name')
+      ]);
+      setBranches((br as any) || []);
+      setMembers((mr as any) || []);
+    })();
+  }, []);
 
   const form = useForm<FirstTimerFormData>({
     resolver: zodResolver(firstTimerSchema),
@@ -48,7 +61,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
       phone: firstTimer.phone ?? '',
       serviceDate: firstTimer.serviceDate ?? new Date().toISOString().split('T')[0],
       invitedBy: firstTimer.invitedBy ?? '',
-      branchId: firstTimer.branchId ?? 1,
+      branchId: '',
       notes: firstTimer.notes ?? ''
     } : {
       fullName: '',
@@ -59,7 +72,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
       phone: '',
       serviceDate: new Date().toISOString().split('T')[0],
       invitedBy: '',
-      branchId: 1,
+      branchId: '',
       notes: ''
     }
   });
@@ -140,9 +153,13 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
                 <FormItem>
                   <FormLabel>Branch</FormLabel>
                   <FormControl>
-                    <Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}>
+                    <Select onValueChange={(v) => field.onChange(v)} defaultValue={field.value}>
                       <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
-                      <SelectContent>{mockBranches.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {branches.map(b => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   </FormControl>
                   <FormMessage />
@@ -155,7 +172,11 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
                   <FormControl>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger>
-                      <SelectContent>{mockMembers.map(m => <SelectItem key={m.id} value={m.fullName}>{m.fullName}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {members.map(m => (
+                          <SelectItem key={m.id} value={m.full_name}>{m.full_name}</SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   </FormControl>
                   <FormMessage />

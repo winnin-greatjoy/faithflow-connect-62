@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import ProfileEdit from './ProfileEdit';
 import { useToast } from '@/components/ui/use-toast';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { QrCode, ShieldCheck, KeyRound, Settings, FileEdit, UserCog } from 'lucide-react';
@@ -123,6 +123,7 @@ export const ProfilePage: React.FC = () => {
   const [editOpen, setEditOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
+  const hasAppliedPersisted = useRef(false);
 
   const refreshPhotoUrl = useCallback(
     async (path: string | null) => {
@@ -215,25 +216,10 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (!persistedMeta.isHydrated) return;
     if (!currentUserId) return;
-    if (!persistedState) return;
+    if (hasAppliedPersisted.current) return;
 
-    const memberInfoMatches = isMemberInfoEqual(persistedState.memberInfo, memberInfo);
-    const stateMatches =
-      persistedState.form.first_name === form.first_name &&
-      persistedState.form.last_name === form.last_name &&
-      persistedState.form.phone === form.phone &&
-      persistedState.middleName === middleName &&
-      persistedState.nickname === nickname &&
-      persistedState.addressLine === addressLine &&
-      persistedState.addressState === state &&
-      persistedState.city === city &&
-      persistedState.zipCode === zipCode &&
-      persistedState.doNotEmail === doNotEmail &&
-      persistedState.doNotText === doNotText &&
-      persistedState.editOpen === editOpen &&
-      memberInfoMatches;
-
-    if (stateMatches) {
+    if (!persistedState) {
+      hasAppliedPersisted.current = true;
       return;
     }
 
@@ -250,22 +236,8 @@ export const ProfilePage: React.FC = () => {
       setMemberInfo(prev => ({ ...prev, ...persistedState.memberInfo }));
     }
     setEditOpen(persistedState.editOpen ?? false);
-  }, [
-    addressLine,
-    city,
-    currentUserId,
-    doNotEmail,
-    doNotText,
-    editOpen,
-    form,
-    memberInfo,
-    middleName,
-    nickname,
-    persistedMeta.isHydrated,
-    persistedState,
-    state,
-    zipCode,
-  ]);
+    hasAppliedPersisted.current = true;
+  }, [persistedMeta.isHydrated, currentUserId, persistedState]);
 
   useEffect(() => {
     if (!photoPath) return;
@@ -497,290 +469,39 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <div className="flex flex-wrap gap-3">
-          {actionButtons.map(({ label, icon: Icon, onClick }) => (
-            <Button key={label} variant="outline" size="sm" onClick={onClick} className="gap-2">
-              <Icon className="h-4 w-4" />
-              {label}
-            </Button>
-          ))}
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <UserCog className="h-4 w-4" />
-              Edit Profile
-            </Button>
-          </DialogTrigger>
-        </div>
-
-        <DialogContent className="w-full h-[80vh] max-h-[80vh] overflow-hidden p-0 sm:max-w-4xl">
-          <div className="flex h-full flex-col">
-            <DialogHeader className="px-6 pt-6 pb-4">
-              <DialogTitle>Edit Person</DialogTitle>
-              <DialogDescription className="text-muted-foreground">Update your personal details and contact preferences.</DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 rounded-lg bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <Avatar className="h-20 w-20 border border-muted-foreground/30">
-                        <AvatarImage src={photoUrl || undefined} alt={displayName} />
-                        <AvatarFallback>{displayName?.[0] || '?'}</AvatarFallback>
-                      </Avatar>
-                      <input ref={fileInputRef as any} type="file" accept="image/*" className="hidden" onChange={onUpload} />
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="secondary"
-                        className="absolute right-0 top-0 h-7 w-7 rounded-full border border-border/60 bg-background/90 text-foreground shadow-sm hover:bg-background"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                      >
-                        <span className="sr-only">Change photo</span>
-                        {uploading ? (
-                          <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/70 border-t-transparent" />
-                        ) : (
-                          <FileEdit className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                      {photoUrl && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="absolute left-0 bottom-0 h-7 w-7 rounded-full bg-background/90 text-destructive shadow-sm"
-                          onClick={removePhoto}
-                          disabled={uploading}
-                        >
-                          <span className="sr-only">Remove photo</span>
-                          <span className="text-lg leading-none">×</span>
-                        </Button>
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold">{displayName}</div>
-                      <div className="text-sm text-muted-foreground">Update personal details below</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 rounded-lg bg-muted/10 p-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="first_name">First Name<span className="text-destructive"> *</span></Label>
-                    <Input
-                      id="first_name"
-                      value={form.first_name}
-                      onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="last_name">Last Name<span className="text-destructive"> *</span></Label>
-                    <Input
-                      id="last_name"
-                      value={form.last_name}
-                      onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="middle_name">Middle Name</Label>
-                    <Input
-                      id="middle_name"
-                      value={middleName}
-                      onChange={e => setMiddleName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="nickname">Nickname</Label>
-                    <Input
-                      id="nickname"
-                      value={nickname}
-                      onChange={e => setNickname(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Card className="border border-border/60 bg-card/80 shadow-none">
-                    <CardContent className="space-y-4 p-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="birthdate">Birthdate</Label>
-                        <Input
-                          id="birthdate"
-                          placeholder="MM/DD/YYYY"
-                          value={memberInfo.birthdate || ''}
-                          onChange={e => setMemberInfo(prev => ({ ...prev, birthdate: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="gender">Gender</Label>
-                        <Select
-                          value={memberInfo.gender ?? undefined}
-                          onValueChange={value => setMemberInfo(prev => ({ ...prev, gender: value }))}
-                        >
-                          <SelectTrigger id="gender" className="w-full capitalize">
-                            <SelectValue placeholder="Select gender" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {genderOptions.map(option => (
-                              <SelectItem key={option} value={option} className="capitalize">
-                                {formatEnum(option)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border border-border/60 bg-card/80 shadow-none">
-                    <CardContent className="space-y-4 p-4">
-                      <Tabs defaultValue="address" className="w-full">
-                        <TabsList className="grid grid-cols-2">
-                          <TabsTrigger value="address">Address</TabsTrigger>
-                          <TabsTrigger value="map">Map</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="address" className="space-y-3 pt-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="address_line">Address Line</Label>
-                            <Input
-                              id="address_line"
-                              value={addressLine}
-                              onChange={e => setAddressLine(e.target.value)}
-                            />
-                          </div>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label htmlFor="state">State</Label>
-                              <Input id="state" value={state} onChange={e => setState(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="city">City</Label>
-                              <Input id="city" value={city} onChange={e => setCity(e.target.value)} />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="zip">Zip Code</Label>
-                            <Input id="zip" value={zipCode} onChange={e => setZipCode(e.target.value)} />
-                          </div>
-                        </TabsContent>
-                        <TabsContent value="map" className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-                          Map preview coming soon
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Card className="border border-border/60 bg-card/80 shadow-none">
-                    <CardContent className="space-y-4 p-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="mobile_phone">Mobile Phone</Label>
-                        <Input
-                          id="mobile_phone"
-                          value={form.phone}
-                          onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                        />
-                      </div>
-                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Checkbox checked={doNotText} onCheckedChange={value => setDoNotText(Boolean(value))} />
-                        Do Not Text
-                      </label>
-                      <div className="space-y-2">
-                        <Label htmlFor="home_phone">Home Phone</Label>
-                        <Input
-                          id="home_phone"
-                          value={memberInfo.homePhone || ''}
-                          onChange={e => setMemberInfo(prev => ({ ...prev, homePhone: e.target.value }))}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border border-border/60 bg-card/80 shadow-none">
-                    <CardContent className="space-y-4 p-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="email_input">Email</Label>
-                        <Input id="email_input" type="email" value={email} disabled />
-                      </div>
-                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Checkbox checked={doNotEmail} onCheckedChange={value => setDoNotEmail(Boolean(value))} />
-                        Do Not Email
-                      </label>
-                      <div className="space-y-2">
-                        <Label htmlFor="grade">Grade <span className="normal-case text-xs text-muted-foreground/80">(As of school year 2025-2026)</span></Label>
-                        <Select
-                          value={memberInfo.membershipLevel ?? undefined}
-                          onValueChange={value => setMemberInfo(prev => ({ ...prev, membershipLevel: value }))}
-                        >
-                          <SelectTrigger id="grade" className="w-full capitalize">
-                            <SelectValue placeholder="Select grade" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {membershipLevelOptions.map(option => (
-                              <SelectItem key={option} value={option} className="capitalize">
-                                {formatEnum(option)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border border-border/60 bg-card/80 shadow-none sm:col-span-2">
-                    <CardContent className="space-y-4 p-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="marital_status">Marital Status</Label>
-                        <Select
-                          value={memberInfo.maritalStatus ?? undefined}
-                          onValueChange={value => setMemberInfo(prev => ({ ...prev, maritalStatus: value }))}
-                        >
-                          <SelectTrigger id="marital_status" className="w-full capitalize">
-                            <SelectValue placeholder="Select marital status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {maritalStatusOptions.map(option => (
-                              <SelectItem key={option} value={option} className="capitalize">
-                                {formatEnum(option)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 p-4">
-                        <div>
-                          <div className="font-medium">Add Family Member</div>
-                          <div className="text-sm text-muted-foreground">Link related family members to this profile.</div>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => toast({ 
-                            title: 'Coming Soon', 
-                            description: 'Family member linking will be available in a future update.' 
-                          })}
-                        >
-                          + New Person
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </div>
-            <DialogFooter className="border-t border-border/60 px-6 py-4">
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={save} disabled={saving}>
-                {saving ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Extracted edit dialog into ProfileEdit component for reuse */}
+      <ProfileEdit
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        actionButtons={actionButtons}
+        fileInputRef={fileInputRef}
+        onUpload={onUpload}
+        photoUrl={photoUrl}
+        displayName={displayName}
+        uploading={uploading}
+        removePhoto={removePhoto}
+        form={form}
+        setForm={setForm}
+        middleName={middleName}
+        setMiddleName={setMiddleName}
+        nickname={nickname}
+        setNickname={setNickname}
+        addressLine={addressLine}
+        setAddressLine={setAddressLine}
+        stateVal={state}
+        setStateVal={setState}
+        city={city}
+        setCity={setCity}
+        zipCode={zipCode}
+        setZipCode={setZipCode}
+        memberInfo={memberInfo}
+        setMemberInfo={setMemberInfo}
+        genderOptions={genderOptions}
+        maritalStatusOptions={maritalStatusOptions}
+        membershipLevelOptions={membershipLevelOptions}
+        save={save}
+        saving={saving}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
         <Card className="border border-border/60 bg-card/80 shadow-sm">

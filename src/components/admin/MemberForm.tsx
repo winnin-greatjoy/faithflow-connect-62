@@ -1,5 +1,5 @@
 // src/components/admin/MemberForm.tsx
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { Member, MembershipLevel, Gender, MaritalStatus } from '@/types/membership';
-import { mockBranches, departments } from '@/data/mockMembershipData';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const childSchema = z.object({
@@ -38,7 +38,7 @@ const memberSchema = z.object({
   area: z.string().min(1, 'Area is required'),
   street: z.string().min(1, 'Street is required'),
   publicLandmark: z.string().optional(),
-  branchId: z.coerce.number().min(1, 'Branch is required'),
+  branchId: z.string().min(1, 'Branch is required'),
   membershipLevel: z.enum(['baptized', 'convert', 'visitor']),
   baptizedSubLevel: z.enum(['leader', 'worker', 'disciple']).optional(),
   leaderRole: z.enum(['pastor', 'assistant_pastor', 'department_head', 'ministry_head']).optional(),
@@ -63,6 +63,17 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from('church_branches')
+        .select('id, name')
+        .order('name');
+      if (!error) setBranches((data as any) || []);
+    })();
+  }, []);
 
   const form = useForm<MemberFormData>({
     resolver: zodResolver(memberSchema),
@@ -81,7 +92,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
       area: member.area ?? '',
       street: member.street ?? '',
       publicLandmark: member.publicLandmark ?? '',
-      branchId: member.branchId ?? 1,
+      branchId: '',
       membershipLevel: member.membershipLevel ?? 'visitor',
       baptizedSubLevel: member.baptizedSubLevel ?? undefined,
       leaderRole: member.leaderRole ?? undefined,
@@ -107,7 +118,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
       area: '',
       street: '',
       publicLandmark: '',
-      branchId: 1,
+      branchId: '',
       membershipLevel: 'visitor',
       baptizedSubLevel: undefined,
       leaderRole: undefined,
@@ -323,10 +334,12 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
                     <FormItem>
                       <FormLabel>Branch</FormLabel>
                       <FormControl>
-                        <Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}>
+                        <Select onValueChange={(v) => field.onChange(v)} defaultValue={field.value}>
                           <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
                           <SelectContent>
-                            {mockBranches.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+                            {branches.map(b => (
+                              <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </FormControl>
