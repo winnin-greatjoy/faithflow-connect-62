@@ -1110,6 +1110,150 @@ export type Database = {
           },
         ]
       }
+      stream_chats: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          stream_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          stream_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          stream_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_chats_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "streams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stream_views: {
+        Row: {
+          id: string
+          stream_id: string
+          user_id: string | null
+          viewed_at: string
+          watch_duration: number | null
+        }
+        Insert: {
+          id?: string
+          stream_id: string
+          user_id?: string | null
+          viewed_at?: string
+          watch_duration?: number | null
+        }
+        Update: {
+          id?: string
+          stream_id?: string
+          user_id?: string | null
+          viewed_at?: string
+          watch_duration?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_views_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "streams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      streams: {
+        Row: {
+          branch_id: string | null
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          embed_url: string | null
+          end_time: string | null
+          id: string
+          is_featured: boolean | null
+          platform: Database["public"]["Enums"]["stream_platform"]
+          privacy: Database["public"]["Enums"]["stream_privacy"]
+          rtmp_server: string | null
+          start_time: string | null
+          status: Database["public"]["Enums"]["stream_status"]
+          storage_path: string | null
+          stream_key: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          video_url: string | null
+          view_count: number | null
+        }
+        Insert: {
+          branch_id?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          embed_url?: string | null
+          end_time?: string | null
+          id?: string
+          is_featured?: boolean | null
+          platform?: Database["public"]["Enums"]["stream_platform"]
+          privacy?: Database["public"]["Enums"]["stream_privacy"]
+          rtmp_server?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["stream_status"]
+          storage_path?: string | null
+          stream_key?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          video_url?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          branch_id?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          embed_url?: string | null
+          end_time?: string | null
+          id?: string
+          is_featured?: boolean | null
+          platform?: Database["public"]["Enums"]["stream_platform"]
+          privacy?: Database["public"]["Enums"]["stream_privacy"]
+          rtmp_server?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["stream_status"]
+          storage_path?: string | null
+          stream_key?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streams_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           branch_id: string | null
@@ -1210,6 +1354,9 @@ export type Database = {
       permission_action: "view" | "create" | "update" | "delete" | "manage"
       priority_level: "low" | "medium" | "high"
       provision_type: "auto_baptized" | "admin_initiated"
+      stream_platform: "youtube" | "facebook" | "vimeo" | "custom" | "supabase"
+      stream_privacy: "public" | "members_only" | "private"
+      stream_status: "scheduled" | "live" | "ended" | "archived"
       task_status: "backlog" | "in_progress" | "done"
     }
     CompositeTypes: {
@@ -1365,6 +1512,9 @@ export const Constants = {
       permission_action: ["view", "create", "update", "delete", "manage"],
       priority_level: ["low", "medium", "high"],
       provision_type: ["auto_baptized", "admin_initiated"],
+      stream_platform: ["youtube", "facebook", "vimeo", "custom", "supabase"],
+      stream_privacy: ["public", "members_only", "private"],
+      stream_status: ["scheduled", "live", "ended", "archived"],
       task_status: ["backlog", "in_progress", "done"],
     },
   },

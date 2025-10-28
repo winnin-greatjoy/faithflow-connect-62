@@ -34,6 +34,7 @@ const PortalDashboard: React.FC = () => {
       if (pathname.startsWith('/portal/attendance')) return 'attendance';
       if (pathname.startsWith('/portal/groups')) return 'groups';
       if (pathname.startsWith('/portal/calendar')) return 'calendar';
+      if (pathname.startsWith('/portal/streaming')) return 'streaming';
       if (pathname.startsWith('/portal/notifications')) return 'notifications';
       if (pathname.startsWith('/portal/settings')) return 'settings';
       if (pathname.startsWith('/portal/share')) return 'share';

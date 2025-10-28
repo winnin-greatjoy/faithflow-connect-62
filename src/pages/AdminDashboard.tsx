@@ -21,6 +21,7 @@ import { useAuthz } from '@/hooks/useAuthz';
 import { CMSDashboard } from '@/components/cms/CMSDashboard';
 import { ProvisioningQueue } from '@/components/admin/ProvisioningQueue';
 import { JoinRequests } from '@/components/admin/JoinRequests';
+import { StreamingModule } from '@/components/admin/StreamingModule';
 import { ChoirDashboard, UsheringDashboard, PrayerTeamDashboard, EvangelismDashboard, FinanceDashboard, TechnicalDashboard } from '@/components/departments';
 
 const AdminDashboard = () => {
@@ -48,6 +49,7 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/finance')) return 'finance';
     if (pathname.startsWith('/admin/provisioning')) return 'provisioning';
     if (pathname.startsWith('/admin/events')) return 'events';
+    if (pathname.startsWith('/admin/streaming')) return 'streaming';
     if (pathname.startsWith('/admin/reports')) return 'reports';
     if (pathname.startsWith('/admin/settings')) return 'settings';
     if (pathname.startsWith('/admin/volunteers')) return 'volunteers';
@@ -117,6 +119,8 @@ const AdminDashboard = () => {
         return <CMSDashboard />;
       case 'reports':
         return can('admin', 'view') ? <ReportsModule /> : denied;
+      case 'streaming':
+        return <StreamingModule />;
       case 'settings':
         return can('admin', 'manage') ? <SettingsModule /> : denied;
       case 'volunteers':
