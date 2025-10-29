@@ -12,6 +12,7 @@ import { Plus, Edit, Trash2, Eye, Video, Radio } from 'lucide-react';
 import { streamingApi, type Stream } from '@/services/streaming/streamingApi';
 import { useBranches } from '@/hooks/useBranches';
 import { toast } from 'sonner';
+import { uploadFile } from '@/utils/api';
 
 export function StreamingModule() {
   const [streams, setStreams] = useState<Stream[]>([]);
@@ -32,7 +33,10 @@ export function StreamingModule() {
     start_time: '',
     category: '',
     branch_id: '',
+    storage_path: '',
   });
+  const [uploading, setUploading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     loadStreams();
@@ -61,6 +65,7 @@ export function StreamingModule() {
       start_time: '',
       category: '',
       branch_id: '',
+      storage_path: '',
     });
     setIsDialogOpen(true);
   }
@@ -79,6 +84,7 @@ export function StreamingModule() {
       start_time: stream.start_time ? new Date(stream.start_time).toISOString().slice(0, 16) : '',
       category: stream.category || '',
       branch_id: stream.branch_id || '',
+      storage_path: stream.storage_path || '',
     });
     setIsDialogOpen(true);
   }
@@ -107,6 +113,41 @@ export function StreamingModule() {
     toast.success(`Stream ${editingStream ? 'updated' : 'created'} successfully`);
     setIsDialogOpen(false);
     loadStreams();
+  }
+
+  async function handleUpload() {
+    if (!file) {
+      toast.error('Select a video file to upload');
+      return;
+    }
+    if (!formData.title.trim()) {
+      toast.error('Please enter a title first');
+      return;
+    }
+    try {
+      setUploading(true);
+      const bucket = formData.privacy === 'public' ? 'public-videos' : 'private-videos';
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+      const slugBase = formData.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'video';
+      const path = `${slugBase}-${Date.now()}.${ext}`;
+      const res = await uploadFile(bucket, path, file, { contentType: file.type || undefined });
+      if (res.error) {
+        toast.error(res.error.message || 'Upload failed');
+        return;
+      }
+      setFormData((prev) => ({
+        ...prev,
+        platform: 'supabase',
+        storage_path: path,
+        embed_url: '',
+        video_url: '',
+      }));
+      toast.success('Uploaded to storage');
+    } catch (e: any) {
+      toast.error(String(e?.message || e));
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function handleDelete(id: string) {
@@ -325,6 +366,19 @@ export function StreamingModule() {
                 onChange={(e) => setFormData({ ...formData, embed_url: e.target.value })}
                 placeholder="https://youtube.com/embed/..."
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storage_upload">Upload video to Supabase Storage</Label>
+              <div className="flex items-center gap-2">
+                <Input id="storage_upload" type="file" accept="video/*,application/vnd.apple.mpegurl,video/mp2t" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                <Button type="button" variant="secondary" onClick={handleUpload} disabled={uploading || !file}>
+                  {uploading ? 'Uploading...' : 'Upload'}
+                </Button>
+              </div>
+              {formData.storage_path && (
+                <div className="text-sm text-muted-foreground">Stored as: {formData.storage_path}</div>
+              )}
             </div>
 
             <div className="space-y-2">

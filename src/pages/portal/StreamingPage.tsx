@@ -29,7 +29,6 @@ export default function StreamingPage() {
       );
       if (stream) {
         setSelectedStream(stream);
-        streamingApi.logView(streamId);
       }
     }
   }, [streamId, liveStreams, upcomingStreams, pastStreams]);
@@ -58,7 +57,6 @@ export default function StreamingPage() {
   function handleStreamSelect(stream: Stream) {
     setSelectedStream(stream);
     navigate(`/portal/streaming/${stream.id}`);
-    streamingApi.logView(stream.id);
   }
 
   function renderStreamCard(stream: Stream) {
