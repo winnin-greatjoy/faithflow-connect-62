@@ -54,8 +54,15 @@ export const provisioningApi = {
       const { data, error } = await supabase.functions.invoke('admin-create-provisioning-job', {
         body: { member_id: memberId, type, delivery_method }
       });
+      
       if (error) return handleApiError(error);
+      
+      // Handle both {ok: true, data: {...}} and direct data responses
       const payload = data as any;
+      if (payload?.error) {
+        return handleApiError(new Error(payload.error));
+      }
+      
       const row = (payload?.data ?? payload) as ProvisioningJob;
       return createApiResponse(row);
     } catch (error) {

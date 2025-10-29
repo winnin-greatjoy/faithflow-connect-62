@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 type Department = {
   id: number;
   name: string;
+  slug?: string;
   leader: string;
   members: number;
   activities: number;
@@ -152,7 +153,7 @@ export const DepartmentsModule = () => {
       // Departments list and count (filter by branch if available)
       const deptListQuery = supabase
         .from('departments')
-        .select('id, name, description, branch_id');
+        .select('id, name, slug, description, branch_id');
       if (branchId) deptListQuery.eq('branch_id', branchId);
       const { data: deptList } = await deptListQuery;
 
@@ -218,6 +219,7 @@ export const DepartmentsModule = () => {
           (deptList as any[]).map((d) => ({
             id: d.id,
             name: d.name || 'Department',
+            slug: d.slug, // Include slug field
             leader: 'TBD',
             members: 0,
             activities: 0,
@@ -242,32 +244,10 @@ export const DepartmentsModule = () => {
   }, [branchId]);
 
   // ✅ Department click handler
-  const handleDepartmentClick = (dept: Department) => {
-    // Navigate to the appropriate department dashboard based on department name
-    const deptName = dept.name.toLowerCase();
-    switch (deptName) {
-      case 'choir':
-        navigate('/admin/departments/choir');
-        break;
-      case 'ushering':
-        navigate('/admin/departments/ushering');
-        break;
-      case 'prayer team':
-        navigate('/admin/departments/prayer');
-        break;
-      case 'evangelism':
-        navigate('/admin/departments/evangelism');
-        break;
-      case 'finance':
-        navigate('/admin/departments/finance-dept');
-        break;
-      case 'technical':
-      case 'media':
-        navigate('/admin/departments/technical');
-        break;
-      default:
-        navigate(`/admin/departments/${dept.id}`);
-    }
+  const handleDepartmentClick = (dept: Department & { slug?: string }) => {
+    // Use slug from database if available, otherwise fallback to name-based routing
+    const slug = (dept as any).slug || dept.name.toLowerCase().replace(/\s+/g, '-');
+    navigate(`/departments/${slug}`);
   };
 
   // ✅ Ministry click handler
@@ -342,7 +322,7 @@ export const DepartmentsModule = () => {
     // Reload departments from database
     const deptListQuery = supabase
       .from('departments')
-      .select('id, name, description, branch_id');
+      .select('id, name, slug, description, branch_id');
     if (branchId) deptListQuery.eq('branch_id', branchId);
     const { data: deptList } = await deptListQuery;
     
@@ -351,6 +331,7 @@ export const DepartmentsModule = () => {
         (deptList as any[]).map((d) => ({
           id: d.id,
           name: d.name || 'Department',
+          slug: d.slug, // Include slug field
           leader: 'TBD',
           members: 0,
           activities: 0,

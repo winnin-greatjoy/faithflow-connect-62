@@ -100,6 +100,11 @@ export function ProvisioningQueue() {
       return;
     }
 
+    if (!selectedMember.email || !selectedMember.email.trim()) {
+      toast.error('Member must have a valid email address before provisioning');
+      return;
+    }
+
     if (!isBaptizedLevel(selectedMember.membership_level)) {
       toast.error('Only baptized members can be provisioned');
       return;
