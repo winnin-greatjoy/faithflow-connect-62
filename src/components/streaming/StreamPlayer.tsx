@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Radio } from 'lucide-react';
 import type { Stream } from '@/services/streaming/streamingApi';
+import { streamingApi } from '@/services/streaming/streamingApi';
 
 interface StreamPlayerProps {
   stream: Stream;
@@ -10,18 +11,34 @@ interface StreamPlayerProps {
 
 export function StreamPlayer({ stream }: StreamPlayerProps) {
   const [loading, setLoading] = useState(true);
+  const [playerUrl, setPlayerUrl] = useState<string | null>(null);
+  const hasLoggedRef = useRef(false);
 
   useEffect(() => {
-    setLoading(false);
-  }, [stream]);
+    let mounted = true;
+    setLoading(true);
+    setPlayerUrl(null);
+    hasLoggedRef.current = false;
+    streamingApi.getPlaybackUrl(stream.id).then((res) => {
+      if (!mounted) return;
+      if (!res.error) {
+        setPlayerUrl(res.data || null);
+      } else {
+        setPlayerUrl(stream.embed_url || stream.video_url || null);
+      }
+      setLoading(false);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [stream.id]);
 
-  const getPlayerUrl = () => {
-    if (stream.embed_url) return stream.embed_url;
-    if (stream.video_url) return stream.video_url;
-    return null;
-  };
-
-  const playerUrl = getPlayerUrl();
+  useEffect(() => {
+    if (playerUrl && !hasLoggedRef.current) {
+      hasLoggedRef.current = true;
+      streamingApi.logView(stream.id);
+    }
+  }, [playerUrl, stream.id]);
 
   const isYouTube = playerUrl?.includes('youtube.com') || playerUrl?.includes('youtu.be');
   const isFacebook = playerUrl?.includes('facebook.com');

@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send } from 'lucide-react';
 import { streamingApi, type StreamChat as StreamChatType } from '@/services/streaming/streamingApi';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface StreamChatProps {
   streamId: string;
@@ -17,6 +18,7 @@ export function StreamChat({ streamId }: StreamChatProps) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [viewerCount, setViewerCount] = useState(0);
 
   useEffect(() => {
     loadMessages();
@@ -24,8 +26,29 @@ export function StreamChat({ streamId }: StreamChatProps) {
       setMessages((prev) => [...prev, newMessage]);
     });
 
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const key = user?.id || `anon-${Math.random().toString(36).slice(2)}`;
+      presenceChannel = supabase.channel(`stream-presence-${streamId}`, { config: { presence: { key } } });
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          const state = presenceChannel!.presenceState() as Record<string, any[]>;
+          const count = Object.values(state).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+          setViewerCount(count);
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await presenceChannel!.track({ online_at: new Date().toISOString() });
+          }
+        });
+    })();
+
     return () => {
       unsubscribe();
+      if (presenceChannel) {
+        supabase.removeChannel(presenceChannel);
+      }
     };
   }, [streamId]);
 
@@ -67,7 +90,7 @@ export function StreamChat({ streamId }: StreamChatProps) {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader>
-        <CardTitle className="text-lg">Live Chat</CardTitle>
+        <CardTitle className="text-lg">Live Chat {viewerCount > 0 ? `• ${viewerCount} online` : ''}</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
         <ScrollArea className="flex-1 px-4" ref={scrollRef}>

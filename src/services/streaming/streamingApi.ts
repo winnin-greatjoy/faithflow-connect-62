@@ -238,5 +238,21 @@ export const streamingApi = {
     return () => {
       supabase.removeChannel(channel);
     };
+  },
+
+  // Get signed or direct playback URL via Edge Function
+  async getPlaybackUrl(streamId: string): Promise<ApiResult<string | null>> {
+    try {
+      const { data, error }: any = await (supabase as any).functions.invoke('stream-playback-url', {
+        body: { streamId }
+      });
+      if (error) {
+        return handleApiError(error);
+      }
+      const url = (data as any)?.url ?? null;
+      return createApiResponse(url);
+    } catch (error) {
+      return handleApiError(error);
+    }
   }
 };

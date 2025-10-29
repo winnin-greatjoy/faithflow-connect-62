@@ -1,0 +1,2234 @@
+That’s an excellent idea 🎥 — adding a **Streaming Service Module** to your **Church Management System (CMS)** can empower your platform to handle **live worship services, recorded sermons, and event broadcasts** seamlessly.
+
+Let’s design it step-by-step so it fits cleanly into your existing Supabase + Next.js architecture.
+
+---
+
+## ⚙️ **Streaming Service Module Overview**
+
+### 🎯 **Purpose**
+
+Allow churches to:
+
+* Stream live services or events directly from the platform.
+* Upload or manage pre-recorded sermons and media.
+* Embed live YouTube/Facebook/RTMP streams.
+* Allow members to watch, comment, and share within the church portal.
+
+---
+
+## 🧩 **Key Features**
+
+| Category              | Feature               | Description                                                                                     |
+| --------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
+| **Admin Controls**    | 🎬 Create Live Stream | Start or schedule a live service. Add title, description, thumbnail, stream key, and RTMP link. |
+|                       | 📦 Upload Videos      | Upload sermon recordings (MP4, MOV, etc.) to Supabase Storage or an external CDN.               |
+|                       | 🧠 Manage Media       | Edit metadata, categorize videos (e.g. Sunday Worship, Bible Study).                            |
+| **Member Experience** | ▶️ Watch Live         | Watch embedded live stream (YouTube, Vimeo, or custom RTMP).                                    |
+|                       | 💬 Live Chat          | Real-time chat (via Supabase Realtime or Socket.io).                                            |
+|                       | 🕒 Watch Later        | Save or favorite past streams.                                                                  |
+| **Optional**          | 📅 Schedule           | Show upcoming streams on church calendar/events.                                                |
+|                       | 🔔 Notifications      | Notify users of upcoming or live events (email, push, or in-app).                               |
+
+---
+
+## 🗃️ **Database Schema (Supabase / Prisma)**
+
+Example tables:
+
+### `streams`
+
+```prisma
+model Stream {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  thumbnailUrl  String?
+  videoUrl      String?     // for recorded stream or upload
+  streamKey     String?     // for RTMP streaming
+  platform      String      // 'youtube', 'vimeo', 'custom', etc.
+  embedUrl      String?
+  startTime     DateTime?
+  endTime       DateTime?
+  status        String      // 'scheduled', 'live', 'ended'
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdById   String?
+  createdBy     User?       @relation(fields: [createdById], references: [id])
+}
+```
+
+### `stream_chats`
+
+```prisma
+model StreamChat {
+  id        String   @id @default(uuid())
+  streamId  String
+  userId    String
+  message   String
+  createdAt DateTime @default(now())
+
+  stream    Stream   @relation(fields: [streamId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+```
+
+---
+
+## 🧠 **Frontend (Next.js) Structure**
+
+```
+/modules/streaming/
+ ├── components/
+ │    ├── StreamCard.tsx
+ │    ├── StreamPlayer.tsx
+ │    ├── StreamChat.tsx
+ │    └── StreamForm.tsx
+ ├── pages/
+ │    ├── index.tsx          // list all streams
+ │    ├── [id].tsx           // stream details + player
+ │    └── create.tsx         // admin create new stream
+ └── utils/
+      └── supabaseStream.ts  // API for Supabase queries
+```
+
+---
+
+## 🧰 **Tech Stack Integration**
+
+| Feature             | Tool                                                                        |
+| ------------------- | --------------------------------------------------------------------------- |
+| Live Stream Hosting | YouTube Live, Vimeo, or own RTMP server (e.g. OBS → Nginx RTMP → platform). |
+| Video Storage       | Supabase Storage (for recorded sermons).                                    |
+| Realtime Chat       | Supabase Realtime (Postgres changes) or Socket.io.                          |
+| Notifications       | Supabase Functions + Email/Push service.                                    |
+| Access Control      | Supabase Auth or your existing roles (Admin, Pastor, Member).               |
+
+---
+
+## 💡 **Next Steps**
+
+To tailor this to your system, please confirm:
+
+1. 🔹 Do you want **real RTMP streaming support** (so churches can go live directly), or just **embed existing YouTube/Facebook streams**?
+2. 🔹 Should members be able to **chat live** during streams?
+3. 🔹 Do you want to **store recorded videos** inside Supabase Storage, or link to external video URLs (like YouTube)?
+4. 🔹 Should only Admins/Pastors create streams, or can any user with permission?
+
+Once you confirm these points, I’ll generate:
+
+* ✅ Database migration script (for Supabase/Prisma)
+* ✅ Next.js pages & API routes
+* ✅ Supabase Storage integration setup
+* ✅ UI components (player, chat, upload form, etc.)
+
+
+Nice — thanks for the clear choices. I built a practical, ready-to-implement plan + schema + code snippets that fit your Supabase + Next.js stack and your answers:
+
+* RTMP streaming **supported** (can embed YouTube etc. too)
+* **Live chat enabled**
+* Support for **private (Supabase Storage)** or **public (YouTube/external)** video hosting — admin chooses per stream
+* Stream creation/management allowed by individuals or **groups** (e.g., Media Team) or roles (Admins/Pastors)
+
+Below you’ll find:
+
+1. Data model (Prisma + SQL-ready)
+2. Supabase Storage & RLS notes (private/public handling)
+3. RTMP flow + quick Nginx RTMP example (OBS → RTMP)
+4. Next.js API route examples (create stream, start/stop, upload, get)
+5. React component skeletons (StreamPlayer, StreamChat, StreamForm)
+6. Realtime chat using Supabase Realtime
+7. Access control pattern (roles/groups & permission checks)
+
+---
+
+# 1 — Database / Prisma models
+
+Use these Prisma models (works with Supabase Postgres via Prisma or migrate equivalents). They cover streams, chat, groups, roles, permissions and storage flags.
+
+```prisma
+generator client { provider = "prisma-client-js" }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  name       String?
+  createdAt  DateTime @default(now())
+  // relations
+  groups     GroupMember[]
+  roles      UserRole[]
+  streams    Stream[]  @relation("createdBy")
+  chats      StreamChat[]
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // "admin","pastor","member","media_team"
+  users UserRole[]
+}
+
+model UserRole {
+  id     Int    @id @default(autoincrement())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  role   Role   @relation(fields: [roleId], references: [id])
+  roleId Int
+}
+
+model Group {
+  id        String       @id @default(uuid())
+  name      String
+  createdAt DateTime     @default(now())
+  members   GroupMember[]
+  permissions GroupPermission[]
+}
+
+model GroupMember {
+  id      String  @id @default(uuid())
+  group   Group   @relation(fields: [groupId], references: [id])
+  groupId String
+  user    User    @relation(fields: [userId], references: [id])
+  userId  String
+  role    String? // optional extra role within group
+}
+
+model Stream {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  thumbnailUrl  String?
+  videoUrl      String?   // recorded video URL (Supabase Storage public URL or external)
+  storagePath   String?   // Supabase Storage object path if stored privately
+  platform      String    // 'youtube'|'vimeo'|'custom'|'supabase'
+  embedUrl      String?   // youtube embed or hls manifest
+  streamKey     String?   // server-side generated key (hashed) for RTMP
+  rtmpServer    String?   // e.g. rtmp://yourserver/live
+  privacy       String    // 'public' | 'unlisted' | 'private'  (private => members/roles/groups only)
+  status        String    @default("scheduled") // scheduled, live, ended
+  startTime     DateTime?
+  endTime       DateTime?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  createdBy     User?     @relation("createdBy", fields: [createdById], references: [id])
+  chats         StreamChat[]
+  allowedGroups StreamAllowedGroup[]
+  allowedUsers  StreamAllowedUser[]
+}
+
+model StreamChat {
+  id        String   @id @default(uuid())
+  streamId  String
+  userId    String
+  message   String
+  createdAt DateTime @default(now())
+
+  stream    Stream   @relation(fields: [streamId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model StreamAllowedGroup {
+  id      String @id @default(uuid())
+  stream  Stream @relation(fields: [streamId], references: [id])
+  streamId String
+  group   Group  @relation(fields: [groupId], references: [id])
+  groupId String
+}
+
+model StreamAllowedUser {
+  id       String @id @default(uuid())
+  stream   Stream @relation(fields: [streamId], references: [id])
+  streamId String
+  user     User   @relation(fields: [userId], references: [id])
+  userId   String
+}
+
+model GroupPermission {
+  id      String @id @default(uuid())
+  group   Group  @relation(fields: [groupId], references: [id])
+  groupId String
+  action  String // 'create_stream','manage_stream','start_stream'
+}
+```
+
+> Notes:
+>
+> * `videoUrl` points to public/external URLs (YouTube, Vimeo, or Supabase public file).
+> * `storagePath` is used when the file is private in Supabase Storage (ACL: private). Use signed URLs for playback.
+> * `streamKey` + `rtmpServer` used for RTMP ingestion. Generate strong keys and store hashed if required.
+
+---
+
+# 2 — Supabase Storage & RLS (privacy handling)
+
+**Approach:**
+
+* If `privacy = 'public'` → store video in Supabase Storage public bucket (or set object public) or use external URL.
+* If `privacy = 'private'` → store in `private-videos` bucket (object ACL private). When a client requests playback, generate a **time-limited signed URL** via a server endpoint that validates user permissions (roles/groups).
+
+**Example server-side signed URL (pseudo):**
+
+```ts
+// Next.js /api/streams/[id]/signed-url
+const { data: stream } = await supabase.from('streams').select('*').eq('id', id).single();
+if (stream.privacy === 'private') {
+  // verify user belongs to allowed group or user list or has role
+  const { data: url } = await supabase.storage.from('private-videos').createSignedUrl(stream.storagePath, 60);
+  return res.json({ url });
+}
+```
+
+**RLS tips (Postgres policies):**
+
+* Enable Row-Level Security on `streams`, `stream_chats`. Add policy that only allows read if `privacy='public'` OR user in `allowed_users` OR user in `allowed_groups`.
+* Chat write policy: allow insert only if stream is public OR user has access.
+* Use Postgres `exists` checks in policies to confirm group membership.
+
+---
+
+# 3 — RTMP ingestion options & example Nginx-RTMP config
+
+You can either:
+
+* Use an external service (Mux, Ant Media, Wowza) for HLS packaging + CDN (recommended for scale), or
+* Host your own RTMP ingest + HLS using **nginx-rtmp** (cheaper but needs ops).
+
+**Minimal nginx-rtmp snippet:**
+
+```nginx
+rtmp {
+    server {
+        listen 1935;
+        chunk_size 4096;
+
+        application live {
+            live on;
+            record off;
+            # HLS
+            hls on;
+            hls_path /var/www/hls;
+            hls_fragment 4s;
+            # restrict publish by stream key (simple example)
+            allow publish 127.0.0.1; # better: use dynamic auth via on_publish script
+            deny publish all;
+        }
+    }
+}
+```
+
+**OBS settings**: set stream type custom, URL `rtmp://your-server/live`, Stream Key = generated `streamKey` from DB.
+
+**Security**: implement `on_publish` hook or an HTTP auth to validate stream key before accept.
+
+---
+
+# 4 — Next.js API routes (supabase-js v2) — examples
+
+Assume server environment has `SUPABASE_SERVICE_ROLE_KEY` for privileged actions (signed URLs). Use server routes (app/api or pages/api).
+
+**Create stream (server)**
+
+```ts
+// pages/api/streams/create.ts
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+
+export default async function handler(req, res) {
+  const supabase = createServerSupabaseClient({ req, res });
+  const { title, description, platform, privacy, allowedGroupIds = [], allowedUserIds = [] } = req.body;
+  // generate RTMP streamKey for custom rtmp streams
+  const streamKey = crypto.randomBytes(16).toString('hex');
+
+  const { data, error } = await supabase.from('Stream').insert({
+    title, description, platform, privacy, streamKey, createdById: (await supabase.auth.getUser()).data.user.id
+  }).select().single();
+
+  // attach allowed groups/users
+  for (const gid of allowedGroupIds) {
+    await supabase.from('StreamAllowedGroup').insert({ streamId: data.id, groupId: gid });
+  }
+  for (const uid of allowedUserIds) {
+    await supabase.from('StreamAllowedUser').insert({ streamId: data.id, userId: uid });
+  }
+
+  res.status(error ? 400 : 200).json({ data, error });
+}
+```
+
+**Start/Stop stream (set status)**
+
+```ts
+// pages/api/streams/[id]/status.ts
+// body: { status: 'live'|'ended'|'scheduled' }
+const { data, error } = await supabase.from('Stream').update({ status, startTime: status==='live' ? new Date() : undefined }).eq('id', id);
+```
+
+**Upload recorded video (server signed upload/handle):**
+
+* Client can upload directly to Supabase Storage using an ephemeral signed policy or upload via server with the service key. Provide an `upload` endpoint to store and set `storagePath` + `videoUrl` after creating.
+
+**Get signed playback URL**
+
+```ts
+// pages/api/streams/[id]/playback.ts
+const { data: stream } = await supabase.from('Stream').select('*').eq('id', id).single();
+// permission check: verify user is allowed (membership/role/group check)
+if (stream.privacy === 'private') {
+  const { data: signed } = await supabaseAdmin.storage.from('private-videos').createSignedUrl(stream.storagePath, 60);
+  return res.json({ url: signed.signedUrl });
+} else {
+  return res.json({ url: stream.videoUrl || stream.embedUrl });
+}
+```
+
+---
+
+# 5 — React components (Next.js + Tailwind / shadcn style) — skeletons
+
+These are minimal, pluggable components you can expand.
+
+**StreamPlayer.tsx** (supports external embed or HLS signed URL)
+
+```tsx
+import React, { useEffect, useState } from 'react';
+
+export default function StreamPlayer({ streamId }) {
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
+  useEffect(() => {
+    (async ()=>{
+      const r = await fetch(`/api/streams/${streamId}/playback`);
+      const j = await r.json();
+      setPlayUrl(j.url);
+    })();
+  }, [streamId]);
+
+  if (!playUrl) return <div>Loading player…</div>;
+
+  // If embedUrl (youtube) use iframe, else use <video> for HLS/mp4
+  if (playUrl.includes('youtube.com') || playUrl.includes('youtu.be')) {
+    return <iframe src={playUrl} className="w-full h-[480px]" allowFullScreen />;
+  }
+
+  // For HLS in browsers that need hls.js you might integrate hls.js.
+  return (
+    <video controls className="w-full h-[480px]" src={playUrl} />
+  );
+}
+```
+
+**StreamChat.tsx** (Supabase Realtime via `supabase-js`)
+
+```tsx
+import React, { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+
+export default function StreamChat({ streamId }) {
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
+
+  useEffect(() => {
+    // initial load
+    supabase.from(`StreamChat:streamId=eq.${streamId}`).select('*').order('createdAt',{ascending:true})
+      .then(({ data }) => setMessages(data || []));
+
+    const channel = supabase.channel(`stream-chat-${streamId}`).on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'StreamChat', filter: `streamId=eq.${streamId}` },
+      (payload) => {
+        setMessages(m => [...m, payload.new]);
+      }
+    ).subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [streamId]);
+
+  async function send() {
+    if (!text.trim()) return;
+    await supabase.from('StreamChat').insert({ streamId, message: text });
+    setText('');
+  }
+
+  return (
+    <div className="flex flex-col">
+      <div className="h-64 overflow-y-auto">
+        {messages.map(m => (
+          <div key={m.id} className="py-1">
+            <b>{m.userId}</b>: <span>{m.message}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <input className="flex-1" value={text} onChange={e => setText(e.target.value)} />
+        <button onClick={send} className="btn">Send</button>
+      </div>
+    </div>
+  );
+}
+```
+
+**StreamForm.tsx** (admin create/edit)
+
+* Implement UI to set title, privacy, choose platform, assign allowed groups/users, toggle "store in Supabase" vs "external URL".
+
+---
+
+# 6 — Realtime chat & scaling
+
+* For small churches, Supabase Realtime is great (using Postgres replication slot). Subscriptions on `StreamChat` will push messages.
+* For big scale, consider Socket.io or a managed pubsub (Pusher, Ably). Store chats in DB for auditing and RLS.
+
+---
+
+# 7 — Access control / Permission checks
+
+Pattern:
+
+1. Check user roles (UserRole) for `admin` or `pastor`.
+2. Check groups membership (GroupMember) — e.g., if `media_team` group is allowed for the stream, members can create/start/stop.
+3. Stream-level allowed lists (`StreamAllowedGroup`, `StreamAllowedUser`) determine private stream viewers.
+
+Perform these checks server-side in any API that performs sensitive actions (create stream, generate signed URL, start stream). Use Supabase Edge Function or Next.js server route with service role key for signed-url generation and permission checks.
+
+---
+
+# 8 — Operational checklist (what to deploy / configure)
+
+* [ ] Create database tables (Prisma migrate or SQL)
+* [ ] Enable RLS and write policies for `streams` and `stream_chat`
+* [ ] Create Supabase Storage buckets:
+
+  * `public-videos` (public or public-read)
+  * `private-videos` (private; use signed URLs)
+* [ ] Decide RTMP ingest:
+
+  * Managed (Mux, Ant Media) → easier, HLS + CDN
+  * Self-hosted Nginx-RTMP → lower cost, more ops
+* [ ] Implement `on_publish` auth if self-hosted RTMP (validate streamKey)
+* [ ] Add UI pages/components and wire to API routes
+* [ ] Add tests for permission enforcement on signed URL endpoints
+
+---
+
+# 9 — Example RLS policy ideas (SQL style)
+
+**For `streams` SELECT:**
+
+```sql
+-- allow if public
+CREATE POLICY "public_streams" ON public."Stream"
+  FOR SELECT USING (privacy = 'public');
+
+-- allow if user is allowed user
+CREATE POLICY "allowed_user" ON public."Stream"
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public."StreamAllowedUser" sau
+      WHERE sau."streamId" = id AND sau."userId" = auth.uid()
+    )
+  );
+
+-- allow if user is in allowed group
+CREATE POLICY "allowed_group" ON public."Stream"
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public."StreamAllowedGroup" sag
+      JOIN public."GroupMember" gm ON gm."groupId" = sag."groupId"
+      WHERE sag."streamId" = id AND gm."userId" = auth.uid()
+    )
+  );
+```
+
+**Insert chat only if user can view stream**: create similar `INSERT` policy that checks membership or `privacy='public'`.
+
+---
+
+Perfect — this is the right stage before implementation.
+Let’s design the **Streaming Service module’s layout, structure, and feature set** in line with your Church Management System’s architecture (Supabase + Next.js, role-based, modular).
+
+---
+
+## 🧩 1. High-Level Module Overview
+
+The **Streaming Service** will be one of the church’s “Media & Engagement” modules — sitting beside Sermons, Events, and Announcements.
+
+**Core Purpose:**
+Allow Admins, Pastors, and the Media Team to create and broadcast **live streams** (RTMP or external embed), enable **real-time chat**, and manage **recorded videos** (both private and public).
+Members can **watch, chat, and replay** streams within the system — no need for YouTube or Facebook unless configured.
+
+---
+
+## 🧱 2. Layout Structure (Pages & Components)
+
+Here’s the proposed **page hierarchy** under `/streaming` (Next.js app routes):
+
+```
+/streaming
+ ├── page.tsx                → Streams Dashboard (main overview)
+/streaming/create
+ ├── page.tsx                → Create Stream Form
+/streaming/[id]
+ ├── page.tsx                → Live Player + Chat + Info
+/streaming/[id]/manage
+ ├── page.tsx                → Admin control view (start/stop/edit)
+/streaming/recordings
+ ├── page.tsx                → Recorded Streams Library
+/streaming/settings
+ ├── page.tsx                → Streaming settings (roles, storage config, RTMP URL)
+```
+
+---
+
+### 🖥️ Main Pages & Features
+
+#### 1️⃣ **Streams Dashboard**
+
+**Audience:** All users (filtered by access level)
+
+**Sections:**
+
+* 🔴 **Live Now** — list of currently live streams (cards with thumbnail, title, pastor name, viewer count)
+* 📅 **Upcoming Streams** — scheduled services
+* 🎥 **Recent Recordings** — past events (click to watch)
+* 🔍 **Filters:** by category (Sunday Service, Youth Fellowship, Revival), privacy (public/private)
+* 📊 **Analytics (Admin view)**: views count, chat count, average duration, engagement
+
+**Components:**
+
+* `<StreamCard />` (shared across all lists)
+* `<StreamFilterBar />`
+* `<StreamAnalyticsWidget />` (for admins)
+
+---
+
+#### 2️⃣ **Stream Create / Manage Page**
+
+**Audience:** Admin, Pastor, Media Team (or anyone with permission)
+
+**Features:**
+
+* ✏️ Form fields:
+
+  * Title
+  * Description
+  * Date/time
+  * Privacy (`public` / `unlisted` / `private`)
+  * Platform (`RTMP` / `YouTube` / `Supabase Upload`)
+  * Category (optional)
+  * Assign allowed groups or users
+  * Option to enable chat
+* 📡 Auto-generate **Stream Key** and **RTMP Server URL**
+* 📺 Preview “Live Control Panel” (shows stream preview if live)
+* 🛠️ Controls:
+
+  * Start/Stop stream
+  * Upload recording afterward (if local file)
+  * Generate embed/share link
+
+---
+
+#### 3️⃣ **Live Stream Page `/streaming/[id]`**
+
+**Audience:** Members & guests (depending on privacy)
+
+**Layout:**
+
+``` 
+------------------------------------------------------
+| [Video Player]         |  [Live Chat Sidebar]      |
+| (HLS or iframe)        |  (Realtime via Supabase)  |
+------------------------------------------------------
+| [Description] [Speaker Info] [Tags]                |
+------------------------------------------------------
+```
+
+**Features:**
+
+* HLS player or YouTube embed
+* Real-time chat with username/avatar
+* “Online viewers” count
+* Reaction/emoji overlay (optional)
+* Show pastor info or ministry team
+* “Share” and “Report” buttons
+* Auto-switch to recording after stream ends
+
+---
+
+#### 4️⃣ **Recordings Library `/streaming/recordings`**
+
+**Audience:** All users
+
+**Features:**
+
+* Video grid layout with filter/sort (Newest, Most viewed, Category)
+* Each video card shows:
+
+  * Thumbnail
+  * Title
+  * Date
+  * Duration
+  * Privacy badge (Public/Private)
+* Admin options:
+
+  * Edit metadata
+  * Delete recording
+  * Change privacy
+  * Replace video file or link external source
+  * Generate signed playback link for private videos
+
+---
+
+#### 5️⃣ **Streaming Settings `/streaming/settings`**
+
+**Audience:** Admin only
+
+**Sections:**
+
+* ⚙️ RTMP Configuration:
+
+  * RTMP Server URL
+  * RTMP Key prefix or generator
+  * Nginx RTMP endpoint or Mux integration
+* 💾 Storage Settings:
+
+  * Choose Supabase bucket (public or private)
+  * Set default privacy
+* 👥 Access Control:
+
+  * Assign roles that can create/manage streams (e.g., Admins, Pastors, Media Team)
+  * Set which groups can view private streams
+* 🎨 UI Customization:
+
+  * Default thumbnails, overlays, player colors
+
+---
+
+## 🔐 3. Role-Based Access and Permissions
+
+| Role / Group      | Create Stream | Start/Stop | Manage Settings | Watch Private   | Chat          |
+| ----------------- | ------------- | ---------- | --------------- | --------------- | ------------- |
+| Super Admin       | ✅             | ✅          | ✅               | ✅               | ✅             |
+| Pastor            | ✅             | ✅          | ❌               | ✅               | ✅             |
+| Media Team        | ✅             | ✅          | ❌               | ✅               | ✅             |
+| Registered Member | ❌             | ❌          | ❌               | ✅ (if allowed)  | ✅             |
+| Guest/Visitor     | ❌             | ❌          | ❌               | ❌ (only public) | ✅ (if public) |
+
+> ✅ = allowed | ❌ = restricted by policy or Supabase RLS
+
+---
+
+## 💬 4. Real-Time Chat Features
+
+* Realtime updates via **Supabase Realtime (Postgres → WebSocket)**
+* Typing indicator (“John is typing…”)
+* Moderator tools (mute, delete message)
+* Optional emoji reactions / heart bursts
+* Auto-block profanity (custom filter list)
+* Show online viewers count
+
+---
+
+## 📊 5. Analytics (optional advanced feature)
+
+* Count total viewers (connected sockets)
+* Message count per minute
+* Average view time
+* Geo distribution (from IP, optional)
+* Download CSV summary (Admin)
+
+---
+
+## 🧰 6. Technical Layers
+
+| Layer                              | Purpose                                                          |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| **Frontend (Next.js)**             | React components for player, chat, admin tools                   |
+| **Backend (Supabase + Functions)** | Stores streams, manages RLS, creates signed URLs, handles upload |
+| **Realtime (Supabase Realtime)**   | Power chat & live viewer counts                                  |
+| **Storage (Supabase Storage)**     | Save private videos, thumbnails                                  |
+| **External RTMP (optional)**       | Accept live feeds from OBS, restream via HLS                     |
+| **Auth (NextAuth + Supabase)**     | Role-based access enforcement                                    |
+
+---
+
+## 🎨 7. UI Inspiration (Modern + Church-Friendly)
+
+* Dark background player with white/gold accents
+* “Live” badge glowing red
+* Floating chat on right with avatars and timestamp
+* Responsive grid for recordings
+* Use Tailwind + Shadcn components for consistency:
+
+  * `<Card>`, `<Badge>`, `<Tabs>`, `<Dialog>`, `<DropdownMenu>`
+* Option for fullscreen immersive “Worship Mode”
+
+---
+
+## 🧾 8. Database Entities Summary
+
+| Table                     | Purpose                                 |
+| ------------------------- | --------------------------------------- |
+| `streams`                 | Stream metadata                         |
+| `stream_chats`            | Realtime chat messages                  |
+| `stream_allowed_groups`   | Which groups can access private streams |
+| `stream_allowed_users`    | Specific users allowed                  |
+| `groups`, `group_members` | Church teams (e.g. Media Team)          |
+| `roles`, `user_roles`     | User permissions                        |
+| `recordings` (optional)   | Store references to archived streams    |
+
+---
+
+## 🚀 9. Future Enhancements (Phase 2 Ideas)
+
+* 🎛️ **Multi-camera support** (for hybrid church services)
+* 🎙️ **Audio-only live streaming** for low bandwidth
+* 💬 **Comment threads** under recordings
+* 🔄 **Automated restreaming** to YouTube/Facebook
+* 📅 **Integration with Events module** (link streams to events)
+* 📧 **Notifications** (“Your church is live!”)
+* 📱 **Mobile-friendly watch page with chat**
+
+---
+
+Perfect ✅ — since we’ve already outlined **Phase 1 (Streaming Core)** — setting up the live/recorded streaming backend, roles, and chat — let’s dive into **Phase 2**, which focuses on *user experience, interactivity, and management tools*.
+
+---
+
+## 🎬 **Phase 2 — Streaming Engagement & Management Features**
+
+### 🧱 1. **Frontend Layout Enhancements**
+
+We’ll build a full streaming page structure with these key views:
+
+#### 🖥️ **a. Public/Member Live Page**
+
+* Main video player (auto-switch between *Live* and *Replay*).
+* Live chat sidebar (real-time via Supabase Realtime or Socket.io).
+* “Now Playing” banner showing:
+
+  * Current sermon title
+  * Pastor/host name
+  * Category (e.g., Sunday Service, Bible Study, Youth Session)
+* Reaction buttons ❤️ 🙌 🔥
+* Optional translation captions (for multilingual congregations)
+* Viewers count and engagement stats.
+
+#### 🔒 **b. Admin/Media Dashboard**
+
+* Stream setup wizard:
+
+  * Title, description, category, privacy setting (public/private)
+  * Schedule date/time (optional)
+  * Choose video source:
+    **RTMP feed** or **Pre-uploaded video (Supabase Storage / external URL)**
+* Thumbnail upload (or auto-generated from video)
+* Preview before going live.
+* Post-stream analytics dashboard (views, peak viewers, chat engagement)
+
+#### 📺 **c. Video Library**
+
+* Organized by categories (e.g., “Sunday Sermons”, “Conferences”, “Worship”)
+* Filter by date, tags, speakers
+* Option to mark featured videos on the homepage
+* Supports playlists (e.g., “Youth Week Series”)
+
+---
+
+### 💬 2. **Live Chat Features**
+
+* Real-time messaging with roles (e.g., moderator badge for media team)
+* Emote/reaction support
+* Profanity filter & moderation controls
+* Option to disable chat for certain streams
+* Display pinned messages (e.g., announcements or scriptures)
+
+---
+
+### 👥 3. **Role & Permission Layer**
+
+We’ll expand permissions to include:
+
+* **StreamHost** (Can go live, manage own content)
+* **Moderator** (Can manage chat, mute users)
+* **MediaTeam** (Can upload & manage all videos)
+* **Member** (Can view, comment, react)
+* **Guest** (View public content only)
+
+---
+
+### 📊 4. **Analytics Module**
+
+Each stream entry will log:
+
+* Total viewers
+* Peak concurrent viewers
+* Duration watched (for registered users)
+* Engagement (messages sent, reactions)
+* Stream health (for RTMP feeds)
+
+---
+
+### 🔔 5. **Notifications & Announcements**
+
+* Push/email notification when a stream goes live.
+* Scheduled reminders for upcoming live events.
+* “Set Reminder” button on upcoming streams.
+
+---
+
+### 📱 6. **Mobile Experience**
+
+* Adaptive UI for small screens.
+* Chat toggles (show/hide chat).
+* Picture-in-picture support for Android/iOS.
+* “Listen Only” audio mode for low data users.
+
+---
+
+### 💾 7. **Integration Hooks (for Future Expansion)**
+
+* Optional multi-platform broadcast via API (YouTube, Facebook Live).
+* Allow embedding the live player on church websites.
+* Add a “Give” button or “Prayer Request” link directly on the live page.
+
+---
+Good question 👏 — here’s exactly how to find your **Supabase Service Role Key** safely:
+
+---
+
+### 🔎 **Step-by-step to find your Service Role Key**
+
+1. **Go to your Supabase project dashboard**
+   → [https://app.supabase.com](https://app.supabase.com)
+
+2. **Select your project**
+
+3. On the left sidebar, click:
+   **⚙️ Settings → API**
+
+4. You’ll see a section titled **Project API keys**
+
+   It contains two keys:
+
+   * **anon public key** → for frontend use
+   * **service_role secret** → for backend use (this is the one you want)
+
+5. Copy the **Service Role Key** — it’ll look something like:
+
+   ```
+   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+   ```
+
+---
+
+### ⚠️ Important security notes:
+
+* 🔒 **Never share** your Service Role Key publicly or commit it to GitHub.
+* ✅ Use it **only on your server or backend code**, e.g., FastAPI or Next.js server routes.
+* 🧱 It **bypasses Row Level Security (RLS)** — meaning it has **full access** to your Supabase database.
+
+---
+
+### Example `.env` setup for your Church Management System
+
+```bash
+# Supabase credentials
+SUPABASE_URL="https://your-project.supabase.co"
+SUPABASE_ANON_KEY="your-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+```
+
+---
+
+Got it 👍 — let’s **create the secure Supabase admin setup** for your **Streaming Service backend** (for your Church Management System).
+
+This setup ensures your backend (Next.js or FastAPI) can:
+
+* Create/manage streams
+* Moderate live chat
+* Handle uploads & privacy settings
+  using the **Service Role Key** securely.
+
+---
+
+## ⚙️ 1. **Add Environment Variables**
+
+In your project root, create a `.env.local` (Next.js) or `.env` (FastAPI) file:
+
+```bash
+SUPABASE_URL="https://your-project.supabase.co"
+SUPABASE_ANON_KEY="your-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+```
+
+> ⚠️ Replace with your actual keys from **Supabase → Settings → API**.
+> Never commit this file to GitHub.
+
+---
+
+## 🧠 2. **Create a Secure Supabase Admin Client**
+
+### For **Next.js** (App or Pages Router)
+
+In `lib/supabase/admin.ts`:
+
+```ts
+import { createClient } from '@supabase/supabase-js'
+
+// Create a Supabase client using the service role key
+export const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+)
+```
+
+---
+
+## 🪄 3. **Usage Examples**
+
+### 🧱 a. Create a new stream (server action or API route)
+
+```ts
+import { supabaseAdmin } from '@/lib/supabase/admin'
+
+export async function createStream(data: {
+  title: string
+  description: string
+  scheduled_at?: string
+  is_private?: boolean
+  created_by: string
+}) {
+  const { data: stream, error } = await supabaseAdmin
+    .from('streams')
+    .insert([
+      {
+        title: data.title,
+        description: data.description,
+        scheduled_at: data.scheduled_at,
+        is_private: data.is_private,
+        created_by: data.created_by
+      }
+    ])
+    .select()
+    .single()
+
+  if (error) throw error
+  return stream
+}
+```
+
+---
+
+### 💬 b. Moderate chat messages
+
+```ts
+export async function deleteChatMessage(messageId: string) {
+  const { error } = await supabaseAdmin
+    .from('chat_messages')
+    .delete()
+    .eq('id', messageId)
+
+  if (error) throw error
+  return { success: true }
+}
+```
+
+---
+
+## 🧩 4. **Example Folder Structure**
+
+```
+/lib
+  supabase/
+    admin.ts
+    client.ts  # (for anon key frontend client)
+/app
+  api/
+    streams/
+      route.ts   # (create/read streams)
+    chat/
+      route.ts   # (moderation routes)
+```
+
+---
+
+## 🔒 5. **Frontend Still Uses Public Anon Client**
+
+In `lib/supabase/client.ts`:
+
+```ts
+import { createClient } from '@supabase/supabase-js'
+
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+```
+
+Use this in the **frontend** (e.g. video list, public pages).
+
+---
+
+Perfect ✅ — let’s now design and create the **database schema** for your **Streaming Service module** inside Supabase (PostgreSQL).
+
+This schema will support **live and recorded streams**, **chat**, **roles/permissions**, and **view analytics** — and it’s fully compatible with the Supabase Realtime API.
+
+---
+
+## 🧱 **1. Streams Table**
+
+Stores all stream sessions (live or recorded).
+
+```sql
+create table public.streams (
+  id uuid primary key default uuid_generate_v4(),
+  title text not null,
+  description text,
+  thumbnail_url text,
+  video_url text,               -- link to Supabase Storage or YouTube/external source
+  is_live boolean default false,
+  is_private boolean default false,
+  scheduled_at timestamptz,
+  started_at timestamptz,
+  ended_at timestamptz,
+  category text,                -- e.g. Sunday Service, Bible Study, Youth Night
+  host_id uuid references public.profiles(id) on delete set null,  -- who created/hosted the stream
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+```
+
+> 💡 `host_id` links to your existing `profiles` or `users` table from your Church Management System.
+
+---
+
+## 💬 **2. Stream Chat Table**
+
+Stores real-time chat messages tied to a stream.
+
+```sql
+create table public.stream_chats (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references public.streams(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete set null,
+  message text not null,
+  created_at timestamptz default now(),
+  is_deleted boolean default false
+);
+```
+
+> Enable **Supabase Realtime** on this table for live chat updates.
+
+---
+
+## 👥 **3. Stream Roles Table**
+
+Assigns special stream permissions to specific users or teams.
+
+```sql
+create table public.stream_roles (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references public.profiles(id) on delete cascade,
+  stream_id uuid references public.streams(id) on delete cascade,
+  role text check (role in ('host', 'moderator', 'media_team')),
+  created_at timestamptz default now()
+);
+```
+
+> Allows flexible permission control — e.g., assign *host* to pastors or *media_team* to AV staff.
+
+---
+
+## 📈 **4. Stream Views Table**
+
+Logs viewers and engagement.
+
+```sql
+create table public.stream_views (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references public.streams(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete set null,
+  joined_at timestamptz default now(),
+  left_at timestamptz,
+  duration_seconds int,
+  is_guest boolean default false
+);
+```
+
+> Used for analytics and engagement summaries.
+
+---
+
+## 🔔 **5. Stream Notifications Table (Optional)**
+
+Used for scheduled stream reminders and go-live alerts.
+
+```sql
+create table public.stream_notifications (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references public.streams(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  type text check (type in ('reminder', 'go_live')),
+  is_sent boolean default false,
+  created_at timestamptz default now()
+);
+```
+
+---
+
+## 🧩 **6. Recommended Indexes**
+
+Add performance indexes for faster queries:
+
+```sql
+create index on public.stream_chats (stream_id, created_at);
+create index on public.streams (is_live, is_private);
+create index on public.stream_views (stream_id);
+```
+
+---
+
+## 🔒 **7. Row-Level Security (RLS) Policies**
+
+You’ll want different rules for members, admins, and media teams.
+
+Example: Allow members to read public streams only.
+
+```sql
+alter table public.streams enable row level security;
+
+create policy "Public can view public streams"
+  on public.streams
+  for select
+  using (is_private = false);
+```
+
+Allow hosts and media team to manage their streams:
+
+```sql
+create policy "Hosts and media team can manage streams"
+  on public.streams
+  for all
+  using (auth.uid() = host_id
+      or auth.uid() in (select user_id from stream_roles where role in ('media_team','host')));
+```
+
+---
+
+## 🗄️ Summary of Schema
+
+| Table                  | Purpose                                        |
+| ---------------------- | ---------------------------------------------- |
+| `streams`              | Stores stream metadata and status              |
+| `stream_chats`         | Live chat messages per stream                  |
+| `stream_roles`         | Role assignments (host, moderator, media team) |
+| `stream_views`         | Logs viewer sessions and engagement            |
+| `stream_notifications` | Handles reminders and notifications            |
+
+---
+
+Perfect 🙌 — below is your **ready-to-deploy SQL migration script** for the
+🎥 **Streaming Service Module** inside your **Church Management System (Supabase Postgres)**.
+
+You can paste this entire script into your **Supabase SQL Editor** → “New Query” → **Run** — and it’ll automatically create all tables, indexes, and Row Level Security (RLS) policies.
+
+---
+
+## 🚀 **Supabase Streaming Service Module — SQL Migration Script**
+
+```sql
+-- ============================================================
+-- 🎥 CHURCH MANAGEMENT SYSTEM - STREAMING SERVICE MODULE
+-- Phase 1 & 2 Base Schema with RLS Policies
+-- ============================================================
+
+-- Enable UUID generation (if not already)
+create extension if not exists "uuid-ossp";
+
+-- ============================================================
+-- 1. STREAMS TABLE
+-- ============================================================
+create table if not exists public.streams (
+  id uuid primary key default uuid_generate_v4(),
+  title text not null,
+  description text,
+  thumbnail_url text,
+  video_url text,                       -- Can be internal (Supabase) or external (YouTube, etc.)
+  is_live boolean default false,
+  is_private boolean default false,
+  scheduled_at timestamptz,
+  started_at timestamptz,
+  ended_at timestamptz,
+  category text,                        -- e.g. Sunday Service, Youth Night, Bible Study
+  host_id uuid references public.profiles(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- ============================================================
+-- 2. STREAM CHAT TABLE
+-- ============================================================
+create table if not exists public.stream_chats (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references public.streams(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete set null,
+  message text not null,
+  created_at timestamptz default now(),
+  is_deleted boolean default false
+);
+
+-- ============================================================
+-- 3. STREAM ROLES TABLE
+-- ============================================================
+create table if not exists public.stream_roles (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references public.profiles(id) on delete cascade,
+  stream_id uuid references public.streams(id) on delete cascade,
+  role text check (role in ('host', 'moderator', 'media_team')),
+  created_at timestamptz default now()
+);
+
+-- ============================================================
+-- 4. STREAM VIEWS TABLE
+-- ============================================================
+create table if not exists public.stream_views (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references public.streams(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete set null,
+  joined_at timestamptz default now(),
+  left_at timestamptz,
+  duration_seconds int,
+  is_guest boolean default false
+);
+
+-- ============================================================
+-- 5. STREAM NOTIFICATIONS TABLE
+-- ============================================================
+create table if not exists public.stream_notifications (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references public.streams(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  type text check (type in ('reminder', 'go_live')),
+  is_sent boolean default false,
+  created_at timestamptz default now()
+);
+
+-- ============================================================
+-- 6. INDEXES
+-- ============================================================
+create index if not exists idx_streams_live_private on public.streams (is_live, is_private);
+create index if not exists idx_stream_chats_stream on public.stream_chats (stream_id, created_at);
+create index if not exists idx_stream_views_stream on public.stream_views (stream_id);
+create index if not exists idx_stream_roles_user on public.stream_roles (user_id);
+
+-- ============================================================
+-- 7. ENABLE RLS (ROW LEVEL SECURITY)
+-- ============================================================
+alter table public.streams enable row level security;
+alter table public.stream_chats enable row level security;
+alter table public.stream_roles enable row level security;
+alter table public.stream_views enable row level security;
+alter table public.stream_notifications enable row level security;
+
+-- ============================================================
+-- 8. RLS POLICIES
+-- ============================================================
+
+-- STREAMS TABLE
+create policy "Public can view public streams"
+  on public.streams
+  for select
+  using (is_private = false);
+
+create policy "Hosts and media team can manage their streams"
+  on public.streams
+  for all
+  using (
+    auth.uid() = host_id
+    or auth.uid() in (
+      select user_id from public.stream_roles
+      where stream_roles.stream_id = streams.id
+      and role in ('host','media_team')
+    )
+  );
+
+-- STREAM CHAT TABLE
+create policy "Users can read chat messages of public streams"
+  on public.stream_chats
+  for select
+  using (
+    stream_id in (
+      select id from public.streams where is_private = false
+    )
+  );
+
+create policy "Authenticated users can send messages"
+  on public.stream_chats
+  for insert
+  with check (auth.uid() is not null);
+
+-- STREAM ROLES TABLE
+create policy "Media team and admins can view all roles"
+  on public.stream_roles
+  for select
+  using (
+    auth.uid() in (
+      select user_id from public.stream_roles
+      where role in ('media_team', 'host')
+    )
+  );
+
+create policy "Admins can assign roles"
+  on public.stream_roles
+  for insert
+  with check (
+    auth.uid() in (
+      select user_id from public.stream_roles where role = 'host'
+    )
+  );
+
+-- STREAM VIEWS TABLE
+create policy "Anyone can log their view session"
+  on public.stream_views
+  for insert
+  with check (true);
+
+create policy "Users can view aggregate data for public streams"
+  on public.stream_views
+  for select
+  using (
+    stream_id in (
+      select id from public.streams where is_private = false
+    )
+  );
+
+-- STREAM NOTIFICATIONS TABLE
+create policy "Users can view their notifications"
+  on public.stream_notifications
+  for select
+  using (auth.uid() = user_id);
+
+create policy "System can insert notifications"
+  on public.stream_notifications
+  for insert
+  with check (true);
+
+-- ============================================================
+-- ✅ DONE
+-- ============================================================
+```
+
+---
+
+### 🧠 **What This Gives You**
+
+✅ Fully structured schema
+✅ Secure RLS-based access
+✅ Realtime chat-ready tables
+✅ Role-based control for hosts, media team, and moderators
+✅ Analytics and notification foundations
+
+---
+
+Excellent 👏 — this next step will give your **Streaming Service module** the ability to handle both **private and public video content** directly inside **Supabase Storage**, while keeping everything secure and role-based.
+
+---
+
+## 🎥 **Supabase Storage Setup for Streaming Service**
+
+We’ll create two storage buckets:
+
+* `public_streams` — for public livestreams & recorded videos.
+* `private_streams` — for restricted/internal streams (media team, members only).
+
+Then we’ll add **Storage Policies** so only authorized users can upload or access them.
+
+---
+
+### 🧱 **1. Create Storage Buckets**
+
+Go to **Supabase Dashboard → Storage → Create new bucket**
+Or run this SQL:
+
+```sql
+-- Public Streams Bucket (accessible to everyone)
+insert into storage.buckets (id, name, public)
+values ('public_streams', 'public_streams', true)
+on conflict (id) do nothing;
+
+-- Private Streams Bucket (restricted access)
+insert into storage.buckets (id, name, public)
+values ('private_streams', 'private_streams', false)
+on conflict (id) do nothing;
+```
+
+---
+
+### 🔒 **2. Enable Row-Level Security for Storage Objects**
+
+```sql
+-- Enable RLS on storage objects
+alter table storage.objects enable row level security;
+```
+
+---
+
+### 🧩 **3. Storage Policies**
+
+#### 🟢 **Public Streams (anyone can read, only media roles can write)**
+
+```sql
+create policy "Anyone can view public stream videos"
+  on storage.objects for select
+  using (bucket_id = 'public_streams');
+
+create policy "Only media team can upload to public streams"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'public_streams'
+    and auth.uid() in (
+      select user_id from public.stream_roles where role in ('media_team','host')
+    )
+  );
+
+create policy "Only media team can delete from public streams"
+  on storage.objects for delete
+  using (
+    bucket_id = 'public_streams'
+    and auth.uid() in (
+      select user_id from public.stream_roles where role in ('media_team','host')
+    )
+  );
+```
+
+---
+
+#### 🔵 **Private Streams (restricted to host, media team, and authorized viewers)**
+
+```sql
+create policy "Only host or media team can upload private videos"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'private_streams'
+    and auth.uid() in (
+      select user_id from public.stream_roles where role in ('media_team','host')
+    )
+  );
+
+create policy "Only authorized viewers can access private videos"
+  on storage.objects for select
+  using (
+    bucket_id = 'private_streams'
+    and (
+      auth.uid() in (
+        select host_id from public.streams
+        union
+        select user_id from public.stream_roles where role in ('media_team','host')
+      )
+    )
+  );
+
+create policy "Only host or media team can delete private videos"
+  on storage.objects for delete
+  using (
+    bucket_id = 'private_streams'
+    and auth.uid() in (
+      select user_id from public.stream_roles where role in ('media_team','host')
+    )
+  );
+```
+
+---
+
+### ⚙️ **4. Suggested Storage Folder Structure**
+
+Within each bucket:
+
+```
+public_streams/
+  sunday-service-2025-10-20.mp4
+  bible-study-session-1.mp4
+
+private_streams/
+  leadership-retreat.mp4
+  youth-team-private-meeting.mp4
+```
+
+You can store thumbnails or audio clips in subfolders:
+
+```
+public_streams/thumbnails/
+private_streams/thumbnails/
+```
+
+---
+
+### 🔗 **5. Linking Storage Files to Streams Table**
+
+When uploading via API or dashboard:
+
+* Save the uploaded file’s `path` in `streams.video_url`
+* You can differentiate by bucket type for privacy:
+
+  ```ts
+  const bucket = isPrivate ? 'private_streams' : 'public_streams'
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .upload(`videos/${file.name}`, file)
+  ```
+
+---
+
+### ✅ **6. Final Result**
+
+| Feature         | Public                 | Private                             |
+| --------------- | ---------------------- | ----------------------------------- |
+| View Access     | Anyone                 | Hosts, Media, or Authorized Members |
+| Upload Access   | Media Team / Host      | Media Team / Host                   |
+| Delete Access   | Media Team / Host      | Media Team / Host                   |
+| Storage         | Supabase Storage       | Supabase Storage                    |
+| External Option | ✅ YouTube, Vimeo, etc. | ✅ Supabase-only for secure content  |
+
+---
+
+Perfect ✅
+
+Now that you’ve confirmed, here’s exactly **how to create and securely retrieve your `SUPABASE_SERVICE_ROLE_KEY`** for your Church Management System — especially since you’ll need it for the upcoming **Streaming Service module (backend RTMP + access control + permissions)**.
+
+---
+
+### 🔧 Step-by-Step: Get Your Supabase Service Role Key
+
+#### **Option 1: From Supabase Dashboard**
+
+1. Go to your Supabase project → [https://app.supabase.com/](https://app.supabase.com/)
+2. Select your **project**.
+3. In the left sidebar, click **⚙️ Settings → API**.
+4. Scroll to the **Project API Keys** section.
+5. You’ll see two keys:
+
+   * **anon key** → public (used in client apps)
+   * **service_role key** → **⚠️ secret — server use only**
+6. Copy the **Service Role Key** (starts with `eyJhbGciOiJIUzI1NiIs...`).
+
+---
+
+#### **Option 2: Using Supabase CLI (Local Dev Setup)**
+
+If you have the CLI installed and linked:
+
+```bash
+supabase status
+```
+
+This shows the `service_role` key under the environment variables section.
+
+---
+
+### ⚠️ Security Reminder
+
+* **Never** expose this key in client code or frontend `.env.local`.
+* Only store it in **server-side environments**:
+
+  * Next.js → `.env` (for API routes or server actions only)
+  * FastAPI → `.env`
+  * Supabase Edge Functions → use via `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<your_key>`
+
+---
+
+### 🧱 Usage Example (Next.js + Supabase Server Client)
+
+```ts
+// utils/supabase-server.ts
+import { createClient } from '@supabase/supabase-js'
+
+export const supabaseServer = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!, // server-only key
+  {
+    auth: { autoRefreshToken: false, persistSession: false },
+  }
+)
+```
+
+---
+
+Excellent 🔥
+Now we’re entering **Phase 2 of the Streaming Service Module** — this is where the system gets powerful, interactive, and secure.
+
+---
+
+## 🎬 **Phase 2 — Streaming & Interaction Layer**
+
+### 🧩 Core Goal
+
+Enable **real-time streaming with interactive features** (chat, viewer analytics, reactions, access control, etc.), while maintaining performance, scalability, and role-based permissions.
+
+---
+
+## 🧱 **Phase 2: Detailed Structure**
+
+### 1. **Streaming Engine (Live Broadcast Management)**
+
+**Purpose:** Handle real RTMP → HLS streaming (for both private & public services).
+
+#### ✅ Components
+
+* **RTMP Ingest Server**
+
+  * Receives video streams (e.g., from OBS, camera apps).
+  * Example: `rtmp://stream.churchapp.com/live/{stream_key}`
+  * Use Nginx + RTMP module or a managed service like [Livepeer](https://livepeer.org), [Mux](https://mux.com), or Supabase Edge Function proxy.
+* **HLS Output Server**
+
+  * Converts to `.m3u8` playlists for browser playback.
+* **Supabase Storage Integration**
+
+  * Option to **save recordings** automatically.
+  * Option to **link external sources** (YouTube, Vimeo, etc.) for public sermons.
+
+#### ⚙️ Features
+
+* Generate unique **stream keys** for each broadcaster (admin/media team).
+* Allow **scheduled** or **instant** live sessions.
+* Support **thumbnail upload**, **title**, **description**, and **tags** (e.g., Worship, Youth, Outreach).
+
+---
+
+### 2. **Live Chat & Engagement**
+
+**Purpose:** Allow real-time chat, emojis, and reactions during live events.
+
+#### ✅ Components
+
+* **Supabase Realtime (WebSockets)** for instant chat messages.
+* Chat messages table schema:
+
+  ```sql
+  create table stream_chats (
+    id uuid primary key default uuid_generate_v4(),
+    stream_id uuid references streams(id),
+    user_id uuid references profiles(id),
+    message text not null,
+    created_at timestamp default now()
+  );
+  ```
+* **Reactions** (❤️ 🙏 👏) stored in a separate table or Realtime event channel.
+* Moderation tools:
+
+  * Admins can delete or mute users.
+  * Profanity filter and auto-block rules.
+
+---
+
+### 3. **Access Control & Roles**
+
+**Purpose:** Manage who can create or view streams.
+
+#### ✅ Roles
+
+* **Super Admin:** Full control (create/edit/delete any stream)
+* **Media Team:** Can create/manage assigned streams
+* **Member:** View only (restricted by stream type)
+* **Guest:** View only *public* streams
+
+#### ⚙️ Features
+
+* Role-based visibility:
+
+  * Public Stream → visible to all
+  * Private Stream → visible to authenticated members or selected groups
+* Custom **“Watch Group”** assignment (e.g., “Choir only” or “Men’s Fellowship”).
+
+---
+
+### 4. **Viewer Analytics**
+
+**Purpose:** Track engagement and attendance metrics.
+
+#### ✅ Components
+
+* Log viewer join/leave events.
+* Track number of unique viewers, peak concurrent viewers, watch time.
+* Store logs in `stream_analytics` table.
+* Summaries visible on the **Media Dashboard**.
+
+---
+
+### 5. **Playback & Recording**
+
+**Purpose:** Replay past streams or uploaded videos.
+
+#### ✅ Features
+
+* **Video Player** (HLS.js for live, regular HTML5 for recorded)
+* **Playlists** and categories
+* **Save Sermons** to Media Library (connected to Supabase Storage)
+* Support both:
+
+  * Internal (private recordings)
+  * External (YouTube/Vimeo embed links)
+
+---
+
+### 6. **Notifications & Announcements**
+
+**Purpose:** Inform members when a stream goes live.
+
+#### ✅ Options
+
+* In-app notifications via Supabase Realtime
+* Email or SMS alerts (optional future integration)
+* Scheduled reminders before stream starts
+
+---
+
+### 7. **Admin/Media Dashboard**
+
+**Purpose:** Central control center for all streaming-related actions.
+
+#### ✅ Dashboard Tabs
+
+* 📡 **Live Now** – Active streams with viewers list.
+* 🎥 **Recordings** – Past streams and uploaded videos.
+* 🧑‍💻 **Chat Moderation** – Manage live chat.
+* ⚙️ **Settings** – Configure RTMP keys, privacy settings.
+* 📊 **Analytics** – Charts for engagement data.
+
+---
+
+## 🗂️ Database Tables (Core)
+
+| Table                | Purpose                                                  |
+| -------------------- | -------------------------------------------------------- |
+| `streams`            | Holds stream metadata (title, description, type, status) |
+| `stream_chats`       | Stores live chat messages                                |
+| `stream_reactions`   | Tracks likes, hearts, etc.                               |
+| `stream_analytics`   | Logs viewer activity                                     |
+| `stream_permissions` | Defines who can broadcast or view                        |
+| `stream_recordings`  | Links to saved video files or URLs                       |
+
+---
+
+## 💡 Next Steps (Phase 3 Preview)
+
+If you’re ready after this phase:
+
+> Phase 3 will cover **UI/UX design + implementation** — building the frontend streaming page, chat box, live player, and admin dashboard with full Supabase Realtime integration.
+
+---
+
+Perfect 🔥
+Let’s build out the **Supabase database schema** for the **Streaming Service Module — Phase 2**.
+
+This schema covers **streams, chat, analytics, reactions, permissions, and recordings**, ready for Supabase (Postgres).
+
+---
+
+## 🧱 **Supabase SQL Schema — Streaming Service Module**
+
+### 1. 🗃️ **Streams Table**
+
+Holds metadata for each live or recorded stream.
+
+```sql
+create table streams (
+  id uuid primary key default uuid_generate_v4(),
+  title text not null,
+  description text,
+  thumbnail_url text,
+  stream_key text unique not null,
+  status text default 'scheduled' check (status in ('scheduled', 'live', 'ended')),
+  type text default 'public' check (type in ('public', 'private')),
+  rtmp_url text, -- RTMP ingest endpoint (optional)
+  hls_url text,  -- HLS playback URL
+  scheduled_start timestamp,
+  started_at timestamp,
+  ended_at timestamp,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamp default now(),
+  updated_at timestamp default now()
+);
+```
+
+---
+
+### 2. 💬 **Stream Chats Table**
+
+Stores real-time chat messages tied to a specific stream.
+
+```sql
+create table stream_chats (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references streams(id) on delete cascade,
+  user_id uuid references profiles(id) on delete set null,
+  message text not null,
+  created_at timestamp default now()
+);
+```
+
+✅ **Enable Realtime**
+
+```sql
+alter publication supabase_realtime add table stream_chats;
+```
+
+> This allows instant chat updates in your frontend.
+
+---
+
+### 3. ❤️ **Stream Reactions Table**
+
+Tracks emoji or reaction counts (e.g., ❤️ 🙏 👏).
+
+```sql
+create table stream_reactions (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references streams(id) on delete cascade,
+  user_id uuid references profiles(id) on delete set null,
+  emoji text not null,
+  created_at timestamp default now()
+);
+```
+
+---
+
+### 4. 👁️ **Stream Analytics Table**
+
+Stores viewer engagement stats for insights and reports.
+
+```sql
+create table stream_analytics (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references streams(id) on delete cascade,
+  user_id uuid references profiles(id) on delete set null,
+  joined_at timestamp default now(),
+  left_at timestamp,
+  duration_seconds int,
+  created_at timestamp default now()
+);
+```
+
+---
+
+### 5. 🔐 **Stream Permissions Table**
+
+Defines who can broadcast or view streams.
+
+```sql
+create table stream_permissions (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references streams(id) on delete cascade,
+  role text not null check (role in ('super_admin', 'media_team', 'member', 'guest')),
+  can_broadcast boolean default false,
+  can_view boolean default true,
+  assigned_to uuid references profiles(id) on delete cascade,
+  created_at timestamp default now()
+);
+```
+
+---
+
+### 6. 📀 **Stream Recordings Table**
+
+Links past streams to recorded files or external URLs.
+
+```sql
+create table stream_recordings (
+  id uuid primary key default uuid_generate_v4(),
+  stream_id uuid references streams(id) on delete cascade,
+  video_url text not null, -- can be internal (Supabase) or external (YouTube)
+  storage_type text default 'supabase' check (storage_type in ('supabase', 'external')),
+  duration_seconds int,
+  recorded_at timestamp default now(),
+  created_at timestamp default now()
+);
+```
+
+---
+
+### 7. 👤 **Profiles Reference (if not yet present)**
+
+Most modules already use a shared `profiles` table:
+
+```sql
+create table profiles (
+  id uuid primary key default uuid_generate_v4(),
+  full_name text,
+  email text unique,
+  avatar_url text,
+  role text check (role in ('super_admin', 'admin', 'media_team', 'member', 'guest')) default 'member',
+  created_at timestamp default now()
+);
+```
+
+---
+
+## ⚙️ **Indexing & Optimization**
+
+For performance on joins and filtering:
+
+```sql
+create index idx_streams_status on streams(status);
+create index idx_stream_chats_stream on stream_chats(stream_id);
+create index idx_stream_analytics_stream on stream_analytics(stream_id);
+create index idx_stream_permissions_user on stream_permissions(assigned_to);
+```
+
+---
+
+## 🔒 **RLS (Row-Level Security) Policy Setup**
+
+**1️⃣ Enable RLS**
+
+```sql
+alter table streams enable row level security;
+alter table stream_chats enable row level security;
+alter table stream_reactions enable row level security;
+alter table stream_permissions enable row level security;
+alter table stream_recordings enable row level security;
+```
+
+**2️⃣ Example Policies**
+
+Allow public read for public streams:
+
+```sql
+create policy "Public streams are viewable by anyone"
+on streams for select
+using (type = 'public');
+```
+
+Allow members to view private streams if they have permission:
+
+```sql
+create policy "Private stream access"
+on streams for select
+using (
+  type = 'private' and
+  exists (
+    select 1 from stream_permissions
+    where stream_permissions.assigned_to = auth.uid()
+    and stream_permissions.stream_id = streams.id
+    and stream_permissions.can_view = true
+  )
+);
+```
+
+Allow media team & admins to insert/edit streams:
+
+```sql
+create policy "Admins and media team can manage streams"
+on streams for all
+using (exists (
+  select 1 from profiles
+  where profiles.id = auth.uid()
+  and profiles.role in ('super_admin', 'media_team')
+));
+```
+
+---
+
+## ✅ **Final Result**
+
+After running these scripts in Supabase SQL Editor:
+
+* You’ll have a complete backend schema for **live streaming, chat, analytics, permissions, and recordings**.
+* Ready to integrate with **Next.js + Supabase Realtime frontend** and optional **RTMP streaming backend** (Node.js).
+
+---
+
+Excellent 🔥
+Now that the **database schema (Phase 2)** is complete and ready in Supabase, let’s move into **Phase 3 — the Frontend & Dashboard Layout Design** for your **Streaming Service Module**.
+
+This phase focuses on **user experience (UX/UI)** and **real-time interactions**, integrating seamlessly with Supabase Realtime and your existing Church Management System dashboard.
+
+---
+
+## 🎨 **Phase 3 — Frontend & Dashboard Layout**
+
+### 🧭 Overview
+
+We’ll design **two primary interfaces**:
+
+1. **Member/Viewer Interface** — for watching, chatting, reacting, and replaying streams.
+2. **Admin/Media Dashboard** — for managing live streams, viewing analytics, and moderating chat.
+
+Both will connect to **Supabase** for real-time updates and secure role-based access.
+
+---
+
+## 🖥️ 1. **Member / Viewer Interface (Live Stream Page)**
+
+### 🎬 **Layout Overview**
+
+```
+-----------------------------------------------------
+|  🔙 Back  |  🎥 Stream Title  |  📅 Scheduled Time  |
+-----------------------------------------------------
+|                                               |
+|              📺 Live Video Player              |
+|            (HLS stream or replay)             |
+|                                               |
+-----------------------------------------------------
+| 🧑‍💬 Live Chat              | ❤️ Reactions |
+|-----------------------------------------------|
+|  [chat messages appear here in real-time]     |
+|  - Member name + message                      |
+|-----------------------------------------------|
+|  [Type your message...] [Send]                |
+-----------------------------------------------------
+|  👁️ 120 Watching | 👍 45 Reactions | ⏱️ 45:12 |
+-----------------------------------------------------
+```
+
+### ⚙️ **Functional Features**
+
+| Feature                    | Description                                                                 |
+| -------------------------- | --------------------------------------------------------------------------- |
+| 🔴 **Live Player**         | Uses `hls.js` to play `.m3u8` stream URLs from RTMP/HLS source.             |
+| 💬 **Chat Box**            | Realtime chat powered by Supabase `stream_chats` table + WebSocket updates. |
+| ❤️ **Reactions**           | Animated emoji overlay, linked to `stream_reactions`.                       |
+| 🔐 **Access Control**      | Auto-checks if user is allowed to join stream.                              |
+| 🎥 **Switch to Recording** | When stream ends, player loads `stream_recordings.video_url`.               |
+| 📱 **Responsive Design**   | Adapts to mobile view (player above chat).                                  |
+
+---
+
+## 🧑‍💻 2. **Admin / Media Dashboard**
+
+### ⚙️ **Layout Overview**
+
+```
+-----------------------------------------------------
+| 📡 Live Streams | 🎥 Recordings | 🧑‍💬 Chat | 📊 Analytics |
+-----------------------------------------------------
+| [Live Streams Tab]                               |
+| ------------------------------------------------ |
+| Thumbnail | Title | Status | Start Time | Actions |
+| ------------------------------------------------ |
+| [Go Live] [Edit] [View Chat] [End Stream]        |
+-----------------------------------------------------
+```
+
+### ⚙️ **Tabs & Features**
+
+#### 🟢 **Live Streams Tab**
+
+* View all active, scheduled, or ended streams.
+* “Go Live” button (generates a new stream key).
+* Edit metadata: title, description, type (public/private).
+
+#### 🧾 **Recordings Tab**
+
+* View all past streams.
+* Filter by category, date, or storage type.
+* Upload or link external videos (YouTube, Vimeo).
+
+#### 💬 **Chat Moderation Tab**
+
+* View all messages from any stream in real-time.
+* Delete or mute users.
+* Toggle “Slow Mode” to prevent spam.
+
+#### 📈 **Analytics Tab**
+
+* Graphs showing:
+
+  * Total viewers
+  * Average watch time
+  * Top reactions
+  * Stream engagement trend
+* Data comes from `stream_analytics`.
+
+---
+
+## 🧰 **Tech Stack (Frontend)**
+
+| Layer                | Tool / Library                  | Purpose                    |
+| -------------------- | ------------------------------- | -------------------------- |
+| **UI Framework**     | React + TailwindCSS + shadcn/ui | Modern dashboard layout    |
+| **Realtime Backend** | Supabase Realtime               | Chat & reactions           |
+| **Video Streaming**  | HLS.js                          | Live stream playback       |
+| **Charting**         | Recharts                        | Analytics graphs           |
+| **Auth & Roles**     | Supabase Auth                   | View/broadcast permissions |
+| **Notifications**    | Toast + Realtime                | Stream start alerts        |
+
+---
+
+## 🧱 **Suggested Folder Structure**
+
+```
+/streaming
+ ├── pages/
+ │    ├── index.tsx                 # List all streams
+ │    ├── [id].tsx                  # Stream detail page (player + chat)
+ │    ├── dashboard/
+ │    │    ├── index.tsx            # Media team dashboard home
+ │    │    ├── chat.tsx             # Chat moderation
+ │    │    ├── analytics.tsx        # Viewer statistics
+ │    │    ├── recordings.tsx       # Recorded video management
+ │    │    └── settings.tsx         # RTMP/Key settings
+ ├── components/
+ │    ├── LivePlayer.tsx
+ │    ├── ChatBox.tsx
+ │    ├── ReactionBar.tsx
+ │    ├── StreamCard.tsx
+ │    ├── StreamForm.tsx
+ │    ├── AnalyticsChart.tsx
+ │    └── ViewerStats.tsx
+ ├── hooks/
+ │    ├── useRealtimeChat.ts
+ │    ├── useReactions.ts
+ │    ├── useStreamStatus.ts
+ ├── utils/
+ │    └── supabase-client.ts
+```
+
+---
+
+## 🧩 **Phase 3 Deliverables**
+
+| Component                 | Description                                |
+| ------------------------- | ------------------------------------------ |
+| 🧑‍💻 Stream Dashboard UI | React + Tailwind layout for media team     |
+| 📺 Stream Viewer Page     | Public-facing page for watching & chatting |
+| 💬 Chat & Reactions       | Realtime-enabled components                |
+| 🔐 Access Control Hooks   | Role-based visibility per stream           |
+| 📈 Analytics Dashboard    | Graphs summarizing engagement data         |
+
+---
+
+## 🚀 **Next Step (Phase 4 Preview)**
+
+If you’re ready, Phase 4 will focus on **implementation**:
+
+* Building the **frontend components** (`LivePlayer`, `ChatBox`, `StreamDashboard`)
+* Connecting them to Supabase Realtime
+* Integrating **RTMP ingestion** and **recorded video storage**
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
