@@ -125,14 +125,7 @@ export const DepartmentsModule = () => {
   const { branchId } = useAuthz();
   const { toast } = useToast();
 
-  const [departments, setDepartments] = useState<Department[]>([
-    { id: 1, name: 'Choir', leader: 'Mary Thompson', members: 24, activities: 8, status: 'Active' },
-    { id: 2, name: 'Ushering', leader: 'James Wilson', members: 12, activities: 4, status: 'Active' },
-    { id: 3, name: 'Prayer Team', leader: 'Ruth Johnson', members: 18, activities: 12, status: 'Active' },
-    { id: 4, name: 'Evangelism', leader: 'Paul Smith', members: 15, activities: 6, status: 'Active' },
-    { id: 5, name: 'Finance', leader: 'David Brown', members: 5, activities: 3, status: 'Active' },
-    { id: 6, name: 'Technical', leader: 'Mike Davis', members: 8, activities: 5, status: 'Active' },
-  ]);
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [addMinistryOpen, setAddMinistryOpen] = useState(false);
@@ -251,7 +244,8 @@ export const DepartmentsModule = () => {
   // ✅ Department click handler
   const handleDepartmentClick = (dept: Department) => {
     // Navigate to the appropriate department dashboard based on department name
-    switch (dept.name.toLowerCase()) {
+    const deptName = dept.name.toLowerCase();
+    switch (deptName) {
       case 'choir':
         navigate('/admin/departments/choir');
         break;
@@ -268,6 +262,7 @@ export const DepartmentsModule = () => {
         navigate('/admin/departments/finance-dept');
         break;
       case 'technical':
+      case 'media':
         navigate('/admin/departments/technical');
         break;
       default:
@@ -343,8 +338,26 @@ export const DepartmentsModule = () => {
   };
 
   // ✅ Add new department
-  const handleAddDepartment = (newDept: Department) => {
-    setDepartments((prev) => [...prev, newDept]);
+  const handleAddDepartment = async (newDept: Department) => {
+    // Reload departments from database
+    const deptListQuery = supabase
+      .from('departments')
+      .select('id, name, description, branch_id');
+    if (branchId) deptListQuery.eq('branch_id', branchId);
+    const { data: deptList } = await deptListQuery;
+    
+    if (deptList) {
+      setDepartments(
+        (deptList as any[]).map((d) => ({
+          id: d.id,
+          name: d.name || 'Department',
+          leader: 'TBD',
+          members: 0,
+          activities: 0,
+          status: 'Active',
+        }))
+      );
+    }
   };
 
   // ✅ Filter departments

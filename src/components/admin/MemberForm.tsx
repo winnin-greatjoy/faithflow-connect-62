@@ -168,7 +168,30 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
     form.setValue('numberOfChildren', Math.max(0, (form.getValues('children')?.length || 1) - 1));
   };
 
-  const submit = (data: MemberFormData) => {
+  const submit = async (data: MemberFormData) => {
+    // Check for duplicate email before submitting
+    if (data.email && !member) {
+      const { data: existingMember } = await supabase
+        .from('members')
+        .select('id, full_name')
+        .ilike('email', data.email.trim())
+        .limit(1)
+        .maybeSingle();
+      
+      if (existingMember) {
+        form.setError('email', {
+          type: 'manual',
+          message: `This email is already registered to ${existingMember.full_name}`
+        });
+        toast({
+          title: 'Duplicate Email',
+          description: `This email is already registered to ${existingMember.full_name}`,
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+    
     onSubmit(data);
     toast({ title: member ? 'Member updated' : 'Member added', description: `${data.fullName} saved.` });
   };
