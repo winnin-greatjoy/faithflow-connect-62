@@ -85,6 +85,7 @@ serve(async (req) => {
     // Fallback: no URL available
     return new Response(JSON.stringify({ url: null }), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 });
