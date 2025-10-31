@@ -43,29 +43,29 @@ export const SettingsModule = () => {
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Church Name</label>
-                  <Input value="Faith Healing Bible Church" className="w-full" />
+                  <Input value="Faith Healing Bible Church" readOnly className="w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Branch/Location</label>
-                  <Input value="Beccle St Branch" className="w-full" />
+                  <Input value="Beccle St Branch" readOnly className="w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Address</label>
-                  <Input value="123 Beccle Street, London, UK" className="w-full" />
+                  <Input value="123 Beccle Street, London, UK" readOnly className="w-full" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Phone Number</label>
-                    <Input value="+44 20 1234 5678" className="w-full" />
+                    <Input value="+44 20 1234 5678" readOnly className="w-full" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Email</label>
-                    <Input value="info@fhbcbeccle.org" className="w-full" />
+                    <Input value="info@fhbcbeccle.org" readOnly className="w-full" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Website</label>
-                  <Input value="www.fhbcbeccle.org" className="w-full" />
+                  <Input value="www.fhbcbeccle.org" readOnly className="w-full" />
                 </div>
               </div>
               

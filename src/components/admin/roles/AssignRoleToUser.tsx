@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +14,7 @@ export function AssignRoleToUser({ open, onClose, role, onSaved }: { open: boole
   const [users, setUsers] = useState<{ id: string; first_name: string; last_name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [ministries, setMinistries] = useState<{ id: string; name: string }[]>([]);
 
   const [userId, setUserId] = useState<string>("");
   const [branchId, setBranchId] = useState<string>("");
@@ -25,18 +25,21 @@ export function AssignRoleToUser({ open, onClose, role, onSaved }: { open: boole
   useEffect(() => {
     let active = true;
     (async () => {
-      const [u, b, d] = await Promise.all([
+      const [u, b, d, m] = await Promise.all([
         supabase.from("profiles").select("id, first_name, last_name").order("first_name"),
         supabase.from("church_branches").select("id, name").order("name"),
         supabase.from("departments").select("id, name").order("name"),
+        supabase.from("ministries").select("id, name").order("name"),
       ]);
       if (!active) return;
       if (u.error) { toast({ title: "Failed to load users", description: u.error.message, variant: "destructive" }); return; }
       if (b.error) { toast({ title: "Failed to load branches", description: b.error.message, variant: "destructive" }); return; }
       if (d.error) { toast({ title: "Failed to load departments", description: d.error.message, variant: "destructive" }); return; }
+      if (m.error) { toast({ title: "Failed to load ministries", description: m.error.message, variant: "destructive" }); return; }
       setUsers((u.data || []) as any);
       setBranches((b.data || []) as any);
       setDepartments((d.data || []) as any);
+      setMinistries((m.data || []) as any);
     })();
     return () => { active = false; };
   }, [toast]);
