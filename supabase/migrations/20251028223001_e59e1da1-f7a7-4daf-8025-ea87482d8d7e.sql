@@ -1,14 +1,20 @@
 -- Create enum for stream status
-CREATE TYPE stream_status AS ENUM ('scheduled', 'live', 'ended', 'archived');
+DO $$ BEGIN
+  CREATE TYPE stream_status AS ENUM ('scheduled', 'live', 'ended', 'archived');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Create enum for stream privacy
-CREATE TYPE stream_privacy AS ENUM ('public', 'members_only', 'private');
+DO $$ BEGIN
+  CREATE TYPE stream_privacy AS ENUM ('public', 'members_only', 'private');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Create enum for stream platform
-CREATE TYPE stream_platform AS ENUM ('youtube', 'facebook', 'vimeo', 'custom', 'supabase');
+DO $$ BEGIN
+  CREATE TYPE stream_platform AS ENUM ('youtube', 'facebook', 'vimeo', 'custom', 'supabase');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Create streams table
-CREATE TABLE public.streams (
+CREATE TABLE IF NOT EXISTS public.streams (
   id UUID NOT NULL DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
@@ -33,7 +39,7 @@ CREATE TABLE public.streams (
 );
 
 -- Create stream_chats table
-CREATE TABLE public.stream_chats (
+CREATE TABLE IF NOT EXISTS public.stream_chats (
   id UUID NOT NULL DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
   stream_id UUID NOT NULL REFERENCES public.streams(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id),
@@ -42,7 +48,7 @@ CREATE TABLE public.stream_chats (
 );
 
 -- Create stream_views table (for analytics)
-CREATE TABLE public.stream_views (
+CREATE TABLE IF NOT EXISTS public.stream_views (
   id UUID NOT NULL DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
   stream_id UUID NOT NULL REFERENCES public.streams(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id),
@@ -56,10 +62,12 @@ ALTER TABLE public.stream_chats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stream_views ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for streams
+DROP POLICY IF EXISTS "Public streams viewable by everyone" ON public.streams;
 CREATE POLICY "Public streams viewable by everyone"
   ON public.streams FOR SELECT
   USING (privacy = 'public' OR (privacy = 'members_only' AND auth.uid() IS NOT NULL));
 
+DROP POLICY IF EXISTS "Admins and pastors can manage streams" ON public.streams;
 CREATE POLICY "Admins and pastors can manage streams"
   ON public.streams FOR ALL
   USING (
@@ -76,6 +84,7 @@ CREATE POLICY "Admins and pastors can manage streams"
   );
 
 -- RLS Policies for stream_chats
+DROP POLICY IF EXISTS "Users can view chats for accessible streams" ON public.stream_chats;
 CREATE POLICY "Users can view chats for accessible streams"
   ON public.stream_chats FOR SELECT
   USING (
@@ -86,29 +95,33 @@ CREATE POLICY "Users can view chats for accessible streams"
     )
   );
 
+DROP POLICY IF EXISTS "Authenticated users can send chat messages" ON public.stream_chats;
 CREATE POLICY "Authenticated users can send chat messages"
   ON public.stream_chats FOR INSERT
   WITH CHECK (auth.uid() = user_id AND auth.uid() IS NOT NULL);
 
 -- RLS Policies for stream_views
+DROP POLICY IF EXISTS "Users can view their own watch history" ON public.stream_views;
 CREATE POLICY "Users can view their own watch history"
   ON public.stream_views FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Authenticated users can log views" ON public.stream_views;
 CREATE POLICY "Authenticated users can log views"
   ON public.stream_views FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Create indexes for performance
-CREATE INDEX idx_streams_status ON public.streams(status);
-CREATE INDEX idx_streams_branch_id ON public.streams(branch_id);
-CREATE INDEX idx_streams_created_by ON public.streams(created_by);
-CREATE INDEX idx_streams_start_time ON public.streams(start_time);
-CREATE INDEX idx_stream_chats_stream_id ON public.stream_chats(stream_id);
-CREATE INDEX idx_stream_chats_created_at ON public.stream_chats(created_at);
-CREATE INDEX idx_stream_views_stream_id ON public.stream_views(stream_id);
+CREATE INDEX IF NOT EXISTS idx_streams_status ON public.streams(status);
+CREATE INDEX IF NOT EXISTS idx_streams_branch_id ON public.streams(branch_id);
+CREATE INDEX IF NOT EXISTS idx_streams_created_by ON public.streams(created_by);
+CREATE INDEX IF NOT EXISTS idx_streams_start_time ON public.streams(start_time);
+CREATE INDEX IF NOT EXISTS idx_stream_chats_stream_id ON public.stream_chats(stream_id);
+CREATE INDEX IF NOT EXISTS idx_stream_chats_created_at ON public.stream_chats(created_at);
+CREATE INDEX IF NOT EXISTS idx_stream_views_stream_id ON public.stream_views(stream_id);
 
 -- Create trigger for updated_at
+DROP TRIGGER IF EXISTS update_streams_updated_at ON public.streams;
 CREATE TRIGGER update_streams_updated_at
   BEFORE UPDATE ON public.streams
   FOR EACH ROW
@@ -126,6 +139,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create trigger for view count
+DROP TRIGGER IF EXISTS increment_stream_view_count ON public.stream_views;
 CREATE TRIGGER increment_stream_view_count
   AFTER INSERT ON public.stream_views
   FOR EACH ROW

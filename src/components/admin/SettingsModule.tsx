@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Settings, Church, Users, Bell, Shield, Database } from 'lucide-react';
+import { RolesManager } from '@/components/admin/roles/RolesManager';
 
 export const SettingsModule = () => {
   return (
@@ -228,6 +229,16 @@ export const SettingsModule = () => {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg sm:text-xl">Roles & Permissions</CardTitle>
+              <CardDescription className="text-sm sm:text-base">Create roles (admin, leader, member, etc.), assign permissions per module, and assign to users</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <RolesManager />
             </CardContent>
           </Card>
 

@@ -1,6 +1,8 @@
 -- Add unique constraint for email in members table
-ALTER TABLE public.members 
-ADD CONSTRAINT members_email_unique UNIQUE (email);
+DO $$ BEGIN
+  ALTER TABLE public.members 
+  ADD CONSTRAINT members_email_unique UNIQUE (email);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL; END $$;
 
 -- Add index for better performance on email lookups
 CREATE INDEX IF NOT EXISTS idx_members_email ON public.members(email) WHERE email IS NOT NULL;

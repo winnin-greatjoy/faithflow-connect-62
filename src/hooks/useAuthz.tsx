@@ -10,6 +10,9 @@ type ModulePermission = {
   scope_type: 'global' | 'branch' | 'department' | 'ministry';
   allowed_actions: PermissionAction[];
   branch_id: string | null;
+  department_id?: string | null;
+  ministry_id?: string | null;
+  role_id?: string | null;
   module: { slug: string } | null;
 };
 
@@ -28,6 +31,9 @@ export function useAuthz(): UseAuthzResult {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [perms, setPerms] = useState<ModulePermission[]>([]);
+  const [dynRoleIds, setDynRoleIds] = useState<string[]>([]);
+  const [deptIds, setDeptIds] = useState<string[]>([]);
+  const [ministryIds, setMinistryIds] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -48,11 +54,11 @@ export function useAuthz(): UseAuthzResult {
         supabase.from('profiles').select('branch_id, role').eq('id', uid).maybeSingle(),
         supabase
           .from('user_roles')
-          .select('role, branch_id, department_id, ministry_id')
+          .select('role, role_id, branch_id, department_id, ministry_id')
           .eq('user_id', uid),
         supabase
           .from('module_role_permissions')
-          .select('role, scope_type, branch_id, allowed_actions, module:modules(slug)')
+          .select('role, role_id, scope_type, branch_id, department_id, ministry_id, allowed_actions, module:modules(slug)')
       ]);
 
       if (!active) return;
@@ -66,6 +72,22 @@ export function useAuthz(): UseAuthzResult {
       });
       setRoles(mapped);
       setPerms((dbPerms as any) || []);
+
+      // dynamic role ids and scope assignments
+      const dynIds = ((userRoles as any[]) || [])
+        .map((r: any) => r.role_id)
+        .filter((id: any) => typeof id === 'string');
+      setDynRoleIds(dynIds);
+
+      const dIds = ((userRoles as any[]) || [])
+        .map((r: any) => r.department_id)
+        .filter((id: any) => typeof id === 'string');
+      setDeptIds(dIds);
+
+      const mIds = ((userRoles as any[]) || [])
+        .map((r: any) => r.ministry_id)
+        .filter((id: any) => typeof id === 'string');
+      setMinistryIds(mIds);
       setLoading(false);
     })();
     return () => {
@@ -81,14 +103,20 @@ export function useAuthz(): UseAuthzResult {
     // Admin shortcut
     if (hasRole('super_admin', 'admin')) return true;
 
-    // Dynamic permission check
     const relevant = perms.filter(p => p.module?.slug === moduleSlug);
     if (relevant.length > 0) {
-      return relevant.some(p =>
-        roles.includes(p.role) &&
-        (p.scope_type === 'global' || (p.scope_type === 'branch' && p.branch_id && p.branch_id === branchId)) &&
-        (p.allowed_actions?.includes(action) || p.allowed_actions?.includes('manage' as PermissionAction))
-      );
+      const scopeMatch = (p: ModulePermission) => {
+        if (p.scope_type === 'global') return true;
+        if (p.scope_type === 'branch') return Boolean(p.branch_id && branchId && p.branch_id === branchId);
+        if (p.scope_type === 'department') return Boolean(p.department_id && deptIds.includes(p.department_id));
+        if (p.scope_type === 'ministry') return Boolean(p.ministry_id && ministryIds.includes(p.ministry_id));
+        return false;
+      };
+      const actionMatch = (p: ModulePermission) => (p.allowed_actions?.includes(action) || p.allowed_actions?.includes('manage' as PermissionAction));
+
+      const allowedByDynamic = relevant.some(p => p.role_id && dynRoleIds.includes(p.role_id) && scopeMatch(p) && actionMatch(p));
+      const allowedByEnum = relevant.some(p => p.role && roles.includes(p.role) && scopeMatch(p) && actionMatch(p));
+      if (allowedByDynamic || allowedByEnum) return true;
     }
 
     // Fallback when no DB permissions exist

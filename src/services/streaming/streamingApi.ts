@@ -254,5 +254,38 @@ export const streamingApi = {
     } catch (error) {
       return handleApiError(error);
     }
+  },
+
+  // Delete a chat message (moderation)
+  async deleteChat(chatId: string): Promise<ApiResult<void>> {
+    try {
+      const { error } = await supabase
+        .from('stream_chats')
+        .delete()
+        .eq('id', chatId);
+      if (error) return handleApiError(error);
+      return createApiResponse(undefined as any);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  // Regenerate stream key (client-side update, relies on RLS for privileged roles)
+  async regenerateStreamKey(streamId: string): Promise<ApiResult<Stream>> {
+    try {
+      const key = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+        .map((b) => (b % 36).toString(36))
+        .join('');
+      const { data, error } = await supabase
+        .from('streams')
+        .update({ stream_key: key })
+        .eq('id', streamId)
+        .select('*')
+        .single();
+      if (error) return handleApiError(error);
+      return createApiResponse(data as Stream);
+    } catch (error) {
+      return handleApiError(error);
+    }
   }
 };

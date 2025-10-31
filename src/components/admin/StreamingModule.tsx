@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +14,11 @@ import { streamingApi, type Stream } from '@/services/streaming/streamingApi';
 import { useBranches } from '@/hooks/useBranches';
 import { toast } from 'sonner';
 import { uploadFile } from '@/utils/api';
+import StreamingDashboard from './streaming/StreamingDashboard';
+import StreamControlRoom from './streaming/StreamControlRoom';
 
 export function StreamingModule() {
+  const location = useLocation();
   const [streams, setStreams] = useState<Stream[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -180,6 +184,16 @@ export function StreamingModule() {
 
     toast.success('Stream status updated');
     loadStreams();
+  }
+
+  // Internal subrouting for dashboard/control room
+  const path = location.pathname || '';
+  if (path.includes('/admin/streaming/dashboard')) {
+    return <StreamingDashboard />;
+  }
+  if (path.includes('/admin/streaming/control/')) {
+    const id = path.split('/admin/streaming/control/')[1]?.split('/')[0];
+    if (id) return <StreamControlRoom streamId={id} />;
   }
 
   return (

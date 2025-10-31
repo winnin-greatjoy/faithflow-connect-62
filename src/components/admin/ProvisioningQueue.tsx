@@ -56,6 +56,7 @@ export function ProvisioningQueue() {
   const [page, setPage] = useState(1);
   const pageSize = 8;
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     loadJobs();
@@ -157,14 +158,14 @@ export function ProvisioningQueue() {
     setRetryingId(null);
   }
 
-  async function manageAuth(action: 'resend' | 'reset', email: string, jobId: string) {
+  async function manageAuth(action: 'resend_invite' | 'send_password_reset', email: string) {
     if (!email) {
       toast.error('Email required');
       return;
     }
 
     const { error } = await supabase.functions.invoke('manage-auth', {
-      body: { action, email, jobId },
+      body: { action, email },
     });
 
     if (error) {
@@ -173,6 +174,19 @@ export function ProvisioningQueue() {
     }
 
     toast.success(`Auth ${action} email sent`);
+  }
+
+  async function processPending() {
+    setProcessing(true);
+    const { data, error } = await supabase.functions.invoke('provision-account', { body: {} });
+    setProcessing(false);
+    if (error) {
+      toast.error('Failed to process pending jobs');
+      return;
+    }
+    const processed = (data as any)?.processed ?? 0;
+    toast.success(`Processed ${processed} job${processed === 1 ? '' : 's'}`);
+    await loadJobs();
   }
 
   function filterJobs() {
@@ -295,6 +309,10 @@ export function ProvisioningQueue() {
             <Button variant="outline" size="sm" onClick={loadJobs}>
               <RefreshCcw className="w-4 h-4 mr-1" /> Refresh
             </Button>
+            <Button size="sm" onClick={processPending} disabled={processing}>
+              {processing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+              Process Pending
+            </Button>
           </div>
         </CardHeader>
 
@@ -369,14 +387,14 @@ export function ProvisioningQueue() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => manageAuth('resend', job.member!.email!, job.id)}
+                              onClick={() => manageAuth('resend_invite', job.member!.email!)}
                             >
                               <Mail className="w-4 h-4 mr-1" /> Resend Invite
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => manageAuth('reset', job.member!.email!, job.id)}
+                              onClick={() => manageAuth('send_password_reset', job.member!.email!)}
                             >
                               <RefreshCcw className="w-4 h-4 mr-1" /> Reset Password
                             </Button>
