@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       account_provisioning_jobs: {
@@ -484,6 +459,7 @@ export type Database = {
           head_id: string | null
           id: string
           name: string
+          slug: string
           updated_at: string | null
         }
         Insert: {
@@ -493,6 +469,7 @@ export type Database = {
           head_id?: string | null
           id?: string
           name: string
+          slug: string
           updated_at?: string | null
         }
         Update: {
@@ -502,6 +479,7 @@ export type Database = {
           head_id?: string | null
           id?: string
           name?: string
+          slug?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -1565,9 +1543,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: [

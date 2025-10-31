@@ -71,7 +71,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
         .from('church_branches')
         .select('id, name')
         .order('name');
-      if (!error) setBranches((data as any) || []);
+      if (!error) setBranches(data || []);
     })();
   }, []);
 
@@ -79,7 +79,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
     resolver: zodResolver(memberSchema),
     defaultValues: member ? {
       fullName: member.fullName,
-      profilePhoto: (member as any).profilePhoto ?? '',
+      profilePhoto: member.profilePhoto ?? '',
       dateOfBirth: member.dateOfBirth ?? '',
       gender: (member.gender ?? 'male') as Gender,
       maritalStatus: (member.maritalStatus ?? 'single') as MaritalStatus,

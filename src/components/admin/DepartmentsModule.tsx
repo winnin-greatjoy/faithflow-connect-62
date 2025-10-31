@@ -19,9 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // ✅ Type Definitions
 type Department = {
-  id: number;
+  id: string;
   name: string;
-  slug?: string;
+  slug: string;
   leader: string;
   members: number;
   activities: number;
@@ -216,10 +216,10 @@ export const DepartmentsModule = () => {
       // Departments DB-backed list (placeholder fields)
       if (deptList) {
         setDepartments(
-          (deptList as any[]).map((d) => ({
+          deptList.map((d) => ({
             id: d.id,
-            name: d.name || 'Department',
-            slug: d.slug, // Include slug field
+            name: d.name,
+            slug: d.slug,
             leader: 'TBD',
             members: 0,
             activities: 0,
@@ -244,10 +244,8 @@ export const DepartmentsModule = () => {
   }, [branchId]);
 
   // ✅ Department click handler
-  const handleDepartmentClick = (dept: Department & { slug?: string }) => {
-    // Use slug from database if available, otherwise fallback to name-based routing
-    const slug = (dept as any).slug || dept.name.toLowerCase().replace(/\s+/g, '-');
-    navigate(`/departments/${slug}`);
+  const handleDepartmentClick = (dept: Department & { slug: string }) => {
+    navigate(`/departments/${dept.slug}`);
   };
 
   // ✅ Ministry click handler
@@ -328,14 +326,14 @@ export const DepartmentsModule = () => {
     
     if (deptList) {
       setDepartments(
-        (deptList as any[]).map((d) => ({
+        deptList.map((d) => ({
           id: d.id,
-          name: d.name || 'Department',
-          slug: d.slug, // Include slug field
+          name: d.name,
+          slug: d.slug,
           leader: 'TBD',
           members: 0,
           activities: 0,
-          status: 'Active',
+          status: 'Active' as const,
         }))
       );
     }

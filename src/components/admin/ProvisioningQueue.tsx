@@ -184,7 +184,7 @@ export function ProvisioningQueue() {
       toast.error('Failed to process pending jobs');
       return;
     }
-    const processed = (data as any)?.processed ?? 0;
+    const processed = typeof data === 'object' && data !== null && 'processed' in data ? (data.processed as number) : 0;
     toast.success(`Processed ${processed} job${processed === 1 ? '' : 's'}`);
     await loadJobs();
   }

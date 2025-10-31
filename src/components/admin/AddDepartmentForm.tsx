@@ -12,7 +12,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useToast } from '@/hooks/use-toast';
 
-export const AddDepartmentForm = ({ onAdd }: { onAdd?: (dept: any) => void }) => {
+type DepartmentFormResult = {
+  id: string;
+  name: string;
+  slug: string;
+  leader: string;
+  members: number;
+  activities: number;
+  status: 'Active' | 'Inactive';
+  description: string;
+};
+
+export const AddDepartmentForm = ({ onAdd }: { onAdd?: (dept: DepartmentFormResult) => void }) => {
   const [open, setOpen] = useState(false);
   const { branchId } = useAuthz();
   const { toast } = useToast();
@@ -36,12 +47,19 @@ export const AddDepartmentForm = ({ onAdd }: { onAdd?: (dept: any) => void }) =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
+    // Generate slug from name
+    const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     // Minimal insert into departments table
     try {
       const { data, error } = await supabase
         .from('departments')
-        .insert({ name: formData.name, description: formData.description || null, branch_id: branchId || null })
-        .select('id, name');
+        .insert({ 
+          name: formData.name, 
+          slug: slug,
+          description: formData.description || null, 
+          branch_id: branchId || null 
+        })
+        .select('id, name, slug');
       if (error) {
         toast({ title: 'Failed to add department', description: error.message });
         throw error;
@@ -49,12 +67,13 @@ export const AddDepartmentForm = ({ onAdd }: { onAdd?: (dept: any) => void }) =>
       const created = data && data[0];
       // Update local UI list if callback provided
       onAdd?.({
-        id: created?.id ?? Date.now(),
+        id: created?.id ?? String(Date.now()),
         name: formData.name,
+        slug: created?.slug || slug,
         leader: formData.leader || 'TBD',
         members: Number(formData.members || 0),
         activities: Number(formData.activities || 0),
-        status: formData.status,
+        status: formData.status as 'Active' | 'Inactive',
         description: formData.description || '',
       });
       toast({ title: 'Department created', description: `${formData.name} added successfully.` });
@@ -70,10 +89,12 @@ export const AddDepartmentForm = ({ onAdd }: { onAdd?: (dept: any) => void }) =>
     } catch (_) {
       // Silent failover to local add
       const local = {
-        id: Date.now(),
+        id: String(Date.now()),
+        slug: slug,
         ...formData,
         members: Number(formData.members || 0),
         activities: Number(formData.activities || 0),
+        status: formData.status as 'Active' | 'Inactive',
       };
       onAdd?.(local);
       toast({ title: 'Saved locally', description: 'Department could not be saved to the server. Showing locally.' });
