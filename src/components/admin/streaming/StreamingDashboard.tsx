@@ -34,6 +34,8 @@ export default function StreamingDashboard() {
   const live = useMemo(() => streams.filter(s => s.status === 'live'), [streams]);
   const upcoming = useMemo(() => streams.filter(s => s.status === 'scheduled'), [streams]);
   const recent = useMemo(() => streams.slice(0, 8), [streams]);
+  const totalStreams = streams.length;
+  const totalViews = useMemo(() => streams.reduce((sum, s) => sum + (s.view_count || 0), 0), [streams]);
 
   return (
     <div className="space-y-6">
@@ -47,7 +49,7 @@ export default function StreamingDashboard() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-4 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Live Now</CardTitle>
@@ -68,11 +70,20 @@ export default function StreamingDashboard() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Total Views (30d)</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Streams</CardTitle>
             <CardDescription>All streams</CardDescription>
           </CardHeader>
           <CardContent className="text-3xl font-bold flex items-center gap-2">
-            <BarChart2 className="w-5 h-5"/> {views30d ?? '—'}
+            <Eye className="w-5 h-5"/> {totalStreams}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Total Views</CardTitle>
+            <CardDescription>All time</CardDescription>
+          </CardHeader>
+          <CardContent className="text-3xl font-bold flex items-center gap-2">
+            <BarChart2 className="w-5 h-5"/> {totalViews}
           </CardContent>
         </Card>
       </div>

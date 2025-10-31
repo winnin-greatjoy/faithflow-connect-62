@@ -57,6 +57,7 @@ export function ProvisioningQueue() {
   const pageSize = 8;
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [bulkProvisioning, setBulkProvisioning] = useState(false);
 
   useEffect(() => {
     loadJobs();
@@ -83,7 +84,7 @@ export function ProvisioningQueue() {
       .from('members')
       .select('id, full_name, email, phone, membership_level, baptized_sub_level, branch:church_branches(name)')
       .eq('membership_level', 'baptized')
-      .in('baptized_sub_level', ['worker', 'disciple'])
+      .in('baptized_sub_level', ['worker', 'disciple', 'leader'])
       .order('full_name');
 
     if (res.error) {
@@ -93,6 +94,48 @@ export function ProvisioningQueue() {
     }
 
     setMembers((res.data || []) as Member[]);
+  }
+
+  async function bulkProvisionWorkers() {
+    setBulkProvisioning(true);
+    
+    // Get all workers and disciples without accounts
+    const { data: workersAndDisciples, error: fetchError } = await supabase
+      .from('members')
+      .select('id, email, full_name')
+      .eq('membership_level', 'baptized')
+      .in('baptized_sub_level', ['worker', 'disciple', 'leader'])
+      .not('email', 'is', null);
+
+    if (fetchError) {
+      toast.error('Failed to fetch workers and disciples');
+      setBulkProvisioning(false);
+      return;
+    }
+
+    const validMembers = (workersAndDisciples || []).filter(m => m.email && m.email.trim());
+
+    if (validMembers.length === 0) {
+      toast.error('No eligible workers or disciples found with valid emails');
+      setBulkProvisioning(false);
+      return;
+    }
+
+    let created = 0;
+    let failed = 0;
+
+    for (const member of validMembers) {
+      const res = await provisioningApi.create(member.id, 'admin_initiated', deliveryMethod);
+      if (res.error) {
+        failed++;
+      } else {
+        created++;
+      }
+    }
+
+    toast.success(`Created ${created} jobs. ${failed > 0 ? `${failed} failed.` : ''}`);
+    setBulkProvisioning(false);
+    loadJobs();
   }
 
   async function createProvisioningJob() {
@@ -272,6 +315,15 @@ export function ProvisioningQueue() {
 
             <Button disabled={!selectedMember || loading} onClick={createProvisioningJob}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Job'}
+            </Button>
+
+            <Button 
+              variant="secondary" 
+              disabled={bulkProvisioning} 
+              onClick={bulkProvisionWorkers}
+            >
+              {bulkProvisioning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Bulk Provision All Workers & Disciples
             </Button>
           </div>
 
