@@ -1373,15 +1373,15 @@ export type Database = {
         | { Args: { role: string; user_id: string }; Returns: boolean }
         | {
             Args: {
-              role: Database["public"]["Enums"]["app_role"]
-              user_id: string
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
             }
             Returns: boolean
           }
         | {
             Args: {
-              _role: Database["public"]["Enums"]["app_role"]
-              _user_id: string
+              role: Database["public"]["Enums"]["app_role"]
+              user_id: string
             }
             Returns: boolean
           }
