@@ -143,8 +143,15 @@ export function AssignRoleToUser({ open, onClose, role, onSaved }: { open: boole
 
           {scopeType === 'ministry' && (
             <div>
-              <Label>Ministry ID *</Label>
-              <Input value={ministryId} onChange={(e) => setMinistryId(e.target.value)} placeholder="Enter ministry UUID" />
+              <Label>Ministry *</Label>
+              <Select value={ministryId} onValueChange={setMinistryId}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select ministry" /></SelectTrigger>
+                <SelectContent>
+                  {ministries.map(m => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

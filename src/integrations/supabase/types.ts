@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_provisioning_jobs: {
@@ -863,6 +888,7 @@ export type Database = {
           description: string | null
           head_id: string | null
           id: string
+          is_active: boolean
           name: string
           updated_at: string | null
         }
@@ -872,6 +898,7 @@ export type Database = {
           description?: string | null
           head_id?: string | null
           id?: string
+          is_active?: boolean
           name: string
           updated_at?: string | null
         }
@@ -881,6 +908,7 @@ export type Database = {
           description?: string | null
           head_id?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           updated_at?: string | null
         }
@@ -998,7 +1026,8 @@ export type Database = {
           id: string
           ministry_id: string | null
           module_id: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["app_role"] | null
+          role_id: string | null
           scope_type: string
         }
         Insert: {
@@ -1009,7 +1038,8 @@ export type Database = {
           id?: string
           ministry_id?: string | null
           module_id: string
-          role: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          role_id?: string | null
           scope_type: string
         }
         Update: {
@@ -1020,7 +1050,8 @@ export type Database = {
           id?: string
           ministry_id?: string | null
           module_id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          role_id?: string | null
           scope_type?: string
         }
         Relationships: [
@@ -1029,6 +1060,13 @@ export type Database = {
             columns: ["module_id"]
             isOneToOne: false
             referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
             referencedColumns: ["id"]
           },
         ]
@@ -1109,6 +1147,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      roles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          role_type: Database["public"]["Enums"]["role_type"]
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          role_type?: Database["public"]["Enums"]["role_type"]
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          role_type?: Database["public"]["Enums"]["role_type"]
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       stream_chats: {
         Row: {
@@ -1261,7 +1332,8 @@ export type Database = {
           department_id: string | null
           id: string
           ministry_id: string | null
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["app_role"] | null
+          role_id: string | null
           user_id: string
         }
         Insert: {
@@ -1270,7 +1342,8 @@ export type Database = {
           department_id?: string | null
           id?: string
           ministry_id?: string | null
-          role: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          role_id?: string | null
           user_id: string
         }
         Update: {
@@ -1279,7 +1352,8 @@ export type Database = {
           department_id?: string | null
           id?: string
           ministry_id?: string | null
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          role_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1288,6 +1362,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
             referencedColumns: ["id"]
           },
         ]
@@ -1354,6 +1435,7 @@ export type Database = {
       permission_action: "view" | "create" | "update" | "delete" | "manage"
       priority_level: "low" | "medium" | "high"
       provision_type: "auto_baptized" | "admin_initiated"
+      role_type: "account" | "member" | "leader" | "admin" | "pastor" | "worker"
       stream_platform: "youtube" | "facebook" | "vimeo" | "custom" | "supabase"
       stream_privacy: "public" | "members_only" | "private"
       stream_status: "scheduled" | "live" | "ended" | "archived"
@@ -1483,6 +1565,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [
@@ -1512,6 +1597,7 @@ export const Constants = {
       permission_action: ["view", "create", "update", "delete", "manage"],
       priority_level: ["low", "medium", "high"],
       provision_type: ["auto_baptized", "admin_initiated"],
+      role_type: ["account", "member", "leader", "admin", "pastor", "worker"],
       stream_platform: ["youtube", "facebook", "vimeo", "custom", "supabase"],
       stream_privacy: ["public", "members_only", "private"],
       stream_status: ["scheduled", "live", "ended", "archived"],

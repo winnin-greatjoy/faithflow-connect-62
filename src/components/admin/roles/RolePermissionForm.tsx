@@ -44,7 +44,7 @@ export function RolePermissionForm({ open, onClose, initialRole }: RolePermissio
         toast({ title: "Failed to load modules", description: error.message, variant: "destructive" });
         return;
       }
-      setModules(mods || []);
+      setModules(((mods || []) as any));
     })();
     return () => {
       active = false;

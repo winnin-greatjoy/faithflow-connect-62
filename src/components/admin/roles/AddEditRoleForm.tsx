@@ -56,13 +56,13 @@ export function AddEditRoleForm({ open, onClose, role, onSaved }: { open: boolea
     setSaving(true);
     try {
       if (isEdit) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("roles")
           .update({ name, slug, role_type: roleType, description })
           .eq("id", role!.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("roles")
           .insert([{ name, slug, role_type: roleType, description }]);
         if (error) throw error;
