@@ -30,7 +30,7 @@ export function RolePermissionsDynamicForm({ open, onClose, roleId, roleName }: 
         supabase.from("modules").select("id, slug, name, is_active").eq("is_active", true).order("name"),
         supabase.from("church_branches").select("id, name").order("name"),
         supabase.from("departments").select("id, name").order("name"),
-        (supabase as any).from("ministries").select("id, name").order("name")
+        supabase.from("ministries").select("id, name").order("name")
       ]);
       if (!active) return;
       if (mods.error) { toast({ title: "Failed to load modules", description: mods.error.message, variant: "destructive" }); return; }
@@ -122,7 +122,7 @@ export function RolePermissionsDynamicForm({ open, onClose, roleId, roleName }: 
         if (s.scope_type === 'ministry' && !s.ministry_id) throw new Error(`Select a ministry for ${m.name}`);
       }
 
-      const { error: delErr } = await (supabase as any)
+      const { error: delErr } = await supabase
         .from("module_role_permissions")
         .delete()
         .eq("role_id", roleId);
@@ -144,7 +144,7 @@ export function RolePermissionsDynamicForm({ open, onClose, roleId, roleName }: 
         .filter(r => r.module_id);
 
       if (rows.length > 0) {
-        const { error: insErr } = await (supabase as any).from("module_role_permissions").insert(rows as any[]);
+        const { error: insErr } = await supabase.from("module_role_permissions").insert(rows as any[]);
         if (insErr) throw insErr;
       }
 

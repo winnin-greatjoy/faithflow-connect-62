@@ -27,7 +27,7 @@ export function RolesManager() {
     setLoading(true);
     try {
       const [{ data: rs, error: re }, { data: ur, error: ue }] = await Promise.all([
-        (supabase as any).from("roles").select("id, name, slug, role_type, description, is_active"),
+        supabase.from("roles").select("id, name, slug, role_type, description, is_active"),
         supabase.from("user_roles").select("role_id").not("role_id", "is", null),
       ]);
       if (re) throw re;
