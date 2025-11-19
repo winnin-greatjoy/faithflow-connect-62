@@ -6,9 +6,11 @@ export type AppRole = Enums<'app_role'>;
 export type PermissionAction = 'view' | 'create' | 'update' | 'delete' | 'manage';
 
 type ModulePermission = {
-  role: AppRole;
+  role?: AppRole;
   scope_type: 'global' | 'branch' | 'department' | 'ministry';
-  allowed_actions: PermissionAction[];
+  allowed_actions?: PermissionAction[]; // v1
+  actions?: PermissionAction[];         // v2
+  coverage_type?: 'global' | 'department' | 'ministry';
   branch_id: string | null;
   department_id?: string | null;
   ministry_id?: string | null;
@@ -50,16 +52,29 @@ export function useAuthz(): UseAuthzResult {
         return;
       }
 
-      const [{ data: profile }, { data: userRoles }, { data: dbPerms }] = await Promise.all([
-        supabase.from('profiles').select('branch_id, role').eq('id', uid).maybeSingle(),
-        supabase
-          .from('user_roles')
-          .select('role, role_id, branch_id, department_id, ministry_id')
-          .eq('user_id', uid),
-        supabase
-          .from('module_role_permissions')
-          .select('role, role_id, scope_type, branch_id, department_id, ministry_id, allowed_actions, module:modules(slug)')
-      ]);
+      const { data: profile } = await supabase.from('profiles').select('branch_id, role').eq('id', uid).maybeSingle();
+      const { data: userRoles } = await supabase
+        .from('user_roles')
+        .select('role, role_id, branch_id, department_id, ministry_id')
+        .eq('user_id', uid);
+
+      // Fetch v2 permissions for current user role_ids
+      const dynIds = ((userRoles as any[]) || [])
+        .map((r: any) => r.role_id)
+        .filter((id: any) => typeof id === 'string');
+      let v2Perms: any[] = [];
+      if (dynIds.length > 0) {
+        const { data: rp } = await supabase
+          .from('role_permissions')
+          .select('role_id, actions, scope_type, branch_id, coverage_type, department_id, ministry_id, module:modules(slug)')
+          .in('role_id', dynIds);
+        v2Perms = (rp as any[]) || [];
+      }
+      // Load v1 permissions as fallback (legacy)
+      const { data: v1 } = await supabase
+        .from('module_role_permissions')
+        .select('role, role_id, scope_type, branch_id, department_id, ministry_id, allowed_actions, module:modules(slug)');
+      const dbPerms = v2Perms.length > 0 ? v2Perms : ((v1 as any[]) || []);
 
       if (!active) return;
 
@@ -74,9 +89,6 @@ export function useAuthz(): UseAuthzResult {
       setPerms((dbPerms as any) || []);
 
       // dynamic role ids and scope assignments
-      const dynIds = ((userRoles as any[]) || [])
-        .map((r: any) => r.role_id)
-        .filter((id: any) => typeof id === 'string');
       setDynRoleIds(dynIds);
 
       const dIds = ((userRoles as any[]) || [])
@@ -106,16 +118,31 @@ export function useAuthz(): UseAuthzResult {
     const relevant = perms.filter(p => p.module?.slug === moduleSlug);
     if (relevant.length > 0) {
       const scopeMatch = (p: ModulePermission) => {
+        // v2: scope_type is only global/branch
         if (p.scope_type === 'global') return true;
         if (p.scope_type === 'branch') return Boolean(p.branch_id && branchId && p.branch_id === branchId);
-        if (p.scope_type === 'department') return Boolean(p.department_id && deptIds.includes(p.department_id));
-        if (p.scope_type === 'ministry') return Boolean(p.ministry_id && ministryIds.includes(p.ministry_id));
+        // v1 legacy support had department/ministry in scope_type
+        if ((p as any).coverage_type == null) {
+          if (p.scope_type === 'department') return Boolean(p.department_id && deptIds.includes(p.department_id));
+          if (p.scope_type === 'ministry') return Boolean(p.ministry_id && ministryIds.includes(p.ministry_id));
+        }
         return false;
       };
-      const actionMatch = (p: ModulePermission) => (p.allowed_actions?.includes(action) || p.allowed_actions?.includes('manage' as PermissionAction));
+      const coverageMatch = (p: ModulePermission) => {
+        // v2 coverage: global/department/ministry
+        const cov = p.coverage_type;
+        if (!cov || cov === 'global') return true;
+        if (cov === 'department') return Boolean(p.department_id && deptIds.includes(p.department_id));
+        if (cov === 'ministry') return Boolean(p.ministry_id && ministryIds.includes(p.ministry_id));
+        return false;
+      };
+      const actionMatch = (p: ModulePermission) => {
+        const acts = (p.allowed_actions || p.actions || []) as PermissionAction[];
+        return Boolean(acts.includes(action) || acts.includes('manage'));
+      };
 
-      const allowedByDynamic = relevant.some(p => p.role_id && dynRoleIds.includes(p.role_id) && scopeMatch(p) && actionMatch(p));
-      const allowedByEnum = relevant.some(p => p.role && roles.includes(p.role) && scopeMatch(p) && actionMatch(p));
+      const allowedByDynamic = relevant.some(p => p.role_id && dynRoleIds.includes(p.role_id) && scopeMatch(p) && coverageMatch(p) && actionMatch(p));
+      const allowedByEnum = relevant.some(p => p.role && roles.includes(p.role) && scopeMatch(p) && coverageMatch(p) && actionMatch(p));
       if (allowedByDynamic || allowedByEnum) return true;
     }
 

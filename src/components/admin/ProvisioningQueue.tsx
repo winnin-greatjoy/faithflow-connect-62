@@ -58,6 +58,7 @@ export function ProvisioningQueue() {
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [bulkProvisioning, setBulkProvisioning] = useState(false);
+  const [autoRunAfterBulk, setAutoRunAfterBulk] = useState(false);
 
   useEffect(() => {
     loadJobs();
@@ -98,8 +99,6 @@ export function ProvisioningQueue() {
 
   async function bulkProvisionWorkers() {
     setBulkProvisioning(true);
-    
-    // Get all workers and disciples without accounts
     const { data: workersAndDisciples, error: fetchError } = await supabase
       .from('members')
       .select('id, email, full_name')
@@ -114,28 +113,57 @@ export function ProvisioningQueue() {
     }
 
     const validMembers = (workersAndDisciples || []).filter(m => m.email && m.email.trim());
-
     if (validMembers.length === 0) {
       toast.error('No eligible workers or disciples found with valid emails');
       setBulkProvisioning(false);
       return;
     }
 
+    const ids = validMembers.map(m => m.id);
+    const { data: existingJobs, error: jobsErr } = await supabase
+      .from('account_provisioning_jobs')
+      .select('member_id, status')
+      .in('member_id', ids)
+      .in('status', ['pending', 'processing']);
+
+    if (jobsErr) {
+      toast.error('Failed to check existing jobs');
+      setBulkProvisioning(false);
+      return;
+    }
+
+    const skipSet = new Set((existingJobs || []).map(j => j.member_id as string));
+    const toCreate = validMembers.filter(m => !skipSet.has(m.id));
+    const skipped = validMembers.length - toCreate.length;
+
+    if (toCreate.length === 0) {
+      toast.success(`No new jobs created. ${skipped} skipped due to existing pending/processing jobs.`);
+      setBulkProvisioning(false);
+      if (autoRunAfterBulk) await processPending();
+      return;
+    }
+
     let created = 0;
     let failed = 0;
-
-    for (const member of validMembers) {
-      const res = await provisioningApi.create(member.id, 'admin_initiated', deliveryMethod);
-      if (res.error) {
-        failed++;
-      } else {
-        created++;
+    const concurrency = 10;
+    const delayMs = 300;
+    for (let i = 0; i < toCreate.length; i += concurrency) {
+      const batch = toCreate.slice(i, i + concurrency);
+      const results = await Promise.all(
+        batch.map(m => provisioningApi.create(m.id, 'admin_initiated', deliveryMethod))
+      );
+      for (const r of results) {
+        if ((r as any)?.error) failed++; else created++;
+      }
+      if (i + concurrency < toCreate.length) {
+        await new Promise(res => setTimeout(res, delayMs));
       }
     }
 
-    toast.success(`Created ${created} jobs. ${failed > 0 ? `${failed} failed.` : ''}`);
+    toast.success(`Created ${created} jobs. ${failed > 0 ? `${failed} failed. ` : ''}${skipped > 0 ? `${skipped} skipped.` : ''}`);
     setBulkProvisioning(false);
-    loadJobs();
+    await loadJobs();
+    if (autoRunAfterBulk) await processPending();
   }
 
   async function createProvisioningJob() {
@@ -325,6 +353,10 @@ export function ProvisioningQueue() {
               {bulkProvisioning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Bulk Provision All Workers & Disciples
             </Button>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input type="checkbox" checked={autoRunAfterBulk} onChange={e => setAutoRunAfterBulk(e.target.checked)} />
+              Auto-process after bulk
+            </label>
           </div>
 
           {selectedMember && (
