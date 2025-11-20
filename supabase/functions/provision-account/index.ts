@@ -113,7 +113,52 @@ async function handleProvision() {
   return new Response(JSON.stringify({ processed }), { headers: { "Content-Type": "application/json" } });
 }
 
-serve((_req) => handleProvision());
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+  
+  // Authenticate user
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }), 
+      { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  const supabaseClient = createClient(supabaseUrl, serviceKey, {
+    global: { headers: { Authorization: authHeader } }
+  });
+
+  const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+  if (authError || !user) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }), 
+      { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  // Check admin role
+  const { data: isAdmin, error: roleError } = await supabase.rpc('has_role', {
+    role: 'admin',
+    user_id: user.id
+  });
+
+  if (roleError || !isAdmin) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden: Admin access required' }), 
+      { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  return handleProvision();
+});
 
 function generateTempPassword(length = 16) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*()_+';
