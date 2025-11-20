@@ -597,6 +597,47 @@ export type Database = {
           },
         ]
       }
+      features: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          module_id: string
+          name: string
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          module_id: string
+          name: string
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          module_id?: string
+          name?: string
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "features_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finance_records: {
         Row: {
           amount: number
@@ -1126,6 +1167,94 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          actions: Database["public"]["Enums"]["permission_action"][]
+          branch_id: string | null
+          coverage_type: Database["public"]["Enums"]["coverage_type"]
+          created_at: string | null
+          department_id: string | null
+          feature_id: string | null
+          id: string
+          ministry_id: string | null
+          module_id: string
+          role_id: string
+          scope_type: Database["public"]["Enums"]["scope_type_v2"]
+          updated_at: string | null
+        }
+        Insert: {
+          actions: Database["public"]["Enums"]["permission_action"][]
+          branch_id?: string | null
+          coverage_type: Database["public"]["Enums"]["coverage_type"]
+          created_at?: string | null
+          department_id?: string | null
+          feature_id?: string | null
+          id?: string
+          ministry_id?: string | null
+          module_id: string
+          role_id: string
+          scope_type: Database["public"]["Enums"]["scope_type_v2"]
+          updated_at?: string | null
+        }
+        Update: {
+          actions?: Database["public"]["Enums"]["permission_action"][]
+          branch_id?: string | null
+          coverage_type?: Database["public"]["Enums"]["coverage_type"]
+          created_at?: string | null
+          department_id?: string | null
+          feature_id?: string | null
+          id?: string
+          ministry_id?: string | null
+          module_id?: string
+          role_id?: string
+          scope_type?: Database["public"]["Enums"]["scope_type_v2"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "features"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_ministry_id_fkey"
+            columns: ["ministry_id"]
+            isOneToOne: false
+            referencedRelation: "ministries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roles: {
         Row: {
           created_at: string | null
@@ -1356,6 +1485,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _enum_role_to_slug: {
+        Args: { _r: Database["public"]["Enums"]["app_role"] }
+        Returns: string
+      }
       create_user_with_profile: {
         Args: {
           branch_slug: string
@@ -1398,6 +1531,7 @@ export type Database = {
       assignment_status: "pending" | "approved" | "rejected"
       assignment_type: "assignment" | "transfer" | "suspension"
       baptized_sub_level: "leader" | "worker" | "disciple"
+      coverage_type: "global" | "department" | "ministry"
       first_timer_status: "new" | "contacted" | "followed_up" | "converted"
       follow_up_status: "pending" | "called" | "visited" | "completed"
       gender: "male" | "female"
@@ -1414,6 +1548,7 @@ export type Database = {
       priority_level: "low" | "medium" | "high"
       provision_type: "auto_baptized" | "admin_initiated"
       role_type: "account" | "member" | "leader" | "admin" | "pastor" | "worker"
+      scope_type_v2: "global" | "branch"
       stream_platform: "youtube" | "facebook" | "vimeo" | "custom" | "supabase"
       stream_privacy: "public" | "members_only" | "private"
       stream_status: "scheduled" | "live" | "ended" | "archived"
@@ -1556,6 +1691,7 @@ export const Constants = {
       assignment_status: ["pending", "approved", "rejected"],
       assignment_type: ["assignment", "transfer", "suspension"],
       baptized_sub_level: ["leader", "worker", "disciple"],
+      coverage_type: ["global", "department", "ministry"],
       first_timer_status: ["new", "contacted", "followed_up", "converted"],
       follow_up_status: ["pending", "called", "visited", "completed"],
       gender: ["male", "female"],
@@ -1573,6 +1709,7 @@ export const Constants = {
       priority_level: ["low", "medium", "high"],
       provision_type: ["auto_baptized", "admin_initiated"],
       role_type: ["account", "member", "leader", "admin", "pastor", "worker"],
+      scope_type_v2: ["global", "branch"],
       stream_platform: ["youtube", "facebook", "vimeo", "custom", "supabase"],
       stream_privacy: ["public", "members_only", "private"],
       stream_status: ["scheduled", "live", "ended", "archived"],
