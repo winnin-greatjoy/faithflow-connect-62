@@ -21,7 +21,6 @@ import SettingsPage from "./pages/portal/SettingsPage";
 import ShareAppPage from './pages/portal/ShareAppPage';
 import StreamingPage from '@/pages/portal/StreamingPage';
 import QRCodePage from "./pages/portal/profilepage/QRCodePage";
-import TwoFactorAuthPage from "./pages/portal/profilepage/TwoFactorAuthPage";
 import ChangePasswordPage from "./pages/portal/profilepage/ChangePasswordPage";
 import DirectorySettingsPage from "./pages/portal/profilepage/DirectorySettingsPage";
 import EditAccountInfoPage from "./pages/portal/profilepage/EditAccountInfoPage";
@@ -72,7 +71,6 @@ const App = () => (
           <Route path="streaming" element={<StreamingPage />} />
           <Route path="streaming/:streamId" element={<StreamingPage />} />
           <Route path="qr-code" element={<QRCodePage />} />
-          <Route path="two-factor-auth" element={<TwoFactorAuthPage />} />
           <Route path="change-password" element={<ChangePasswordPage />} />
           <Route path="directory-settings" element={<DirectorySettingsPage />} />
           <Route path="edit-account" element={<EditAccountInfoPage />} />
