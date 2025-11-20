@@ -527,17 +527,56 @@ export const EventsModule: React.FC = () => {
     const container = document.createElement('div');
     container.style.padding = '12px';
     container.style.fontFamily = 'sans-serif';
-    container.innerHTML = `<h2>${ev.title} — Attendees</h2>`;
+    
+    // Use textContent to safely set title (prevents XSS)
+    const titleH2 = document.createElement('h2');
+    titleH2.textContent = `${ev.title} — Attendees`;
+    container.appendChild(titleH2);
+    
     const tbl = document.createElement('table');
     tbl.style.width = '100%';
     tbl.style.borderCollapse = 'collapse';
     const thead = document.createElement('thead');
-    thead.innerHTML = `<tr><th style="border:1px solid #ccc;padding:6px">Name</th><th style="border:1px solid #ccc;padding:6px">MemberLink</th><th style="border:1px solid #ccc;padding:6px">Role</th><th style="border:1px solid #ccc;padding:6px">CheckedIn</th></tr>`;
+    const headerRow = document.createElement('tr');
+    ['Name', 'MemberLink', 'Role', 'CheckedIn'].forEach(header => {
+      const th = document.createElement('th');
+      th.style.border = '1px solid #ccc';
+      th.style.padding = '6px';
+      th.textContent = header;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
     tbl.appendChild(thead);
+    
     const tbody = document.createElement('tbody');
     for (const a of ev.attendeesList ?? []) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td style="border:1px solid #ccc;padding:6px">${a.name}</td><td style="border:1px solid #ccc;padding:6px">${a.memberLink ?? ''}</td><td style="border:1px solid #ccc;padding:6px">${a.role ?? ''}</td><td style="border:1px solid #ccc;padding:6px">${a.checkedIn ? 'Yes' : 'No'}</td>`;
+      
+      // Use textContent instead of innerHTML to prevent XSS
+      const nameCell = document.createElement('td');
+      nameCell.style.border = '1px solid #ccc';
+      nameCell.style.padding = '6px';
+      nameCell.textContent = a.name;
+      tr.appendChild(nameCell);
+      
+      const memberLinkCell = document.createElement('td');
+      memberLinkCell.style.border = '1px solid #ccc';
+      memberLinkCell.style.padding = '6px';
+      memberLinkCell.textContent = a.memberLink ?? '';
+      tr.appendChild(memberLinkCell);
+      
+      const roleCell = document.createElement('td');
+      roleCell.style.border = '1px solid #ccc';
+      roleCell.style.padding = '6px';
+      roleCell.textContent = a.role ?? '';
+      tr.appendChild(roleCell);
+      
+      const checkedInCell = document.createElement('td');
+      checkedInCell.style.border = '1px solid #ccc';
+      checkedInCell.style.padding = '6px';
+      checkedInCell.textContent = a.checkedIn ? 'Yes' : 'No';
+      tr.appendChild(checkedInCell);
+      
       tbody.appendChild(tr);
     }
     tbl.appendChild(tbody);
