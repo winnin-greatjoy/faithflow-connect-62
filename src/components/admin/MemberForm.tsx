@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { Member, MembershipLevel, Gender, MaritalStatus } from '@/types/membership';
@@ -48,7 +49,18 @@ const memberSchema = z.object({
   spiritualMentor: z.string().optional(),
   assignedDepartment: z.string().optional(),
   prayerNeeds: z.string().optional(),
-  pastoralNotes: z.string().optional()
+  pastoralNotes: z.string().optional(),
+  createAccount: z.boolean().optional(),
+  username: z.string().optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters').optional()
+}).refine((data) => {
+  if (data.createAccount) {
+    return !!data.username && !!data.password;
+  }
+  return true;
+}, {
+  message: 'Username and password are required when creating an account',
+  path: ['createAccount']
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -102,7 +114,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
       spiritualMentor: member.spiritualMentor ?? '',
       assignedDepartment: member.assignedDepartment ?? '',
       prayerNeeds: member.prayerNeeds ?? '',
-      pastoralNotes: member.pastoralNotes ?? ''
+      pastoralNotes: member.pastoralNotes ?? '',
+      createAccount: false,
+      username: '',
+      password: ''
     } : {
       fullName: '',
       profilePhoto: '',
@@ -128,7 +143,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
       spiritualMentor: '',
       assignedDepartment: '',
       prayerNeeds: '',
-      pastoralNotes: ''
+      pastoralNotes: '',
+      createAccount: false,
+      username: '',
+      password: ''
     }
   });
 
@@ -448,6 +466,46 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
                 </FormItem>
               )} />
             </div>
+
+            {!member && (
+              <div className="border-t pt-6 mt-6">
+                <h3 className="font-medium mb-4">Account Creation (Optional)</h3>
+                
+                <FormField control={form.control} name="createAccount" render={({ field }) => (
+                  <FormItem className="flex items-center gap-2 space-y-0 mb-4">
+                    <FormControl>
+                      <input 
+                        type="checkbox" 
+                        checked={field.value} 
+                        onChange={field.onChange}
+                        className="h-4 w-4 rounded border-input"
+                      />
+                    </FormControl>
+                    <FormLabel className="!mt-0 cursor-pointer">Create login account for this member</FormLabel>
+                  </FormItem>
+                )} />
+
+                {form.watch('createAccount') && (
+                  <div className="space-y-3 pl-6">
+                    <FormField control={form.control} name="username" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl><Input {...field} placeholder="Enter username" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="password" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl><Input type="password" {...field} placeholder="Min 8 characters" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <Button variant="outline" type="button" onClick={onCancel}>Cancel</Button>

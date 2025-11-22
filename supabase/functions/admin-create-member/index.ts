@@ -69,12 +69,44 @@ serve(async (req: Request) => {
         }
         data.email = normalizedEmail;
       }
+
+      // Extract account creation fields
+      const { createAccount, username, password, ...memberData } = data;
+
+      // Create auth account if requested
+      let authUserId = null;
+      if (createAccount && username && password) {
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: memberData.email,
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            username: username,
+            full_name: memberData.full_name
+          }
+        });
+
+        if (authError) {
+          return new Response(JSON.stringify({ error: 'Failed to create account: ' + authError.message }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+
+        authUserId = authData.user.id;
+      }
+
+      // Insert member
       const { data: row, error } = await supabase
         .from('members')
-        .insert(data)
+        .insert(memberData)
         .select('id, full_name, email, phone, profile_photo, status, membership_level')
         .single();
-      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      if (error) {
+        // Rollback auth user if member creation failed
+        if (authUserId) {
+          await supabase.auth.admin.deleteUser(authUserId);
+        }
+        return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
+
       return new Response(JSON.stringify({ ok: true, data: row }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 

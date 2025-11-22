@@ -24,14 +24,21 @@ export const useMembers = (branchId?: string) => {
 
   const createMember = useMutation({
     mutationFn: async (memberData: any) => {
-      const { data, error } = await supabase
-        .from('members')
-        .insert([memberData])
-        .select()
-        .single();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { data, error } = await supabase.functions.invoke('admin-create-member', {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        },
+        body: {
+          action: 'insert',
+          data: memberData
+        }
+      });
 
       if (error) throw error;
-      return data;
+      if (data?.error) throw new Error(data.error);
+      return data?.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
