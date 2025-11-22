@@ -807,22 +807,23 @@ export const OptimizedMemberManagement: React.FC = () => {
             onCancel={() => setShowMemberForm(false)}
             onSubmit={async (data) => {
               try {
+                const { createAccount, username, password, ...memberData } = data;
                 const payload: any = {
-                  full_name: data.fullName,
-                  email: data.email,
-                  phone: data.phone,
-                  community: data.community,
-                  area: data.area,
-                  street: data.street,
-                  public_landmark: data.publicLandmark || null,
-                  branch_id: data.branchId,
-                  date_joined: data.joinDate,
-                  date_of_birth: data.dateOfBirth,
-                  gender: data.gender as any,
-                  marital_status: data.maritalStatus as any,
-                  membership_level: data.membershipLevel as any,
-                  baptized_sub_level: data.membershipLevel === 'baptized' ? (data.baptizedSubLevel as any) : null,
-                  leader_role: (data.leaderRole as any) || null,
+                  full_name: memberData.fullName,
+                  email: memberData.email,
+                  phone: memberData.phone,
+                  community: memberData.community,
+                  area: memberData.area,
+                  street: memberData.street,
+                  public_landmark: memberData.publicLandmark || null,
+                  branch_id: memberData.branchId,
+                  date_joined: memberData.joinDate,
+                  date_of_birth: memberData.dateOfBirth,
+                  gender: memberData.gender as any,
+                  marital_status: memberData.maritalStatus as any,
+                  membership_level: memberData.membershipLevel as any,
+                  baptized_sub_level: memberData.membershipLevel === 'baptized' ? (memberData.baptizedSubLevel as any) : null,
+                  leader_role: (memberData.leaderRole as any) || null,
                   status: 'active',
                 };
 
@@ -832,19 +833,49 @@ export const OptimizedMemberManagement: React.FC = () => {
                   const { error } = await supabase.from('members').update(payload).eq('id', dbId);
                   if (error) throw error;
                 } else {
-                  const { data: inserted, error } = await supabase.from('members').insert(payload).select('id').single();
-                  if (error) throw error;
-                  const memberId = inserted?.id as string;
-                  const children = (data.children ?? []) as any[];
-                  if (memberId && children.length) {
-                    const childRows = children.map(c => ({
-                      member_id: memberId,
-                      name: c.name,
-                      date_of_birth: c.dateOfBirth,
-                      gender: c.gender as any,
-                      notes: c.notes || null,
-                    }));
-                    await supabase.from('children').insert(childRows);
+                  // Use edge function for account creation if requested
+                  if (createAccount && username && password) {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const { data: result, error } = await supabase.functions.invoke('admin-create-member', {
+                      headers: {
+                        Authorization: `Bearer ${session?.access_token}`
+                      },
+                      body: {
+                        action: 'insert',
+                        data: { ...payload, createAccount, username, password }
+                      }
+                    });
+                    if (error) throw error;
+                    if (result?.error) throw new Error(result.error);
+                    
+                    const memberId = result?.data?.id;
+                    const children = (memberData.children ?? []) as any[];
+                    if (memberId && children.length) {
+                      const childRows = children.map(c => ({
+                        member_id: memberId,
+                        name: c.name,
+                        date_of_birth: c.dateOfBirth,
+                        gender: c.gender as any,
+                        notes: c.notes || null,
+                      }));
+                      await supabase.from('children').insert(childRows);
+                    }
+                  } else {
+                    // Regular member creation without account
+                    const { data: inserted, error } = await supabase.from('members').insert(payload).select('id').single();
+                    if (error) throw error;
+                    const memberId = inserted?.id as string;
+                    const children = (memberData.children ?? []) as any[];
+                    if (memberId && children.length) {
+                      const childRows = children.map(c => ({
+                        member_id: memberId,
+                        name: c.name,
+                        date_of_birth: c.dateOfBirth,
+                        gender: c.gender as any,
+                        notes: c.notes || null,
+                      }));
+                      await supabase.from('children').insert(childRows);
+                    }
                   }
                 }
 
