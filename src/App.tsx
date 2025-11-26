@@ -6,6 +6,7 @@ import { useAuth } from "./hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
+import { MemberProfilePage } from "./pages/admin/MemberProfilePage";
 import PortalDashboard from "./pages/portal/PortalDashboard";
 import { HomePage } from "./pages/portal/HomePage";
 import { ProfilePage } from "./pages/portal/profilepage/ProfilePage";
@@ -112,6 +113,14 @@ const App = () => (
           element={
             <ProtectedRoute>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/member/:memberId"
+          element={
+            <ProtectedRoute>
+              <MemberProfilePage />
             </ProtectedRoute>
           }
         />

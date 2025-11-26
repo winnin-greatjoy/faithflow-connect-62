@@ -1,5 +1,6 @@
 // src/components/admin/OptimizedMemberManagement.tsx
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +63,7 @@ const ITEMS_PER_PAGE = 10;
 const MEMBERSHIP_LEVELS: MembershipLevel[] = ['baptized', 'convert', 'visitor'];
 
 export const OptimizedMemberManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('workers');
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -471,6 +473,14 @@ export const OptimizedMemberManagement: React.FC = () => {
   const handleAddFirstTimer = () => { setEditingFirstTimer(null); setShowFirstTimerForm(true); };
   const handleEditMember = (m: Member) => { setEditingMember(m); setShowMemberForm(true); };
   const handleEditFirstTimer = (ft: FirstTimer) => { setEditingFirstTimer(ft); setShowFirstTimerForm(true); };
+  
+  const handleViewMember = (m: Member) => {
+    const dbId = memberMetaRef.current.get(m.id)?.dbId;
+    if (dbId) {
+      navigate(`/admin/member/${dbId}`);
+    }
+  };
+  
   const handleDeleteMember = async (id: number) => {
     const dbId = memberMetaRef.current.get(id)?.dbId;
     if (!dbId) { toast({ title: 'Delete failed', description: 'Unable to resolve member id.', variant: 'destructive' }); return; }
@@ -784,7 +794,7 @@ export const OptimizedMemberManagement: React.FC = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end space-x-1">
-                              <Button variant="ghost" size="icon" onClick={() => handleEditMember(member)}><Eye className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleViewMember(member)}><Eye className="h-4 w-4" /></Button>
                               <Button variant="ghost" size="icon" onClick={() => handleEditMember(member)}><Edit className="h-4 w-4" /></Button>
                               <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDeleteMember(member.id)}><Trash2 className="h-4 w-4" /></Button>
                             </div>
