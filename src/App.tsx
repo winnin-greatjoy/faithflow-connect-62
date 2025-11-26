@@ -117,6 +117,14 @@ const App = () => (
           }
         />
         <Route
+          path="/admin/transfers"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/member/:memberId"
           element={
             <ProtectedRoute>

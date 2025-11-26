@@ -18,6 +18,7 @@ import {
   User,
   Bell,
   LogOut,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -69,6 +70,7 @@ const secondaryItems: MenuItem[] = [
   { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
   { id: 'departments', label: 'Dept & Ministries', icon: Building },
   { id: 'join-requests', label: 'Join Requests', icon: UserCheck },
+  { id: 'transfers', label: 'Member Transfers', icon: ArrowRightLeft },
   { id: 'cms', label: 'Content Management', icon: FileText },
   { id: 'streaming', label: 'Streaming', icon: FileText },
   { id: 'reports', label: 'Reports', icon: FileBarChart },

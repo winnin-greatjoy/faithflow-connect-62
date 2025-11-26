@@ -775,6 +775,76 @@ export type Database = {
           },
         ]
       }
+      member_transfers: {
+        Row: {
+          created_at: string | null
+          from_branch_id: string
+          id: string
+          member_id: string
+          notes: string | null
+          processed_at: string | null
+          processed_by: string | null
+          reason: string
+          requested_at: string
+          requested_by: string
+          status: string
+          to_branch_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          from_branch_id: string
+          id?: string
+          member_id: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          reason: string
+          requested_at?: string
+          requested_by: string
+          status?: string
+          to_branch_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          from_branch_id?: string
+          id?: string
+          member_id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string
+          requested_at?: string
+          requested_by?: string
+          status?: string
+          to_branch_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_transfers_from_branch_id_fkey"
+            columns: ["from_branch_id"]
+            isOneToOne: false
+            referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_transfers_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_transfers_to_branch_id_fkey"
+            columns: ["to_branch_id"]
+            isOneToOne: false
+            referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           area: string
@@ -1489,6 +1559,10 @@ export type Database = {
         Args: { _r: Database["public"]["Enums"]["app_role"] }
         Returns: string
       }
+      approve_member_transfer: {
+        Args: { approver_id: string; transfer_id: string }
+        Returns: undefined
+      }
       create_user_with_profile: {
         Args: {
           branch_slug: string
@@ -1519,6 +1593,14 @@ export type Database = {
             Returns: boolean
           }
       is_user_baptized: { Args: never; Returns: boolean }
+      reject_member_transfer: {
+        Args: {
+          rejection_notes?: string
+          rejector_id: string
+          transfer_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
