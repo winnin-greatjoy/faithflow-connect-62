@@ -16,11 +16,13 @@ import {
   DollarSign,
   Clock,
   CheckCircle2,
-  XCircle
+  XCircle,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getMembershipLevelDisplay } from '@/utils/membershipUtils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MemberTransferDialog } from '@/components/admin/MemberTransferDialog';
 
 interface MemberData {
   id: string;
@@ -91,6 +93,7 @@ export const MemberProfilePage: React.FC = () => {
   const [rsvps, setRSVPs] = useState<RSVPRecord[]>([]);
   const [giving, setGiving] = useState<GivingRecord[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
 
   useEffect(() => {
     if (!memberId) return;
@@ -254,7 +257,7 @@ export const MemberProfilePage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-4">
         <Button 
           variant="ghost" 
           size="sm"
@@ -262,6 +265,14 @@ export const MemberProfilePage: React.FC = () => {
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Members
+        </Button>
+        
+        <Button 
+          variant="outline"
+          onClick={() => setShowTransferDialog(true)}
+        >
+          <ArrowRightLeft className="h-4 w-4 mr-2" />
+          Transfer Member
         </Button>
       </div>
 
@@ -515,6 +526,16 @@ export const MemberProfilePage: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Transfer Dialog */}
+      <MemberTransferDialog
+        open={showTransferDialog}
+        onOpenChange={setShowTransferDialog}
+        memberId={member.id}
+        memberName={member.full_name}
+        currentBranchId={member.branch_id}
+        onTransferRequested={loadMemberData}
+      />
     </div>
   );
 };

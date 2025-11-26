@@ -23,6 +23,7 @@ import { ProvisioningQueue } from '@/components/admin/ProvisioningQueue';
 import { JoinRequests } from '@/components/admin/JoinRequests';
 import { StreamingModule } from '@/components/admin/StreamingModule';
 import { ChoirDashboard, UsheringDashboard, PrayerTeamDashboard, EvangelismDashboard, FinanceDashboard, TechnicalDashboard } from '@/components/departments';
+import { TransferApprovalQueue } from '@/components/admin/TransferApprovalQueue';
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -44,6 +45,7 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/departments/6') || pathname.startsWith('/admin/departments/technical')) return 'technical';
     if (pathname.startsWith('/admin/departments')) return 'departments';
     if (pathname.startsWith('/admin/join-requests')) return 'join-requests';
+    if (pathname.startsWith('/admin/transfers')) return 'transfers';
     if (pathname.startsWith('/admin/members')) return 'members';
     if (pathname.startsWith('/admin/communication')) return 'communication';
     if (pathname.startsWith('/admin/finance')) return 'finance';
@@ -115,6 +117,8 @@ const AdminDashboard = () => {
         return can('admin', 'view') ? <DepartmentsModule /> : denied;
       case 'join-requests':
         return can('admin', 'view') ? <JoinRequests /> : denied;
+      case 'transfers':
+        return can('admin', 'view') ? <TransferApprovalQueue /> : denied;
       case 'cms':
         return <CMSDashboard />;
       case 'reports':
