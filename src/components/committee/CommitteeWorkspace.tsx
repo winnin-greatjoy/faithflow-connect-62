@@ -3,19 +3,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Home, 
-  CheckSquare, 
-  Calendar, 
-  FileText, 
-  DollarSign, 
-  Megaphone, 
+import {
+  Home,
+  CheckSquare,
+  Calendar,
+  FileText,
+  DollarSign,
+  Megaphone,
   MessageSquare,
   BarChart3,
   Users,
   Clock,
   AlertTriangle,
-  TrendingUp
+  TrendingUp,
 } from 'lucide-react';
 import { CommitteeTaskBoard } from './CommitteeTaskBoard';
 import { CommitteeMeetings } from './CommitteeMeetings';
@@ -29,7 +29,21 @@ interface CommitteeWorkspaceProps {
   userRole: 'head' | 'secretary' | 'treasurer' | 'member' | 'observer';
 }
 
-export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: CommitteeWorkspaceProps) => {
+type TaskRow = { id: string; status?: string | null; due_date?: string | null };
+type CommitteeRow = { ministry_id?: string | null };
+type CommitteeMemberRow = { member_id?: string | null };
+type FinanceRecord = {
+  amount?: number | null;
+  type?: string | null;
+  transaction_date?: string | null;
+  member_id?: string | null;
+};
+
+export const CommitteeWorkspace = ({
+  committeeId,
+  committeeName,
+  userRole,
+}: CommitteeWorkspaceProps) => {
   const [activeTab, setActiveTab] = useState('home');
   const [stats, setStats] = useState({
     totalTasks: 0,
@@ -45,63 +59,93 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
   useEffect(() => {
     (async () => {
       const cid = String(committeeId);
-      const { data: tasks } = await (supabase as any)
+      const { data: tasks } = await supabase
         .from('committee_tasks')
         .select('id, status, due_date')
         .eq('committee_id', cid);
-      const totalTasks = (tasks || []).length;
-      const completedTasks = (tasks || []).filter((t: any) => t.status === 'done').length;
-      const pendingTasks = (tasks || []).filter((t: any) => t.status !== 'done').length;
+      const tasksData = (tasks || []) as TaskRow[];
+      const totalTasks = tasksData.length;
+      const completedTasks = tasksData.filter((t) => t.status === 'done').length;
+      const pendingTasks = tasksData.filter((t) => t.status !== 'done').length;
       const today = new Date().toISOString().slice(0, 10);
-      const overdueTasks = (tasks || []).filter((t: any) => t.status !== 'done' && t.due_date && t.due_date < today).length;
+      const overdueTasks = tasksData.filter(
+        (t) => t.status !== 'done' && t.due_date && t.due_date < today
+      ).length;
 
-      const { data: committeeRow } = await (supabase as any)
+      const { data: committeeRow } = await supabase
         .from('committees')
         .select('ministry_id')
         .eq('id', cid)
         .single();
+      const committeeData = committeeRow as CommitteeRow | null;
       let upcomingMeetings = 0;
-      if (committeeRow?.ministry_id) {
-        const { data: ev } = await (supabase as any)
+      if (committeeData?.ministry_id) {
+        const { data: ev } = await supabase
           .from('ministry_events')
           .select('id, event_date')
-          .eq('ministry_id', committeeRow.ministry_id)
+          .eq('ministry_id', committeeData.ministry_id)
           .gte('event_date', today);
-        upcomingMeetings = (ev || []).length;
+        const evData = (ev || []) as { id: string; event_date?: string }[];
+        upcomingMeetings = evData.length;
       }
 
-      const { data: cm } = await (supabase as any)
+      const { data: cm } = await supabase
         .from('committee_members')
         .select('member_id')
         .eq('committee_id', cid);
-      const memberIds = (cm || []).map((r: any) => r.member_id).filter(Boolean);
+      const cmData = (cm || []) as CommitteeMemberRow[];
+      const memberIds = cmData.map((r) => r.member_id).filter(Boolean) as string[];
       let monthlyBudget = 0;
       let spent = 0;
       if (memberIds.length > 0) {
         const now = new Date();
-        const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
-        const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
-        const { data: fr } = await (supabase as any)
+        const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+          .toISOString()
+          .slice(0, 10);
+        const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
+          .toISOString()
+          .slice(0, 10);
+        const { data: fr } = await supabase
           .from('finance_records')
           .select('amount, type, transaction_date, member_id')
           .in('member_id', memberIds)
           .gte('transaction_date', start)
           .lt('transaction_date', nextMonth);
-        monthlyBudget = (fr || []).filter((r: any) => r.type === 'income').reduce((s: number, r: any) => s + (r.amount || 0), 0);
-        spent = (fr || []).filter((r: any) => r.type === 'expense').reduce((s: number, r: any) => s + (r.amount || 0), 0);
+        const frData = (fr || []) as FinanceRecord[];
+        monthlyBudget = frData
+          .filter((r) => r.type === 'income')
+          .reduce((s: number, r) => s + (r.amount || 0), 0);
+        spent = frData
+          .filter((r) => r.type === 'expense')
+          .reduce((s: number, r) => s + (r.amount || 0), 0);
       }
 
-      setStats({ totalTasks, pendingTasks, overdueTasks, upcomingMeetings, monthlyBudget, spent, publications: 0, completedTasks });
+      setStats({
+        totalTasks,
+        pendingTasks,
+        overdueTasks,
+        upcomingMeetings,
+        monthlyBudget,
+        spent,
+        publications: 0,
+        completedTasks,
+      });
     })();
   }, [committeeId]);
 
   const getPermissionLevel = (role: string) => {
     switch (role) {
-      case 'head': return 'full';
-      case 'secretary': case 'treasurer': return 'manage';
-      case 'member': return 'edit';
-      case 'observer': return 'read';
-      default: return 'read';
+      case 'head':
+        return 'full';
+      case 'secretary':
+      case 'treasurer':
+        return 'manage';
+      case 'member':
+        return 'edit';
+      case 'observer':
+        return 'read';
+      default:
+        return 'read';
     }
   };
 
@@ -316,7 +360,9 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
                   <div className="flex items-start space-x-3">
                     <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
                     <div>
-                      <p className="text-sm">Task "Prepare Monthly Report" completed by David Clark</p>
+                      <p className="text-sm">
+                        Task "Prepare Monthly Report" completed by David Clark
+                      </p>
                       <p className="text-xs text-gray-500">2 hours ago</p>
                     </div>
                   </div>
@@ -341,35 +387,25 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
         </TabsContent>
 
         <TabsContent value="tasks">
-      <CommitteeTaskBoard 
-        committeeId={committeeId} 
-            userRole={userRole}
-            canEdit={canEdit}
-          />
+          <CommitteeTaskBoard committeeId={committeeId} userRole={userRole} canEdit={canEdit} />
         </TabsContent>
 
         <TabsContent value="meetings">
-          <CommitteeMeetings 
-            committeeId={committeeId}
-            userRole={userRole}
-            canManage={canManage}
-          />
+          <CommitteeMeetings committeeId={committeeId} userRole={userRole} canManage={canManage} />
         </TabsContent>
 
         <TabsContent value="documents">
           <div className="text-center py-8">
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Documents Module</h3>
-            <p className="mt-1 text-sm text-gray-500">Coming soon - File management and templates</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Coming soon - File management and templates
+            </p>
           </div>
         </TabsContent>
 
         <TabsContent value="finance">
-          <CommitteeFinance 
-            committeeId={committeeId}
-            userRole={userRole}
-            canManage={canManage}
-          />
+          <CommitteeFinance committeeId={committeeId} userRole={userRole} canManage={canManage} />
         </TabsContent>
 
         <TabsContent value="publications">
@@ -383,11 +419,7 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
                 </Button>
               )}
             </div>
-            <ContentList 
-              onEdit={() => {}}
-              onView={() => {}}
-              onDelete={() => {}}
-            />
+            <ContentList onEdit={() => {}} onView={() => {}} onDelete={() => {}} />
           </div>
         </TabsContent>
 
@@ -403,7 +435,9 @@ export const CommitteeWorkspace = ({ committeeId, committeeName, userRole }: Com
           <div className="text-center py-8">
             <BarChart3 className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Reports Module</h3>
-            <p className="mt-1 text-sm text-gray-500">Coming soon - Analytics and downloadable reports</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Coming soon - Analytics and downloadable reports
+            </p>
           </div>
         </TabsContent>
       </Tabs>

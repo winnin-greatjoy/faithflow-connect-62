@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+.git
+.supabase
+*.lock
+package-lock.json
+bun.lockb
+*.log
+coverage
+.env
+*.sql

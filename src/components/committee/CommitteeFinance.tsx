@@ -1,20 +1,19 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Plus, 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
+import {
+  Plus,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
   Download,
-  Receipt
+  Receipt,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -30,13 +29,16 @@ export const CommitteeFinance = ({ committeeId, userRole, canManage }: Committee
   useEffect(() => {
     (async () => {
       const cid = String(committeeId);
-      const { data: cm } = await (supabase as any)
+      const { data: cm } = await supabase
         .from('committee_members')
         .select('member_id')
         .eq('committee_id', cid);
       const memberIds = (cm || []).map((r: any) => r.member_id).filter(Boolean);
-      if (memberIds.length === 0) { setRecords([]); return; }
-      const { data } = await (supabase as any)
+      if (memberIds.length === 0) {
+        setRecords([]);
+        return;
+      }
+      const { data } = await supabase
         .from('finance_records')
         .select('id, amount, category, description, transaction_date, type, member_id')
         .in('member_id', memberIds)
@@ -46,8 +48,12 @@ export const CommitteeFinance = ({ committeeId, userRole, canManage }: Committee
   }, [committeeId]);
 
   // Calculate financial summary based on finance_records
-  const totalIncome = records.filter(r => r.type === 'income').reduce((sum, r) => sum + (r.amount || 0), 0);
-  const totalExpenses = records.filter(r => r.type === 'expense').reduce((sum, r) => sum + (r.amount || 0), 0);
+  const totalIncome = records
+    .filter((r) => r.type === 'income')
+    .reduce((sum, r) => sum + (r.amount || 0), 0);
+  const totalExpenses = records
+    .filter((r) => r.type === 'expense')
+    .reduce((sum, r) => sum + (r.amount || 0), 0);
   const pendingExpenses = 0; // No status field in finance_records; adjust when workflow added
   const netBalance = totalIncome - totalExpenses;
 
@@ -115,10 +121,14 @@ export const CommitteeFinance = ({ committeeId, userRole, canManage }: Committee
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <DollarSign className={`h-4 w-4 ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+              <DollarSign
+                className={`h-4 w-4 ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}
+              />
               <div>
                 <p className="text-sm text-gray-600">Net Balance</p>
-                <p className={`text-xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p
+                  className={`text-xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                >
                   £{netBalance.toFixed(2)}
                 </p>
               </div>
@@ -148,58 +158,66 @@ export const CommitteeFinance = ({ committeeId, userRole, canManage }: Committee
           </div>
 
           <div className="space-y-4">
-            {records.filter(r => r.type === 'expense').map((expense) => (
-              <Card key={expense.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium">{expense.description || 'Expense'}</h4>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-lg font-bold">£{(expense.amount || 0).toFixed(2)}</span>
-                          {getCategoryBadge(expense.category)}
+            {records
+              .filter((r) => r.type === 'expense')
+              .map((expense) => (
+                <Card key={expense.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium">{expense.description || 'Expense'}</h4>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-lg font-bold">
+                              £{(expense.amount || 0).toFixed(2)}
+                            </span>
+                            {getCategoryBadge(expense.category)}
+                          </div>
                         </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                          <div>
+                            <span className="font-medium">Category:</span>
+                            <p>{expense.category || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Type:</span>
+                            <p>{expense.type}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Date:</span>
+                            <p>
+                              {expense.transaction_date
+                                ? new Date(expense.transaction_date).toLocaleDateString()
+                                : '-'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {expense.notes && (
+                          <p className="text-sm text-gray-600 mt-2">{expense.notes}</p>
+                        )}
                       </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Category:</span>
-                          <p>{expense.category || '-'}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium">Type:</span>
-                          <p>{expense.type}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium">Date:</span>
-                          <p>{expense.transaction_date ? new Date(expense.transaction_date).toLocaleDateString() : '-'}</p>
-                        </div>
-                      </div>
-                      
-                      {expense.notes && (
-                        <p className="text-sm text-gray-600 mt-2">{expense.notes}</p>
-                      )}
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex space-x-2">
-                      {expense.receiptUrl && (
+
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex space-x-2">
+                        {expense.receiptUrl && (
+                          <Button variant="outline" size="sm">
+                            <Receipt className="mr-1 h-3 w-3" />
+                            View Receipt
+                          </Button>
+                        )}
                         <Button variant="outline" size="sm">
-                          <Receipt className="mr-1 h-3 w-3" />
-                          View Receipt
+                          View Details
                         </Button>
-                      )}
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
+                      </div>
+
+                      {/* Workflow actions pending schema support */}
                     </div>
-                    
-                    {/* Workflow actions pending schema support */}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))}
           </div>
         </TabsContent>
 
@@ -217,9 +235,7 @@ export const CommitteeFinance = ({ committeeId, userRole, canManage }: Committee
           <div className="text-center py-8">
             <DollarSign className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Pledge Management</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Manage pledge campaigns and track payments
-            </p>
+            <p className="mt-1 text-sm text-gray-500">Manage pledge campaigns and track payments</p>
           </div>
         </TabsContent>
 
@@ -227,9 +243,7 @@ export const CommitteeFinance = ({ committeeId, userRole, canManage }: Committee
           <div className="text-center py-8">
             <Download className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Financial Reports</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Generate and download financial reports
-            </p>
+            <p className="mt-1 text-sm text-gray-500">Generate and download financial reports</p>
           </div>
         </TabsContent>
       </Tabs>

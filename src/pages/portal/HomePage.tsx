@@ -6,12 +6,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthz } from '@/hooks/useAuthz';
 import { Users, Calendar, BookOpen, User, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
+
+type Event = Database['public']['Tables']['events']['Row'];
 
 export const HomePage: React.FC = () => {
   const { user } = useAuth();
   const { roles } = useAuthz();
 
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [rsvpCount, setRsvpCount] = useState<number | null>(null);
   const [notificationsCount, setNotificationsCount] = useState<number | null>(null);
@@ -54,11 +57,11 @@ export const HomePage: React.FC = () => {
 
         // Try to count upcoming RSVPs by joining event_rsvps -> events
         try {
-          const res: any = await (supabase as any)
+          const res = await supabase
             .from('event_rsvps')
-            .select('id,event(event_date)', { count: 'exact', head: false })
-            .eq('user_id', user.id)
-            .gte('event.event_date', start);
+            .select('id,events(event_date)', { count: 'exact', head: false })
+            .eq('member_id', user.id)
+            .gte('events.event_date', start);
 
           const { count, error } = res || {};
 
@@ -68,10 +71,10 @@ export const HomePage: React.FC = () => {
         } catch (e) {
           // fallback: count rsvps without filtering by date
           try {
-            const res2: any = await (supabase as any)
+            const res2 = await supabase
               .from('event_rsvps')
               .select('id', { count: 'exact', head: false })
-              .eq('user_id', user.id);
+              .eq('member_id', user.id);
             setRsvpCount(res2.count ?? 0);
           } catch {
             setRsvpCount(null);
@@ -79,21 +82,24 @@ export const HomePage: React.FC = () => {
         }
 
         // Notifications - count unread
-        try {
-          const res3: any = await (supabase as any)
-            .from('notifications')
-            .select('id', { count: 'exact', head: false })
-            .eq('recipient_id', user.id)
-            .eq('read', false);
-
-          if (!res3.error) {
-            setNotificationsCount(res3.count ?? 0);
-          } else {
-            setNotificationsCount(null);
-          }
-        } catch (e) {
-          setNotificationsCount(null);
-        }
+        // TODO: Notifications table doesn't exist in the database schema yet
+        // Uncomment this when the notifications table is added
+        // try {
+        //   const res3 = await supabase
+        //     .from('notifications')
+        //     .select('id', { count: 'exact', head: false })
+        //     .eq('recipient_id', user.id)
+        //     .eq('read', false);
+        //
+        //   if (!res3.error) {
+        //     setNotificationsCount(res3.count ?? 0);
+        //   } else {
+        //     setNotificationsCount(null);
+        //   }
+        // } catch (e) {
+        //   setNotificationsCount(null);
+        // }
+        setNotificationsCount(null); // Temporary: Set to null until notifications table is added
       } catch (e) {
         console.error(e);
         if (mounted) {
@@ -111,8 +117,13 @@ export const HomePage: React.FC = () => {
   return (
     <div className="mx-auto space-y-4 sm:space-y-6">
       <div className="px-2 sm:px-0">
-        <h1 className="text-2xl sm:text-3xl font-bold">Hello {user?.user_metadata?.firstName || 'Friend'},</h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">We are very excited you got here, looking forward to meeting you and your family very soon!</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">
+          Hello {user?.user_metadata?.firstName || 'Friend'},
+        </h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">
+          We are very excited you got here, looking forward to meeting you and your family very
+          soon!
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -133,8 +144,12 @@ export const HomePage: React.FC = () => {
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">{rsvpCount === null ? '—' : rsvpCount}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Events with your RSVP</p>
+            <div className="text-xl sm:text-2xl font-bold">
+              {rsvpCount === null ? '—' : rsvpCount}
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+              Events with your RSVP
+            </p>
           </CardContent>
         </Card>
 
@@ -144,7 +159,9 @@ export const HomePage: React.FC = () => {
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">{notificationsCount === null ? '—' : notificationsCount}</div>
+            <div className="text-xl sm:text-2xl font-bold">
+              {notificationsCount === null ? '—' : notificationsCount}
+            </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Unread alerts</p>
           </CardContent>
         </Card>
@@ -156,26 +173,37 @@ export const HomePage: React.FC = () => {
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">—</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Active assignments</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+              Active assignments
+            </p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
         <Link to="/portal/profile">
-          <Button variant="outline" className="w-full h-16 sm:h-20 md:h-24 flex flex-col items-center justify-center gap-1 sm:gap-2 p-2">
+          <Button
+            variant="outline"
+            className="w-full h-16 sm:h-20 md:h-24 flex flex-col items-center justify-center gap-1 sm:gap-2 p-2"
+          >
             <User className="h-5 w-5 sm:h-6 sm:w-6" />
             <span className="text-xs sm:text-sm">My Profile</span>
           </Button>
         </Link>
         <Link to="/portal/departments">
-          <Button variant="outline" className="w-full h-16 sm:h-20 md:h-24 flex flex-col items-center justify-center gap-1 sm:gap-2 p-2">
+          <Button
+            variant="outline"
+            className="w-full h-16 sm:h-20 md:h-24 flex flex-col items-center justify-center gap-1 sm:gap-2 p-2"
+          >
             <BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
             <span className="text-xs sm:text-sm">Departments</span>
           </Button>
         </Link>
         <Link to="/portal/events">
-          <Button variant="outline" className="w-full h-16 sm:h-20 md:h-24 flex flex-col items-center justify-center gap-1 sm:gap-2 p-2">
+          <Button
+            variant="outline"
+            className="w-full h-16 sm:h-20 md:h-24 flex flex-col items-center justify-center gap-1 sm:gap-2 p-2"
+          >
             <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
             <span className="text-xs sm:text-sm">Events</span>
           </Button>
@@ -201,14 +229,26 @@ export const HomePage: React.FC = () => {
               <div className="text-sm text-gray-500">No upcoming events in the next 30 days</div>
             ) : (
               events.map((ev) => {
-                const title = ev.title || ev.name || 'Event';
-                const dateStr = ev.event_date ? new Date(ev.event_date).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : '';
-                const timeStr = ev.start_time ? `${ev.start_time}${ev.end_time ? ' To ' + ev.end_time : ''}` : '';
-                const key = ev.id || ev.event_id || title + dateStr;
+                const title = ev.title;
+                const dateStr = ev.event_date
+                  ? new Date(ev.event_date).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : '';
+                const timeStr = ev.start_time
+                  ? `${ev.start_time}${ev.end_time ? ' To ' + ev.end_time : ''}`
+                  : '';
+                const key = ev.id + dateStr;
                 return (
                   <div key={key}>
                     <div className="text-sm font-medium text-blue-600">{title}</div>
-                    <div className="text-xs text-gray-600">{dateStr}{timeStr ? ` | ${timeStr}` : ''}</div>
+                    <div className="text-xs text-gray-600">
+                      {dateStr}
+                      {timeStr ? ` | ${timeStr}` : ''}
+                    </div>
                   </div>
                 );
               })
@@ -220,7 +260,9 @@ export const HomePage: React.FC = () => {
         <Card className="overflow-hidden">
           <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4">
             <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Your latest interactions and updates</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
+              Your latest interactions and updates
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-gray-100">
@@ -244,10 +286,16 @@ export const HomePage: React.FC = () => {
                         <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-tight">Department Assignment Approved</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">You've been added to Choir Department</p>
+                        <p className="text-sm font-medium leading-tight">
+                          Department Assignment Approved
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          You've been added to Choir Department
+                        </p>
                       </div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap ml-2">2 days ago</div>
+                      <div className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap ml-2">
+                        2 days ago
+                      </div>
                     </div>
                   </div>
                   <div className="p-3 sm:p-4 hover:bg-muted/50 transition-colors">
@@ -257,9 +305,13 @@ export const HomePage: React.FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium leading-tight">Event RSVP Confirmed</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Youth Rally - March 15th</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Youth Rally - March 15th
+                        </p>
                       </div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap ml-2">5 days ago</div>
+                      <div className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap ml-2">
+                        5 days ago
+                      </div>
                     </div>
                   </div>
                 </>

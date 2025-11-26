@@ -9,11 +9,13 @@ type ModulePermission = {
   role?: AppRole;
   scope_type: 'global' | 'branch' | 'department' | 'ministry';
   allowed_actions?: PermissionAction[]; // v1
-  actions?: PermissionAction[];         // v2
-  coverage_type?: 'global' | 'department' | 'ministry';
+  actions?: PermissionAction[]; // v2
+  coverage_type?: 'global' | 'department' | 'ministry' | 'committee' | 'task';
   branch_id: string | null;
   department_id?: string | null;
   ministry_id?: string | null;
+  committee_id?: string | null;
+  task_id?: string | null;
   role_id?: string | null;
   module: { slug: string } | null;
 };
@@ -36,6 +38,7 @@ export function useAuthz(): UseAuthzResult {
   const [dynRoleIds, setDynRoleIds] = useState<string[]>([]);
   const [deptIds, setDeptIds] = useState<string[]>([]);
   const [ministryIds, setMinistryIds] = useState<string[]>([]);
+  const [committeeIds, setCommitteeIds] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -52,11 +55,22 @@ export function useAuthz(): UseAuthzResult {
         return;
       }
 
-      const { data: profile } = await supabase.from('profiles').select('branch_id, role').eq('id', uid).maybeSingle();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('branch_id, role')
+        .eq('id', uid)
+        .maybeSingle();
       const { data: userRoles } = await supabase
         .from('user_roles')
         .select('role, role_id, branch_id, department_id, ministry_id')
         .eq('user_id', uid);
+
+      // Fetch committee memberships
+      const { data: committeeMembers } = await supabase
+        .from('committee_members')
+        .select('committee_id')
+        .eq('member_id', uid); // Assuming member_id maps to user_id or profile id. If member_id is profile id, we might need to fetch profile first.
+      // In FaithFlow, usually member_id is the profile ID, and profile ID is same as user ID (uuid).
 
       // Fetch v2 permissions for current user role_ids
       const dynIds = ((userRoles as any[]) || [])
@@ -66,15 +80,19 @@ export function useAuthz(): UseAuthzResult {
       if (dynIds.length > 0) {
         const { data: rp } = await supabase
           .from('role_permissions')
-          .select('role_id, actions, scope_type, branch_id, coverage_type, department_id, ministry_id, module:modules(slug)')
+          .select(
+            'role_id, actions, scope_type, branch_id, coverage_type, department_id, ministry_id, committee_id, task_id, module:modules(slug)'
+          )
           .in('role_id', dynIds);
         v2Perms = (rp as any[]) || [];
       }
       // Load v1 permissions as fallback (legacy)
       const { data: v1 } = await supabase
         .from('module_role_permissions')
-        .select('role, role_id, scope_type, branch_id, department_id, ministry_id, allowed_actions, module:modules(slug)');
-      const dbPerms = v2Perms.length > 0 ? v2Perms : ((v1 as any[]) || []);
+        .select(
+          'role, role_id, scope_type, branch_id, department_id, ministry_id, allowed_actions, module:modules(slug)'
+        );
+      const dbPerms = v2Perms.length > 0 ? v2Perms : (v1 as any[]) || [];
 
       if (!active) return;
 
@@ -100,6 +118,12 @@ export function useAuthz(): UseAuthzResult {
         .map((r: any) => r.ministry_id)
         .filter((id: any) => typeof id === 'string');
       setMinistryIds(mIds);
+
+      const cIds = ((committeeMembers as any[]) || [])
+        .map((r: any) => r.committee_id)
+        .filter((id: any) => typeof id === 'string');
+      setCommitteeIds(cIds);
+
       setLoading(false);
     })();
     return () => {
@@ -107,7 +131,7 @@ export function useAuthz(): UseAuthzResult {
     };
   }, []);
 
-  const hasRole = (...check: AppRole[]) => check.some(r => roles.includes(r));
+  const hasRole = (...check: AppRole[]) => check.some((r) => roles.includes(r));
 
   const can = (moduleSlug: string, action: PermissionAction = 'view') => {
     if (!userId) return false;
@@ -115,25 +139,32 @@ export function useAuthz(): UseAuthzResult {
     // Admin shortcut
     if (hasRole('super_admin', 'admin')) return true;
 
-    const relevant = perms.filter(p => p.module?.slug === moduleSlug);
+    const relevant = perms.filter((p) => p.module?.slug === moduleSlug);
     if (relevant.length > 0) {
       const scopeMatch = (p: ModulePermission) => {
         // v2: scope_type is only global/branch
         if (p.scope_type === 'global') return true;
-        if (p.scope_type === 'branch') return Boolean(p.branch_id && branchId && p.branch_id === branchId);
+        if (p.scope_type === 'branch')
+          return Boolean(p.branch_id && branchId && p.branch_id === branchId);
         // v1 legacy support had department/ministry in scope_type
         if ((p as any).coverage_type == null) {
-          if (p.scope_type === 'department') return Boolean(p.department_id && deptIds.includes(p.department_id));
-          if (p.scope_type === 'ministry') return Boolean(p.ministry_id && ministryIds.includes(p.ministry_id));
+          if (p.scope_type === 'department')
+            return Boolean(p.department_id && deptIds.includes(p.department_id));
+          if (p.scope_type === 'ministry')
+            return Boolean(p.ministry_id && ministryIds.includes(p.ministry_id));
         }
         return false;
       };
       const coverageMatch = (p: ModulePermission) => {
-        // v2 coverage: global/department/ministry
+        // v2 coverage: global/department/ministry/committee
         const cov = p.coverage_type;
         if (!cov || cov === 'global') return true;
-        if (cov === 'department') return Boolean(p.department_id && deptIds.includes(p.department_id));
-        if (cov === 'ministry') return Boolean(p.ministry_id && ministryIds.includes(p.ministry_id));
+        if (cov === 'department')
+          return Boolean(p.department_id && deptIds.includes(p.department_id));
+        if (cov === 'ministry')
+          return Boolean(p.ministry_id && ministryIds.includes(p.ministry_id));
+        if (cov === 'committee')
+          return Boolean(p.committee_id && committeeIds.includes(p.committee_id));
         return false;
       };
       const actionMatch = (p: ModulePermission) => {
@@ -141,8 +172,18 @@ export function useAuthz(): UseAuthzResult {
         return Boolean(acts.includes(action) || acts.includes('manage'));
       };
 
-      const allowedByDynamic = relevant.some(p => p.role_id && dynRoleIds.includes(p.role_id) && scopeMatch(p) && coverageMatch(p) && actionMatch(p));
-      const allowedByEnum = relevant.some(p => p.role && roles.includes(p.role) && scopeMatch(p) && coverageMatch(p) && actionMatch(p));
+      const allowedByDynamic = relevant.some((p) => {
+        const r = p.role_id && dynRoleIds.includes(p.role_id);
+        const s = scopeMatch(p);
+        const c = coverageMatch(p);
+        const a = actionMatch(p);
+        // console.log('Check:', { p, r, s, c, a, dynRoleIds, deptIds, committeeIds });
+        return r && s && c && a;
+      });
+      const allowedByEnum = relevant.some(
+        (p) =>
+          p.role && roles.includes(p.role) && scopeMatch(p) && coverageMatch(p) && actionMatch(p)
+      );
       if (allowedByDynamic || allowedByEnum) return true;
     }
 
@@ -167,6 +208,6 @@ export function useAuthz(): UseAuthzResult {
 
   return useMemo(
     () => ({ loading, userId, branchId, roles, hasRole, can }),
-    [loading, userId, branchId, roles]
+    [loading, userId, branchId, roles, perms, dynRoleIds, deptIds, ministryIds, committeeIds]
   );
 }

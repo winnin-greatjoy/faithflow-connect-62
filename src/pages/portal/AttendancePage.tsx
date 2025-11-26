@@ -17,7 +17,7 @@ export const AttendancePage: React.FC = () => {
       const s = start ?? startDate;
       const e = end ?? endDate;
       // query events in date range (best-effort fields)
-      const res: any = await (supabase as any)
+      const res = await supabase
         .from('events')
         .select('*')
         .gte('event_date', s)
@@ -99,14 +99,16 @@ export const AttendancePage: React.FC = () => {
             />
           </div>
 
-          <Button onClick={handleFilter} className="h-9">Filter</Button>
+          <Button onClick={handleFilter} className="h-9">
+            Filter
+          </Button>
         </div>
       </div>
 
       <div className="space-y-3">
         {loading ? (
           <div className="space-y-2">
-            {[1,2,3].map(i => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />
             ))}
           </div>
@@ -114,38 +116,42 @@ export const AttendancePage: React.FC = () => {
           <Card>
             <CardContent>No events found for the selected range.</CardContent>
           </Card>
-        ) : (
-          viewMode === 'list' ? (
-            events.map((ev: any) => (
-              <Card key={ev.id || ev.event_id || ev.title} className="rounded-lg">
-                <CardContent className="py-4 px-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="text-sm font-semibold">{fmtDateTime(ev)}</div>
-                      <div className="text-xs text-gray-600 mt-1 flex items-center gap-2">
-                        <span>{ev.department || ev.group || ev.tag || 'Department'}</span>
-                        <span className="text-green-600">➜ {ev.start_time || '12:00 AM'}</span>
-                      </div>
-                      <div className="text-sm mt-1">{ev.location || ev.venue || 'The Anchor Stone'}</div>
+        ) : viewMode === 'list' ? (
+          events.map((ev: any) => (
+            <Card key={ev.id || ev.event_id || ev.title} className="rounded-lg">
+              <CardContent className="py-4 px-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">{fmtDateTime(ev)}</div>
+                    <div className="text-xs text-gray-600 mt-1 flex items-center gap-2">
+                      <span>{ev.department || ev.group || ev.tag || 'Department'}</span>
+                      <span className="text-green-600">➜ {ev.start_time || '12:00 AM'}</span>
                     </div>
+                    <div className="text-sm mt-1">
+                      {ev.location || ev.venue || 'The Anchor Stone'}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {events.map((ev: any) => (
+              <Card key={ev.id || ev.event_id || ev.title} className="rounded-lg">
+                <CardContent className="p-4">
+                  <div className="text-sm font-semibold mb-1">{fmtDateTime(ev)}</div>
+                  <div className="text-xs text-gray-600 mb-2">
+                    {ev.department || ev.group || ev.tag || 'Department'}
+                  </div>
+                  <div className="text-sm font-medium">{ev.title || ev.name}</div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    {ev.location || ev.venue || 'The Anchor Stone'}
                   </div>
                 </CardContent>
               </Card>
-            ))
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {events.map((ev: any) => (
-                <Card key={ev.id || ev.event_id || ev.title} className="rounded-lg">
-                  <CardContent className="p-4">
-                    <div className="text-sm font-semibold mb-1">{fmtDateTime(ev)}</div>
-                    <div className="text-xs text-gray-600 mb-2">{ev.department || ev.group || ev.tag || 'Department'}</div>
-                    <div className="text-sm font-medium">{ev.title || ev.name}</div>
-                    <div className="text-xs text-muted-foreground mt-2">{ev.location || ev.venue || 'The Anchor Stone'}</div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )
+            ))}
+          </div>
         )}
       </div>
     </div>
