@@ -1,11 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { BaseApiService } from '@/utils/api';
-import type {
-  ApiResult,
-  ListRequest,
-  DepartmentMember,
-  DepartmentStats,
-} from '@/types/api';
+import type { ApiResult, ListRequest, DepartmentMember, DepartmentStats } from '@/types/api';
 
 // Finance API Service
 export class FinanceApiService extends BaseApiService {
@@ -19,7 +14,8 @@ export class FinanceApiService extends BaseApiService {
       // Get members assigned to finance department using existing tables
       let query = supabase
         .from('department_assignments')
-        .select(`
+        .select(
+          `
           *,
           member:members!department_assignments_member_id_fkey(
             id,
@@ -30,7 +26,8 @@ export class FinanceApiService extends BaseApiService {
             status,
             assigned_department
           )
-        `)
+        `
+        )
         .eq('status', 'approved'); // Only get approved assignments
 
       // Apply filters
@@ -38,11 +35,14 @@ export class FinanceApiService extends BaseApiService {
         // Note: Search filtering on joined tables is complex in PostgREST
         // For now, we'll filter after the query
         const searchTerm = request.filters.search.toLowerCase();
-        query = query; // Keep the base query
+        // query = query; // Keep the base query
       }
 
       if (request?.filters?.status) {
-        query = (query as any).eq('status', request.filters.status as 'pending' | 'approved' | 'rejected');
+        query = (query as any).eq(
+          'status',
+          request.filters.status as 'pending' | 'approved' | 'rejected'
+        );
       }
 
       // Apply sorting - avoid sorting on joined table fields
@@ -70,21 +70,22 @@ export class FinanceApiService extends BaseApiService {
       }
 
       // Filter results to only include members assigned to finance department
-      let filteredData = (data || []).filter(assignment =>
-        assignment.member?.assigned_department === 'finance'
+      let filteredData = (data || []).filter(
+        (assignment) => assignment.member?.assigned_department === 'finance'
       );
 
       // Apply search filtering on client side
       if (request?.filters?.search) {
         const searchTerm = request.filters.search.toLowerCase();
-        filteredData = filteredData.filter(assignment =>
-          assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
-          assignment.member?.email?.toLowerCase().includes(searchTerm)
+        filteredData = filteredData.filter(
+          (assignment) =>
+            assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
+            assignment.member?.email?.toLowerCase().includes(searchTerm)
         );
       }
 
       // Transform data to DepartmentMember format with finance-specific fields
-      const financeMembers: DepartmentMember[] = filteredData.map(assignment => ({
+      const financeMembers: DepartmentMember[] = filteredData.map((assignment) => ({
         id: assignment.id,
         member_id: assignment.member_id,
         department_id: assignment.department_id,
@@ -123,7 +124,9 @@ export class FinanceApiService extends BaseApiService {
 
       // Apply filters
       if (request?.filters?.search) {
-        query = query.or(`description.ilike.%${request.filters.search}%,category.ilike.%${request.filters.search}%`);
+        query = query.or(
+          `description.ilike.%${request.filters.search}%,category.ilike.%${request.filters.search}%`
+        );
       }
 
       if (request?.filters?.status) {
@@ -146,7 +149,7 @@ export class FinanceApiService extends BaseApiService {
       }
 
       // Transform to financial transaction format
-      const transactions = (data || []).map(record => ({
+      const transactions = (data || []).map((record) => ({
         id: record.id,
         type: record.type as 'income' | 'expense',
         category: record.category,
@@ -228,10 +231,7 @@ export class FinanceApiService extends BaseApiService {
   }
 
   // Approve transaction (using finance_records table)
-  async approveTransaction(
-    transactionId: string,
-    approvedBy: string
-  ): Promise<ApiResult<any>> {
+  async approveTransaction(transactionId: string, approvedBy: string): Promise<ApiResult<any>> {
     try {
       // Update the record with approval info (using description field for now)
       const { data, error } = await supabase
@@ -323,13 +323,15 @@ export class FinanceApiService extends BaseApiService {
   async getFinancialSummary(
     startDate: string,
     endDate: string
-  ): Promise<ApiResult<{
-    total_income: number;
-    total_expenses: number;
-    net_income: number;
-    transaction_count: number;
-    pending_approvals: number;
-  }>> {
+  ): Promise<
+    ApiResult<{
+      total_income: number;
+      total_expenses: number;
+      net_income: number;
+      transaction_count: number;
+      pending_approvals: number;
+    }>
+  > {
     try {
       const { data: income } = await supabase
         .from('finance_records')
@@ -346,7 +348,9 @@ export class FinanceApiService extends BaseApiService {
         .lte('transaction_date', endDate);
 
       const totalIncome = income?.reduce((sum, record) => sum + record.amount, 0) || 0;
-      const totalExpenses = Math.abs(expenses?.reduce((sum, record) => sum + record.amount, 0) || 0);
+      const totalExpenses = Math.abs(
+        expenses?.reduce((sum, record) => sum + record.amount, 0) || 0
+      );
 
       return {
         data: {

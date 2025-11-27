@@ -1,11 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { BaseApiService } from '@/utils/api';
-import type {
-  ApiResult,
-  ListRequest,
-  DepartmentMember,
-  DepartmentStats,
-} from '@/types/api';
+import type { ApiResult, ListRequest, DepartmentMember, DepartmentStats } from '@/types/api';
 
 // Choir Department API Service
 export class ChoirApiService extends BaseApiService {
@@ -17,9 +12,7 @@ export class ChoirApiService extends BaseApiService {
   async getChoirMembers(request?: ListRequest): Promise<ApiResult<DepartmentMember[]>> {
     try {
       // Get members assigned to choir department using existing tables
-      let query = supabase
-        .from('department_assignments')
-        .select(`
+      let query = supabase.from('department_assignments').select(`
           *,
           member:members!department_assignments_member_id_fkey(
             id,
@@ -37,7 +30,7 @@ export class ChoirApiService extends BaseApiService {
         // Note: Search filtering on joined tables is complex in PostgREST
         // For now, we'll filter after the query
         const searchTerm = request.filters.search.toLowerCase();
-        query = query; // Keep the base query
+        // query = query; // Keep the base query
       }
 
       if (request?.filters?.status) {
@@ -69,21 +62,22 @@ export class ChoirApiService extends BaseApiService {
       }
 
       // Filter results to only include members assigned to choir department
-      let filteredData = (data || []).filter(assignment =>
-        assignment.member?.assigned_department === 'choir'
+      let filteredData = (data || []).filter(
+        (assignment) => assignment.member?.assigned_department === 'choir'
       );
 
       // Apply search filtering on client side
       if (request?.filters?.search) {
         const searchTerm = request.filters.search.toLowerCase();
-        filteredData = filteredData.filter(assignment =>
-          assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
-          assignment.member?.email?.toLowerCase().includes(searchTerm)
+        filteredData = filteredData.filter(
+          (assignment) =>
+            assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
+            assignment.member?.email?.toLowerCase().includes(searchTerm)
         );
       }
 
       // Transform the data to match DepartmentMember interface
-      const choirMembers: DepartmentMember[] = filteredData.map(assignment => ({
+      const choirMembers: DepartmentMember[] = filteredData.map((assignment) => ({
         id: assignment.id,
         member_id: assignment.member_id,
         department_id: assignment.department_id,
@@ -201,10 +195,12 @@ export class ChoirApiService extends BaseApiService {
       // Get the updated member data with department assignment
       const { data: updatedAssignment } = await supabase
         .from('department_assignments')
-        .select(`
+        .select(
+          `
           *,
           member:members!department_assignments_member_id_fkey(*)
-        `)
+        `
+        )
         .eq('id', assignment.id)
         .single();
 
@@ -229,7 +225,7 @@ export class ChoirApiService extends BaseApiService {
             years_experience: memberData.years_experience || 0,
             attendance_rate: 0, // New member starts with 0
           },
-          error: null
+          error: null,
         };
       }
 
@@ -261,10 +257,12 @@ export class ChoirApiService extends BaseApiService {
       // Get updated member data
       const { data, error } = await supabase
         .from('department_assignments')
-        .select(`
+        .select(
+          `
           *,
           member:members!department_assignments_member_id_fkey(*)
-        `)
+        `
+        )
         .eq('id', memberId)
         .single();
 
@@ -293,7 +291,7 @@ export class ChoirApiService extends BaseApiService {
             years_experience: updates.years_experience || 0,
             attendance_rate: 85, // Would be calculated from attendance records
           },
-          error: null
+          error: null,
         };
       }
 
@@ -308,10 +306,12 @@ export class ChoirApiService extends BaseApiService {
     try {
       const { data, error } = await supabase
         .from('department_assignments')
-        .select(`
+        .select(
+          `
           *,
           member:members!department_assignments_member_id_fkey(*)
-        `)
+        `
+        )
         .eq('id', memberId)
         .single();
 
@@ -340,7 +340,7 @@ export class ChoirApiService extends BaseApiService {
             years_experience: 3, // Would come from extended profile
             attendance_rate: 85, // Would be calculated from attendance records
           },
-          error: null
+          error: null,
         };
       }
 
@@ -357,7 +357,7 @@ export class ChoirApiService extends BaseApiService {
         .from('department_assignments')
         .update({
           status: 'rejected' as 'pending' | 'approved' | 'rejected',
-          reason: 'Member removed from choir'
+          reason: 'Member removed from choir',
         })
         .eq('id', memberId);
 
@@ -393,7 +393,7 @@ export class ChoirApiService extends BaseApiService {
       }
 
       // Transform events to performance format
-      const performances = (data || []).map(event => ({
+      const performances = (data || []).map((event) => ({
         id: event.id,
         title: event.title,
         date: event.event_date,
@@ -417,15 +417,13 @@ export class ChoirApiService extends BaseApiService {
   ): Promise<ApiResult<void>> {
     try {
       // Record attendance in the attendance table
-      const { error } = await supabase
-        .from('attendance')
-        .insert({
-          member_id: memberId,
-          event_id: eventId,
-          attendance_date: new Date().toISOString().split('T')[0],
-          branch_id: 'main-branch-id', // TODO: Get actual branch ID from context
-          notes: `Attendance status: ${status}`,
-        });
+      const { error } = await supabase.from('attendance').insert({
+        member_id: memberId,
+        event_id: eventId,
+        attendance_date: new Date().toISOString().split('T')[0],
+        branch_id: 'main-branch-id', // TODO: Get actual branch ID from context
+        notes: `Attendance status: ${status}`,
+      });
 
       if (error) {
         return { data: null, error: { message: error.message } };

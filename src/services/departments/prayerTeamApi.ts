@@ -1,11 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { BaseApiService } from '@/utils/api';
-import type {
-  ApiResult,
-  ListRequest,
-  DepartmentMember,
-  DepartmentStats,
-} from '@/types/api';
+import type { ApiResult, ListRequest, DepartmentMember, DepartmentStats } from '@/types/api';
 
 // Prayer Team API Service
 export class PrayerTeamApiService extends BaseApiService {
@@ -19,7 +14,8 @@ export class PrayerTeamApiService extends BaseApiService {
       // Get members assigned to prayer department using existing tables
       let query = supabase
         .from('department_assignments')
-        .select(`
+        .select(
+          `
           *,
           member:members!department_assignments_member_id_fkey(
             id,
@@ -30,7 +26,8 @@ export class PrayerTeamApiService extends BaseApiService {
             status,
             assigned_department
           )
-        `)
+        `
+        )
         .eq('status', 'approved'); // Only get approved assignments
 
       // Apply filters
@@ -38,7 +35,7 @@ export class PrayerTeamApiService extends BaseApiService {
         // Note: Search filtering on joined tables is complex in PostgREST
         // For now, we'll filter after the query
         const searchTerm = request.filters.search.toLowerCase();
-        query = query; // Keep the base query
+        // query = query; // Keep the base query
       }
 
       if (request?.filters?.status) {
@@ -70,21 +67,22 @@ export class PrayerTeamApiService extends BaseApiService {
       }
 
       // Filter results to only include members assigned to prayer department
-      let filteredData = (data || []).filter(assignment =>
-        assignment.member?.assigned_department === 'prayer'
+      let filteredData = (data || []).filter(
+        (assignment) => assignment.member?.assigned_department === 'prayer'
       );
 
       // Apply search filtering on client side
       if (request?.filters?.search) {
         const searchTerm = request.filters.search.toLowerCase();
-        filteredData = filteredData.filter(assignment =>
-          assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
-          assignment.member?.email?.toLowerCase().includes(searchTerm)
+        filteredData = filteredData.filter(
+          (assignment) =>
+            assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
+            assignment.member?.email?.toLowerCase().includes(searchTerm)
         );
       }
 
       // Transform data to DepartmentMember format with prayer-specific fields
-      const prayerMembers: DepartmentMember[] = filteredData.map(assignment => ({
+      const prayerMembers: DepartmentMember[] = filteredData.map((assignment) => ({
         id: assignment.id,
         member_id: assignment.member_id,
         department_id: assignment.department_id,
@@ -124,7 +122,9 @@ export class PrayerTeamApiService extends BaseApiService {
 
       // Apply filters
       if (request?.filters?.search) {
-        query = query.or(`title.ilike.%${request.filters.search}%,description.ilike.%${request.filters.search}%`);
+        query = query.or(
+          `title.ilike.%${request.filters.search}%,description.ilike.%${request.filters.search}%`
+        );
       }
 
       if (request?.filters?.status) {
@@ -144,7 +144,7 @@ export class PrayerTeamApiService extends BaseApiService {
       }
 
       // Transform events to prayer request format
-      const prayerRequests = (data || []).map(event => ({
+      const prayerRequests = (data || []).map((event) => ({
         id: event.id,
         title: event.title,
         description: event.description || '',
@@ -217,10 +217,7 @@ export class PrayerTeamApiService extends BaseApiService {
   }
 
   // Assign prayer request to team member (update event)
-  async assignPrayerRequest(
-    requestId: string,
-    memberId: string
-  ): Promise<ApiResult<any>> {
+  async assignPrayerRequest(requestId: string, memberId: string): Promise<ApiResult<any>> {
     try {
       // Update the event with assignment info
       const { data, error } = await supabase
@@ -333,7 +330,7 @@ export class PrayerTeamApiService extends BaseApiService {
       }
 
       // Transform events to prayer session format
-      const prayerSessions = (data || []).map(event => ({
+      const prayerSessions = (data || []).map((event) => ({
         id: event.id,
         title: event.title,
         description: event.description,
@@ -397,10 +394,7 @@ export class PrayerTeamApiService extends BaseApiService {
   }
 
   // Add follow-up note to prayer request
-  async addFollowUpNote(
-    requestId: string,
-    note: string
-  ): Promise<ApiResult<any>> {
+  async addFollowUpNote(requestId: string, note: string): Promise<ApiResult<any>> {
     try {
       // Get current event
       const { data: currentEvent } = await supabase

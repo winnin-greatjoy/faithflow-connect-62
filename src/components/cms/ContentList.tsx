@@ -1,27 +1,53 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  Card, CardContent, CardHeader, CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Edit, Eye, Trash2, Calendar, User, Grid3X3, List,
-  Search, RefreshCw, Download, ChevronLeft, ChevronRight,
-  ArrowUp, ArrowDown, ArrowUpDown, CheckCircle, AlertCircle,
-  XCircle, FileText, Loader2,
+  Edit,
+  Eye,
+  Trash2,
+  Calendar,
+  User,
+  Grid3X3,
+  List,
+  Search,
+  RefreshCw,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  FileText,
+  Loader2,
 } from 'lucide-react';
 
 interface ContentListProps {
@@ -60,7 +86,7 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
   }, [searchTerm]);
 
   const filteredAndSortedContent = useMemo(() => {
-    let filtered = data.filter((item) => {
+    const filtered = data.filter((item) => {
       const matchesSearch =
         item.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         item.author.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
@@ -84,9 +110,7 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
       if (typeof aValue === 'string') aValue = aValue.toLowerCase();
       if (typeof bValue === 'string') bValue = bValue.toLowerCase();
 
-      return sortDirection === 'asc'
-        ? aValue > bValue ? 1 : -1
-        : aValue < bValue ? 1 : -1;
+      return sortDirection === 'asc' ? (aValue > bValue ? 1 : -1) : aValue < bValue ? 1 : -1;
     });
 
     return filtered;
@@ -98,7 +122,7 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedItems(new Set(paginatedContent.map(item => item.id)));
+      setSelectedItems(new Set(paginatedContent.map((item) => item.id)));
     } else {
       setSelectedItems(new Set());
     }
@@ -116,7 +140,7 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
 
   const handleBulkDelete = () => {
     if (window.confirm(`Are you sure you want to delete ${selectedItems.size} selected items?`)) {
-      const updatedData = data.filter(item => !selectedItems.has(item.id));
+      const updatedData = data.filter((item) => !selectedItems.has(item.id));
       setData(updatedData);
       setSelectedItems(new Set());
     }
@@ -133,10 +157,14 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'published': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'pending_review': return <AlertCircle className="h-4 w-4 text-orange-500" />;
-      case 'rejected': return <XCircle className="h-4 w-4 text-red-500" />;
-      default: return <FileText className="h-4 w-4 text-gray-400" />;
+      case 'published':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'pending_review':
+        return <AlertCircle className="h-4 w-4 text-orange-500" />;
+      case 'rejected':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <FileText className="h-4 w-4 text-gray-400" />;
     }
   };
 
@@ -144,7 +172,9 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
     const csvContent = [
       ['Title', 'Type', 'Status', 'Author', 'Updated At'],
       ...filteredAndSortedContent.map((i) => [i.title, i.type, i.status, i.author, i.updated_at]),
-    ].map((row) => row.join(',')).join('\n');
+    ]
+      .map((row) => row.join(','))
+      .join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -156,10 +186,19 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <TableHead>
-      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium" onClick={() => handleSort(field)}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-auto p-0 font-medium"
+        onClick={() => handleSort(field)}
+      >
         {children}
         {sortField === field ? (
-          sortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+          sortDirection === 'asc' ? (
+            <ArrowUp className="ml-1 h-3 w-3" />
+          ) : (
+            <ArrowDown className="ml-1 h-3 w-3" />
+          )
         ) : (
           <ArrowUpDown className="ml-1 h-3 w-3" />
         )}
@@ -177,7 +216,11 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
               <Download className="mr-2 h-4 w-4" /> Export CSV
             </Button>
             <Button variant="outline" size="sm" onClick={handleRefresh}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
               Refresh
             </Button>
           </div>
@@ -222,9 +265,15 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" size="sm" onClick={() => {
-              setSearchTerm(''); setFilterType('all'); setFilterStatus('all');
-            }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchTerm('');
+                setFilterType('all');
+                setFilterStatus('all');
+              }}
+            >
               Clear
             </Button>
           </div>
@@ -256,7 +305,10 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
                     <TableRow>
                       <TableHead className="w-10">
                         <Checkbox
-                          checked={selectedItems.size === paginatedContent.length && paginatedContent.length > 0}
+                          checked={
+                            selectedItems.size === paginatedContent.length &&
+                            paginatedContent.length > 0
+                          }
                           onCheckedChange={handleSelectAll}
                         />
                       </TableHead>
@@ -279,7 +331,9 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
                             />
                           </TableCell>
                           <TableCell>{item.title}</TableCell>
-                          <TableCell><Badge variant="outline">{item.type}</Badge></TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{item.type}</Badge>
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               {getStatusIcon(item.status)}
@@ -291,11 +345,17 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm"><Eye className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => onView?.(item)}>View</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => onEdit(item)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onView?.(item)}>
+                                  View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onEdit(item)}>
+                                  Edit
+                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {
                                     if (confirm(`Delete "${item.title}"?`)) {
@@ -314,7 +374,10 @@ export const ContentList = ({ onEdit, onView, onDelete }: ContentListProps) => {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                        <TableCell
+                          colSpan={7}
+                          className="text-center text-sm text-muted-foreground"
+                        >
                           No results found.
                         </TableCell>
                       </TableRow>

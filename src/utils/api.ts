@@ -8,7 +8,7 @@ import type {
   SortOptions,
   CreateRequest,
   UpdateRequest,
-  ListRequest
+  ListRequest,
 } from '@/types/api';
 
 // Base API Configuration
@@ -26,7 +26,7 @@ export const handleApiError = (error: any): ApiError => {
 
   return {
     data: null,
-    error: { message, code, details }
+    error: { message, code, details },
   };
 };
 
@@ -64,9 +64,7 @@ export const applyFilters = <T>(
 
   if (filters?.search && searchFields.length > 0) {
     // Apply search across multiple fields
-    const searchConditions = searchFields.map(field =>
-      `${field}.ilike.%${filters.search}%`
-    );
+    const searchConditions = searchFields.map((field) => `${field}.ilike.%${filters.search}%`);
     filteredQuery = filteredQuery.or(searchConditions.join(','));
   }
 
@@ -115,12 +113,12 @@ export const applySorting = <T>(
 };
 
 // Pagination utilities for Supabase queries
-export const applyPagination = <T>(
-  query: any,
-  pagination?: { page: number; limit: number }
-) => {
+export const applyPagination = <T>(query: any, pagination?: { page: number; limit: number }) => {
   const page = pagination?.page || 1;
-  const limit = Math.min(pagination?.limit || API_CONFIG.DEFAULT_PAGE_SIZE, API_CONFIG.MAX_PAGE_SIZE);
+  const limit = Math.min(
+    pagination?.limit || API_CONFIG.DEFAULT_PAGE_SIZE,
+    API_CONFIG.MAX_PAGE_SIZE
+  );
   const offset = (page - 1) * limit;
 
   return query.range(offset, offset + limit - 1);
@@ -253,9 +251,7 @@ export const batchOperation = async <T>(
   for (let i = 0; i < operations.length; i += batchSize) {
     const batch = operations.slice(i, i + batchSize);
 
-    const batchResults = await Promise.allSettled(
-      batch.map(op => op())
-    );
+    const batchResults = await Promise.allSettled(batch.map((op) => op()));
 
     batchResults.forEach((result, index) => {
       if (result.status === 'fulfilled') {
@@ -294,13 +290,11 @@ export const uploadFile = async (
   }
 ): Promise<ApiResult<{ path: string; fullPath: string }>> => {
   try {
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file, {
-        cacheControl: options?.cacheControl || '3600',
-        contentType: options?.contentType || file.type,
-        upsert: options?.upsert || false,
-      });
+    const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+      cacheControl: options?.cacheControl || '3600',
+      contentType: options?.contentType || file.type,
+      upsert: options?.upsert || false,
+    });
 
     if (error) {
       return handleApiError(error);
@@ -318,7 +312,10 @@ export const uploadFile = async (
 // Authentication utilities
 export const getCurrentUser = async (): Promise<ApiResult<any>> => {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error) {
       return handleApiError(error);
@@ -360,7 +357,7 @@ export const subscribeToTable = (
   callback: (payload: any) => void,
   filters?: FilterOptions
 ) => {
-  let subscription = supabase
+  const subscription = supabase
     .channel(`${tableName}_changes`)
     .on(
       'postgres_changes',
@@ -368,7 +365,11 @@ export const subscribeToTable = (
         event: '*',
         schema: 'public',
         table: tableName,
-        ...(filters && { filter: Object.entries(filters).map(([key, value]) => `${key}=eq.${value}`).join(',') })
+        ...(filters && {
+          filter: Object.entries(filters)
+            .map(([key, value]) => `${key}=eq.${value}`)
+            .join(','),
+        }),
       },
       callback
     )
@@ -442,13 +443,13 @@ export const retryOperation = async <T>(
 
       // Wait before retrying
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        await new Promise((resolve) => setTimeout(resolve, delay * attempt));
       }
     } catch (error) {
       lastError = handleApiError(error);
 
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        await new Promise((resolve) => setTimeout(resolve, delay * attempt));
       }
     }
   }

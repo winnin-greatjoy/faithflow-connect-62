@@ -1,11 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { BaseApiService } from '@/utils/api';
-import type {
-  ApiResult,
-  ListRequest,
-  DepartmentMember,
-  DepartmentStats,
-} from '@/types/api';
+import type { ApiResult, ListRequest, DepartmentMember, DepartmentStats } from '@/types/api';
 
 // Technical API Service
 export class TechnicalApiService extends BaseApiService {
@@ -17,9 +12,7 @@ export class TechnicalApiService extends BaseApiService {
   async getTechnicalMembers(request?: ListRequest): Promise<ApiResult<DepartmentMember[]>> {
     try {
       // Get members assigned to technical department using existing tables
-      let query = supabase
-        .from('department_assignments')
-        .select(`
+      let query = supabase.from('department_assignments').select(`
           *,
           member:members!department_assignments_member_id_fkey(
             id,
@@ -37,7 +30,7 @@ export class TechnicalApiService extends BaseApiService {
         // Note: Search filtering on joined tables is complex in PostgREST
         // For now, we'll filter after the query
         const searchTerm = request.filters.search.toLowerCase();
-        query = query; // Keep the base query
+        // query = query; // Keep the base query
       }
 
       if (request?.filters?.status) {
@@ -64,21 +57,22 @@ export class TechnicalApiService extends BaseApiService {
       }
 
       // Filter results to only include members assigned to technical department
-      let filteredData = (data || []).filter(assignment =>
-        assignment.member?.assigned_department === 'technical'
+      let filteredData = (data || []).filter(
+        (assignment) => assignment.member?.assigned_department === 'technical'
       );
 
       // Apply search filtering on client side
       if (request?.filters?.search) {
         const searchTerm = request.filters.search.toLowerCase();
-        filteredData = filteredData.filter(assignment =>
-          assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
-          assignment.member?.email?.toLowerCase().includes(searchTerm)
+        filteredData = filteredData.filter(
+          (assignment) =>
+            assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
+            assignment.member?.email?.toLowerCase().includes(searchTerm)
         );
       }
 
       // Transform data to DepartmentMember format with technical-specific fields
-      const technicalMembers: DepartmentMember[] = filteredData.map(assignment => ({
+      const technicalMembers: DepartmentMember[] = filteredData.map((assignment) => ({
         id: assignment.id,
         member_id: assignment.member_id,
         department_id: assignment.department_id,
@@ -170,7 +164,9 @@ export class TechnicalApiService extends BaseApiService {
       let filteredEquipment = equipment;
 
       if (request?.filters?.status) {
-        filteredEquipment = filteredEquipment.filter(item => item.status === request.filters?.status);
+        filteredEquipment = filteredEquipment.filter(
+          (item) => item.status === request.filters?.status
+        );
       }
 
       // Apply pagination
@@ -192,7 +188,9 @@ export class TechnicalApiService extends BaseApiService {
       let query = supabase
         .from('events')
         .select('*')
-        .or('title.ilike.%support%,title.ilike.%issue%,title.ilike.%maintenance%,title.ilike.%repair%')
+        .or(
+          'title.ilike.%support%,title.ilike.%issue%,title.ilike.%maintenance%,title.ilike.%repair%'
+        )
         .order('event_date', { ascending: false });
 
       // Apply filters
@@ -201,7 +199,9 @@ export class TechnicalApiService extends BaseApiService {
       }
 
       if (request?.filters?.search) {
-        query = query.or(`title.ilike.%${request.filters.search}%,description.ilike.%${request.filters.search}%`);
+        query = query.or(
+          `title.ilike.%${request.filters.search}%,description.ilike.%${request.filters.search}%`
+        );
       }
 
       if (request?.pagination) {
@@ -216,7 +216,7 @@ export class TechnicalApiService extends BaseApiService {
       }
 
       // Transform events to support ticket format
-      const supportTickets = (data || []).map(event => ({
+      const supportTickets = (data || []).map((event) => ({
         id: event.id,
         title: event.title,
         description: event.description || '',
@@ -349,7 +349,9 @@ export class TechnicalApiService extends BaseApiService {
       let query = supabase
         .from('events')
         .select('*')
-        .or('title.ilike.%maintenance%,title.ilike.%repair%,title.ilike.%service%,title.ilike.%upgrade%')
+        .or(
+          'title.ilike.%maintenance%,title.ilike.%repair%,title.ilike.%service%,title.ilike.%upgrade%'
+        )
         .order('event_date', { ascending: true });
 
       if (request?.filters?.status) {
@@ -368,7 +370,7 @@ export class TechnicalApiService extends BaseApiService {
       }
 
       // Transform events to maintenance schedule format
-      const maintenanceSchedule = (data || []).map(event => ({
+      const maintenanceSchedule = (data || []).map((event) => ({
         id: event.id,
         title: event.title,
         description: event.description,

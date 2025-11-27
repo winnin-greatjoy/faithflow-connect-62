@@ -1,11 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { BaseApiService } from '@/utils/api';
-import type {
-  ApiResult,
-  ListRequest,
-  DepartmentMember,
-  DepartmentStats,
-} from '@/types/api';
+import type { ApiResult, ListRequest, DepartmentMember, DepartmentStats } from '@/types/api';
 
 // Ushering Department API Service
 export class UsheringApiService extends BaseApiService {
@@ -17,9 +12,7 @@ export class UsheringApiService extends BaseApiService {
   async getUsherMembers(request?: ListRequest): Promise<ApiResult<DepartmentMember[]>> {
     try {
       // Get members assigned to ushering department using existing tables
-      let query = supabase
-        .from('department_assignments')
-        .select(`
+      let query = supabase.from('department_assignments').select(`
           *,
           member:members!department_assignments_member_id_fkey(
             id,
@@ -37,7 +30,7 @@ export class UsheringApiService extends BaseApiService {
         // Note: Search filtering on joined tables is complex in PostgREST
         // For now, we'll filter after the query
         const searchTerm = request.filters.search.toLowerCase();
-        query = query; // Keep the base query
+        // query = query; // Keep the base query
       }
 
       if (request?.filters?.status) {
@@ -69,21 +62,22 @@ export class UsheringApiService extends BaseApiService {
       }
 
       // Filter results to only include members assigned to ushering department
-      let filteredData = (data || []).filter(assignment =>
-        assignment.member?.assigned_department === 'ushering'
+      let filteredData = (data || []).filter(
+        (assignment) => assignment.member?.assigned_department === 'ushering'
       );
 
       // Apply search filtering on client side
       if (request?.filters?.search) {
         const searchTerm = request.filters.search.toLowerCase();
-        filteredData = filteredData.filter(assignment =>
-          assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
-          assignment.member?.email?.toLowerCase().includes(searchTerm)
+        filteredData = filteredData.filter(
+          (assignment) =>
+            assignment.member?.full_name?.toLowerCase().includes(searchTerm) ||
+            assignment.member?.email?.toLowerCase().includes(searchTerm)
         );
       }
 
       // Transform data to UsherMember format
-      const usherMembers: DepartmentMember[] = filteredData.map(assignment => ({
+      const usherMembers: DepartmentMember[] = filteredData.map((assignment) => ({
         id: assignment.id,
         member_id: assignment.member_id,
         department_id: assignment.department_id,
@@ -195,10 +189,12 @@ export class UsheringApiService extends BaseApiService {
       // Get the updated member data with department assignment
       const { data: updatedAssignment } = await supabase
         .from('department_assignments')
-        .select(`
+        .select(
+          `
           *,
           member:members!department_assignments_member_id_fkey(*)
-        `)
+        `
+        )
         .eq('id', assignment.id)
         .single();
 
@@ -225,7 +221,7 @@ export class UsheringApiService extends BaseApiService {
             availability: memberData.availability,
             certifications: memberData.certifications || [],
           },
-          error: null
+          error: null,
         };
       }
 
@@ -287,7 +283,7 @@ export class UsheringApiService extends BaseApiService {
         .limit(5);
 
       // Transform events to shift format
-      const shifts = (upcomingEvents || []).map(event => ({
+      const shifts = (upcomingEvents || []).map((event) => ({
         id: event.id,
         service_date: event.event_date,
         service_time: event.start_time || '9:00 AM',
@@ -341,15 +337,13 @@ export class UsheringApiService extends BaseApiService {
       }
 
       // Record the assignment in attendance table
-      const { error: attendanceError } = await supabase
-        .from('attendance')
-        .insert({
-          member_id: shiftData.member_id,
-          event_id: event.id,
-          attendance_date: shiftData.service_date,
-          branch_id: 'main-branch-id', // Required field
-          notes: `Assigned to ${shiftData.station}. ${shiftData.notes || ''}`,
-        });
+      const { error: attendanceError } = await supabase.from('attendance').insert({
+        member_id: shiftData.member_id,
+        event_id: event.id,
+        attendance_date: shiftData.service_date,
+        branch_id: 'main-branch-id', // Required field
+        notes: `Assigned to ${shiftData.station}. ${shiftData.notes || ''}`,
+      });
 
       if (attendanceError) {
         return { data: null, error: { message: attendanceError.message } };
@@ -365,7 +359,7 @@ export class UsheringApiService extends BaseApiService {
           notes: shiftData.notes,
           assigned_by: (await supabase.auth.getUser()).data.user?.id || 'system',
         },
-        error: null
+        error: null,
       };
     } catch (error: any) {
       return { data: null, error: { message: error.message } };
@@ -411,16 +405,18 @@ export class UsheringApiService extends BaseApiService {
       // Get attendance records for this member
       const { data: attendanceRecords } = await supabase
         .from('attendance')
-        .select(`
+        .select(
+          `
           *,
           event:events!attendance_event_id_fkey(*)
-        `)
+        `
+        )
         .eq('member_id', memberId)
         .order('attendance_date', { ascending: false })
         .limit(10);
 
       // Transform to shift history format
-      const history = (attendanceRecords || []).map(record => ({
+      const history = (attendanceRecords || []).map((record) => ({
         id: record.id,
         service_date: record.event?.event_date || record.attendance_date,
         service_time: record.event?.start_time || '9:00 AM',
