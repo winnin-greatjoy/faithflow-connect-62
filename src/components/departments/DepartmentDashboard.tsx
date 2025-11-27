@@ -9,11 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MemberForm, type MemberFormData } from '@/components/admin/MemberForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import DepartmentSettingsDialog from './DepartmentSettingsDialog';
+import { AddMemberToDepartmentDialog } from './AddMemberToDepartmentDialog';
 
 interface Props {
   departmentId: string;
@@ -28,7 +27,7 @@ interface DepartmentMember {
 export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentName }) => {
   const [members, setMembers] = useState<DepartmentMember[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const loadMembers = useCallback(async () => {
@@ -44,47 +43,6 @@ export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentN
     loadMembers();
   }, [loadMembers]);
 
-  const handleRemoveMember = async (memberId: string) => {
-    if (!confirm('Remove member from department?')) return;
-    try {
-      const { error } = await supabase
-        .from('members')
-        .update({ assigned_department: null })
-        .eq('id', memberId);
-      if (error) throw error;
-      toast({ title: 'Removed', description: 'Member removed from department' });
-      await loadMembers();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast({ title: 'Remove failed', description: msg, variant: 'destructive' });
-    }
-  };
-
-  const handleAddMember = async (data: MemberFormData) => {
-    try {
-      const payload = {
-        full_name: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        branch_id: data.branchId || null,
-        date_joined: data.joinDate || null,
-        status: 'active',
-        assigned_department: departmentId,
-      };
-      const { error } = await supabase.from('members').insert(payload as any);
-      if (error) throw error;
-      toast({ title: 'Added', description: 'Member created and assigned.' });
-      setIsAddMemberOpen(false);
-      await loadMembers();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast({
-        title: 'Add failed',
-        description: msg || 'Failed to add member',
-        variant: 'destructive',
-      });
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -94,7 +52,7 @@ export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentN
           <Button variant="outline" onClick={() => setIsSettingsOpen(true)}>
             Settings
           </Button>
-          <Button onClick={() => setIsAddMemberOpen(true)}>Add Member</Button>
+          <Button onClick={() => setIsAddMemberDialogOpen(true)}>Add Members</Button>
         </div>
       </div>
 
@@ -112,22 +70,20 @@ export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentN
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell>{m.full_name}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleRemoveMember(m.id)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
+                {members.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-center text-muted-foreground">
+                      No members assigned yet
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  members.map((m) => (
+                    <TableRow key={m.id}>
+                      <TableCell>{m.full_name}</TableCell>
+                      <TableCell className="text-right">View</TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -149,25 +105,22 @@ export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentN
         onOpenChange={setIsSettingsOpen}
         departmentId={departmentId}
         departmentName={departmentName}
+        members={members}
         onUpdated={(n) => {
           /* optionally handle name change */
         }}
         onDeleted={() => {
           /* optionally navigate away */
         }}
+        onMembersChanged={loadMembers}
       />
 
-      <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add Member to Department</DialogTitle>
-          </DialogHeader>
-
-          <div className="py-2">
-            <MemberForm onCancel={() => setIsAddMemberOpen(false)} onSubmit={handleAddMember} />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddMemberToDepartmentDialog
+        open={isAddMemberDialogOpen}
+        onOpenChange={setIsAddMemberDialogOpen}
+        departmentId={departmentId}
+        onMembersAdded={loadMembers}
+      />
     </div>
   );
 };
