@@ -31,6 +31,40 @@ import { Member, MembershipLevel, Gender, MaritalStatus } from '@/types/membersh
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+// Department Select Component
+const DepartmentSelect: React.FC<{ value?: string; onChange: (value: string) => void; branchId: string }> = ({ value, onChange, branchId }) => {
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  
+  useEffect(() => {
+    if (branchId) {
+      (async () => {
+        const { data } = await supabase
+          .from('departments')
+          .select('id, name')
+          .eq('branch_id', branchId)
+          .order('name');
+        setDepartments(data || []);
+      })();
+    }
+  }, [branchId]);
+
+  return (
+    <Select onValueChange={onChange} value={value}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select department" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="">None</SelectItem>
+        {departments.map((dept) => (
+          <SelectItem key={dept.id} value={dept.id}>
+            {dept.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+
 const childSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -657,19 +691,22 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="assignedDepartment"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Assigned Department</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Choir" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {watchedMembershipLevel === 'baptized' && (
+                    <FormField
+                      control={form.control}
+                      name="assignedDepartment"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assigned Department</FormLabel>
+                          <FormControl>
+                            <DepartmentSelect value={field.value} onChange={field.onChange} branchId={form.watch('branchId')} />
+                          </FormControl>
+                          <FormDescription>Only baptized members can be assigned to departments</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
 
                 {watchedMembershipLevel === 'baptized' && (

@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { DepartmentDashboard } from '@/components/departments/DepartmentDashboard';
 import { DepartmentTaskBoard } from '@/components/departments/DepartmentTaskBoard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 export const DepartmentPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const [department, setDepartment] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -70,6 +73,16 @@ export const DepartmentPage: React.FC = () => {
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/admin/departments')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+            </div>
             <h1 className="text-3xl font-bold">{department.name}</h1>
             <p className="text-muted-foreground">Manage department members, tasks, and activities</p>
           </div>
