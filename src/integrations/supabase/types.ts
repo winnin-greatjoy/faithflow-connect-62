@@ -1039,6 +1039,39 @@ export type Database = {
           },
         ]
       }
+      message_templates: {
+        Row: {
+          body: string
+          category: string
+          created_at: string | null
+          id: string
+          name: string
+          subject: string
+          updated_at: string | null
+          variables: string[] | null
+        }
+        Insert: {
+          body: string
+          category: string
+          created_at?: string | null
+          id?: string
+          name: string
+          subject: string
+          updated_at?: string | null
+          variables?: string[] | null
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          subject?: string
+          updated_at?: string | null
+          variables?: string[] | null
+        }
+        Relationships: []
+      }
       ministries: {
         Row: {
           branch_id: string
@@ -1258,6 +1291,53 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      notification_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          message: string
+          recipient_id: string
+          sent_at: string | null
+          status: string
+          subject: string | null
+          template_id: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          message: string
+          recipient_id: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          message?: string
+          recipient_id?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1682,7 +1762,7 @@ export type Database = {
       assignment_status: "pending" | "approved" | "rejected"
       assignment_type: "assignment" | "transfer" | "suspension"
       baptized_sub_level: "leader" | "worker" | "disciple"
-      coverage_type: "global" | "department" | "ministry"
+      coverage_type: "global" | "department" | "ministry" | "committee" | "task"
       first_timer_status: "new" | "contacted" | "followed_up" | "converted"
       follow_up_status: "pending" | "called" | "visited" | "completed"
       gender: "male" | "female"
@@ -1842,7 +1922,7 @@ export const Constants = {
       assignment_status: ["pending", "approved", "rejected"],
       assignment_type: ["assignment", "transfer", "suspension"],
       baptized_sub_level: ["leader", "worker", "disciple"],
-      coverage_type: ["global", "department", "ministry"],
+      coverage_type: ["global", "department", "ministry", "committee", "task"],
       first_timer_status: ["new", "contacted", "followed_up", "converted"],
       follow_up_status: ["pending", "called", "visited", "completed"],
       gender: ["male", "female"],

@@ -219,13 +219,13 @@ export function RolePermissionsDynamicForm({
           .is('committee_id', null)
           .is('task_id', null);
       } else if (coverageType === 'committee') {
-        q = q
+        q = (q as any)
           .eq('committee_id', committeeId)
           .is('department_id', null)
           .is('ministry_id', null)
           .is('task_id', null);
       } else if (coverageType === 'task') {
-        q = q
+        q = (q as any)
           .eq('task_id', taskId)
           .is('department_id', null)
           .is('ministry_id', null)
@@ -344,13 +344,13 @@ export function RolePermissionsDynamicForm({
           .is('committee_id', null)
           .is('task_id', null);
       else if (coverageType === 'committee')
-        del = del
+        del = (del as any)
           .eq('committee_id', committeeId)
           .is('department_id', null)
           .is('ministry_id', null)
           .is('task_id', null);
       else if (coverageType === 'task')
-        del = del
+        del = (del as any)
           .eq('task_id', taskId)
           .is('department_id', null)
           .is('ministry_id', null)
