@@ -17,6 +17,11 @@ const MemberProfilePage = lazy(() =>
     default: module.MemberProfilePage,
   }))
 );
+const DepartmentPage = lazy(() =>
+  import('./pages/departments/DepartmentPage').then((module) => ({
+    default: module.DepartmentPage,
+  }))
+);
 
 // Lazy load portal pages
 const PortalDashboard = lazy(() => import('./pages/portal/PortalDashboard'));
@@ -166,6 +171,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MemberProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/departments/:slug"
+              element={
+                <ProtectedRoute>
+                  <DepartmentPage />
                 </ProtectedRoute>
               }
             />
