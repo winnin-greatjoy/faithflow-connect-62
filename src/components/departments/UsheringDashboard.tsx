@@ -20,12 +20,23 @@ import {
   Filter,
   Plus,
   ArrowLeft,
-  ClipboardList
+  ClipboardList,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { DepartmentTaskBoard } from './DepartmentTaskBoard';
+
+interface UsheringDashboardProps {
+  departmentId: string;
+}
 
 interface UsherMember {
   id: number;
@@ -58,26 +69,126 @@ const mockUsherStats = {
   upcomingServices: 4,
   completedServices: 28,
   monthlyGrowth: 15,
-  coverageRate: 85
+  coverageRate: 85,
 };
 
 const mockUsherMembers: UsherMember[] = [
-  { id: 1, name: 'James Wilson', role: 'Head Usher', status: 'active', joinDate: '2021-08-10', email: 'james@example.com', phone: '555-0101', station: 'Main Entrance', experience: 5, availability: ['Sunday 9AM', 'Sunday 11AM'] },
-  { id: 2, name: 'Mary Thompson', role: 'Assistant Usher', status: 'active', joinDate: '2022-02-15', email: 'mary@example.com', phone: '555-0102', station: 'Sanctuary Doors', experience: 3, availability: ['Sunday 9AM'] },
-  { id: 3, name: 'Robert Davis', role: 'Usher', status: 'active', joinDate: '2023-01-20', email: 'robert@example.com', phone: '555-0103', station: 'Parking Lot', experience: 2, availability: ['Sunday 11AM'] },
-  { id: 4, name: 'Sarah Johnson', role: 'Usher', status: 'active', joinDate: '2022-11-05', email: 'sarah@example.com', phone: '555-0104', station: 'Welcome Desk', experience: 4, availability: ['Sunday 9AM', 'Sunday 11AM'] },
-  { id: 5, name: 'Michael Brown', role: 'Usher', status: 'inactive', joinDate: '2021-06-12', email: 'michael@example.com', phone: '555-0105', station: 'Children\'s Area', experience: 6, availability: [] }
+  {
+    id: 1,
+    name: 'James Wilson',
+    role: 'Head Usher',
+    status: 'active',
+    joinDate: '2021-08-10',
+    email: 'james@example.com',
+    phone: '555-0101',
+    station: 'Main Entrance',
+    experience: 5,
+    availability: ['Sunday 9AM', 'Sunday 11AM'],
+  },
+  {
+    id: 2,
+    name: 'Mary Thompson',
+    role: 'Assistant Usher',
+    status: 'active',
+    joinDate: '2022-02-15',
+    email: 'mary@example.com',
+    phone: '555-0102',
+    station: 'Sanctuary Doors',
+    experience: 3,
+    availability: ['Sunday 9AM'],
+  },
+  {
+    id: 3,
+    name: 'Robert Davis',
+    role: 'Usher',
+    status: 'active',
+    joinDate: '2023-01-20',
+    email: 'robert@example.com',
+    phone: '555-0103',
+    station: 'Parking Lot',
+    experience: 2,
+    availability: ['Sunday 11AM'],
+  },
+  {
+    id: 4,
+    name: 'Sarah Johnson',
+    role: 'Usher',
+    status: 'active',
+    joinDate: '2022-11-05',
+    email: 'sarah@example.com',
+    phone: '555-0104',
+    station: 'Welcome Desk',
+    experience: 4,
+    availability: ['Sunday 9AM', 'Sunday 11AM'],
+  },
+  {
+    id: 5,
+    name: 'Michael Brown',
+    role: 'Usher',
+    status: 'inactive',
+    joinDate: '2021-06-12',
+    email: 'michael@example.com',
+    phone: '555-0105',
+    station: "Children's Area",
+    experience: 6,
+    availability: [],
+  },
 ];
 
 const mockUsherEvents: UsherEvent[] = [
-  { id: 1, title: 'Sunday Service 9AM', date: '2024-01-28', service: 'Main Service', assignedUshers: 4, totalNeeded: 4, status: 'scheduled', attendance: 0 },
-  { id: 2, title: 'Sunday Service 11AM', date: '2024-01-28', service: 'Main Service', assignedUshers: 4, totalNeeded: 4, status: 'scheduled', attendance: 0 },
-  { id: 3, title: 'Wednesday Bible Study', date: '2024-01-24', service: 'Bible Study', assignedUshers: 2, totalNeeded: 2, status: 'scheduled', attendance: 0 },
-  { id: 4, title: 'Sunday Service 9AM', date: '2024-01-21', service: 'Main Service', assignedUshers: 4, totalNeeded: 4, status: 'completed', attendance: 156 },
-  { id: 5, title: 'Sunday Service 11AM', date: '2024-01-21', service: 'Main Service', assignedUshers: 4, totalNeeded: 4, status: 'completed', attendance: 203 }
+  {
+    id: 1,
+    title: 'Sunday Service 9AM',
+    date: '2024-01-28',
+    service: 'Main Service',
+    assignedUshers: 4,
+    totalNeeded: 4,
+    status: 'scheduled',
+    attendance: 0,
+  },
+  {
+    id: 2,
+    title: 'Sunday Service 11AM',
+    date: '2024-01-28',
+    service: 'Main Service',
+    assignedUshers: 4,
+    totalNeeded: 4,
+    status: 'scheduled',
+    attendance: 0,
+  },
+  {
+    id: 3,
+    title: 'Wednesday Bible Study',
+    date: '2024-01-24',
+    service: 'Bible Study',
+    assignedUshers: 2,
+    totalNeeded: 2,
+    status: 'scheduled',
+    attendance: 0,
+  },
+  {
+    id: 4,
+    title: 'Sunday Service 9AM',
+    date: '2024-01-21',
+    service: 'Main Service',
+    assignedUshers: 4,
+    totalNeeded: 4,
+    status: 'completed',
+    attendance: 156,
+  },
+  {
+    id: 5,
+    title: 'Sunday Service 11AM',
+    date: '2024-01-21',
+    service: 'Main Service',
+    assignedUshers: 4,
+    totalNeeded: 4,
+    status: 'completed',
+    attendance: 203,
+  },
 ];
 
-export const UsheringDashboard: React.FC = () => {
+export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ departmentId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -87,9 +198,10 @@ export const UsheringDashboard: React.FC = () => {
 
   // Filter members
   const filteredMembers = useMemo(() => {
-    return mockUsherMembers.filter(member => {
-      const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           member.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    return mockUsherMembers.filter((member) => {
+      const matchesSearch =
+        member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.email?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStation = stationFilter === 'all' || member.station === stationFilter;
       const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
       return matchesSearch && matchesStation && matchesStatus;
@@ -98,10 +210,34 @@ export const UsheringDashboard: React.FC = () => {
 
   // Quick actions
   const quickActions = [
-    { label: 'Add Usher', icon: UserPlus, onClick: () => toast({ title: 'Add Usher', description: 'Add new usher form would open here' }), variant: 'default' as const },
-    { label: 'Assign Service', icon: Calendar, onClick: () => toast({ title: 'Assign Service', description: 'Service assignment form would open here' }), variant: 'outline' as const },
-    { label: 'Create Schedule', icon: ClipboardList, onClick: () => toast({ title: 'Create Schedule', description: 'Schedule creation form would open here' }), variant: 'outline' as const },
-    { label: 'Training Session', icon: UserCheck, onClick: () => toast({ title: 'Training Session', description: 'Training session form would open here' }), variant: 'outline' as const }
+    {
+      label: 'Add Usher',
+      icon: UserPlus,
+      onClick: () =>
+        toast({ title: 'Add Usher', description: 'Add new usher form would open here' }),
+      variant: 'default' as const,
+    },
+    {
+      label: 'Assign Service',
+      icon: Calendar,
+      onClick: () =>
+        toast({ title: 'Assign Service', description: 'Service assignment form would open here' }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Create Schedule',
+      icon: ClipboardList,
+      onClick: () =>
+        toast({ title: 'Create Schedule', description: 'Schedule creation form would open here' }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Training Session',
+      icon: UserCheck,
+      onClick: () =>
+        toast({ title: 'Training Session', description: 'Training session form would open here' }),
+      variant: 'outline' as const,
+    },
   ];
 
   const handleBack = () => {
@@ -126,7 +262,7 @@ export const UsheringDashboard: React.FC = () => {
       {/* Dashboard Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Ushering Department Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Ushering Dashboard</h1>
           <p className="text-gray-600 mt-1">
             Manage usher assignments, service coverage, and hospitality coordination.
           </p>
@@ -175,7 +311,9 @@ export const UsheringDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Services</p>
-                <p className="text-2xl font-bold text-gray-900">{mockUsherStats.upcomingServices}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {mockUsherStats.upcomingServices}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -189,7 +327,9 @@ export const UsheringDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-gray-900">{mockUsherStats.completedServices}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {mockUsherStats.completedServices}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -241,11 +381,12 @@ export const UsheringDashboard: React.FC = () => {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="stations">Stations</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
@@ -259,30 +400,39 @@ export const UsheringDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockUsherEvents.filter(e => e.status === 'scheduled').map((event) => (
-                  <div key={event.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="bg-blue-100 p-2 rounded-full">
-                        <Calendar className="h-4 w-4 text-blue-600" />
+                {mockUsherEvents
+                  .filter((e) => e.status === 'scheduled')
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="bg-blue-100 p-2 rounded-full">
+                          <Calendar className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">{event.title}</h4>
+                          <p className="text-sm text-gray-600">
+                            {event.date} • {event.service}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-medium">{event.title}</h4>
-                        <p className="text-sm text-gray-600">{event.date} • {event.service}</p>
+                      <div className="text-right">
+                        <div className="text-sm font-medium">
+                          {event.assignedUshers}/{event.totalNeeded} ushers
+                        </div>
+                        <div className="w-20 bg-gray-200 rounded-full h-2 mt-1">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{
+                              width: `${(event.assignedUshers / event.totalNeeded) * 100}%`,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {event.assignedUshers}/{event.totalNeeded} ushers
-                      </div>
-                      <div className="w-20 bg-gray-200 rounded-full h-2 mt-1">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${(event.assignedUshers / event.totalNeeded) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -300,8 +450,8 @@ export const UsheringDashboard: React.FC = () => {
                   { name: 'Sanctuary Doors', ushers: 1, total: 2, color: 'bg-yellow-500' },
                   { name: 'Welcome Desk', ushers: 1, total: 1, color: 'bg-green-500' },
                   { name: 'Parking Lot', ushers: 1, total: 1, color: 'bg-green-500' },
-                  { name: 'Children\'s Area', ushers: 0, total: 1, color: 'bg-red-500' },
-                  { name: 'Overflow Area', ushers: 0, total: 1, color: 'bg-red-500' }
+                  { name: "Children's Area", ushers: 0, total: 1, color: 'bg-red-500' },
+                  { name: 'Overflow Area', ushers: 0, total: 1, color: 'bg-red-500' },
                 ].map((station) => (
                   <div key={station.name} className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between mb-2">
@@ -325,20 +475,28 @@ export const UsheringDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockUsherEvents.filter(e => e.status === 'completed').slice(0, 3).map((event) => (
-                  <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{event.title}</h4>
-                      <p className="text-sm text-gray-600">{event.date} • {event.attendance} attendees</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="outline">{event.service}</Badge>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {event.assignedUshers} ushers
+                {mockUsherEvents
+                  .filter((e) => e.status === 'completed')
+                  .slice(0, 3)
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div>
+                        <h4 className="font-medium">{event.title}</h4>
+                        <p className="text-sm text-gray-600">
+                          {event.date} • {event.attendance} attendees
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="outline">{event.service}</Badge>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {event.assignedUshers} ushers
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -404,13 +562,27 @@ export const UsheringDashboard: React.FC = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usher</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Station</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Availability</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Usher
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Station
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Experience
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Availability
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -526,10 +698,17 @@ export const UsheringDashboard: React.FC = () => {
               <div className="text-center text-gray-500">
                 <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p>Reports and analytics coming soon</p>
-                <p className="text-sm">View coverage reports, attendance, and performance metrics</p>
+                <p className="text-sm">
+                  View coverage reports, attendance, and performance metrics
+                </p>
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="space-y-4">
+          <DepartmentTaskBoard departmentId={departmentId} canEdit={true} />
         </TabsContent>
       </Tabs>
     </div>

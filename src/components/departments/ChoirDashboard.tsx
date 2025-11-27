@@ -21,18 +21,40 @@ import {
   Plus,
   ArrowLeft,
   Loader2,
-  Trash2
+  Trash2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { choirApi } from '@/services/departments/choirApi';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepartmentMember, DepartmentStats, ChoirMember } from '@/types/api';
+import { DepartmentTaskBoard } from './DepartmentTaskBoard';
+
+interface ChoirDashboardProps {
+  departmentId: string;
+}
 
 interface ChoirEvent {
   id: string;
@@ -57,7 +79,7 @@ interface NewMember {
   status: 'pending' | 'approved' | 'rejected';
 }
 
-export const ChoirDashboard: React.FC = () => {
+export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -88,7 +110,7 @@ export const ChoirDashboard: React.FC = () => {
     maritalStatus: 'single',
     voicePart: 'soprano',
     yearsExperience: 0,
-    status: 'pending'
+    status: 'pending',
   });
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -104,7 +126,7 @@ export const ChoirDashboard: React.FC = () => {
         const [statsResult, membersResult, eventsResult] = await Promise.all([
           choirApi.getChoirStats(),
           choirApi.getChoirMembers({ sort: { field: 'assigned_date', direction: 'desc' } }),
-          choirApi.getPerformanceHistory()
+          choirApi.getPerformanceHistory(),
         ]);
 
         // Make choirApi return shape consistent: { data, error }
@@ -120,7 +142,7 @@ export const ChoirDashboard: React.FC = () => {
         toast({
           title: 'Error',
           description: 'Failed to load dashboard data',
-          variant: 'destructive'
+          variant: 'destructive',
         });
       } finally {
         setLoading(false);
@@ -151,7 +173,7 @@ export const ChoirDashboard: React.FC = () => {
         attendance_rate,
         status,
         full_name,
-        email
+        email,
       } as ChoirMember;
     });
   }, [members]);
@@ -166,7 +188,7 @@ export const ChoirDashboard: React.FC = () => {
       attendees: e.attendees || 0,
       status: e.status || 'completed',
       rehearsal_type: e.rehearsal_type || 'Full Rehearsal',
-      songs: e.songs || []
+      songs: e.songs || [],
     }));
   }, [events]);
 
@@ -176,8 +198,8 @@ export const ChoirDashboard: React.FC = () => {
     return choirMembers.filter((m) => {
       const matchesSearch =
         !term ||
-        (m.member?.full_name?.toLowerCase().includes(term)) ||
-        (m.member?.email?.toLowerCase().includes(term));
+        m.member?.full_name?.toLowerCase().includes(term) ||
+        m.member?.email?.toLowerCase().includes(term);
       const matchesVoice = voiceFilter === 'all' || m.voice_part === voiceFilter;
       const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
       return matchesSearch && matchesVoice && matchesStatus;
@@ -185,10 +207,35 @@ export const ChoirDashboard: React.FC = () => {
   }, [choirMembers, searchTerm, voiceFilter, statusFilter]);
 
   const quickActions = [
-    { label: 'Add Singer', icon: UserPlus, onClick: () => setIsAddOpen(true), variant: 'default' as const },
-    { label: 'Schedule Rehearsal', icon: Calendar, onClick: () => toast({ title: 'Schedule Rehearsal', description: 'Rehearsal scheduling form would open here' }), variant: 'outline' as const },
-    { label: 'Add Song', icon: Music, onClick: () => toast({ title: 'Add Song', description: 'Song library form would open here' }), variant: 'outline' as const },
-    { label: 'Voice Training', icon: Mic, onClick: () => toast({ title: 'Voice Training', description: 'Training session form would open here' }), variant: 'outline' as const }
+    {
+      label: 'Add Singer',
+      icon: UserPlus,
+      onClick: () => setIsAddOpen(true),
+      variant: 'default' as const,
+    },
+    {
+      label: 'Schedule Rehearsal',
+      icon: Calendar,
+      onClick: () =>
+        toast({
+          title: 'Schedule Rehearsal',
+          description: 'Rehearsal scheduling form would open here',
+        }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Add Song',
+      icon: Music,
+      onClick: () => toast({ title: 'Add Song', description: 'Song library form would open here' }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Voice Training',
+      icon: Mic,
+      onClick: () =>
+        toast({ title: 'Voice Training', description: 'Training session form would open here' }),
+      variant: 'outline' as const,
+    },
   ];
 
   const handleBack = () => navigate('/admin/departments');
@@ -196,17 +243,17 @@ export const ChoirDashboard: React.FC = () => {
   const handleExportCSV = () => {
     const csv = [
       ['Name', 'Email', 'Voice Part', 'Role', 'Experience', 'Status', 'Attendance'],
-      ...choirMembers.map(m => [
+      ...choirMembers.map((m) => [
         m.member?.full_name || '',
         m.member?.email || '',
         m.voice_part,
         'Choir Member', // Default role since role property doesn't exist on ChoirMember
         m.years_experience || 0,
         m.status,
-        m.attendance_rate || 0
-      ])
+        m.attendance_rate || 0,
+      ]),
     ]
-      .map(row => row.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .map((row) => row.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -228,7 +275,7 @@ export const ChoirDashboard: React.FC = () => {
       const result = await choirApi.updateChoirMember(selectedMember.id, {
         voice_part: updates.voice_part ?? selectedMember.voice_part,
         years_experience: updates.years_experience ?? selectedMember.years_experience,
-        status: updates.status ?? selectedMember.status
+        status: updates.status ?? selectedMember.status,
       });
       if (result?.error) throw new Error(result.error.message);
 
@@ -236,13 +283,15 @@ export const ChoirDashboard: React.FC = () => {
 
       // optimistic local update
       setMembers((prev) =>
-        prev.map((m) =>
-          (m as any).id === selectedMember.id ? { ...(m as any), ...updates } : m
-        )
+        prev.map((m) => ((m as any).id === selectedMember.id ? { ...(m as any), ...updates } : m))
       );
       setIsEditOpen(false);
     } catch (err: any) {
-      toast({ title: 'Error', description: 'Failed to save changes: ' + (err.message || err), variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Failed to save changes: ' + (err.message || err),
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }
@@ -254,13 +303,18 @@ export const ChoirDashboard: React.FC = () => {
     try {
       setDeletingId(memberId);
       const apiResult = await choirApi.removeChoirMember(memberId);
-      if (apiResult?.error) throw new Error(apiResult.error.message || 'Failed to remove choir member');
+      if (apiResult?.error)
+        throw new Error(apiResult.error.message || 'Failed to remove choir member');
 
       // Optimistic UI update
       setMembers((prev) => prev.filter((m) => (m as any).id !== memberId));
       toast({ title: 'Deleted', description: 'Member removed from choir' });
     } catch (err: any) {
-      toast({ title: 'Error', description: 'Failed to delete member: ' + (err.message || err), variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Failed to delete member: ' + (err.message || err),
+        variant: 'destructive',
+      });
     } finally {
       setDeletingId(null);
     }
@@ -269,7 +323,11 @@ export const ChoirDashboard: React.FC = () => {
   // Add new member
   const handleAddMember = async () => {
     if (!newMember.name.trim() || !newMember.phone.trim() || !newMember.dateOfBirth.trim()) {
-      toast({ title: 'Error', description: 'Please fill in all required fields (Name, Phone, Date of Birth)', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields (Name, Phone, Date of Birth)',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -306,7 +364,9 @@ export const ChoirDashboard: React.FC = () => {
         }
       } else {
         // Create new member if they don't exist and ensure branch-level RLS compliance
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) {
           throw new Error('You must be signed in to add a member.');
         }
@@ -323,7 +383,9 @@ export const ChoirDashboard: React.FC = () => {
 
         const branchId = (profile as any)?.branch_id as string | null;
         if (!branchId) {
-          throw new Error('Your user profile is not assigned to a branch. Please contact an admin.');
+          throw new Error(
+            'Your user profile is not assigned to a branch. Please contact an admin.'
+          );
         }
 
         const { data: newMemberRecord, error: memberError } = await supabase
@@ -343,7 +405,11 @@ export const ChoirDashboard: React.FC = () => {
             street: '',
             public_landmark: '',
             gender: newMember.gender as 'male' | 'female',
-            marital_status: newMember.maritalStatus as 'single' | 'married' | 'widowed' | 'divorced',
+            marital_status: newMember.maritalStatus as
+              | 'single'
+              | 'married'
+              | 'widowed'
+              | 'divorced',
             membership_level: 'convert' as const,
           })
           .select('id')
@@ -380,14 +446,18 @@ export const ChoirDashboard: React.FC = () => {
         maritalStatus: 'single',
         voicePart: 'soprano',
         yearsExperience: 0,
-        status: 'pending'
+        status: 'pending',
       });
       setIsAddOpen(false);
 
       // Refresh data
       window.location.reload(); // Simple refresh for now
     } catch (err: any) {
-      toast({ title: 'Error', description: 'Failed to add member: ' + (err.message || err), variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Failed to add member: ' + (err.message || err),
+        variant: 'destructive',
+      });
     } finally {
       setAdding(false);
     }
@@ -411,7 +481,12 @@ export const ChoirDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="sm" onClick={handleBack} className="text-gray-600 hover:text-gray-900">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleBack}
+          className="text-gray-600 hover:text-gray-900"
+        >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Departments
         </Button>
@@ -420,7 +495,9 @@ export const ChoirDashboard: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Choir Department Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage choir members, rehearsals, performances, and musical activities.</p>
+          <p className="text-gray-600 mt-1">
+            Manage choir members, rehearsals, performances, and musical activities.
+          </p>
         </div>
         <Button>
           <Settings className="mr-2 h-4 w-4" />
@@ -438,7 +515,9 @@ export const ChoirDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Members</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.totalMembers || choirMembers.length || 0}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.totalMembers || choirMembers.length || 0}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -452,7 +531,10 @@ export const ChoirDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Singers</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.activeMembers || choirMembers.filter(m => m.status === 'approved').length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.activeMembers ||
+                    choirMembers.filter((m) => m.status === 'approved').length}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -466,7 +548,9 @@ export const ChoirDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Events</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.upcomingEvents || choirEvents.length || 0}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.upcomingEvents || choirEvents.length || 0}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -480,7 +564,9 @@ export const ChoirDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Activities</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.completedActivities || 0}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.completedActivities || 0}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -532,11 +618,12 @@ export const ChoirDashboard: React.FC = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="repertoire">Repertoire</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
@@ -550,11 +637,15 @@ export const ChoirDashboard: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {['soprano', 'alto', 'tenor', 'bass'].map((voice) => {
-                  const count = choirMembers.filter(m => m.voice_part === voice && m.status === 'approved').length;
+                  const count = choirMembers.filter(
+                    (m) => m.voice_part === voice && m.status === 'approved'
+                  ).length;
                   return (
                     <div key={voice} className="text-center p-4 bg-gray-50 rounded-lg">
                       <div className="text-2xl font-bold text-gray-900">{count}</div>
-                      <div className="text-sm text-gray-600">{voice[0].toUpperCase() + voice.slice(1)}</div>
+                      <div className="text-sm text-gray-600">
+                        {voice[0].toUpperCase() + voice.slice(1)}
+                      </div>
                     </div>
                   );
                 })}
@@ -569,15 +660,23 @@ export const ChoirDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {choirEvents.filter(e => e.status === 'completed').slice(0, 3).map((event) => (
-                  <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{event.title}</h4>
-                      <p className="text-sm text-gray-600">{event.date} • {event.attendees} attendees</p>
+                {choirEvents
+                  .filter((e) => e.status === 'completed')
+                  .slice(0, 3)
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div>
+                        <h4 className="font-medium">{event.title}</h4>
+                        <p className="text-sm text-gray-600">
+                          {event.date} • {event.attendees} attendees
+                        </p>
+                      </div>
+                      <Badge variant="outline">{event.type}</Badge>
                     </div>
-                    <Badge variant="outline">{event.type}</Badge>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -589,18 +688,28 @@ export const ChoirDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {choirEvents.filter(e => e.status === 'upcoming' || e.type === 'service').slice(0, 3).map((event) => (
-                  <div key={event.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{event.title}</h4>
-                      <p className="text-sm text-gray-600">{event.date} • {event.type}</p>
+                {choirEvents
+                  .filter((e) => e.status === 'upcoming' || e.type === 'service')
+                  .slice(0, 3)
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
+                    >
+                      <div>
+                        <h4 className="font-medium">{event.title}</h4>
+                        <p className="text-sm text-gray-600">
+                          {event.date} • {event.type}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium">{event.attendees} singers</div>
+                        <div className="text-xs text-gray-500">
+                          {event.songs?.length || 0} songs
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">{event.attendees} singers</div>
-                      <div className="text-xs text-gray-500">{event.songs?.length || 0} songs</div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -665,13 +774,27 @@ export const ChoirDashboard: React.FC = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Singer</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voice Part</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendance</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Singer
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Voice Part
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Experience
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Attendance
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -679,19 +802,30 @@ export const ChoirDashboard: React.FC = () => {
                       <tr key={member.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{member.member.full_name}</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {member.member.full_name}
+                            </div>
                             <div className="text-sm text-gray-500">{member.member.email}</div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant="outline" className="capitalize">{member.voice_part}</Badge>
+                          <Badge variant="outline" className="capitalize">
+                            {member.voice_part}
+                          </Badge>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Choir Member</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.years_experience} years</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          Choir Member
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {member.years_experience} years
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{member.attendance_rate}%</div>
                           <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                            <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${member.attendance_rate}%` }} />
+                            <div
+                              className="bg-blue-600 h-1.5 rounded-full"
+                              style={{ width: `${member.attendance_rate}%` }}
+                            />
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -730,10 +864,20 @@ export const ChoirDashboard: React.FC = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => { setSelectedMember(member); setIsViewOpen(true); }}>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedMember(member);
+                                    setIsViewOpen(true);
+                                  }}
+                                >
                                   <Eye className="mr-2 h-4 w-4 inline" /> View
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => { setSelectedMember(member); setIsEditOpen(true); }}>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedMember(member);
+                                    setIsEditOpen(true);
+                                  }}
+                                >
                                   <Edit className="mr-2 h-4 w-4 inline" /> Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDelete(member.id)}>
@@ -814,6 +958,11 @@ export const ChoirDashboard: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="space-y-4">
+          <DepartmentTaskBoard departmentId={departmentId} canEdit={true} />
+        </TabsContent>
       </Tabs>
 
       {/* View Member Modal */}
@@ -840,7 +989,9 @@ export const ChoirDashboard: React.FC = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Status</Label>
-                  <Badge variant={selectedMember.status === 'approved' ? 'default' : 'secondary'}>{selectedMember.status}</Badge>
+                  <Badge variant={selectedMember.status === 'approved' ? 'default' : 'secondary'}>
+                    {selectedMember.status}
+                  </Badge>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Experience</Label>
@@ -864,7 +1015,9 @@ export const ChoirDashboard: React.FC = () => {
                 </div>
               )}
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsViewOpen(false)}>Close</Button>
+                <Button variant="outline" onClick={() => setIsViewOpen(false)}>
+                  Close
+                </Button>
               </div>
             </div>
           )}
@@ -893,7 +1046,9 @@ export const ChoirDashboard: React.FC = () => {
                   <Label>Voice Part</Label>
                   <Select
                     value={selectedMember.voice_part}
-                    onValueChange={(v: any) => setSelectedMember({ ...selectedMember, voice_part: v })}
+                    onValueChange={(v: any) =>
+                      setSelectedMember({ ...selectedMember, voice_part: v })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -925,12 +1080,19 @@ export const ChoirDashboard: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                <Button onClick={() => handleSaveMember({
-                  voice_part: selectedMember.voice_part,
-                  status: selectedMember.status,
-                  years_experience: selectedMember.years_experience
-                })} disabled={saving}>
+                <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() =>
+                    handleSaveMember({
+                      voice_part: selectedMember.voice_part,
+                      status: selectedMember.status,
+                      years_experience: selectedMember.years_experience,
+                    })
+                  }
+                  disabled={saving}
+                >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
@@ -950,23 +1112,43 @@ export const ChoirDashboard: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Name *</Label>
-                <Input value={newMember.name} onChange={(e) => setNewMember({ ...newMember, name: e.target.value })} placeholder="Full name" />
+                <Input
+                  value={newMember.name}
+                  onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
+                  placeholder="Full name"
+                />
               </div>
               <div>
                 <Label>Email</Label>
-                <Input type="email" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} placeholder="email@example.com" />
+                <Input
+                  type="email"
+                  value={newMember.email}
+                  onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
+                  placeholder="email@example.com"
+                />
               </div>
               <div>
                 <Label>Phone *</Label>
-                <Input value={newMember.phone} onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })} placeholder="Phone number" />
+                <Input
+                  value={newMember.phone}
+                  onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
+                  placeholder="Phone number"
+                />
               </div>
               <div>
                 <Label>Date of Birth *</Label>
-                <Input type="date" value={newMember.dateOfBirth} onChange={(e) => setNewMember({ ...newMember, dateOfBirth: e.target.value })} />
+                <Input
+                  type="date"
+                  value={newMember.dateOfBirth}
+                  onChange={(e) => setNewMember({ ...newMember, dateOfBirth: e.target.value })}
+                />
               </div>
               <div>
                 <Label>Gender</Label>
-                <Select value={newMember.gender} onValueChange={(v: any) => setNewMember({ ...newMember, gender: v })}>
+                <Select
+                  value={newMember.gender}
+                  onValueChange={(v: any) => setNewMember({ ...newMember, gender: v })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -978,7 +1160,10 @@ export const ChoirDashboard: React.FC = () => {
               </div>
               <div>
                 <Label>Marital Status</Label>
-                <Select value={newMember.maritalStatus} onValueChange={(v: any) => setNewMember({ ...newMember, maritalStatus: v })}>
+                <Select
+                  value={newMember.maritalStatus}
+                  onValueChange={(v: any) => setNewMember({ ...newMember, maritalStatus: v })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -992,7 +1177,10 @@ export const ChoirDashboard: React.FC = () => {
               </div>
               <div>
                 <Label>Voice Part *</Label>
-                <Select value={newMember.voicePart} onValueChange={(v: any) => setNewMember({ ...newMember, voicePart: v })}>
+                <Select
+                  value={newMember.voicePart}
+                  onValueChange={(v: any) => setNewMember({ ...newMember, voicePart: v })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -1006,13 +1194,30 @@ export const ChoirDashboard: React.FC = () => {
               </div>
               <div>
                 <Label>Experience (years)</Label>
-                <Input type="number" value={newMember.yearsExperience} onChange={(e) => setNewMember({ ...newMember, yearsExperience: Number(e.target.value) })} min={0} />
+                <Input
+                  type="number"
+                  value={newMember.yearsExperience}
+                  onChange={(e) =>
+                    setNewMember({ ...newMember, yearsExperience: Number(e.target.value) })
+                  }
+                  min={0}
+                />
               </div>
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-              <Button onClick={handleAddMember} disabled={!newMember.name.trim() || !newMember.phone.trim() || !newMember.dateOfBirth.trim() || adding}>
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddMember}
+                disabled={
+                  !newMember.name.trim() ||
+                  !newMember.phone.trim() ||
+                  !newMember.dateOfBirth.trim() ||
+                  adding
+                }
+              >
                 {adding ? 'Adding...' : 'Add Singer'}
               </Button>
             </div>

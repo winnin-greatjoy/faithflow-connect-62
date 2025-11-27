@@ -3,32 +3,50 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { DepartmentDashboard } from '@/components/departments/DepartmentDashboard';
+import { UsheringDashboard } from '@/components/departments/UsheringDashboard';
+import { ChoirDashboard } from '@/components/departments/ChoirDashboard';
+import { TechnicalDashboard } from '@/components/departments/TechnicalDashboard';
+import { FinanceDashboard } from '@/components/departments/FinanceDashboard';
+import { EvangelismDashboard } from '@/components/departments/EvangelismDashboard';
+import { PrayerTeamDashboard } from '@/components/departments/PrayerTeamDashboard';
 import { DepartmentTaskBoard } from '@/components/departments/DepartmentTaskBoard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
+// Map department slugs to their specialized dashboard components
+const SPECIALIZED_DASHBOARDS: Record<string, React.FC> = {
+  ushering: UsheringDashboard,
+  choir: ChoirDashboard,
+  technical: TechnicalDashboard,
+  finance: FinanceDashboard,
+  evangelism: EvangelismDashboard,
+  'prayer-team': PrayerTeamDashboard,
+};
+
 export const DepartmentPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [department, setDepartment] = useState<{ id: string; name: string } | null>(null);
+  const [department, setDepartment] = useState<{ id: string; name: string; slug: string } | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     const loadDepartment = async () => {
       if (!slug) return;
-      
+
       try {
         const { data, error } = await supabase
           .from('departments')
-          .select('id, name')
+          .select('id, name, slug')
           .eq('slug', slug)
           .maybeSingle();
 
         if (error) throw error;
-        
+
         if (!data) {
           toast({
             title: 'Department not found',
@@ -68,23 +86,36 @@ export const DepartmentPage: React.FC = () => {
     );
   }
 
+  // Get the specialized dashboard component if it exists
+  const SpecializedDashboard = SPECIALIZED_DASHBOARDS[department.slug];
+
+  // If using specialized dashboard, render it directly without tabs
+  if (SpecializedDashboard) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto p-6 space-y-6">
+          <SpecializedDashboard departmentId={department.id} />
+        </div>
+      </div>
+    );
+  }
+
+  // Otherwise use generic dashboard with tabs
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/admin/departments')}
-              >
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/departments')}>
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
             </div>
             <h1 className="text-3xl font-bold">{department.name}</h1>
-            <p className="text-muted-foreground">Manage department members, tasks, and activities</p>
+            <p className="text-muted-foreground">
+              Manage department members, tasks, and activities
+            </p>
           </div>
         </div>
 
@@ -95,10 +126,7 @@ export const DepartmentPage: React.FC = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            <DepartmentDashboard
-              departmentId={department.id}
-              departmentName={department.name}
-            />
+            <DepartmentDashboard departmentId={department.id} departmentName={department.name} />
           </TabsContent>
 
           <TabsContent value="tasks">
