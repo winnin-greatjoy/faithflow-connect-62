@@ -9,13 +9,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building, Users, Activity, Settings } from 'lucide-react';
 import { AddDepartmentForm } from './AddDepartmentForm';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AddMemberToDepartmentDialog } from '@/components/departments/AddMemberToDepartmentDialog';
+import { DepartmentSettingsDialog } from '@/components/departments/DepartmentSettingsDialog';
+import { MinistrySettingsDialog } from '@/components/ministries/MinistrySettingsDialog';
+import { AddMemberToMinistryDialog } from '@/components/ministries/AddMemberToMinistryDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useToast } from '@/hooks/use-toast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // ✅ Type Definitions
 type Department = {
@@ -42,7 +58,9 @@ type Ministry = {
 const DepartmentCard: React.FC<{
   dept: Department;
   onOpen: (dept: Department) => void;
-}> = ({ dept, onOpen }) => (
+  onMembersClick: (dept: Department) => void;
+  onSettingsClick: (dept: Department) => void;
+}> = ({ dept, onOpen, onMembersClick, onSettingsClick }) => (
   <Card
     key={dept.id}
     className="hover:shadow-md transition-shadow cursor-pointer"
@@ -68,11 +86,27 @@ const DepartmentCard: React.FC<{
           <span className="font-medium">{dept.activities}</span>
         </div>
         <div className="flex gap-2 mt-3">
-          <Button variant="outline" size="sm" className="flex-1 text-xs sm:text-sm">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-xs sm:text-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMembersClick(dept);
+            }}
+          >
             <Users className="mr-1.5 h-4 w-4" />
             Members
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSettingsClick(dept);
+            }}
+          >
             <Settings className="h-4 w-4" />
           </Button>
         </div>
@@ -123,10 +157,15 @@ const MinistryCard: React.FC<{
 export const DepartmentsModule = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [ministrySearch, setMinistrySearch] = useState('');
   const { branchId } = useAuthz();
   const { toast } = useToast();
 
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [isAddMembersOpen, setIsAddMembersOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeDepartment, setActiveDepartment] = useState<Department | null>(null);
+  const [deptMembers, setDeptMembers] = useState<Array<{ id: string; full_name: string }>>([]);
 
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [addMinistryOpen, setAddMinistryOpen] = useState(false);
@@ -136,24 +175,33 @@ export const DepartmentsModule = () => {
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 
+  // Ministry dialog state
+  const [activeMinistry, setActiveMinistry] = useState<Ministry | null>(null);
+  const [isMinistrySettingsOpen, setIsMinistrySettingsOpen] = useState(false);
+  const [isAddMinistryMembersOpen, setIsAddMinistryMembersOpen] = useState(false);
+
   const [totalDepartmentsCount, setTotalDepartmentsCount] = useState<number>(0);
   const [totalMinistryMembersCount, setTotalMinistryMembersCount] = useState<number>(0);
   const [recentMinistryActivitiesCount, setRecentMinistryActivitiesCount] = useState<number>(0);
 
   useEffect(() => {
     (async () => {
-      // Ministries (filter by branch if available)
+      // Ministries (filter by branch if available, join with members for leader name)
       const ministriesQuery = supabase
         .from('ministries')
-        .select('id, name, description, branch_id')
+        .select(
+          'id, name, description, branch_id, head_id, members!ministries_head_id_fkey(full_name)'
+        )
         .order('created_at', { ascending: true });
       if (branchId) ministriesQuery.eq('branch_id', branchId);
       const { data: ministriesData } = await ministriesQuery;
 
-      // Departments list and count (filter by branch if available)
+      // Departments list and count (filter by branch if available, join with members for leader name)
       const deptListQuery = supabase
         .from('departments')
-        .select('id, name, slug, description, branch_id');
+        .select(
+          'id, name, slug, description, branch_id, head_id, members!departments_head_id_fkey(full_name)'
+        );
       if (branchId) deptListQuery.eq('branch_id', branchId);
       const { data: deptList } = await deptListQuery;
 
@@ -164,9 +212,7 @@ export const DepartmentsModule = () => {
       const deptCountRes = await deptCountQuery;
 
       // Aggregates across ministries
-      const { data: mmAll } = await supabase
-        .from('ministry_members')
-        .select('ministry_id');
+      const { data: mmAll } = await supabase.from('ministry_members').select('ministry_id');
       const { data: evAll } = await supabase
         .from('ministry_events')
         .select('ministry_id, event_date');
@@ -181,7 +227,9 @@ export const DepartmentsModule = () => {
         setBranches(list);
         if (list.length === 1 && !selectedBranchId) setSelectedBranchId(list[0].id);
         if (!selectedBranchId) {
-          const { data: { user } } = await supabase.auth.getUser();
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
           if (user?.id) {
             const { data: me } = await supabase
               .from('members')
@@ -195,34 +243,63 @@ export const DepartmentsModule = () => {
 
       const mmMap: Record<string, number> = {};
       (mmAll || []).forEach((row: any) => {
-        const k = row.ministry_id; mmMap[k] = (mmMap[k] || 0) + 1;
+        const k = row.ministry_id;
+        mmMap[k] = (mmMap[k] || 0) + 1;
       });
       const evMap: Record<string, number> = {};
       (evAll || []).forEach((row: any) => {
-        const k = row.ministry_id; evMap[k] = (evMap[k] || 0) + 1;
+        const k = row.ministry_id;
+        evMap[k] = (evMap[k] || 0) + 1;
       });
 
       const mapped: Ministry[] = (ministriesData || []).map((m: any) => ({
         id: m.id,
         name: m.name || 'Ministry',
         description: m.description || '',
-        leader: 'TBD',
+        leader: m.members?.full_name || 'No Leader',
         members: mmMap[m.id] || 0,
         activities: evMap[m.id] || 0,
         status: 'Active',
       }));
       setMinistries(mapped);
 
-      // Departments DB-backed list (placeholder fields)
+      // Load departments with real statistics
       if (deptList) {
+        // Get member counts for all departments
+        const deptIds = deptList.map((d) => d.id);
+        const { data: memberCounts } = await supabase
+          .from('members')
+          .select('assigned_department')
+          .in('assigned_department', deptIds);
+
+        // Get task counts for all departments
+        const { data: taskCounts } = await supabase
+          .from('department_tasks')
+          .select('department_id')
+          .in('department_id', deptIds);
+
+        // Create count maps
+        const memberCountMap: Record<string, number> = {};
+        (memberCounts || []).forEach((m: any) => {
+          if (m.assigned_department) {
+            memberCountMap[m.assigned_department] =
+              (memberCountMap[m.assigned_department] || 0) + 1;
+          }
+        });
+
+        const taskCountMap: Record<string, number> = {};
+        (taskCounts || []).forEach((t: any) => {
+          taskCountMap[t.department_id] = (taskCountMap[t.department_id] || 0) + 1;
+        });
+
         setDepartments(
           deptList.map((d) => ({
             id: d.id,
             name: d.name,
             slug: d.slug,
-            leader: 'TBD',
-            members: 0,
-            activities: 0,
+            leader: d.members?.full_name || 'No Leader',
+            members: memberCountMap[d.id] || 0,
+            activities: taskCountMap[d.id] || 0,
             status: 'Active',
           }))
         );
@@ -230,11 +307,13 @@ export const DepartmentsModule = () => {
 
       setTotalDepartmentsCount(deptCountRes.count || 0);
       const ministryIds = new Set<string>((ministriesData || []).map((m: any) => m.id));
-      setTotalMinistryMembersCount((mmAll || []).filter((row: any) => ministryIds.has(row.ministry_id)).length);
+      setTotalMinistryMembersCount(
+        (mmAll || []).filter((row: any) => ministryIds.has(row.ministry_id)).length
+      );
 
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
-      startOfMonth.setHours(0,0,0,0);
+      startOfMonth.setHours(0, 0, 0, 0);
       const recentCount = (evAll || []).filter((row: any) => {
         const d = row.event_date ? new Date(row.event_date) : null;
         return d && d >= startOfMonth && ministryIds.has(row.ministry_id);
@@ -243,9 +322,85 @@ export const DepartmentsModule = () => {
     })();
   }, [branchId]);
 
+  // reload departments (used after updates)
+  const reloadDepartments = async () => {
+    try {
+      const deptListQuery = supabase
+        .from('departments')
+        .select(
+          'id, name, slug, description, branch_id, head_id, members!departments_head_id_fkey(full_name)'
+        );
+      if (branchId) deptListQuery.eq('branch_id', branchId);
+      const { data: deptList } = await deptListQuery;
+      if (deptList) {
+        // Get member counts
+        const deptIds = deptList.map((d) => d.id);
+        const { data: memberCounts } = await supabase
+          .from('members')
+          .select('assigned_department')
+          .in('assigned_department', deptIds);
+        const { data: taskCounts } = await supabase
+          .from('department_tasks')
+          .select('department_id')
+          .in('department_id', deptIds);
+
+        const memberCountMap: Record<string, number> = {};
+        (memberCounts || []).forEach((m: any) => {
+          if (m.assigned_department) {
+            memberCountMap[m.assigned_department] =
+              (memberCountMap[m.assigned_department] || 0) + 1;
+          }
+        });
+        const taskCountMap: Record<string, number> = {};
+        (taskCounts || []).forEach((t: any) => {
+          taskCountMap[t.department_id] = (taskCountMap[t.department_id] || 0) + 1;
+        });
+
+        setDepartments(
+          deptList.map((d) => ({
+            id: d.id,
+            name: d.name,
+            slug: d.slug,
+            leader: d.members?.full_name || 'No Leader',
+            members: memberCountMap[d.id] || 0,
+            activities: taskCountMap[d.id] || 0,
+            status: 'Active' as const,
+          }))
+        );
+      }
+    } catch (e) {
+      // ignore for now
+    }
+  };
+
+  const loadDepartmentMembers = async (departmentId: string) => {
+    if (!departmentId) return;
+    try {
+      const { data } = await supabase
+        .from('members')
+        .select('id, full_name')
+        .eq('assigned_department', departmentId)
+        .order('full_name');
+      setDeptMembers((data || []).map((m: any) => ({ id: m.id, full_name: m.full_name })));
+    } catch (e) {
+      setDeptMembers([]);
+    }
+  };
+
   // ✅ Department click handler
   const handleDepartmentClick = (dept: Department & { slug: string }) => {
     navigate(`/departments/${dept.slug}`);
+  };
+
+  const handleOpenAddMembers = (dept: Department) => {
+    setActiveDepartment(dept);
+    setIsAddMembersOpen(true);
+  };
+
+  const handleOpenSettings = async (dept: Department) => {
+    setActiveDepartment(dept);
+    await loadDepartmentMembers(dept.id);
+    setIsSettingsOpen(true);
   };
 
   // ✅ Ministry click handler
@@ -254,8 +409,12 @@ export const DepartmentsModule = () => {
     const raw = ministry.name || '';
     const name = raw.toLowerCase();
     const normalized = raw.replace(/[^a-z]/gi, ' ').toLowerCase();
-    const isMens = /\bmen\b/.test(normalized) || /\bmens\b/.test(normalized) || normalized.includes('men s');
-    const isWomens = /\bwomen\b/.test(normalized) || /\bwomens\b/.test(normalized) || normalized.includes('women s');
+    const isMens =
+      /\bmen\b/.test(normalized) || /\bmens\b/.test(normalized) || normalized.includes('men s');
+    const isWomens =
+      /\bwomen\b/.test(normalized) ||
+      /\bwomens\b/.test(normalized) ||
+      normalized.includes('women s');
 
     if (isMens) {
       navigate(`/admin/mens-ministry/${ministry.id}`);
@@ -280,10 +439,15 @@ export const DepartmentsModule = () => {
     if (!mName.trim()) return;
     setSavingMinistry(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const effectiveBranchId = branchId ?? selectedBranchId;
       if (!effectiveBranchId) {
-        toast({ title: 'Branch required', description: 'Please select a branch for this ministry.' });
+        toast({
+          title: 'Branch required',
+          description: 'Please select a branch for this ministry.',
+        });
         return;
       }
       const insertPayload: any = {
@@ -303,7 +467,18 @@ export const DepartmentsModule = () => {
       }
       const created = data && data[0];
       if (created) {
-        setMinistries([{ id: created.id, name: created.name, description: created.description || '', leader: 'TBD', members: 0, activities: 0, status: 'Active' }, ...ministries]);
+        setMinistries([
+          {
+            id: created.id,
+            name: created.name,
+            description: created.description || '',
+            leader: 'TBD',
+            members: 0,
+            activities: 0,
+            status: 'Active',
+          },
+          ...ministries,
+        ]);
         toast({ title: 'Ministry created', description: `${created.name} added successfully.` });
       }
       setAddMinistryOpen(false);
@@ -323,7 +498,7 @@ export const DepartmentsModule = () => {
       .select('id, name, slug, description, branch_id');
     if (branchId) deptListQuery.eq('branch_id', branchId);
     const { data: deptList } = await deptListQuery;
-    
+
     if (deptList) {
       setDepartments(
         deptList.map((d) => ({
@@ -426,8 +601,12 @@ export const DepartmentsModule = () => {
       {/* Tabs */}
       <Tabs defaultValue="departments" className="space-y-4 sm:space-y-6">
         <TabsList className="w-2/3 sm:w-auto grid grid-cols-2">
-          <TabsTrigger value="departments" className="text-xs sm:text-sm py-2 px-4">Departments</TabsTrigger>
-          <TabsTrigger value="ministries" className="text-xs sm:text-sm py-2 px-4">Ministries</TabsTrigger>
+          <TabsTrigger value="departments" className="text-xs sm:text-sm py-2 px-4">
+            Departments
+          </TabsTrigger>
+          <TabsTrigger value="ministries" className="text-xs sm:text-sm py-2 px-4">
+            Ministries
+          </TabsTrigger>
         </TabsList>
 
         {/* Departments */}
@@ -437,7 +616,9 @@ export const DepartmentsModule = () => {
               <div className="flex items-start sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-lg sm:text-xl">Church Departments</CardTitle>
-                  <CardDescription>Operational departments that support church services</CardDescription>
+                  <CardDescription>
+                    Operational departments that support church services
+                  </CardDescription>
                 </div>
                 <AddDepartmentForm onAdd={handleAddDepartment} />
               </div>
@@ -445,7 +626,13 @@ export const DepartmentsModule = () => {
             <CardContent className="p-4 sm:p-6 pt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                 {filteredDepartments.map((dept) => (
-                  <DepartmentCard key={dept.id} dept={dept} onOpen={handleDepartmentClick} />
+                  <DepartmentCard
+                    key={dept.id}
+                    dept={dept}
+                    onOpen={handleDepartmentClick}
+                    onMembersClick={handleOpenAddMembers}
+                    onSettingsClick={handleOpenSettings}
+                  />
                 ))}
               </div>
             </CardContent>
@@ -459,9 +646,13 @@ export const DepartmentsModule = () => {
               <div className="flex items-start sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-lg sm:text-xl">Church Ministries</CardTitle>
-                  <CardDescription>Ministries focused on different groups and activities</CardDescription>
+                  <CardDescription>
+                    Ministries focused on different groups and activities
+                  </CardDescription>
                 </div>
-                <Button size="sm" onClick={() => setAddMinistryOpen(true)}>Add Ministry</Button>
+                <Button size="sm" onClick={() => setAddMinistryOpen(true)}>
+                  Add Ministry
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-4">
@@ -491,7 +682,9 @@ export const DepartmentsModule = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {branches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -499,21 +692,68 @@ export const DepartmentsModule = () => {
             )}
             <div className="grid gap-2">
               <Label htmlFor="m-name">Ministry Name</Label>
-              <Input id="m-name" value={mName} onChange={(e) => setMName(e.target.value)} placeholder="e.g., Men's Ministry" />
+              <Input
+                id="m-name"
+                value={mName}
+                onChange={(e) => setMName(e.target.value)}
+                placeholder="e.g., Men's Ministry"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="m-desc">Description</Label>
-              <Textarea id="m-desc" value={mDesc} onChange={(e) => setMDesc(e.target.value)} placeholder="Short description..." />
+              <Textarea
+                id="m-desc"
+                value={mDesc}
+                onChange={(e) => setMDesc(e.target.value)}
+                placeholder="Short description..."
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddMinistryOpen(false)}>Cancel</Button>
-            <Button onClick={saveAddMinistry} disabled={savingMinistry || !mName.trim() || (!branchId && !selectedBranchId)}>
+            <Button variant="outline" onClick={() => setAddMinistryOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={saveAddMinistry}
+              disabled={savingMinistry || !mName.trim() || (!branchId && !selectedBranchId)}
+            >
               {savingMinistry ? 'Saving...' : 'Save Ministry'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Members Dialog (opens when clicking Members on a department card) */}
+      <AddMemberToDepartmentDialog
+        open={isAddMembersOpen}
+        onOpenChange={(open) => setIsAddMembersOpen(open)}
+        departmentId={activeDepartment?.id ?? ''}
+        onMembersAdded={async () => {
+          await reloadDepartments();
+          if (activeDepartment) await loadDepartmentMembers(activeDepartment.id);
+        }}
+      />
+
+      {/* Department Settings Dialog */}
+      <DepartmentSettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={(open) => setIsSettingsOpen(open)}
+        departmentId={activeDepartment?.id ?? ''}
+        departmentName={activeDepartment?.name ?? ''}
+        members={deptMembers}
+        onUpdated={(name) => {
+          setDepartments((prev) =>
+            prev.map((d) => (d.id === activeDepartment?.id ? { ...d, name } : d))
+          );
+          if (activeDepartment) setActiveDepartment({ ...activeDepartment, name });
+        }}
+        onDeleted={async () => {
+          await reloadDepartments();
+        }}
+        onMembersChanged={async () => {
+          if (activeDepartment) await loadDepartmentMembers(activeDepartment.id);
+        }}
+      />
     </div>
   );
 };
