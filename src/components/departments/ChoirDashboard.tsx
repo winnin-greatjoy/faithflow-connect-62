@@ -22,6 +22,8 @@ import {
   ArrowLeft,
   Loader2,
   Trash2,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -51,6 +53,12 @@ import { choirApi } from '@/services/departments/choirApi';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepartmentMember, DepartmentStats, ChoirMember } from '@/types/api';
 import { DepartmentTaskBoard } from './DepartmentTaskBoard';
+import { ChoirSettingsDialog } from '../choir/ChoirSettingsDialog';
+import { ImportMembersDialog } from '../choir/ImportMembersDialog';
+import { downloadMemberTemplate } from '../choir/utils/csvTemplates';
+import { AddSongDialog } from '../choir/AddSongDialog';
+import { SongCard, type Song } from '../choir/SongCard';
+import { ScheduleRehearsalDialog } from '../choir/ScheduleRehearsalDialog';
 
 interface ChoirDashboardProps {
   departmentId: string;
@@ -99,6 +107,15 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isScheduleRehearsalOpen, setIsScheduleRehearsalOpen] = useState(false);
+
+  // Repertoire states
+  const [isAddSongOpen, setIsAddSongOpen] = useState(false);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [loadingSongs, setLoadingSongs] = useState(false);
+  const [songSearch, setSongSearch] = useState('');
 
   // form / UI states
   const [newMember, setNewMember] = useState<NewMember>({
@@ -151,6 +168,29 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
 
     loadDashboardData();
   }, [toast]);
+
+  // Load songs from repertoire
+  useEffect(() => {
+    const loadSongs = async () => {
+      setLoadingSongs(true);
+      try {
+        const { data, error } = await supabase
+          .from('choir_repertoire')
+          .select('*')
+          .eq('department_id', departmentId)
+          .order('title');
+
+        if (error) throw error;
+        setSongs(data || []);
+      } catch (err: any) {
+        console.error('Failed to load songs:', err.message);
+      } finally {
+        setLoadingSongs(false);
+      }
+    };
+
+    loadSongs();
+  }, [departmentId]);
 
   // Flatten + enrich members into ChoirMember shape for UI usage
   const choirMembers: ChoirMember[] = useMemo(() => {
@@ -216,24 +256,19 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
     {
       label: 'Schedule Rehearsal',
       icon: Calendar,
-      onClick: () =>
-        toast({
-          title: 'Schedule Rehearsal',
-          description: 'Rehearsal scheduling form would open here',
-        }),
+      onClick: () => setIsScheduleRehearsalOpen(true),
       variant: 'outline' as const,
     },
     {
       label: 'Add Song',
       icon: Music,
-      onClick: () => toast({ title: 'Add Song', description: 'Song library form would open here' }),
+      onClick: () => setIsAddSongOpen(true),
       variant: 'outline' as const,
     },
     {
-      label: 'Voice Training',
-      icon: Mic,
-      onClick: () =>
-        toast({ title: 'Voice Training', description: 'Training session form would open here' }),
+      label: 'Import Members',
+      icon: Upload,
+      onClick: () => setIsImportOpen(true),
       variant: 'outline' as const,
     },
   ];
@@ -499,7 +534,7 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
             Manage choir members, rehearsals, performances, and musical activities.
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsSettingsOpen(true)}>
           <Settings className="mr-2 h-4 w-4" />
           Choir Settings
         </Button>
@@ -724,6 +759,14 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add Singer
               </Button>
+              <Button size="sm" variant="outline" onClick={() => downloadMemberTemplate()}>
+                <Download className="mr-2 h-4 w-4" />
+                Download Template
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setIsImportOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import Members
+              </Button>
               <Button size="sm" variant="outline" onClick={handleExportCSV}>
                 <FileText className="mr-2 h-4 w-4" />
                 Export List
@@ -900,21 +943,134 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
         <TabsContent value="repertoire" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Song Repertoire</h3>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setIsAddSongOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Add Song
             </Button>
           </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center text-gray-500">
-                <Music className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>Song repertoire management coming soon</p>
-                <p className="text-sm">Add, organize, and manage your choir's song library</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search songs..."
+              value={songSearch}
+              onChange={(e) => setSongSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {loadingSongs ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center text-gray-500">
+                  <Loader2 className="h-8 w-8 mx-auto mb-4 text-gray-300 animate-spin" />
+                  <p>Loading repertoire...</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : songs.filter(
+              (s) =>
+                s.title.toLowerCase().includes(songSearch.toLowerCase()) ||
+                s.composer.toLowerCase().includes(songSearch.toLowerCase())
+            ).length === 0 ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center text-gray-500">
+                  <Music className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p className="font-medium mb-1">
+                    {songSearch ? 'No songs found' : 'No songs in repertoire'}
+                  </p>
+                  <p className="text-sm mb-4">
+                    {songSearch
+                      ? 'Try adjusting your search'
+                      : 'Add your first song to get started'}
+                  </p>
+                  {!songSearch && (
+                    <Button size="sm" onClick={() => setIsAddSongOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Song
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {songs
+                .filter(
+                  (s) =>
+                    s.title.toLowerCase().includes(songSearch.toLowerCase()) ||
+                    s.composer.toLowerCase().includes(songSearch.toLowerCase())
+                )
+                .map((song) => (
+                  <SongCard
+                    key={song.id}
+                    song={song}
+                    onEdit={(s) => {
+                      // For now, just notify - could create EditSongDialog later
+                      toast({ title: 'Edit Song', description: `Editing ${s.title}` });
+                    }}
+                    onDelete={async (songId) => {
+                      if (!confirm('Delete this song from repertoire?')) return;
+                      try {
+                        const { error } = await supabase
+                          .from('choir_repertoire')
+                          .delete()
+                          .eq('id', songId);
+                        if (error) throw error;
+                        setSongs(songs.filter((s) => s.id !== songId));
+                        toast({ title: 'Deleted', description: 'Song removed from repertoire' });
+                      } catch (err: any) {
+                        toast({
+                          title: 'Error',
+                          description: err.message || 'Failed to delete song',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                    onMarkPerformed={async (songId) => {
+                      try {
+                        const song = songs.find((s) => s.id === songId);
+                        if (!song) return;
+
+                        const { error } = await supabase
+                          .from('choir_repertoire')
+                          .update({
+                            last_performed: new Date().toISOString(),
+                            performance_count: song.performance_count + 1,
+                          })
+                          .eq('id', songId);
+
+                        if (error) throw error;
+
+                        setSongs(
+                          songs.map((s) =>
+                            s.id === songId
+                              ? {
+                                  ...s,
+                                  last_performed: new Date().toISOString(),
+                                  performance_count: s.performance_count + 1,
+                                }
+                              : s
+                          )
+                        );
+
+                        toast({
+                          title: 'Updated',
+                          description: `Marked ${song.title} as performed`,
+                        });
+                      } catch (err: any) {
+                        toast({
+                          title: 'Error',
+                          description: err.message || 'Failed to update song',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                  />
+                ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* Schedule */}
@@ -1224,6 +1380,46 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Choir Settings Dialog */}
+      <ChoirSettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        departmentId={departmentId}
+      />
+
+      {/* Import Members Dialog */}
+      <ImportMembersDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onImportComplete={() => window.location.reload()}
+      />
+
+      {/* Schedule Rehearsal Dialog */}
+      <ScheduleRehearsalDialog
+        open={isScheduleRehearsalOpen}
+        onOpenChange={setIsScheduleRehearsalOpen}
+        departmentId={departmentId}
+        onRehearsalScheduled={() => {
+          toast({ title: 'Success', description: 'Rehearsal scheduled successfully' });
+        }}
+      />
+
+      {/* Add Song Dialog */}
+      <AddSongDialog
+        open={isAddSongOpen}
+        onOpenChange={setIsAddSongOpen}
+        departmentId={departmentId}
+        onSongAdded={async () => {
+          // Reload songs
+          const { data } = await supabase
+            .from('choir_repertoire')
+            .select('*')
+            .eq('department_id', departmentId)
+            .order('title');
+          setSongs(data || []);
+        }}
+      />
     </div>
   );
 };
