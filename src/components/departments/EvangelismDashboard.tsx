@@ -97,7 +97,11 @@ const mockFollowUps: FollowUp[] = [
   { id: 5, contactName: 'Robert Davis', contactInfo: '555-1005', status: 'not-interested', assignedTo: 'Paul Smith', lastContact: '2024-01-19', notes: 'Not interested at this time, but respectful conversation' }
 ];
 
-export const EvangelismDashboard: React.FC = () => {
+interface EvangelismDashboardProps {
+  departmentId: string;
+}
+
+export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ departmentId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');

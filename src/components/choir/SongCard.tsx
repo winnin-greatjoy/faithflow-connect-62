@@ -4,6 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Music, Star, Clock, Edit, Trash2, Calendar } from 'lucide-react';
 
+const difficultyLevels: Record<string, number> = {
+  'easy': 1,
+  'medium': 3,
+  'hard': 4,
+  'expert': 5,
+};
+
 export interface Song {
   id: string;
   title: string;
@@ -11,12 +18,23 @@ export interface Song {
   arranger?: string | null;
   key_signature: string;
   tempo: string;
-  difficulty: number;
-  duration_minutes: number;
+  difficulty: string;
+  duration: number; // duration in seconds from DB
   notes?: string | null;
   last_performed?: string | null;
   performance_count: number;
+  category?: string | null;
+  lyrics?: string | null;
+  audio_url?: string | null;
+  sheet_music_url?: string | null;
+  video_url?: string | null;
+  department_id?: string;
 }
+
+// Helper to convert duration seconds to minutes for display
+export const getDurationMinutes = (durationSeconds: number): number => {
+  return Math.round(durationSeconds / 60);
+};
 
 interface SongCardProps {
   song: Song;
@@ -51,7 +69,7 @@ export const SongCard: React.FC<SongCardProps> = ({ song, onEdit, onDelete, onMa
           </Badge>
           <Badge variant="outline" className="text-xs flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {song.duration_minutes}min
+            {Math.round(song.duration / 60)}min
           </Badge>
         </div>
 
@@ -60,16 +78,12 @@ export const SongCard: React.FC<SongCardProps> = ({ song, onEdit, onDelete, onMa
             <Star
               key={level}
               className={`h-4 w-4 ${
-                level <= song.difficulty ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+                level <= (difficultyLevels[song.difficulty] || 1) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
               }`}
             />
           ))}
-          <span className="text-xs text-gray-500 ml-2">
-            {song.difficulty === 1 && 'Beginner'}
-            {song.difficulty === 2 && 'Easy'}
-            {song.difficulty === 3 && 'Intermediate'}
-            {song.difficulty === 4 && 'Advanced'}
-            {song.difficulty === 5 && 'Expert'}
+          <span className="text-xs text-gray-500 ml-2 capitalize">
+            {song.difficulty || 'Easy'}
           </span>
         </div>
 

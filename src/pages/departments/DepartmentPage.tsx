@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
 // Map department slugs to their specialized dashboard components
-const SPECIALIZED_DASHBOARDS: Record<string, React.FC> = {
+const SPECIALIZED_DASHBOARDS: Record<string, React.FC<{ departmentId: string }>> = {
   ushering: UsheringDashboard,
   choir: ChoirDashboard,
   technical: TechnicalDashboard,

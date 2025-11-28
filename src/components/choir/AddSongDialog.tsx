@@ -34,9 +34,10 @@ interface SongData {
   arranger: string;
   keySignature: string;
   tempo: string;
-  difficulty: number;
+  difficulty: string;
   durationMinutes: number;
   notes: string;
+  category: string;
 }
 
 export const AddSongDialog: React.FC<AddSongDialogProps> = ({
@@ -53,9 +54,10 @@ export const AddSongDialog: React.FC<AddSongDialogProps> = ({
     arranger: '',
     keySignature: 'C',
     tempo: 'Moderato',
-    difficulty: 3,
+    difficulty: 'medium',
     durationMinutes: 4,
     notes: '',
+    category: 'Worship',
   });
 
   const handleSave = async () => {
@@ -70,19 +72,18 @@ export const AddSongDialog: React.FC<AddSongDialogProps> = ({
 
     setSaving(true);
     try {
-      const { error } = await supabase.from('choir_repertoire').insert({
+      const { error } = await supabase.from('choir_repertoire').insert([{
         department_id: departmentId,
         title: song.title.trim(),
         composer: song.composer.trim(),
-        arranger: song.arranger.trim() || null,
         key_signature: song.keySignature,
         tempo: song.tempo,
         difficulty: song.difficulty,
-        duration_minutes: song.durationMinutes,
+        duration: song.durationMinutes * 60, // Convert minutes to seconds
         notes: song.notes.trim() || null,
-        date_added: new Date().toISOString(),
+        category: song.category || null,
         performance_count: 0,
-      });
+      }]);
 
       if (error) throw error;
 
@@ -112,9 +113,10 @@ export const AddSongDialog: React.FC<AddSongDialogProps> = ({
       arranger: '',
       keySignature: 'C',
       tempo: 'Moderato',
-      difficulty: 3,
+      difficulty: 'medium',
       durationMinutes: 4,
       notes: '',
+      category: 'Worship',
     });
   };
 
@@ -216,31 +218,30 @@ export const AddSongDialog: React.FC<AddSongDialogProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="difficulty">Difficulty Level</Label>
-              <div className="flex items-center gap-2">
-                {[1, 2, 3, 4, 5].map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setSong({ ...song, difficulty: level })}
-                    className="focus:outline-none"
-                  >
-                    <Star
-                      className={`h-6 w-6 ${
-                        level <= song.difficulty
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-300'
-                      }`}
-                    />
-                  </button>
-                ))}
-                <span className="text-sm text-gray-600 ml-2">
-                  {song.difficulty === 1 && 'Beginner'}
-                  {song.difficulty === 2 && 'Easy'}
-                  {song.difficulty === 3 && 'Intermediate'}
-                  {song.difficulty === 4 && 'Advanced'}
-                  {song.difficulty === 5 && 'Expert'}
-                </span>
-              </div>
+              <Select
+                value={song.difficulty}
+                onValueChange={(value) => setSong({ ...song, difficulty: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                  <SelectItem value="expert">Expert</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Input
+                id="category"
+                value={song.category}
+                onChange={(e) => setSong({ ...song, category: e.target.value })}
+                placeholder="e.g., Worship, Hymn, Contemporary"
+              />
             </div>
 
             <div className="space-y-2">

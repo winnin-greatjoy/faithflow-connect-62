@@ -151,6 +151,80 @@ export type Database = {
           },
         ]
       }
+      choir_repertoire: {
+        Row: {
+          audio_url: string | null
+          category: string | null
+          composer: string | null
+          created_at: string | null
+          created_by: string | null
+          department_id: string
+          difficulty: string | null
+          duration: number | null
+          id: string
+          key_signature: string | null
+          last_performed: string | null
+          lyrics: string | null
+          notes: string | null
+          performance_count: number | null
+          sheet_music_url: string | null
+          tempo: string | null
+          title: string
+          updated_at: string | null
+          video_url: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          category?: string | null
+          composer?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          department_id: string
+          difficulty?: string | null
+          duration?: number | null
+          id?: string
+          key_signature?: string | null
+          last_performed?: string | null
+          lyrics?: string | null
+          notes?: string | null
+          performance_count?: number | null
+          sheet_music_url?: string | null
+          tempo?: string | null
+          title: string
+          updated_at?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          category?: string | null
+          composer?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          department_id?: string
+          difficulty?: string | null
+          duration?: number | null
+          id?: string
+          key_signature?: string | null
+          last_performed?: string | null
+          lyrics?: string | null
+          notes?: string | null
+          performance_count?: number | null
+          sheet_music_url?: string | null
+          tempo?: string | null
+          title?: string
+          updated_at?: string | null
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "choir_repertoire_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       church_branches: {
         Row: {
           address: string
