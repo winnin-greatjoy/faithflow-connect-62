@@ -129,17 +129,17 @@ const AdminDashboard = () => {
       case 'childrens-ministry':
         return <ChildrensMinistryDashboard userRole="head" />;
       case 'choir':
-        return can('choir', 'view') ? <ChoirDashboard /> : denied;
+        return can('choir', 'view') ? <ChoirDashboard departmentId="choir-dept-id" /> : denied;
       case 'ushering':
-        return can('ushering', 'view') ? <UsheringDashboard /> : denied;
+        return can('ushering', 'view') ? <UsheringDashboard departmentId="ushering-dept-id" /> : denied;
       case 'prayer-team':
-        return can('prayer', 'view') ? <PrayerTeamDashboard /> : denied;
+        return can('prayer', 'view') ? <PrayerTeamDashboard departmentId="prayer-dept-id" /> : denied;
       case 'evangelism':
-        return can('evangelism', 'view') ? <EvangelismDashboard /> : denied;
+        return can('evangelism', 'view') ? <EvangelismDashboard departmentId="evangelism-dept-id" /> : denied;
       case 'finance-dept':
-        return can('finance', 'view') ? <FinanceDashboard /> : denied;
+        return can('finance', 'view') ? <FinanceDashboard departmentId="finance-dept-id" /> : denied;
       case 'technical':
-        return <TechnicalDashboard />;
+        return <TechnicalDashboard departmentId="technical-dept-id" />;
       case 'communication':
         return can('admin', 'view') ? <CommunicationHub /> : denied;
       case 'provisioning':

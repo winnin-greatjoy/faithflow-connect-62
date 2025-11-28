@@ -73,7 +73,11 @@ interface SupportTicket {
   actual_time?: number;
 }
 
-export const TechnicalDashboard: React.FC = () => {
+interface TechnicalDashboardProps {
+  departmentId: string;
+}
+
+export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departmentId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');

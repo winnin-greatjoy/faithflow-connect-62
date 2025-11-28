@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -62,132 +62,6 @@ interface UsherEvent {
   attendance: number;
 }
 
-// Mock data for Ushering department
-const mockUsherStats = {
-  totalMembers: 12,
-  activeMembers: 10,
-  upcomingServices: 4,
-  completedServices: 28,
-  monthlyGrowth: 15,
-  coverageRate: 85,
-};
-
-const mockUsherMembers: UsherMember[] = [
-  {
-    id: 1,
-    name: 'James Wilson',
-    role: 'Head Usher',
-    status: 'active',
-    joinDate: '2021-08-10',
-    email: 'james@example.com',
-    phone: '555-0101',
-    station: 'Main Entrance',
-    experience: 5,
-    availability: ['Sunday 9AM', 'Sunday 11AM'],
-  },
-  {
-    id: 2,
-    name: 'Mary Thompson',
-    role: 'Assistant Usher',
-    status: 'active',
-    joinDate: '2022-02-15',
-    email: 'mary@example.com',
-    phone: '555-0102',
-    station: 'Sanctuary Doors',
-    experience: 3,
-    availability: ['Sunday 9AM'],
-  },
-  {
-    id: 3,
-    name: 'Robert Davis',
-    role: 'Usher',
-    status: 'active',
-    joinDate: '2023-01-20',
-    email: 'robert@example.com',
-    phone: '555-0103',
-    station: 'Parking Lot',
-    experience: 2,
-    availability: ['Sunday 11AM'],
-  },
-  {
-    id: 4,
-    name: 'Sarah Johnson',
-    role: 'Usher',
-    status: 'active',
-    joinDate: '2022-11-05',
-    email: 'sarah@example.com',
-    phone: '555-0104',
-    station: 'Welcome Desk',
-    experience: 4,
-    availability: ['Sunday 9AM', 'Sunday 11AM'],
-  },
-  {
-    id: 5,
-    name: 'Michael Brown',
-    role: 'Usher',
-    status: 'inactive',
-    joinDate: '2021-06-12',
-    email: 'michael@example.com',
-    phone: '555-0105',
-    station: "Children's Area",
-    experience: 6,
-    availability: [],
-  },
-];
-
-const mockUsherEvents: UsherEvent[] = [
-  {
-    id: 1,
-    title: 'Sunday Service 9AM',
-    date: '2024-01-28',
-    service: 'Main Service',
-    assignedUshers: 4,
-    totalNeeded: 4,
-    status: 'scheduled',
-    attendance: 0,
-  },
-  {
-    id: 2,
-    title: 'Sunday Service 11AM',
-    date: '2024-01-28',
-    service: 'Main Service',
-    assignedUshers: 4,
-    totalNeeded: 4,
-    status: 'scheduled',
-    attendance: 0,
-  },
-  {
-    id: 3,
-    title: 'Wednesday Bible Study',
-    date: '2024-01-24',
-    service: 'Bible Study',
-    assignedUshers: 2,
-    totalNeeded: 2,
-    status: 'scheduled',
-    attendance: 0,
-  },
-  {
-    id: 4,
-    title: 'Sunday Service 9AM',
-    date: '2024-01-21',
-    service: 'Main Service',
-    assignedUshers: 4,
-    totalNeeded: 4,
-    status: 'completed',
-    attendance: 156,
-  },
-  {
-    id: 5,
-    title: 'Sunday Service 11AM',
-    date: '2024-01-21',
-    service: 'Main Service',
-    assignedUshers: 4,
-    totalNeeded: 4,
-    status: 'completed',
-    attendance: 203,
-  },
-];
-
 export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ departmentId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -196,9 +70,52 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
   const [stationFilter, setStationFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // State for data from DB
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    activeMembers: 0,
+    upcomingServices: 0,
+    completedServices: 0,
+    monthlyGrowth: 0,
+    coverageRate: 0,
+  });
+  const [members, setMembers] = useState<UsherMember[]>([]);
+  const [events, setEvents] = useState<UsherEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load data from DB
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // TODO: Replace with actual API calls when ushering API is implemented
+        // For now, using empty data
+        setStats({
+          totalMembers: 0,
+          activeMembers: 0,
+          upcomingServices: 0,
+          completedServices: 0,
+          monthlyGrowth: 0,
+          coverageRate: 0,
+        });
+        setMembers([]);
+        setEvents([]);
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load ushering data',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [departmentId, toast]);
+
   // Filter members
   const filteredMembers = useMemo(() => {
-    return mockUsherMembers.filter((member) => {
+    return members.filter((member) => {
       const matchesSearch =
         member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         member.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -206,7 +123,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
       const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
       return matchesSearch && matchesStation && matchesStatus;
     });
-  }, [searchTerm, stationFilter, statusFilter]);
+  }, [members, searchTerm, stationFilter, statusFilter]);
 
   // Quick actions
   const quickActions = [
@@ -283,7 +200,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Ushers</p>
-                <p className="text-2xl font-bold text-gray-900">{mockUsherStats.totalMembers}</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalMembers}</p>
               </div>
             </div>
           </CardContent>
@@ -297,7 +214,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-gray-900">{mockUsherStats.activeMembers}</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.activeMembers}</p>
               </div>
             </div>
           </CardContent>
@@ -312,7 +229,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
               <div>
                 <p className="text-sm font-medium text-gray-600">Services</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockUsherStats.upcomingServices}
+                  {stats.upcomingServices}
                 </p>
               </div>
             </div>
@@ -328,7 +245,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockUsherStats.completedServices}
+                  {stats.completedServices}
                 </p>
               </div>
             </div>
@@ -343,7 +260,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Growth</p>
-                <p className="text-2xl font-bold text-gray-900">+{mockUsherStats.monthlyGrowth}%</p>
+                <p className="text-2xl font-bold text-gray-900">+{stats.monthlyGrowth}%</p>
               </div>
             </div>
           </CardContent>
@@ -357,7 +274,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Coverage</p>
-                <p className="text-2xl font-bold text-gray-900">{mockUsherStats.coverageRate}%</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.coverageRate}%</p>
               </div>
             </div>
           </CardContent>
@@ -400,7 +317,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockUsherEvents
+                {events
                   .filter((e) => e.status === 'scheduled')
                   .map((event) => (
                     <div
@@ -475,7 +392,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockUsherEvents
+                {events
                   .filter((e) => e.status === 'completed')
                   .slice(0, 3)
                   .map((event) => (

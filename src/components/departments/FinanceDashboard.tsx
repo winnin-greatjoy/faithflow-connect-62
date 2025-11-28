@@ -103,7 +103,11 @@ const mockBudgetItems: BudgetItem[] = [
   { id: 6, category: 'Missions', budgeted: 1000, spent: 600, remaining: 400, percentage: 60, status: 'under' }
 ];
 
-export const FinanceDashboard: React.FC = () => {
+interface FinanceDashboardProps {
+  departmentId: string;
+}
+
+export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');

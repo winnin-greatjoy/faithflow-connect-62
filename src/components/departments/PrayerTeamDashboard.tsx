@@ -96,7 +96,11 @@ const mockPrayerSessions: PrayerSession[] = [
   { id: 5, title: 'Youth Prayer Walk', date: '2024-01-15', type: 'Special Event', attendees: 10, duration: 120, status: 'completed' }
 ];
 
-export const PrayerTeamDashboard: React.FC = () => {
+interface PrayerTeamDashboardProps {
+  departmentId: string;
+}
+
+export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ departmentId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
