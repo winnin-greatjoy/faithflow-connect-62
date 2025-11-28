@@ -119,7 +119,9 @@ const DepartmentCard: React.FC<{
 const MinistryCard: React.FC<{
   ministry: Ministry;
   onOpen: (ministry: Ministry) => void;
-}> = ({ ministry, onOpen }) => (
+  onMembersClick: (ministry: Ministry) => void;
+  onSettingsClick: (ministry: Ministry) => void;
+}> = ({ ministry, onOpen, onMembersClick, onSettingsClick }) => (
   <Card
     key={ministry.id}
     className="hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02]"
@@ -147,6 +149,31 @@ const MinistryCard: React.FC<{
         <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-muted-foreground">Activities:</span>
           <span className="font-medium">{ministry.activities}</span>
+        </div>
+        <div className="flex gap-2 mt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-xs sm:text-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMembersClick(ministry);
+            }}
+          >
+            <Users className="mr-1.5 h-4 w-4" />
+            Members
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSettingsClick(ministry);
+            }}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </CardContent>
@@ -624,17 +651,29 @@ export const DepartmentsModule = () => {
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                {filteredDepartments.map((dept) => (
-                  <DepartmentCard
-                    key={dept.id}
-                    dept={dept}
-                    onOpen={handleDepartmentClick}
-                    onMembersClick={handleOpenAddMembers}
-                    onSettingsClick={handleOpenSettings}
-                  />
-                ))}
-              </div>
+              {filteredDepartments.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Building className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="font-medium">No departments found</p>
+                  <p className="text-sm mt-1">
+                    {search
+                      ? 'Try adjusting your search'
+                      : 'Get started by adding your first department'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                  {filteredDepartments.map((dept) => (
+                    <DepartmentCard
+                      key={dept.id}
+                      dept={dept}
+                      onOpen={handleDepartmentClick}
+                      onMembersClick={handleOpenAddMembers}
+                      onSettingsClick={handleOpenSettings}
+                    />
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -643,7 +682,7 @@ export const DepartmentsModule = () => {
         <TabsContent value="ministries">
           <Card>
             <CardHeader className="p-4 sm:p-6 pb-0">
-              <div className="flex items-start sm:items-center justify-between gap-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-lg sm:text-xl">Church Ministries</CardTitle>
                   <CardDescription>
@@ -654,13 +693,64 @@ export const DepartmentsModule = () => {
                   Add Ministry
                 </Button>
               </div>
+              <div className="mt-4">
+                <Input
+                  placeholder="Search ministries..."
+                  value={ministrySearch}
+                  onChange={(e) => setMinistrySearch(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-6">
-                {ministries.map((m) => (
-                  <MinistryCard key={m.id} ministry={m} onOpen={handleMinistryClick} />
-                ))}
-              </div>
+              {ministries.filter(
+                (m) =>
+                  m.name.toLowerCase().includes(ministrySearch.toLowerCase()) ||
+                  m.description.toLowerCase().includes(ministrySearch.toLowerCase())
+              ).length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="font-medium">No ministries found</p>
+                  <p className="text-sm mt-1">
+                    {ministrySearch
+                      ? 'Try adjusting your search'
+                      : 'Get started by adding your first ministry'}
+                  </p>
+                  {!ministrySearch && (
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => setAddMinistryOpen(true)}
+                    >
+                      Create Ministry
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-6">
+                  {ministries
+                    .filter(
+                      (m) =>
+                        m.name.toLowerCase().includes(ministrySearch.toLowerCase()) ||
+                        m.description.toLowerCase().includes(ministrySearch.toLowerCase())
+                    )
+                    .map((m) => (
+                      <MinistryCard
+                        key={m.id}
+                        ministry={m}
+                        onOpen={handleMinistryClick}
+                        onMembersClick={(ministry) => {
+                          setActiveMinistry(ministry);
+                          setIsAddMinistryMembersOpen(true);
+                        }}
+                        onSettingsClick={(ministry) => {
+                          setActiveMinistry(ministry);
+                          setIsMinistrySettingsOpen(true);
+                        }}
+                      />
+                    ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

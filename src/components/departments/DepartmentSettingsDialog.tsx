@@ -13,6 +13,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Trash2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface DepartmentMember {
   id: string;
@@ -41,13 +49,41 @@ export const DepartmentSettingsDialog: React.FC<Props> = ({
   onMembersChanged,
 }) => {
   const [name, setName] = useState(departmentName || '');
+  const [headId, setHeadId] = useState<string | null>(null);
+  const [allMembers, setAllMembers] = useState<{ id: string; full_name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    if (open && departmentId) {
+      const fetchData = async () => {
+        // Fetch current department details for head_id
+        const { data: dept } = await supabase
+          .from('departments')
+          .select('head_id')
+          .eq('id', departmentId)
+          .single();
+        if (dept) setHeadId(dept.head_id);
+
+        // Fetch all active members for leader selection
+        const { data: members } = await supabase
+          .from('members')
+          .select('id, full_name')
+          .eq('status', 'active')
+          .order('full_name');
+        if (members) setAllMembers(members);
+      };
+      fetchData();
+    }
+  }, [open, departmentId]);
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.from('departments').update({ name }).eq('id', departmentId);
+      const { error } = await supabase
+        .from('departments')
+        .update({ name, head_id: headId })
+        .eq('id', departmentId);
       if (error) throw error;
       toast({ title: 'Saved', description: 'Department updated.' });
       onUpdated?.(name);
@@ -120,9 +156,32 @@ export const DepartmentSettingsDialog: React.FC<Props> = ({
           </TabsList>
 
           <TabsContent value="general" className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Department Name</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
+            <div className="space-y-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Department Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Department Name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="leader">Department Leader</Label>
+                <Select value={headId || ''} onValueChange={setHeadId}>
+                  <SelectTrigger id="leader">
+                    <SelectValue placeholder="Select leader" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Leader</SelectItem>
+                    {allMembers.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
