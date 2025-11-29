@@ -440,7 +440,7 @@ export const OptimizedMemberManagement: React.FC = () => {
     setShowMemberForm(true);
   };
 
-  // Listen for quick-created member from ProvisioningQueue
+  // Listen for newly created members from session storage
   useEffect(() => {
     const handleIncoming = () => {
       try {
