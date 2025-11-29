@@ -211,62 +211,25 @@ export const DepartmentsModule = () => {
   const [totalMinistryMembersCount, setTotalMinistryMembersCount] = useState<number>(0);
   const [recentMinistryActivitiesCount, setRecentMinistryActivitiesCount] = useState<number>(0);
 
-  useEffect(() => {
-    (async () => {
-      // Ministries (filter by branch if available, join with members for leader name)
-      const ministriesQuery = supabase
+  // Load ministries
+  const loadMinistries = async () => {
+    try {
+      const effectiveBranchId = branchId || selectedBranchId;
+      const query = supabase
         .from('ministries')
-        .select(
-          'id, name, description, branch_id, head_id, members!ministries_head_id_fkey(full_name)'
-        )
+        .select('id, name, description, branch_id, head_id')
         .order('created_at', { ascending: true });
-      if (branchId) ministriesQuery.eq('branch_id', branchId);
-      const { data: ministriesData } = await ministriesQuery;
 
-      // Departments list and count (filter by branch if available, join with members for leader name)
-      const deptListQuery = supabase
-        .from('departments')
-        .select(
-          'id, name, slug, description, branch_id, head_id, members!departments_head_id_fkey(full_name)'
-        );
-      if (branchId) deptListQuery.eq('branch_id', branchId);
-      const { data: deptList } = await deptListQuery;
+      if (effectiveBranchId) query.eq('branch_id', effectiveBranchId);
 
-      const deptCountQuery = supabase
-        .from('departments')
-        .select('*', { count: 'exact', head: true });
-      if (branchId) deptCountQuery.eq('branch_id', branchId);
-      const deptCountRes = await deptCountQuery;
+      const { data: ministriesData, error } = await query;
+      if (error) throw error;
 
-      // Aggregates across ministries
+      // Aggregates
       const { data: mmAll } = await supabase.from('ministry_members').select('ministry_id');
       const { data: evAll } = await supabase
         .from('ministry_events')
         .select('ministry_id, event_date');
-
-      // Branches (needed when no branch context)
-      if (!branchId) {
-        const { data: branchesData } = await supabase
-          .from('church_branches')
-          .select('id, name')
-          .order('name', { ascending: true });
-        const list = (branchesData || []).map((b: any) => ({ id: b.id, name: b.name }));
-        setBranches(list);
-        if (list.length === 1 && !selectedBranchId) setSelectedBranchId(list[0].id);
-        if (!selectedBranchId) {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-          if (user?.id) {
-            const { data: me } = await supabase
-              .from('members')
-              .select('branch_id')
-              .eq('id', user.id)
-              .maybeSingle();
-            if (me?.branch_id) setSelectedBranchId(me.branch_id);
-          }
-        }
-      }
 
       const mmMap: Record<string, number> = {};
       (mmAll || []).forEach((row: any) => {
@@ -279,60 +242,33 @@ export const DepartmentsModule = () => {
         evMap[k] = (evMap[k] || 0) + 1;
       });
 
+      // Fetch leader names manually since FK might be missing in types
+      const headIds = (ministriesData || []).map((m: any) => m.head_id).filter((id: any) => id);
+
+      const leaderMap: Record<string, string> = {};
+      if (headIds.length > 0) {
+        const { data: leaders } = await supabase
+          .from('members')
+          .select('id, full_name')
+          .in('id', headIds);
+
+        (leaders || []).forEach((l: any) => {
+          leaderMap[l.id] = l.full_name;
+        });
+      }
+
       const mapped: Ministry[] = (ministriesData || []).map((m: any) => ({
         id: m.id,
         name: m.name || 'Ministry',
         description: m.description || '',
-        leader: m.members?.full_name || 'No Leader',
+        leader: m.head_id ? leaderMap[m.head_id] || 'Unknown' : 'No Leader',
         members: mmMap[m.id] || 0,
         activities: evMap[m.id] || 0,
         status: 'Active',
       }));
       setMinistries(mapped);
 
-      // Load departments with real statistics
-      if (deptList) {
-        // Get member counts for all departments
-        const deptIds = deptList.map((d) => d.id);
-        const { data: memberCounts } = await supabase
-          .from('members')
-          .select('assigned_department')
-          .in('assigned_department', deptIds);
-
-        // Get task counts for all departments
-        const { data: taskCounts } = await supabase
-          .from('department_tasks')
-          .select('department_id')
-          .in('department_id', deptIds);
-
-        // Create count maps
-        const memberCountMap: Record<string, number> = {};
-        (memberCounts || []).forEach((m: any) => {
-          if (m.assigned_department) {
-            memberCountMap[m.assigned_department] =
-              (memberCountMap[m.assigned_department] || 0) + 1;
-          }
-        });
-
-        const taskCountMap: Record<string, number> = {};
-        (taskCounts || []).forEach((t: any) => {
-          taskCountMap[t.department_id] = (taskCountMap[t.department_id] || 0) + 1;
-        });
-
-        setDepartments(
-          deptList.map((d) => ({
-            id: d.id,
-            name: d.name,
-            slug: d.slug,
-            leader: d.members?.full_name || 'No Leader',
-            members: memberCountMap[d.id] || 0,
-            activities: taskCountMap[d.id] || 0,
-            status: 'Active',
-          }))
-        );
-      }
-
-      setTotalDepartmentsCount(deptCountRes.count || 0);
+      // Update counts
       const ministryIds = new Set<string>((ministriesData || []).map((m: any) => m.id));
       setTotalMinistryMembersCount(
         (mmAll || []).filter((row: any) => ministryIds.has(row.ministry_id)).length
@@ -346,18 +282,22 @@ export const DepartmentsModule = () => {
         return d && d >= startOfMonth && ministryIds.has(row.ministry_id);
       }).length;
       setRecentMinistryActivitiesCount(recentCount);
-    })();
-  }, [branchId]);
+    } catch (e) {
+      console.error('Failed to load ministries:', e);
+      toast({ title: 'Error', description: 'Failed to load ministries', variant: 'destructive' });
+    }
+  };
 
   // reload departments (used after updates)
   const reloadDepartments = async () => {
     try {
+      const effectiveBranchId = branchId || selectedBranchId;
       const deptListQuery = supabase
         .from('departments')
         .select(
           'id, name, slug, description, branch_id, head_id, members!departments_head_id_fkey(full_name)'
         );
-      if (branchId) deptListQuery.eq('branch_id', branchId);
+      if (effectiveBranchId) deptListQuery.eq('branch_id', effectiveBranchId);
       const { data: deptList } = await deptListQuery;
       if (deptList) {
         // Get member counts
@@ -395,8 +335,16 @@ export const DepartmentsModule = () => {
           }))
         );
       }
+
+      // Update total count
+      const deptCountQuery = supabase
+        .from('departments')
+        .select('*', { count: 'exact', head: true });
+      if (effectiveBranchId) deptCountQuery.eq('branch_id', effectiveBranchId);
+      const { count } = await deptCountQuery;
+      setTotalDepartmentsCount(count || 0);
     } catch (e) {
-      // ignore for now
+      console.error('Failed to reload departments:', e);
     }
   };
 
@@ -494,29 +442,57 @@ export const DepartmentsModule = () => {
       }
       const created = data && data[0];
       if (created) {
-        setMinistries([
-          {
-            id: created.id,
-            name: created.name,
-            description: created.description || '',
-            leader: 'TBD',
-            members: 0,
-            activities: 0,
-            status: 'Active',
-          },
-          ...ministries,
-        ]);
-        toast({ title: 'Ministry created', description: `${created.name} added successfully.` });
+        toast({ title: 'Ministry added', description: `${created.name} has been created.` });
+        setAddMinistryOpen(false);
+        setMName('');
+        setMDesc('');
+        // Reload list
+        loadMinistries();
       }
-      setAddMinistryOpen(false);
-      setMName('');
-      setMDesc('');
-      setSelectedBranchId('');
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
       setSavingMinistry(false);
     }
   };
 
+  // Initial branch selection effect
+  useEffect(() => {
+    const initBranch = async () => {
+      if (!branchId && !selectedBranchId) {
+        const { data: branchesData } = await supabase
+          .from('church_branches')
+          .select('id, name')
+          .order('name', { ascending: true });
+
+        const list = (branchesData || []).map((b: any) => ({ id: b.id, name: b.name }));
+        setBranches(list);
+
+        if (list.length === 1) {
+          setSelectedBranchId(list[0].id);
+        } else {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user?.id) {
+            const { data: me } = await supabase
+              .from('members')
+              .select('branch_id')
+              .eq('id', user.id)
+              .maybeSingle();
+            if (me?.branch_id) setSelectedBranchId(me.branch_id);
+          }
+        }
+      }
+    };
+    initBranch();
+  }, [branchId]);
+
+  // Data loading effect
+  useEffect(() => {
+    loadMinistries();
+    reloadDepartments();
+  }, [branchId, selectedBranchId]);
   // ✅ Add new department
   const handleAddDepartment = async (newDept: Department) => {
     // Reload departments from database
