@@ -18,7 +18,6 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { useAuthz } from '@/hooks/useAuthz';
 import { CMSDashboard } from '@/components/cms/CMSDashboard';
-import { ProvisioningQueue } from '@/components/admin/ProvisioningQueue';
 import { JoinRequests } from '@/components/admin/JoinRequests';
 import { StreamingModule } from '@/components/admin/StreamingModule';
 import {
@@ -80,7 +79,6 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/members')) return 'members';
     if (pathname.startsWith('/admin/communication')) return 'communication';
     if (pathname.startsWith('/admin/finance')) return 'finance';
-    if (pathname.startsWith('/admin/provisioning')) return 'provisioning';
     if (pathname.startsWith('/admin/events')) return 'events';
     if (pathname.startsWith('/admin/streaming')) return 'streaming';
     if (pathname.startsWith('/admin/reports')) return 'reports';
@@ -142,8 +140,6 @@ const AdminDashboard = () => {
         return <TechnicalDashboard departmentId="technical-dept-id" />;
       case 'communication':
         return can('admin', 'view') ? <CommunicationHub /> : denied;
-      case 'provisioning':
-        return can('provisioning', 'view') ? <ProvisioningQueue /> : denied;
       case 'finance':
         return can('finance', 'view') ? <FinanceModule /> : denied;
       case 'events':
