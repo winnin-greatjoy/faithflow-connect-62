@@ -5,9 +5,6 @@ export * from '@/types/api';
 // Department API Services
 export * from './departments';
 
-// Admin Services
-export { provisioningApi } from './admin/provisioningApi';
-
 // Re-export individual services for convenience
 export { choirApi } from './departments/choirApi';
 export { usheringApi } from './departments/usheringApi';
