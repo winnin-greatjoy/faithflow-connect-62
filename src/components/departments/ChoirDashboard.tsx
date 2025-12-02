@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ChoirSchedule } from './choir/ChoirSchedule';
 import {
   Users,
   Calendar,
@@ -1075,23 +1076,7 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
 
         {/* Schedule */}
         <TabsContent value="schedule" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Rehearsal Schedule</h3>
-            <Button size="sm">
-              <Calendar className="mr-2 h-4 w-4" />
-              Schedule Event
-            </Button>
-          </div>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>Schedule management coming soon</p>
-                <p className="text-sm">Plan rehearsals, performances, and special events</p>
-              </div>
-            </CardContent>
-          </Card>
+          <ChoirSchedule ministryId={departmentId} />
         </TabsContent>
 
         {/* Reports */}

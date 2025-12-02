@@ -1,11 +1,24 @@
 import React, { useEffect, useState } from 'react';
+import { TaskWorkspaceDialog } from './tasks/TaskWorkspaceDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, GripVertical, Calendar, User } from 'lucide-react';
@@ -20,6 +33,8 @@ interface Task {
   assignee_name: string | null;
   due_date: string | null;
   tags: string[];
+  checklist: any[] | null;
+  comments: any[] | null;
 }
 
 interface Props {
@@ -50,6 +65,8 @@ export const DepartmentTaskBoard: React.FC<Props> = ({ departmentId, canEdit = f
     assignee_name: '',
     due_date: '',
   });
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
   const { toast } = useToast();
 
   const loadTasks = async () => {
@@ -102,7 +119,13 @@ export const DepartmentTaskBoard: React.FC<Props> = ({ departmentId, canEdit = f
 
       toast({ title: 'Task created', description: 'New task added successfully' });
       setIsAddTaskOpen(false);
-      setNewTask({ title: '', description: '', priority: 'medium', assignee_name: '', due_date: '' });
+      setNewTask({
+        title: '',
+        description: '',
+        priority: 'medium',
+        assignee_name: '',
+        due_date: '',
+      });
       loadTasks();
     } catch (error: any) {
       toast({
@@ -191,7 +214,14 @@ export const DepartmentTaskBoard: React.FC<Props> = ({ departmentId, canEdit = f
                 </div>
               ) : (
                 tasksByStatus(column.value).map((task) => (
-                  <Card key={task.id} className="p-3 cursor-pointer hover:shadow-md transition-shadow">
+                  <Card
+                    key={task.id}
+                    className="p-3 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setIsWorkspaceOpen(true);
+                    }}
+                  >
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <GripVertical className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
@@ -228,7 +258,9 @@ export const DepartmentTaskBoard: React.FC<Props> = ({ departmentId, canEdit = f
                       {canEdit && (
                         <Select
                           value={task.status}
-                          onValueChange={(value) => updateTaskStatus(task.id, value as Task['status'])}
+                          onValueChange={(value) =>
+                            updateTaskStatus(task.id, value as Task['status'])
+                          }
                         >
                           <SelectTrigger className="h-8 text-xs">
                             <SelectValue />
@@ -325,6 +357,16 @@ export const DepartmentTaskBoard: React.FC<Props> = ({ departmentId, canEdit = f
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TaskWorkspaceDialog
+        task={selectedTask}
+        isOpen={isWorkspaceOpen}
+        onClose={() => {
+          setIsWorkspaceOpen(false);
+          setSelectedTask(null);
+        }}
+        onUpdate={loadTasks}
+      />
     </div>
   );
 };
