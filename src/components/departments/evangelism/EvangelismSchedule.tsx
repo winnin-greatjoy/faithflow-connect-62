@@ -35,15 +35,15 @@ type Event = {
   end?: string;
   description?: string;
   location?: string;
-  type: 'rehearsal' | 'performance' | 'social' | 'other';
+  type: 'outreach' | 'meeting' | 'training' | 'followup' | 'other';
   color?: string;
 };
 
-interface ChoirScheduleProps {
+interface EvangelismScheduleProps {
   ministryId: string;
 }
 
-export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
+export const EvangelismSchedule: React.FC<EvangelismScheduleProps> = ({ ministryId }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,7 +51,7 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
 
   // Form state
   const [newEvent, setNewEvent] = useState<Partial<Event>>({
-    type: 'rehearsal',
+    type: 'outreach',
     start: new Date().toISOString().split('T')[0],
   });
 
@@ -72,13 +72,13 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
 
       const formattedEvents: Event[] = (data || []).map((e: any) => ({
         id: e.id,
-        title: e.description || 'Untitled Event', // Using description as title for now if name is missing
+        title: e.description || 'Untitled Event',
         start: `${e.event_date}T${e.start_time || '00:00'}`,
         end: e.end_time ? `${e.event_date}T${e.end_time}` : undefined,
         description: e.description,
         location: e.location,
-        type: 'rehearsal', // Defaulting for now, should add type to DB
-        color: getEventColor('rehearsal'), // Default color
+        type: 'outreach', // Defaulting for now
+        color: getEventColor('outreach'),
       }));
 
       setEvents(formattedEvents);
@@ -95,11 +95,13 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
 
   const getEventColor = (type: string) => {
     switch (type) {
-      case 'rehearsal':
+      case 'outreach':
+        return '#ea580c'; // Orange
+      case 'meeting':
         return '#3b82f6'; // Blue
-      case 'performance':
+      case 'training':
         return '#8b5cf6'; // Purple
-      case 'social':
+      case 'followup':
         return '#10b981'; // Green
       default:
         return '#6b7280'; // Gray
@@ -114,14 +116,16 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
         ministry_id: ministryId,
         event_date: newEvent.start,
         title: newEvent.title,
-        description: newEvent.description || newEvent.title,
+        description: newEvent.description || newEvent.title, // Use title as fallback description
         location: newEvent.location,
-        // start_time: ... (need to parse from input)
       });
 
       if (error) throw error;
 
-      toast({ title: 'Event added', description: 'The event has been successfully scheduled.' });
+      toast({
+        title: 'Event added',
+        description: 'The outreach event has been successfully scheduled.',
+      });
       setIsAddEventOpen(false);
       fetchEvents();
     } catch (error: any) {
@@ -139,17 +143,17 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
       <div className="lg:col-span-2 space-y-6">
         <Card className="h-full">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Choir Calendar</CardTitle>
+            <CardTitle>Outreach Calendar</CardTitle>
             <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Event
+                  Schedule Outreach
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Schedule New Event</DialogTitle>
+                  <DialogTitle>Schedule New Outreach</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -162,9 +166,10 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="rehearsal">Rehearsal</SelectItem>
-                        <SelectItem value="performance">Performance</SelectItem>
-                        <SelectItem value="social">Social</SelectItem>
+                        <SelectItem value="outreach">Outreach</SelectItem>
+                        <SelectItem value="meeting">Meeting</SelectItem>
+                        <SelectItem value="training">Training</SelectItem>
+                        <SelectItem value="followup">Follow-up</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -172,7 +177,7 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
                   <div className="space-y-2">
                     <Label>Title</Label>
                     <Input
-                      placeholder="e.g., Sunday Service Rehearsal"
+                      placeholder="e.g., Downtown Street Ministry"
                       value={newEvent.title || ''}
                       onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                     />
@@ -194,13 +199,13 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
                   <div className="space-y-2">
                     <Label>Location</Label>
                     <Input
-                      placeholder="e.g., Main Sanctuary"
+                      placeholder="e.g., City Center"
                       value={newEvent.location || ''}
                       onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
                     />
                   </div>
                   <Button className="w-full" onClick={handleAddEvent}>
-                    Schedule Event
+                    Schedule Outreach
                   </Button>
                 </div>
               </DialogContent>
@@ -224,12 +229,12 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
         </Card>
       </div>
 
-      {/* Side Panel: Upcoming & Duty Roster */}
+      {/* Side Panel: Upcoming & Team */}
       <div className="space-y-6">
         {/* Upcoming Events */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Upcoming Events</CardTitle>
+            <CardTitle className="text-lg">Upcoming Outreach</CardTitle>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[300px] pr-4">
@@ -262,37 +267,37 @@ export const ChoirSchedule: React.FC<ChoirScheduleProps> = ({ ministryId }) => {
                     </div>
                   ))}
                 {events.filter((e) => new Date(e.start) >= new Date()).length === 0 && (
-                  <div className="text-center text-muted-foreground py-8">No upcoming events</div>
+                  <div className="text-center text-muted-foreground py-8">No upcoming outreach</div>
                 )}
               </div>
             </ScrollArea>
           </CardContent>
         </Card>
 
-        {/* Duty Roster Preview */}
+        {/* Team Assignments Preview */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Duty Roster</CardTitle>
+            <CardTitle className="text-lg">Team Assignments</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="p-3 border rounded-lg">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium text-sm">Next Service</span>
-                  <Badge variant="outline">Sunday</Badge>
+                  <span className="font-medium text-sm">Next Outreach</span>
+                  <Badge variant="outline">Saturday</Badge>
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Lead:</span>
-                    <span>Sarah J.</span>
+                    <span>Paul Smith</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Uniform:</span>
-                    <span>Blue Robes</span>
+                    <span className="text-muted-foreground">Team:</span>
+                    <span>Downtown Group</span>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" className="w-full mt-2 text-xs">
-                  View Full Roster
+                  View Assignments
                 </Button>
               </div>
             </div>
