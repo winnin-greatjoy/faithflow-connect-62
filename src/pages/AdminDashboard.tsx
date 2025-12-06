@@ -10,6 +10,13 @@ import { EventsModule } from '@/components/admin/EventsModule';
 import { FinanceModule } from '@/components/admin/FinanceModule';
 import { VolunteersModule } from '@/components/admin/VolunteersModule';
 import { CommunicationHub } from '@/components/admin/CommunicationHub';
+import { BranchSettingsModule } from '@/components/admin/BranchSettingsModule';
+import { JoinRequests } from '@/components/admin/JoinRequests';
+import { TransferApprovalQueue } from '@/components/admin/TransferApprovalQueue';
+import { CMSDashboard } from '@/components/cms/CMSDashboard';
+import { StreamingModule } from '@/components/admin/StreamingModule';
+import { BranchReportsModule } from '@/components/admin/BranchReportsModule';
+import { MessageTemplateManager } from '@/components/admin/MessageTemplateManager';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { GlobalRoleManagement } from '@/components/admin/superadmin/GlobalRoleManagement';
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
@@ -25,7 +32,7 @@ const DashboardContent = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
-  const { can, loading: authzLoading } = useAuthz();
+  const { can, hasRole, loading: authzLoading } = useAuthz();
   const { selectedBranchId, loading: contextLoading } = useAdminContext();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -93,6 +100,21 @@ const DashboardContent = () => {
         return can('volunteers', 'view') || isSuperadmin ? <VolunteersModule /> : denied;
       case 'communication':
         return can('communication', 'view') || isSuperadmin ? <CommunicationHub /> : denied;
+      case 'join-requests':
+        return can('members', 'manage') || isSuperadmin ? <JoinRequests /> : denied;
+      case 'transfers':
+        return can('members', 'manage') || isSuperadmin ? <TransferApprovalQueue /> : denied;
+      case 'branch-settings':
+        return hasRole('super_admin', 'admin') ? <BranchSettingsModule /> : denied;
+      case 'cms':
+        // Assuming CMS access requires 'manage' on 'content' or similar, or just admin access
+        return hasRole('super_admin', 'admin') ? <CMSDashboard /> : denied;
+      case 'streaming':
+        return can('streaming', 'view') || isSuperadmin ? <StreamingModule /> : denied;
+      case 'reports':
+        return can('reports', 'view') || isSuperadmin ? <BranchReportsModule /> : denied;
+      case 'templates':
+        return can('communication', 'manage') || isSuperadmin ? <MessageTemplateManager /> : denied;
 
       default:
         return <DashboardOverview />;

@@ -188,7 +188,7 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
             </div>
           )}
 
-          <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center">
+          <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center lg:hidden">
             <img
               src="/faithhealing.png"
               alt="Church Logo"
