@@ -96,7 +96,7 @@ export const PlanOutreachDialog: React.FC<PlanOutreachDialogProps> = ({
         created_by: user.id,
       };
 
-      const { error } = await supabase.from('evangelism_events').insert([eventData]);
+      const { error } = await supabase.from('evangelism_events' as any).insert([eventData]);
 
       if (error) throw error;
 
