@@ -4,6 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Building, Plus, Edit, Trash2, Users, MapPin, Phone, UserCog, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAdminContext } from '@/context/AdminContext';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +49,8 @@ interface Member {
  */
 export const MultiBranchManagement: React.FC = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { setSelectedBranchId } = useAdminContext();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -515,6 +519,18 @@ export const MultiBranchManagement: React.FC = () => {
                 >
                   <UserCog className="mr-2 h-4 w-4" />
                   Assign Staff
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full mt-2 bg-purple-600 hover:bg-purple-700"
+                  onClick={() => {
+                    setSelectedBranchId(branch.id);
+                    navigate('/admin');
+                  }}
+                >
+                  <Building className="mr-2 h-4 w-4" />
+                  Manage Dashboard
                 </Button>
               </div>
             </CardContent>

@@ -33,6 +33,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
+import { useAdminContext } from '@/context/AdminContext';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 
 interface MenuItem {
@@ -118,6 +119,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   menuItems,
 }) => {
   const { isSuperadmin } = useSuperadmin();
+  const { selectedBranchId } = useAdminContext();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
   const sidebarRef = React.useRef<HTMLDivElement | null>(null);
@@ -427,8 +429,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* Superadmin Section */}
-            {isSuperadmin && variant === 'admin' && (
+            {/* Superadmin Section - Only visible in Global View (no branch selected) */}
+            {isSuperadmin && !selectedBranchId && variant === 'admin' && (
               <SidebarGroup className="mt-auto border-t">
                 <div
                   className={cn(

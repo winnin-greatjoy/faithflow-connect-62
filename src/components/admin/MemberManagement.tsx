@@ -4,7 +4,13 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -23,15 +29,24 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAdminContext } from '@/context/AdminContext';
+import { useAuthz } from '@/hooks/useAuthz';
 
-// -------------------- Types -------------------- 
+// -------------------- Types --------------------
 type MembershipLevel = 'baptized' | 'convert' | 'visitor';
 
 type Member = {
@@ -77,16 +92,32 @@ function paginate<T>(items: T[], pageSize: number, page: number) {
 
 // -------------------- Component --------------------
 export const MemberManagement: React.FC = () => {
+  // context
+  const { selectedBranchId, loading: contextLoading } = useAdminContext();
+  const { branchId: authBranchId, hasRole } = useAuthz();
+
+  const isSuperadmin = hasRole('super_admin');
+  const effectiveBranchId = isSuperadmin ? selectedBranchId : authBranchId;
+
   // data state (live)
   const [branches, setBranches] = useState<Branch[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [firstTimers, setFirstTimers] = useState<FirstTimer[]>([]);
 
   // UI state
-  const [activeTab, setActiveTab] = useState<'workers_disciples' | 'converts' | 'visitors'>('workers_disciples');
+  const [activeTab, setActiveTab] = useState<'workers_disciples' | 'converts' | 'visitors'>(
+    'workers_disciples'
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [membershipFilter, setMembershipFilter] = useState<'all' | MembershipLevel>('all');
-  const [branchFilter, setBranchFilter] = useState<'all' | string>('all');
+  // Prevert branch filter if viewing a specific branch
+  const [branchFilter, setBranchFilter] = useState<'all' | string>(effectiveBranchId || 'all');
+
+  // Sync branch filter with context
+  useEffect(() => {
+    if (effectiveBranchId) setBranchFilter(effectiveBranchId);
+    else setBranchFilter('all');
+  }, [effectiveBranchId]);
 
   // selection / bulk
   const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
@@ -112,25 +143,44 @@ export const MemberManagement: React.FC = () => {
 
   const toLocalId = (s: string) => {
     let h = 0;
-    for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
+    for (let i = 0; i < s.length; i++) {
+      h = (h << 5) - h + s.charCodeAt(i);
+      h |= 0;
+    }
     return Math.abs(h) + 1;
   };
 
   // Load branches, members, and first timers from Supabase
   useEffect(() => {
     (async () => {
+      // Build queries with optional branch filter
+      let membersQuery = supabase
+        .from('members')
+        .select(
+          'id, full_name, email, phone, branch_id, membership_level, baptized_sub_level, status'
+        )
+        .order('full_name');
+
+      let ftQuery = supabase
+        .from('first_timers')
+        .select('id, full_name, phone, community, invited_by, branch_id, service_date, status')
+        .order('service_date', { ascending: false });
+
+      // Apply branch filter if we have an effective branch ID
+      // If superadmin has NO branch selected (Global View), effectiveBranchId is null => fetch all
+      if (effectiveBranchId) {
+        membersQuery = membersQuery.eq('branch_id', effectiveBranchId);
+        ftQuery = ftQuery.eq('branch_id', effectiveBranchId);
+      }
+
       const [br, mr, fr] = await Promise.all([
         supabase.from('church_branches').select('id, name').order('name'),
-        supabase
-          .from('members')
-          .select('id, full_name, email, phone, branch_id, membership_level, baptized_sub_level, status')
-          .order('full_name'),
-        supabase
-          .from('first_timers')
-          .select('id, full_name, phone, community, invited_by, branch_id, service_date, status')
-          .order('service_date', { ascending: false }),
+        membersQuery,
+        ftQuery,
       ]);
+
       setBranches((br.data || []) as any);
+
       const mappedMembers: Member[] = (mr.data || []).map((row: any) => {
         const lid = toLocalId(row.id);
         memberMetaRef.current.set(lid, { dbId: row.id });
@@ -148,6 +198,7 @@ export const MemberManagement: React.FC = () => {
         } as Member;
       });
       setMembers(mappedMembers);
+
       const mappedFT: FirstTimer[] = (fr.data || []).map((row: any) => {
         const lid = toLocalId(row.id);
         firstTimerMetaRef.current.set(lid, { dbId: row.id });
@@ -164,24 +215,30 @@ export const MemberManagement: React.FC = () => {
       });
       setFirstTimers(mappedFT);
     })();
-  }, []);
+  }, [effectiveBranchId]);
 
   // -------------------- Derived / filtered data --------------------
   const MEMBERSHIP_LEVELS: MembershipLevel[] = ['baptized', 'convert', 'visitor'];
 
   const filteredMembers = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return members.filter(m => {
+    return members.filter((m) => {
       // tab filter - strict filtering based on database values
       const matchesTab =
         activeTab === 'workers_disciples'
-          ? m.membershipLevel === 'baptized' && (m.baptizedSubLevel === 'worker' || m.baptizedSubLevel === 'disciple')
+          ? m.membershipLevel === 'baptized' &&
+            (m.baptizedSubLevel === 'worker' || m.baptizedSubLevel === 'disciple')
           : activeTab === 'converts'
             ? m.membershipLevel === 'convert'
             : m.membershipLevel === 'visitor';
 
-      const matchesSearch = !q || m.fullName.toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q) || (m.phone || '').includes(q);
-      const matchesMembership = membershipFilter === 'all' || m.membershipLevel === membershipFilter;
+      const matchesSearch =
+        !q ||
+        m.fullName.toLowerCase().includes(q) ||
+        (m.email || '').toLowerCase().includes(q) ||
+        (m.phone || '').includes(q);
+      const matchesMembership =
+        membershipFilter === 'all' || m.membershipLevel === membershipFilter;
       const matchesBranch = branchFilter === 'all' || (m.branchId && m.branchId === branchFilter);
 
       return matchesTab && matchesSearch && matchesMembership && matchesBranch;
@@ -191,8 +248,9 @@ export const MemberManagement: React.FC = () => {
   const filteredFirstTimers = useMemo(() => {
     if (activeTab !== 'visitors') return [];
     const q = searchTerm.trim().toLowerCase();
-    return firstTimers.filter(ft => {
-      const matchesSearch = !q || ft.fullName.toLowerCase().includes(q) || (ft.phone || '').includes(q);
+    return firstTimers.filter((ft) => {
+      const matchesSearch =
+        !q || ft.fullName.toLowerCase().includes(q) || (ft.phone || '').includes(q);
       const matchesBranch = branchFilter === 'all' || (ft.branchId && ft.branchId === branchFilter);
       return matchesSearch && matchesBranch;
     });
@@ -209,26 +267,42 @@ export const MemberManagement: React.FC = () => {
 
   // -------------------- Selection helpers --------------------
   const toggleSelectMember = (id: number) => {
-    setSelectedMemberIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+    setSelectedMemberIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   const toggleSelectFirstTimer = (id: number) => {
-    setSelectedFirstTimerIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+    setSelectedFirstTimerIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   const selectAllOnPage = (checked: boolean) => {
-    const currentIds = (activeTab === 'visitors' ? paginated.data.map((d: any) => d.id) : paginated.data.map((d: any) => d.id));
+    const currentIds =
+      activeTab === 'visitors'
+        ? paginated.data.map((d: any) => d.id)
+        : paginated.data.map((d: any) => d.id);
     if (activeTab === 'visitors') {
-      setSelectedFirstTimerIds(prev => (checked ? Array.from(new Set([...prev, ...currentIds])) : prev.filter(id => !currentIds.includes(id))));
+      setSelectedFirstTimerIds((prev) =>
+        checked
+          ? Array.from(new Set([...prev, ...currentIds]))
+          : prev.filter((id) => !currentIds.includes(id))
+      );
     } else {
-      setSelectedMemberIds(prev => (checked ? Array.from(new Set([...prev, ...currentIds])) : prev.filter(id => !currentIds.includes(id))));
+      setSelectedMemberIds((prev) =>
+        checked
+          ? Array.from(new Set([...prev, ...currentIds]))
+          : prev.filter((id) => !currentIds.includes(id))
+      );
     }
   };
 
   const allOnPageSelected = useMemo(() => {
     const currentIds = paginated.data.map((d: any) => d.id);
-    if (activeTab === 'visitors') return currentIds.length > 0 && currentIds.every(id => selectedFirstTimerIds.includes(id));
-    return currentIds.length > 0 && currentIds.every(id => selectedMemberIds.includes(id));
+    if (activeTab === 'visitors')
+      return currentIds.length > 0 && currentIds.every((id) => selectedFirstTimerIds.includes(id));
+    return currentIds.length > 0 && currentIds.every((id) => selectedMemberIds.includes(id));
   }, [paginated, selectedFirstTimerIds, selectedMemberIds, activeTab]);
 
   // -------------------- Actions: view / edit / delete --------------------
@@ -253,25 +327,33 @@ export const MemberManagement: React.FC = () => {
       if ('membershipLevel' in deleting) {
         const meta = memberMetaRef.current.get(deleting.id);
         if (meta?.dbId) {
-          const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId } });
+          const { data, error } = await supabase.functions.invoke('admin-create-member', {
+            body: { action: 'delete', id: meta.dbId },
+          });
           if (error) throw new Error(error.message || 'Edge function error');
           if (data && (data as any).error) throw new Error((data as any).error);
         }
-        setMembers(prev => prev.filter(m => m.id !== deleting.id));
-        setSelectedMemberIds(prev => prev.filter(x => x !== deleting.id));
+        setMembers((prev) => prev.filter((m) => m.id !== deleting.id));
+        setSelectedMemberIds((prev) => prev.filter((x) => x !== deleting.id));
       } else {
         const meta = firstTimerMetaRef.current.get(deleting.id);
         if (meta?.dbId) {
-          const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId, target: 'first_timers' } });
+          const { data, error } = await supabase.functions.invoke('admin-create-member', {
+            body: { action: 'delete', id: meta.dbId, target: 'first_timers' },
+          });
           if (error) throw new Error(error.message || 'Edge function error');
           if (data && (data as any).error) throw new Error((data as any).error);
         }
-        setFirstTimers(prev => prev.filter(f => f.id !== deleting.id));
-        setSelectedFirstTimerIds(prev => prev.filter(x => x !== deleting.id));
+        setFirstTimers((prev) => prev.filter((f) => f.id !== deleting.id));
+        setSelectedFirstTimerIds((prev) => prev.filter((x) => x !== deleting.id));
       }
       toast({ title: 'Deleted', description: `${deleting.fullName} removed.` });
     } catch (e: any) {
-      toast({ title: 'Delete failed', description: String(e?.message || e), variant: 'destructive' });
+      toast({
+        title: 'Delete failed',
+        description: String(e?.message || e),
+        variant: 'destructive',
+      });
     } finally {
       setIsDeleteConfirmOpen(false);
       setDeleting(null);
@@ -281,32 +363,52 @@ export const MemberManagement: React.FC = () => {
   const deleteSelected = async () => {
     try {
       if (activeTab === 'visitors') {
-        const results = await Promise.allSettled(selectedFirstTimerIds.map(async (id) => {
-          const meta = firstTimerMetaRef.current.get(id);
-          if (meta?.dbId) {
-            const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId, target: 'first_timers' } });
-            if (error || (data && (data as any).error)) throw new Error(error?.message || (data as any)?.error || 'Delete failed');
-          }
-        }));
-        const failed = results.filter(r => r.status === 'rejected').length;
-        setFirstTimers(prev => prev.filter(ft => !selectedFirstTimerIds.includes(ft.id)));
-        toast({ title: 'Deleted', description: `${selectedFirstTimerIds.length - failed} visitor(s) removed${failed > 0 ? `, ${failed} failed` : ''}.` });
+        const results = await Promise.allSettled(
+          selectedFirstTimerIds.map(async (id) => {
+            const meta = firstTimerMetaRef.current.get(id);
+            if (meta?.dbId) {
+              const { data, error } = await supabase.functions.invoke('admin-create-member', {
+                body: { action: 'delete', id: meta.dbId, target: 'first_timers' },
+              });
+              if (error || (data && (data as any).error))
+                throw new Error(error?.message || (data as any)?.error || 'Delete failed');
+            }
+          })
+        );
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        setFirstTimers((prev) => prev.filter((ft) => !selectedFirstTimerIds.includes(ft.id)));
+        toast({
+          title: 'Deleted',
+          description: `${selectedFirstTimerIds.length - failed} visitor(s) removed${failed > 0 ? `, ${failed} failed` : ''}.`,
+        });
         setSelectedFirstTimerIds([]);
       } else {
-        const results = await Promise.allSettled(selectedMemberIds.map(async (id) => {
-          const meta = memberMetaRef.current.get(id);
-          if (meta?.dbId) {
-            const { data, error } = await supabase.functions.invoke('admin-create-member', { body: { action: 'delete', id: meta.dbId } });
-            if (error || (data && (data as any).error)) throw new Error(error?.message || (data as any)?.error || 'Delete failed');
-          }
-        }));
-        const failed = results.filter(r => r.status === 'rejected').length;
-        setMembers(prev => prev.filter(m => !selectedMemberIds.includes(m.id)));
-        toast({ title: 'Deleted', description: `${selectedMemberIds.length - failed} member(s) removed${failed > 0 ? `, ${failed} failed` : ''}.` });
+        const results = await Promise.allSettled(
+          selectedMemberIds.map(async (id) => {
+            const meta = memberMetaRef.current.get(id);
+            if (meta?.dbId) {
+              const { data, error } = await supabase.functions.invoke('admin-create-member', {
+                body: { action: 'delete', id: meta.dbId },
+              });
+              if (error || (data && (data as any).error))
+                throw new Error(error?.message || (data as any)?.error || 'Delete failed');
+            }
+          })
+        );
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        setMembers((prev) => prev.filter((m) => !selectedMemberIds.includes(m.id)));
+        toast({
+          title: 'Deleted',
+          description: `${selectedMemberIds.length - failed} member(s) removed${failed > 0 ? `, ${failed} failed` : ''}.`,
+        });
         setSelectedMemberIds([]);
       }
     } catch (e: any) {
-      toast({ title: 'Delete failed', description: String(e?.message || e), variant: 'destructive' });
+      toast({
+        title: 'Delete failed',
+        description: String(e?.message || e),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -315,10 +417,10 @@ export const MemberManagement: React.FC = () => {
     if (!editing) return;
     if ('membershipLevel' in editing) {
       // Member update
-      setMembers(prev => prev.map(m => (m.id === editing.id ? { ...m, ...payload } : m)));
+      setMembers((prev) => prev.map((m) => (m.id === editing.id ? { ...m, ...payload } : m)));
       toast({ title: 'Saved', description: `${payload.fullName ?? editing.fullName} updated.` });
     } else {
-      setFirstTimers(prev => prev.map(f => (f.id === editing.id ? { ...f, ...payload } : f)));
+      setFirstTimers((prev) => prev.map((f) => (f.id === editing.id ? { ...f, ...payload } : f)));
       toast({ title: 'Saved', description: `${payload.fullName ?? editing.fullName} updated.` });
     }
     setIsEditOpen(false);
@@ -354,7 +456,7 @@ export const MemberManagement: React.FC = () => {
   };
 
   // -------------------- small helpers --------------------
-  const getBranchName = (id?: string) => branches.find(b => b.id === id)?.name || 'N/A';
+  const getBranchName = (id?: string) => branches.find((b) => b.id === id)?.name || 'N/A';
 
   // -------------------- UI --------------------
   return (
@@ -362,7 +464,9 @@ export const MemberManagement: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">Member Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage workers, converts and visitors</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage workers, converts and visitors
+          </p>
         </div>
 
         <div className="flex gap-2 items-center">
@@ -379,7 +483,11 @@ export const MemberManagement: React.FC = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Branches</SelectItem>
-              {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -390,30 +498,64 @@ export const MemberManagement: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Members</SelectItem>
-                {MEMBERSHIP_LEVELS.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                {MEMBERSHIP_LEVELS.map((l) => (
+                  <SelectItem key={l} value={l}>
+                    {l}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}
 
-          <Button onClick={() => {
-            // open "add" edit modal with blank template
-            if (activeTab === 'visitors') {
-              const template: FirstTimer = { id: Date.now(), fullName: '', phone: '', community: '', invitedBy: '', branchId: branches[0]?.id, serviceDate: new Date().toISOString(), status: 'new' };
-              setEditing(template);
-            } else {
-              const template: Member = { id: Date.now(), fullName: '', email: '', phone: '', membershipLevel: 'baptized', baptizedSubLevel: 'worker', branchId: branches[0]?.id, ministry: '', progress: 0, status: 'active' };
-              setEditing(template);
-            }
-            setIsEditOpen(true);
-          }}>Add New</Button>
+          <Button
+            onClick={() => {
+              // open "add" edit modal with blank template
+              if (activeTab === 'visitors') {
+                const template: FirstTimer = {
+                  id: Date.now(),
+                  fullName: '',
+                  phone: '',
+                  community: '',
+                  invitedBy: '',
+                  branchId: branches[0]?.id,
+                  serviceDate: new Date().toISOString(),
+                  status: 'new',
+                };
+                setEditing(template);
+              } else {
+                const template: Member = {
+                  id: Date.now(),
+                  fullName: '',
+                  email: '',
+                  phone: '',
+                  membershipLevel: 'baptized',
+                  baptizedSubLevel: 'worker',
+                  branchId: branches[0]?.id,
+                  ministry: '',
+                  progress: 0,
+                  status: 'active',
+                };
+                setEditing(template);
+              }
+              setIsEditOpen(true);
+            }}
+          >
+            Add New
+          </Button>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
         <TabsList className="grid grid-cols-3 gap-2 w-full">
-          <TabsTrigger value="workers_disciples" className="text-sm">Workers & Disciples</TabsTrigger>
-          <TabsTrigger value="converts" className="text-sm">Converts</TabsTrigger>
-          <TabsTrigger value="visitors" className="text-sm">First Timers</TabsTrigger>
+          <TabsTrigger value="workers_disciples" className="text-sm">
+            Workers & Disciples
+          </TabsTrigger>
+          <TabsTrigger value="converts" className="text-sm">
+            Converts
+          </TabsTrigger>
+          <TabsTrigger value="visitors" className="text-sm">
+            First Timers
+          </TabsTrigger>
         </TabsList>
 
         {/* -------------- WORKERS & DISCIPLES -------------- */}
@@ -427,14 +569,22 @@ export const MemberManagement: React.FC = () => {
                     checked={allOnPageSelected}
                     onCheckedChange={(v) => selectAllOnPage(!!v)}
                   />
-                  <Label htmlFor="select-all" className="text-sm">Select page</Label>
-                  {(selectedMemberIds.length > 0) && (
+                  <Label htmlFor="select-all" className="text-sm">
+                    Select page
+                  </Label>
+                  {selectedMemberIds.length > 0 && (
                     <Badge>{selectedMemberIds.length} selected</Badge>
                   )}
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="destructive" onClick={deleteSelected} disabled={selectedMemberIds.length === 0}>Delete Selected</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={deleteSelected}
+                    disabled={selectedMemberIds.length === 0}
+                  >
+                    Delete Selected
+                  </Button>
                 </div>
               </div>
 
@@ -442,7 +592,9 @@ export const MemberManagement: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-4"><span /></TableHead>
+                      <TableHead className="w-4">
+                        <span />
+                      </TableHead>
                       <TableHead>Member</TableHead>
                       <TableHead className="hidden sm:table-cell">Contact</TableHead>
                       <TableHead>Membership</TableHead>
@@ -455,12 +607,19 @@ export const MemberManagement: React.FC = () => {
 
                   <TableBody>
                     {paginated.data.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="h-24 text-center">No members found</TableCell></TableRow>
+                      <TableRow>
+                        <TableCell colSpan={8} className="h-24 text-center">
+                          No members found
+                        </TableCell>
+                      </TableRow>
                     ) : (
-                      (paginated.data as Member[]).map(member => (
+                      (paginated.data as Member[]).map((member) => (
                         <TableRow key={member.id}>
                           <TableCell>
-                            <Checkbox checked={selectedMemberIds.includes(member.id)} onCheckedChange={() => toggleSelectMember(member.id)} />
+                            <Checkbox
+                              checked={selectedMemberIds.includes(member.id)}
+                              onCheckedChange={() => toggleSelectMember(member.id)}
+                            />
                           </TableCell>
 
                           <TableCell>
@@ -470,7 +629,9 @@ export const MemberManagement: React.FC = () => {
                               </div>
                               <div>
                                 <div className="font-medium">{member.fullName || '—'}</div>
-                                <div className="text-xs text-muted-foreground">{member.membershipLevel}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {member.membershipLevel}
+                                </div>
                               </div>
                             </div>
                           </TableCell>
@@ -482,26 +643,40 @@ export const MemberManagement: React.FC = () => {
                             </div>
                           </TableCell>
 
-                          <TableCell><Badge className="text-xs">{member.membershipLevel}</Badge></TableCell>
+                          <TableCell>
+                            <Badge className="text-xs">{member.membershipLevel}</Badge>
+                          </TableCell>
 
-                          <TableCell className="hidden md:table-cell">{getBranchName(member.branchId)}</TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {getBranchName(member.branchId)}
+                          </TableCell>
 
-                          <TableCell className="hidden md:table-cell">{member.ministry || 'N/A'}</TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {member.ministry || 'N/A'}
+                          </TableCell>
 
                           <TableCell className="hidden lg:table-cell">
                             {member.progress !== undefined ? (
                               <div className="w-full">
                                 <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                  <div className="h-2 rounded-full" style={{ width: `${member.progress}%`, backgroundColor: '#2563eb' }} />
+                                  <div
+                                    className="h-2 rounded-full"
+                                    style={{
+                                      width: `${member.progress}%`,
+                                      backgroundColor: '#2563eb',
+                                    }}
+                                  />
                                 </div>
-                                <span className="text-xs text-muted-foreground">{member.progress}%</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {member.progress}%
+                                </span>
                               </div>
-                            ) : '-'}
+                            ) : (
+                              '-'
+                            )}
                           </TableCell>
 
-                          <TableCell className="text-right">
-                            {renderActionMenu(member)}
-                          </TableCell>
+                          <TableCell className="text-right">{renderActionMenu(member)}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -511,11 +686,29 @@ export const MemberManagement: React.FC = () => {
 
               {/* pagination */}
               <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
-                <div>Showing {paginated.data.length} of {paginated.total}</div>
+                <div>
+                  Showing {paginated.data.length} of {paginated.total}
+                </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</Button>
-                  <div className="px-2 py-1 rounded border">{page} / {paginated.totalPages}</div>
-                  <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(paginated.totalPages, p + 1))} disabled={page === paginated.totalPages}>Next</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Prev
+                  </Button>
+                  <div className="px-2 py-1 rounded border">
+                    {page} / {paginated.totalPages}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.min(paginated.totalPages, p + 1))}
+                    disabled={page === paginated.totalPages}
+                  >
+                    Next
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -533,11 +726,21 @@ export const MemberManagement: React.FC = () => {
                     checked={allOnPageSelected}
                     onCheckedChange={(v) => selectAllOnPage(!!v)}
                   />
-                  <Label htmlFor="select-all-converts" className="text-sm">Select page</Label>
-                  {(selectedMemberIds.length > 0) && <Badge>{selectedMemberIds.length} selected</Badge>}
+                  <Label htmlFor="select-all-converts" className="text-sm">
+                    Select page
+                  </Label>
+                  {selectedMemberIds.length > 0 && (
+                    <Badge>{selectedMemberIds.length} selected</Badge>
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="destructive" onClick={deleteSelected} disabled={selectedMemberIds.length === 0}>Delete Selected</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={deleteSelected}
+                    disabled={selectedMemberIds.length === 0}
+                  >
+                    Delete Selected
+                  </Button>
                 </div>
               </div>
 
@@ -545,7 +748,9 @@ export const MemberManagement: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-4"><span /></TableHead>
+                      <TableHead className="w-4">
+                        <span />
+                      </TableHead>
                       <TableHead>Member</TableHead>
                       <TableHead className="hidden sm:table-cell">Contact</TableHead>
                       <TableHead>Membership</TableHead>
@@ -557,18 +762,31 @@ export const MemberManagement: React.FC = () => {
 
                   <TableBody>
                     {paginated.data.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="h-24 text-center">No converts found</TableCell></TableRow>
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          No converts found
+                        </TableCell>
+                      </TableRow>
                     ) : (
-                      (paginated.data as Member[]).map(member => (
+                      (paginated.data as Member[]).map((member) => (
                         <TableRow key={member.id}>
-                          <TableCell><Checkbox checked={selectedMemberIds.includes(member.id)} onCheckedChange={() => toggleSelectMember(member.id)} /></TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedMemberIds.includes(member.id)}
+                              onCheckedChange={() => toggleSelectMember(member.id)}
+                            />
+                          </TableCell>
 
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">{member.fullName ? member.fullName.charAt(0).toUpperCase() : 'N'}</div>
+                              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
+                                {member.fullName ? member.fullName.charAt(0).toUpperCase() : 'N'}
+                              </div>
                               <div>
                                 <div className="font-medium">{member.fullName}</div>
-                                <div className="text-xs text-muted-foreground">{member.membershipLevel}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {member.membershipLevel}
+                                </div>
                               </div>
                             </div>
                           </TableCell>
@@ -580,19 +798,33 @@ export const MemberManagement: React.FC = () => {
                             </div>
                           </TableCell>
 
-                          <TableCell><Badge className="text-xs">{member.membershipLevel}</Badge></TableCell>
+                          <TableCell>
+                            <Badge className="text-xs">{member.membershipLevel}</Badge>
+                          </TableCell>
 
-                          <TableCell className="hidden md:table-cell">{getBranchName(member.branchId)}</TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {getBranchName(member.branchId)}
+                          </TableCell>
 
                           <TableCell className="hidden lg:table-cell">
                             {member.progress !== undefined ? (
                               <div className="w-full">
                                 <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                  <div className="h-2 rounded-full" style={{ width: `${member.progress}%`, backgroundColor: '#2563eb' }} />
+                                  <div
+                                    className="h-2 rounded-full"
+                                    style={{
+                                      width: `${member.progress}%`,
+                                      backgroundColor: '#2563eb',
+                                    }}
+                                  />
                                 </div>
-                                <span className="text-xs text-muted-foreground">{member.progress}%</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {member.progress}%
+                                </span>
                               </div>
-                            ) : '-'}
+                            ) : (
+                              '-'
+                            )}
                           </TableCell>
 
                           <TableCell className="text-right">{renderActionMenu(member)}</TableCell>
@@ -604,11 +836,29 @@ export const MemberManagement: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
-                <div>Showing {paginated.data.length} of {paginated.total}</div>
+                <div>
+                  Showing {paginated.data.length} of {paginated.total}
+                </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</Button>
-                  <div className="px-2 py-1 rounded border">{page} / {paginated.totalPages}</div>
-                  <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(paginated.totalPages, p + 1))} disabled={page === paginated.totalPages}>Next</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Prev
+                  </Button>
+                  <div className="px-2 py-1 rounded border">
+                    {page} / {paginated.totalPages}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.min(paginated.totalPages, p + 1))}
+                    disabled={page === paginated.totalPages}
+                  >
+                    Next
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -621,13 +871,24 @@ export const MemberManagement: React.FC = () => {
             <CardContent>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  <Checkbox checked={allOnPageSelected} onCheckedChange={(v) => selectAllOnPage(!!v)} />
+                  <Checkbox
+                    checked={allOnPageSelected}
+                    onCheckedChange={(v) => selectAllOnPage(!!v)}
+                  />
                   <Label className="text-sm">Select page</Label>
-                  {(selectedFirstTimerIds.length > 0) && <Badge>{selectedFirstTimerIds.length} selected</Badge>}
+                  {selectedFirstTimerIds.length > 0 && (
+                    <Badge>{selectedFirstTimerIds.length} selected</Badge>
+                  )}
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="destructive" onClick={deleteSelected} disabled={selectedFirstTimerIds.length === 0}>Delete Selected</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={deleteSelected}
+                    disabled={selectedFirstTimerIds.length === 0}
+                  >
+                    Delete Selected
+                  </Button>
                 </div>
               </div>
 
@@ -635,7 +896,9 @@ export const MemberManagement: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-4"><span /></TableHead>
+                      <TableHead className="w-4">
+                        <span />
+                      </TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead className="hidden sm:table-cell">Contact</TableHead>
                       <TableHead>Visit Date</TableHead>
@@ -646,14 +909,25 @@ export const MemberManagement: React.FC = () => {
 
                   <TableBody>
                     {paginated.data.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="h-24 text-center">No visitors found</TableCell></TableRow>
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          No visitors found
+                        </TableCell>
+                      </TableRow>
                     ) : (
-                      (paginated.data as FirstTimer[]).map(ft => (
+                      (paginated.data as FirstTimer[]).map((ft) => (
                         <TableRow key={ft.id}>
-                          <TableCell><Checkbox checked={selectedFirstTimerIds.includes(ft.id)} onCheckedChange={() => toggleSelectFirstTimer(ft.id)} /></TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedFirstTimerIds.includes(ft.id)}
+                              onCheckedChange={() => toggleSelectFirstTimer(ft.id)}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">{ft.fullName ? ft.fullName.charAt(0).toUpperCase() : 'N'}</div>
+                              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
+                                {ft.fullName ? ft.fullName.charAt(0).toUpperCase() : 'N'}
+                              </div>
                               <div>
                                 <div className="font-medium">{ft.fullName}</div>
                                 <div className="text-xs text-muted-foreground">First Time</div>
@@ -668,9 +942,13 @@ export const MemberManagement: React.FC = () => {
                             </div>
                           </TableCell>
 
-                          <TableCell>{new Date(ft.serviceDate || '').toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            {new Date(ft.serviceDate || '').toLocaleDateString()}
+                          </TableCell>
 
-                          <TableCell className="hidden sm:table-cell">{ft.invitedBy || 'N/A'}</TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            {ft.invitedBy || 'N/A'}
+                          </TableCell>
 
                           <TableCell className="text-right">{renderActionMenu(ft)}</TableCell>
                         </TableRow>
@@ -681,11 +959,29 @@ export const MemberManagement: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
-                <div>Showing {paginated.data.length} of {paginated.total}</div>
+                <div>
+                  Showing {paginated.data.length} of {paginated.total}
+                </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</Button>
-                  <div className="px-2 py-1 rounded border">{page} / {paginated.totalPages}</div>
-                  <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(paginated.totalPages, p + 1))} disabled={page === paginated.totalPages}>Next</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Prev
+                  </Button>
+                  <div className="px-2 py-1 rounded border">
+                    {page} / {paginated.totalPages}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.min(paginated.totalPages, p + 1))}
+                    disabled={page === paginated.totalPages}
+                  >
+                    Next
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -698,7 +994,9 @@ export const MemberManagement: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>View</DialogTitle>
-            <DialogDescription>Details for {('fullName' in (viewing || {})) ? viewing?.fullName : ''}</DialogDescription>
+            <DialogDescription>
+              Details for {'fullName' in (viewing || {}) ? viewing?.fullName : ''}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
@@ -706,17 +1004,32 @@ export const MemberManagement: React.FC = () => {
               'membershipLevel' in viewing ? (
                 // Member view
                 <>
-                  <div><strong>Name:</strong> {viewing.fullName}</div>
-                  <div><strong>Email:</strong> {(viewing.email) || 'N/A'}</div>
-                  <div><strong>Phone:</strong> {(viewing.phone) || 'N/A'}</div>
-                  <div><strong>Membership:</strong> {viewing.membershipLevel}</div>
-                  <div><strong>Branch:</strong> {getBranchName(viewing.branchId)}</div>
-                  <div><strong>Ministry:</strong> {viewing.ministry || 'N/A'}</div>
+                  <div>
+                    <strong>Name:</strong> {viewing.fullName}
+                  </div>
+                  <div>
+                    <strong>Email:</strong> {viewing.email || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Phone:</strong> {viewing.phone || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Membership:</strong> {viewing.membershipLevel}
+                  </div>
+                  <div>
+                    <strong>Branch:</strong> {getBranchName(viewing.branchId)}
+                  </div>
+                  <div>
+                    <strong>Ministry:</strong> {viewing.ministry || 'N/A'}
+                  </div>
                   {viewing.progress !== undefined && (
                     <div>
                       <strong>Progress:</strong>
                       <div className="w-full bg-slate-100 rounded-full h-2 mt-1 overflow-hidden">
-                        <div className="h-2 rounded-full" style={{ width: `${viewing.progress}%`, backgroundColor: '#2563eb' }} />
+                        <div
+                          className="h-2 rounded-full"
+                          style={{ width: `${viewing.progress}%`, backgroundColor: '#2563eb' }}
+                        />
                       </div>
                       <div className="text-xs text-muted-foreground">{viewing.progress}%</div>
                     </div>
@@ -725,12 +1038,25 @@ export const MemberManagement: React.FC = () => {
               ) : (
                 // FirstTimer view
                 <>
-                  <div><strong>Name:</strong> {viewing.fullName}</div>
-                  <div><strong>Phone:</strong> {(viewing.phone) || 'N/A'}</div>
-                  <div><strong>Community:</strong> {((viewing as FirstTimer).community) || 'N/A'}</div>
-                  <div><strong>Invited By:</strong> {((viewing as FirstTimer).invitedBy) || 'N/A'}</div>
-                  <div><strong>Service Date:</strong> {new Date((viewing as FirstTimer).serviceDate || '').toLocaleString()}</div>
-                  <div><strong>Status:</strong> {(viewing as FirstTimer).status}</div>
+                  <div>
+                    <strong>Name:</strong> {viewing.fullName}
+                  </div>
+                  <div>
+                    <strong>Phone:</strong> {viewing.phone || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Community:</strong> {(viewing as FirstTimer).community || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Invited By:</strong> {(viewing as FirstTimer).invitedBy || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Service Date:</strong>{' '}
+                    {new Date((viewing as FirstTimer).serviceDate || '').toLocaleString()}
+                  </div>
+                  <div>
+                    <strong>Status:</strong> {(viewing as FirstTimer).status}
+                  </div>
                 </>
               )
             ) : (
@@ -739,42 +1065,76 @@ export const MemberManagement: React.FC = () => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsViewOpen(false); setViewing(null); }}>Close</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsViewOpen(false);
+                setViewing(null);
+              }}
+            >
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ------------------- EDIT MODAL ------------------- */}
-      <Dialog open={isEditOpen} onOpenChange={(v) => { setIsEditOpen(v); if (!v) setEditing(null); }}>
+      <Dialog
+        open={isEditOpen}
+        onOpenChange={(v) => {
+          setIsEditOpen(v);
+          if (!v) setEditing(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing && 'membershipLevel' in editing ? (editing.fullName ? 'Edit Member' : 'Add Member') : (editing && editing.fullName ? 'Edit Visitor' : 'Add Visitor')}</DialogTitle>
+            <DialogTitle>
+              {editing && 'membershipLevel' in editing
+                ? editing.fullName
+                  ? 'Edit Member'
+                  : 'Add Member'
+                : editing && editing.fullName
+                  ? 'Edit Visitor'
+                  : 'Add Visitor'}
+            </DialogTitle>
           </DialogHeader>
 
           {editing ? (
             'membershipLevel' in editing ? (
               // Member edit form
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const form = e.target as HTMLFormElement;
-                const data = new FormData(form);
-                const payload: Partial<Member> = {
-                  fullName: (data.get('fullName') as string) || editing.fullName,
-                  email: (data.get('email') as string) || editing.email,
-                  phone: (data.get('phone') as string) || editing.phone,
-                  ministry: (data.get('ministry') as string) || editing.ministry,
-                  progress: Number(data.get('progress')) || editing.progress || 0,
-                  branchId: (data.get('branchId') as string) || editing.branchId || branches[0]?.id,
-                };
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = e.target as HTMLFormElement;
+                  const data = new FormData(form);
+                  const payload: Partial<Member> = {
+                    fullName: (data.get('fullName') as string) || editing.fullName,
+                    email: (data.get('email') as string) || editing.email,
+                    phone: (data.get('phone') as string) || editing.phone,
+                    ministry: (data.get('ministry') as string) || editing.ministry,
+                    progress: Number(data.get('progress')) || editing.progress || 0,
+                    branchId:
+                      (data.get('branchId') as string) || editing.branchId || branches[0]?.id,
+                  };
 
-                // If new id (mock add)
-                if (!members.find(m => m.id === editing.id)) {
-                  setMembers(prev => [{ id: editing.id as number, membershipLevel: 'baptized', baptizedSubLevel: 'worker', status: 'active', ...payload } as Member, ...prev]);
-                  toast({ title: 'Added', description: `${payload.fullName} added.` });
-                } else {
-                  saveEdit(payload);
-                }
-              }}>
+                  // If new id (mock add)
+                  if (!members.find((m) => m.id === editing.id)) {
+                    setMembers((prev) => [
+                      {
+                        id: editing.id as number,
+                        membershipLevel: 'baptized',
+                        baptizedSubLevel: 'worker',
+                        status: 'active',
+                        ...payload,
+                      } as Member,
+                      ...prev,
+                    ]);
+                    toast({ title: 'Added', description: `${payload.fullName} added.` });
+                  } else {
+                    saveEdit(payload);
+                  }
+                }}
+              >
                 <div className="grid grid-cols-1 gap-2">
                   <Label>Full name</Label>
                   <Input name="fullName" defaultValue={editing.fullName} />
@@ -789,47 +1149,85 @@ export const MemberManagement: React.FC = () => {
                   <Input name="ministry" defaultValue={(editing as Member).ministry} />
 
                   <Label>Branch</Label>
-                  <Select value={(editing as Member).branchId?.toString() || branches[0].id.toString()} onValueChange={() => { /* controlled not required here */ }}>
-                    <SelectTrigger className="h-9 w-full text-sm"><SelectValue placeholder="Branch" /></SelectTrigger>
+                  <Select
+                    value={(editing as Member).branchId?.toString() || branches[0].id.toString()}
+                    onValueChange={() => {
+                      /* controlled not required here */
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-full text-sm">
+                      <SelectValue placeholder="Branch" />
+                    </SelectTrigger>
                     <SelectContent>
-                      {branches.map(b => <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>)}
+                      {branches.map((b) => (
+                        <SelectItem key={b.id} value={b.id.toString()}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
 
                   <Label>Progress</Label>
-                  <Input name="progress" type="number" defaultValue={String((editing as Member).progress ?? 0)} />
+                  <Input
+                    name="progress"
+                    type="number"
+                    defaultValue={String((editing as Member).progress ?? 0)}
+                  />
 
                   <div className="flex justify-end gap-2 mt-2">
-                    <Button variant="outline" onClick={() => { setIsEditOpen(false); setEditing(null); }}>Cancel</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditOpen(false);
+                        setEditing(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
                     <Button type="submit">Save</Button>
                   </div>
                 </div>
               </form>
             ) : (
               // FirstTimer edit form
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const form = e.target as HTMLFormElement;
-                const data = new FormData(form);
-                const payload: Partial<FirstTimer> = {
-                  fullName: (data.get('fullName') as string) || editing.fullName,
-                  phone: (data.get('phone') as string) || editing.phone,
-                  community: (data.get('community') as string) || (editing as FirstTimer).community,
-                  invitedBy: (data.get('invitedBy') as string) || (editing as FirstTimer).invitedBy,
-                };
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = e.target as HTMLFormElement;
+                  const data = new FormData(form);
+                  const payload: Partial<FirstTimer> = {
+                    fullName: (data.get('fullName') as string) || editing.fullName,
+                    phone: (data.get('phone') as string) || editing.phone,
+                    community:
+                      (data.get('community') as string) || (editing as FirstTimer).community,
+                    invitedBy:
+                      (data.get('invitedBy') as string) || (editing as FirstTimer).invitedBy,
+                  };
 
-                if (!firstTimers.find(f => f.id === editing.id)) {
-                  setFirstTimers(prev => [{ id: editing.id as number, branchId: branches[0].id, serviceDate: new Date().toISOString(), status: 'new', ...payload } as FirstTimer, ...prev]);
-                  toast({ title: 'Added', description: `${payload.fullName} added.` });
-                } else {
-                  // update
-                  setFirstTimers(prev => prev.map(f => (f.id === editing.id ? { ...f, ...payload } : f)));
-                  toast({ title: 'Saved', description: `${payload.fullName} updated.` });
-                }
+                  if (!firstTimers.find((f) => f.id === editing.id)) {
+                    setFirstTimers((prev) => [
+                      {
+                        id: editing.id as number,
+                        branchId: branches[0].id,
+                        serviceDate: new Date().toISOString(),
+                        status: 'new',
+                        ...payload,
+                      } as FirstTimer,
+                      ...prev,
+                    ]);
+                    toast({ title: 'Added', description: `${payload.fullName} added.` });
+                  } else {
+                    // update
+                    setFirstTimers((prev) =>
+                      prev.map((f) => (f.id === editing.id ? { ...f, ...payload } : f))
+                    );
+                    toast({ title: 'Saved', description: `${payload.fullName} updated.` });
+                  }
 
-                setIsEditOpen(false);
-                setEditing(null);
-              }}>
+                  setIsEditOpen(false);
+                  setEditing(null);
+                }}
+              >
                 <div className="grid grid-cols-1 gap-2">
                   <Label>Full name</Label>
                   <Input name="fullName" defaultValue={editing.fullName} />
@@ -841,7 +1239,15 @@ export const MemberManagement: React.FC = () => {
                   <Input name="invitedBy" defaultValue={(editing as FirstTimer).invitedBy} />
 
                   <div className="flex justify-end gap-2 mt-2">
-                    <Button variant="outline" onClick={() => { setIsEditOpen(false); setEditing(null); }}>Cancel</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditOpen(false);
+                        setEditing(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
                     <Button type="submit">Save</Button>
                   </div>
                 </div>
@@ -858,11 +1264,18 @@ export const MemberManagement: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Delete</DialogTitle>
-            <DialogDescription>Are you sure you want to delete <strong>{deleting?.fullName}</strong>? This action cannot be undone.</DialogDescription>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{deleting?.fullName}</strong>? This action
+              cannot be undone.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={deleteItem}>Delete</Button>
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={deleteItem}>
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

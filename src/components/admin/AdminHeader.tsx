@@ -16,6 +16,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { SuperadminBadge } from './SuperadminBadge';
+import { useAdminContext } from '@/context/AdminContext';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AdminHeaderProps {
   onMenuToggle: () => void;
@@ -34,6 +44,16 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
     { id: 3, text: 'New message from John', read: true },
   ]);
   const { toast } = useToast();
+  const { selectedBranchId, setSelectedBranchId, branchName } = useAdminContext();
+
+  const { data: branches } = useQuery({
+    queryKey: ['admin-header-branches'],
+    queryFn: async () => {
+      const { data } = await supabase.from('church_branches').select('id, name');
+      return data || [];
+    },
+    enabled: isSuperadmin,
+  });
 
   // Debounce function with proper TypeScript types
   function debounce<T extends (...args: any[]) => any>(func: T, wait: number) {
@@ -144,6 +164,29 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
           >
             <Menu className="w-5 h-5" />
           </button>
+
+          {isSuperadmin && (
+            <div className="hidden md:block mr-2">
+              <Select
+                value={selectedBranchId || 'global'}
+                onValueChange={(val) => setSelectedBranchId(val === 'global' ? null : val)}
+              >
+                <SelectTrigger className="w-[180px] h-9 bg-purple-50 border-purple-200 text-purple-900 focus:ring-purple-500">
+                  <SelectValue placeholder="System View" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="global" className="font-semibold text-purple-700">
+                    System View
+                  </SelectItem>
+                  {branches?.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center">
             <img

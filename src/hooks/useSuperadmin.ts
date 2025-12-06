@@ -36,13 +36,13 @@ export const useSuperadmin = (): SuperadminStatus => {
           .select('role')
           .eq('user_id', user.id)
           .eq('role', 'super_admin')
-          .single();
+          .limit(1);
 
         if (error) {
-          // If no super_admin role found, error is expected
+          console.error('Error fetching superadmin role:', error);
           setIsSuperadmin(false);
         } else {
-          setIsSuperadmin(!!data);
+          setIsSuperadmin(data && data.length > 0);
         }
       } catch (error) {
         console.error('Error checking superadmin status:', error);

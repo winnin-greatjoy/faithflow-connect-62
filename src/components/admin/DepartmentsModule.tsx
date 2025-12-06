@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useToast } from '@/hooks/use-toast';
+import { useAdminContext } from '@/context/AdminContext';
 import {
   Select,
   SelectContent,
@@ -185,7 +186,6 @@ export const DepartmentsModule = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [ministrySearch, setMinistrySearch] = useState('');
-  const { branchId } = useAuthz();
   const { toast } = useToast();
 
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -200,7 +200,12 @@ export const DepartmentsModule = () => {
   const [mDesc, setMDesc] = useState('');
   const [savingMinistry, setSavingMinistry] = useState(false);
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+
+  const { selectedBranchId, loading: contextLoading } = useAdminContext();
+  const { branchId: authBranchId, hasRole } = useAuthz();
+
+  const effectiveBranchId = selectedBranchId || authBranchId;
+  const [formBranchId, setFormBranchId] = useState<string>('');
 
   // Ministry dialog state
   const [activeMinistry, setActiveMinistry] = useState<Ministry | null>(null);
@@ -214,7 +219,6 @@ export const DepartmentsModule = () => {
   // Load ministries
   const loadMinistries = async () => {
     try {
-      const effectiveBranchId = branchId || selectedBranchId;
       const query = supabase
         .from('ministries')
         .select('id, name, description, branch_id, head_id')
@@ -291,7 +295,6 @@ export const DepartmentsModule = () => {
   // reload departments (used after updates)
   const reloadDepartments = async () => {
     try {
-      const effectiveBranchId = branchId || selectedBranchId;
       const deptListQuery = supabase
         .from('departments')
         .select(
@@ -417,8 +420,9 @@ export const DepartmentsModule = () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      const effectiveBranchId = branchId ?? selectedBranchId;
-      if (!effectiveBranchId) {
+      // use effectiveBranchId defined in component scope
+      const targetBranchId = effectiveBranchId || formBranchId;
+      if (!targetBranchId) {
         toast({
           title: 'Branch required',
           description: 'Please select a branch for this ministry.',
@@ -428,7 +432,7 @@ export const DepartmentsModule = () => {
       const insertPayload: any = {
         name: mName.trim(),
         description: mDesc || null,
-        branch_id: effectiveBranchId,
+        branch_id: targetBranchId,
       };
       if (user?.id) insertPayload.head_id = user.id;
 
@@ -456,50 +460,32 @@ export const DepartmentsModule = () => {
     }
   };
 
-  // Initial branch selection effect
+  // Initial branch selection effect (handled by AdminContext mostly, but keeping loader for Select options if needed)
   useEffect(() => {
     const initBranch = async () => {
-      if (!branchId && !selectedBranchId) {
-        const { data: branchesData } = await supabase
-          .from('church_branches')
-          .select('id, name')
-          .order('name', { ascending: true });
+      const { data: branchesData } = await supabase
+        .from('church_branches')
+        .select('id, name')
+        .order('name', { ascending: true });
 
-        const list = (branchesData || []).map((b: any) => ({ id: b.id, name: b.name }));
-        setBranches(list);
-
-        if (list.length === 1) {
-          setSelectedBranchId(list[0].id);
-        } else {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-          if (user?.id) {
-            const { data: me } = await supabase
-              .from('members')
-              .select('branch_id')
-              .eq('id', user.id)
-              .maybeSingle();
-            if (me?.branch_id) setSelectedBranchId(me.branch_id);
-          }
-        }
-      }
+      const list = (branchesData || []).map((b: any) => ({ id: b.id, name: b.name }));
+      setBranches(list);
     };
     initBranch();
-  }, [branchId]);
+  }, []);
 
   // Data loading effect
   useEffect(() => {
     loadMinistries();
     reloadDepartments();
-  }, [branchId, selectedBranchId]);
+  }, [effectiveBranchId]);
   // ✅ Add new department
   const handleAddDepartment = async (newDept: Department) => {
     // Reload departments from database
     const deptListQuery = supabase
       .from('departments')
       .select('id, name, slug, description, branch_id');
-    if (branchId) deptListQuery.eq('branch_id', branchId);
+    if (effectiveBranchId) deptListQuery.eq('branch_id', effectiveBranchId);
     const { data: deptList } = await deptListQuery;
 
     if (deptList) {
@@ -739,10 +725,10 @@ export const DepartmentsModule = () => {
             <DialogTitle>Add New Ministry</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {!branchId && (
+            {!authBranchId && (
               <div className="grid gap-2">
                 <Label htmlFor="m-branch">Branch</Label>
-                <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+                <Select value={formBranchId} onValueChange={setFormBranchId}>
                   <SelectTrigger id="m-branch">
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
@@ -781,7 +767,7 @@ export const DepartmentsModule = () => {
             </Button>
             <Button
               onClick={saveAddMinistry}
-              disabled={savingMinistry || !mName.trim() || (!branchId && !selectedBranchId)}
+              disabled={savingMinistry || !mName.trim() || (!effectiveBranchId && !formBranchId)}
             >
               {savingMinistry ? 'Saving...' : 'Save Ministry'}
             </Button>
