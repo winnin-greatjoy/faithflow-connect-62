@@ -30,12 +30,16 @@ import {
 } from '@/components/departments';
 import { TransferApprovalQueue } from '@/components/admin/TransferApprovalQueue';
 import { MessageTemplateManager } from '@/components/admin/MessageTemplateManager';
+import { MultiBranchManagement } from '@/components/admin/superadmin/MultiBranchManagement';
+import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
+import { useSuperadmin } from '@/hooks/useSuperadmin';
 
 const AdminDashboard = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { loading: authzLoading, can } = useAuthz();
+  const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
 
   // Determine active module based on URL path
   const getActiveModuleFromPath = (pathname: string): string => {
@@ -85,6 +89,9 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/settings')) return 'settings';
     if (pathname.startsWith('/admin/templates')) return 'templates';
     if (pathname.startsWith('/admin/volunteers')) return 'volunteers';
+    // Superadmin routes
+    if (pathname.startsWith('/admin/multi-branch')) return 'multi-branch';
+    if (pathname.startsWith('/admin/superadmin-transfers')) return 'superadmin-transfers';
     return 'overview';
   };
 
@@ -129,13 +136,29 @@ const AdminDashboard = () => {
       case 'choir':
         return can('choir', 'view') ? <ChoirDashboard departmentId="choir-dept-id" /> : denied;
       case 'ushering':
-        return can('ushering', 'view') ? <UsheringDashboard departmentId="ushering-dept-id" /> : denied;
+        return can('ushering', 'view') ? (
+          <UsheringDashboard departmentId="ushering-dept-id" />
+        ) : (
+          denied
+        );
       case 'prayer-team':
-        return can('prayer', 'view') ? <PrayerTeamDashboard departmentId="prayer-dept-id" /> : denied;
+        return can('prayer', 'view') ? (
+          <PrayerTeamDashboard departmentId="prayer-dept-id" />
+        ) : (
+          denied
+        );
       case 'evangelism':
-        return can('evangelism', 'view') ? <EvangelismDashboard departmentId="evangelism-dept-id" /> : denied;
+        return can('evangelism', 'view') ? (
+          <EvangelismDashboard departmentId="evangelism-dept-id" />
+        ) : (
+          denied
+        );
       case 'finance-dept':
-        return can('finance', 'view') ? <FinanceDashboard departmentId="finance-dept-id" /> : denied;
+        return can('finance', 'view') ? (
+          <FinanceDashboard departmentId="finance-dept-id" />
+        ) : (
+          denied
+        );
       case 'technical':
         return <TechnicalDashboard departmentId="technical-dept-id" />;
       case 'communication':
@@ -162,6 +185,11 @@ const AdminDashboard = () => {
         return can('admin', 'manage') ? <MessageTemplateManager /> : denied;
       case 'volunteers':
         return can('admin', 'view') ? <VolunteersModule /> : denied;
+      // Superadmin modules
+      case 'multi-branch':
+        return isSuperadmin && !superadminLoading ? <MultiBranchManagement /> : denied;
+      case 'superadmin-transfers':
+        return isSuperadmin && !superadminLoading ? <SuperadminTransferManagement /> : denied;
       default:
         return <DashboardOverview />;
     }

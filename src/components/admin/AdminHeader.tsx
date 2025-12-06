@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useSuperadmin } from '@/hooks/useSuperadmin';
+import { SuperadminBadge } from './SuperadminBadge';
 
 interface AdminHeaderProps {
   onMenuToggle: () => void;
@@ -23,6 +24,7 @@ interface AdminHeaderProps {
 export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+  const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -34,32 +36,29 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
   const { toast } = useToast();
 
   // Debounce function with proper TypeScript types
-  function debounce<T extends (...args: any[]) => any>(
-    func: T,
-    wait: number
-  ) {
+  function debounce<T extends (...args: any[]) => any>(func: T, wait: number) {
     let timeout: ReturnType<typeof setTimeout> | null = null;
-    
+
     const debounced = (...args: Parameters<T>) => {
       const later = () => {
         timeout = null;
         func(...args);
       };
-      
+
       if (timeout !== null) {
         clearTimeout(timeout);
       }
-      
+
       timeout = setTimeout(later, wait);
     };
-    
+
     debounced.cancel = () => {
       if (timeout) {
         clearTimeout(timeout);
         timeout = null;
       }
     };
-    
+
     return debounced as T & { cancel: () => void };
   }
 
@@ -71,7 +70,7 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
         // Simulate API call
         setTimeout(() => {
           toast({
-            title: "Search",
+            title: 'Search',
             description: `Searching for: ${query}`,
           });
           console.log('Searching for:', query);
@@ -95,25 +94,23 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
   };
 
   const markAsRead = (id: number) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+    setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleNotifications = () => {
     toast({
-      title: "Notifications",
-      description: "Opening notification center...",
+      title: 'Notifications',
+      description: 'Opening notification center...',
     });
     console.log('Opening notifications');
   };
 
   const handleSettings = () => {
     toast({
-      title: "Settings",
-      description: "Opening user settings...",
+      title: 'Settings',
+      description: 'Opening user settings...',
     });
     console.log('Opening settings');
   };
@@ -123,14 +120,14 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
       await signOut();
       navigate('/auth');
       toast({
-        title: "Success",
-        description: "Logged out successfully",
+        title: 'Success',
+        description: 'Logged out successfully',
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to logout",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to logout',
+        variant: 'destructive',
       });
     }
   };
@@ -156,7 +153,8 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.onerror = null;
-                target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0ZGRiIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgM3MtMy0xLjM0LTMtMyAxLjM0LTMgMy0zem0wIDE0LjJjLTIuNSAwLTQuNzEtMS4yOC02LTMuMjIuMDMtMS45OSA0LTMuMDggNi0zLjA4IDEuOTkgMCA1Ljk3IDEuMSA2IDMuMDgtMS4yOSAxLjk5LTMuNSAzLjIyLTYgMy4yMnoiLz48L3N2Zz4=';
+                target.src =
+                  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0ZGRiIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgM3MtMy0xLjM0LTMtMyAxLjM0LTMgMy0zem0wIDE0LjJjLTIuNSAwLTQuNzEtMS4yOC02LTMuMjIuMDMtMS45OSA0LTMuMDggNi0zLjA4IDEuOTkgMCA1Ljk3IDEuMSA2IDMuMDgtMS4yOSAxLjk5LTMuNSAzLjIyLTYgMy4yMnoiLz48L3N2Zz4=';
               }}
             />
           </div>
@@ -177,6 +175,12 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
 
         {/* Actions */}
         <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
+          {/* Superadmin Badge */}
+          {isSuperadmin && !superadminLoading && (
+            <div className="hidden sm:block">
+              <SuperadminBadge variant="compact" />
+            </div>
+          )}
           {/* Mobile Search */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -201,12 +205,7 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="relative"
-                aria-label="Notifications"
-              >
+              <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 text-xs flex items-center justify-center bg-destructive text-destructive-foreground rounded-full">
@@ -218,12 +217,12 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
             <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
               <DropdownMenuLabel className="flex justify-between items-center">
                 <span>Notifications</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setNotifications(notifications.map(n => ({ ...n, read: true })));
+                    setNotifications(notifications.map((n) => ({ ...n, read: true })));
                   }}
                 >
                   Mark all as read
@@ -232,7 +231,7 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
               <DropdownMenuSeparator />
               {notifications.length > 0 ? (
                 notifications.map((notification) => (
-                  <div 
+                  <div
                     key={notification.id}
                     className={`p-2 hover:bg-gray-100 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
                     onClick={() => markAsRead(notification.id)}
@@ -250,7 +249,10 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
           {/* Profile Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center space-x-1 sm:space-x-2 p-1 sm:p-2">
+              <Button
+                variant="ghost"
+                className="flex items-center space-x-1 sm:space-x-2 p-1 sm:p-2"
+              >
                 <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center">
                   <User className="w-3 h-3 sm:w-4 sm:h-4" />
                 </div>
