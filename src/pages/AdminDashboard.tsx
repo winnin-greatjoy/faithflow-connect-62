@@ -13,6 +13,7 @@ import { EventsModule } from '@/components/admin/EventsModule';
 import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
 import { ReportsModule } from '@/components/admin/ReportsModule';
 import { SettingsModule } from '@/components/admin/SettingsModule';
+import { BranchSettingsModule } from '@/components/admin/BranchSettingsModule';
 import { VolunteersModule } from '@/components/admin/VolunteersModule';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -32,6 +33,7 @@ import { TransferApprovalQueue } from '@/components/admin/TransferApprovalQueue'
 import { MessageTemplateManager } from '@/components/admin/MessageTemplateManager';
 import { MultiBranchManagement } from '@/components/admin/superadmin/MultiBranchManagement';
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
+import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 
 const AdminDashboard = () => {
@@ -87,11 +89,13 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/streaming')) return 'streaming';
     if (pathname.startsWith('/admin/reports')) return 'reports';
     if (pathname.startsWith('/admin/settings')) return 'settings';
+    if (pathname.startsWith('/admin/branch-settings')) return 'branch-settings';
     if (pathname.startsWith('/admin/templates')) return 'templates';
     if (pathname.startsWith('/admin/volunteers')) return 'volunteers';
     // Superadmin routes
     if (pathname.startsWith('/admin/multi-branch')) return 'multi-branch';
     if (pathname.startsWith('/admin/superadmin-transfers')) return 'superadmin-transfers';
+    if (pathname.startsWith('/admin/system-config')) return 'system-config';
     return 'overview';
   };
 
@@ -181,6 +185,8 @@ const AdminDashboard = () => {
         return <StreamingModule />;
       case 'settings':
         return can('admin', 'manage') ? <SettingsModule /> : denied;
+      case 'branch-settings':
+        return can('admin', 'manage') ? <BranchSettingsModule /> : denied;
       case 'templates':
         return can('admin', 'manage') ? <MessageTemplateManager /> : denied;
       case 'volunteers':
@@ -190,6 +196,8 @@ const AdminDashboard = () => {
         return isSuperadmin && !superadminLoading ? <MultiBranchManagement /> : denied;
       case 'superadmin-transfers':
         return isSuperadmin && !superadminLoading ? <SuperadminTransferManagement /> : denied;
+      case 'system-config':
+        return isSuperadmin && !superadminLoading ? <SystemConfiguration /> : denied;
       default:
         return <DashboardOverview />;
     }

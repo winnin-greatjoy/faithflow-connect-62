@@ -74,7 +74,14 @@ const secondaryItems: MenuItem[] = [
   { id: 'streaming', label: 'Streaming', icon: FileText },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'templates', label: 'Message Templates', icon: FileText },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'branch-settings', label: 'Branch Settings', icon: Settings },
+];
+
+// Superadmin-only items
+const superadminItems: MenuItem[] = [
+  { id: 'multi-branch', label: 'Multi-Branch', icon: Building },
+  { id: 'superadmin-transfers', label: 'Transfers', icon: ArrowRightLeft },
+  { id: 'system-config', label: 'System Config', icon: Settings },
 ];
 
 // All menu items combined for the desktop sidebar
