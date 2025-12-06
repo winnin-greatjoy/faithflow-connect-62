@@ -41,6 +41,7 @@ import { TrainingDialog } from './evangelism/TrainingDialog';
 import { AddFollowUpDialog } from './evangelism/AddFollowUpDialog';
 import { FollowUpManagement } from './evangelism/FollowUpManagement';
 import { EvangelismSettings } from './evangelism/EvangelismSettings';
+import { PlanOutreachDialog } from './evangelism/PlanOutreachDialog';
 
 interface EvangelismMember {
   id: number;
@@ -272,6 +273,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isTrainingOpen, setIsTrainingOpen] = useState(false);
   const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
+  const [isPlanOutreachOpen, setIsPlanOutreachOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Filter members
@@ -297,7 +299,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
     {
       label: 'Plan Outreach',
       icon: Calendar,
-      onClick: () => setActiveTab('outreach'),
+      onClick: () => setIsPlanOutreachOpen(true),
       variant: 'outline' as const,
     },
     {
@@ -771,6 +773,14 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
       />
 
       <AddFollowUpDialog isOpen={isAddFollowUpOpen} onClose={() => setIsAddFollowUpOpen(false)} />
+
+      <PlanOutreachDialog
+        open={isPlanOutreachOpen}
+        onOpenChange={setIsPlanOutreachOpen}
+        onSuccess={() => {
+          toast({ title: 'Success', description: 'Outreach event planned successfully' });
+        }}
+      />
 
       <EvangelismSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
