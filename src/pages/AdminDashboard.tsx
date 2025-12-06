@@ -12,6 +12,7 @@ import { FinanceModule } from '@/components/admin/FinanceModule';
 import { EventsModule } from '@/components/admin/EventsModule';
 import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
 import { ReportsModule } from '@/components/admin/ReportsModule';
+import { BranchReportsModule } from '@/components/admin/BranchReportsModule';
 import { SettingsModule } from '@/components/admin/SettingsModule';
 import { BranchSettingsModule } from '@/components/admin/BranchSettingsModule';
 import { VolunteersModule } from '@/components/admin/VolunteersModule';
@@ -35,6 +36,7 @@ import { MultiBranchManagement } from '@/components/admin/superadmin/MultiBranch
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { GlobalRoleManagement } from '@/components/admin/superadmin/GlobalRoleManagement';
+import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 
 const AdminDashboard = () => {
@@ -83,21 +85,9 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/departments')) return 'departments';
     if (pathname.startsWith('/admin/join-requests')) return 'join-requests';
     if (pathname.startsWith('/admin/transfers')) return 'transfers';
-    if (pathname.startsWith('/admin/members')) return 'members';
-    if (pathname.startsWith('/admin/communication')) return 'communication';
-    if (pathname.startsWith('/admin/finance')) return 'finance';
-    if (pathname.startsWith('/admin/events')) return 'events';
-    if (pathname.startsWith('/admin/streaming')) return 'streaming';
-    if (pathname.startsWith('/admin/reports')) return 'reports';
-    if (pathname.startsWith('/admin/settings')) return 'settings';
-    if (pathname.startsWith('/admin/branch-settings')) return 'branch-settings';
-    if (pathname.startsWith('/admin/templates')) return 'templates';
-    if (pathname.startsWith('/admin/volunteers')) return 'volunteers';
-    // Superadmin routes
-    if (pathname.startsWith('/admin/multi-branch')) return 'multi-branch';
-    if (pathname.startsWith('/admin/superadmin-transfers')) return 'superadmin-transfers';
     if (pathname.startsWith('/admin/system-config')) return 'system-config';
     if (pathname.startsWith('/admin/global-roles')) return 'global-roles';
+    if (pathname.startsWith('/admin/system-reports')) return 'system-reports';
     return 'overview';
   };
 
@@ -183,6 +173,8 @@ const AdminDashboard = () => {
         return <CMSDashboard />;
       case 'reports':
         return can('admin', 'view') ? <ReportsModule /> : denied;
+      case 'branch-reports':
+        return can('admin', 'view') ? <BranchReportsModule /> : denied;
       case 'streaming':
         return <StreamingModule />;
       case 'settings':
@@ -202,6 +194,8 @@ const AdminDashboard = () => {
         return isSuperadmin && !superadminLoading ? <SystemConfiguration /> : denied;
       case 'global-roles':
         return isSuperadmin && !superadminLoading ? <GlobalRoleManagement /> : denied;
+      case 'system-reports':
+        return isSuperadmin && !superadminLoading ? <SystemReportsModule /> : denied;
       default:
         return <DashboardOverview />;
     }

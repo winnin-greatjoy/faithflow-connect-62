@@ -82,6 +82,7 @@ const superadminItems: MenuItem[] = [
   { id: 'multi-branch', label: 'Multi-Branch', icon: Building },
   { id: 'superadmin-transfers', label: 'Transfers', icon: ArrowRightLeft },
   { id: 'global-roles', label: 'Global Roles', icon: Shield },
+  { id: 'system-reports', label: 'System Reports', icon: FileBarChart },
   { id: 'system-config', label: 'System Config', icon: Settings },
 ];
 
