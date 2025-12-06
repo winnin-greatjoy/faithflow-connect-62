@@ -36,6 +36,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { EvangelismSchedule } from './evangelism/EvangelismSchedule';
 import { DepartmentTaskBoard } from './DepartmentTaskBoard';
+import { AddMemberDialog } from './evangelism/AddMemberDialog';
+import { TrainingDialog } from './evangelism/TrainingDialog';
+import { AddFollowUpDialog } from './evangelism/AddFollowUpDialog';
+import { FollowUpManagement } from './evangelism/FollowUpManagement';
+import { EvangelismSettings } from './evangelism/EvangelismSettings';
 
 interface EvangelismMember {
   id: number;
@@ -263,6 +268,12 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
   const [areaFilter, setAreaFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Dialog states
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isTrainingOpen, setIsTrainingOpen] = useState(false);
+  const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   // Filter members
   const filteredMembers = useMemo(() => {
     return mockEvangelismMembers.filter((member) => {
@@ -280,32 +291,25 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
     {
       label: 'Add Member',
       icon: UserPlus,
-      onClick: () =>
-        toast({
-          title: 'Add Member',
-          description: 'Add new evangelism team member form would open here',
-        }),
+      onClick: () => setIsAddMemberOpen(true),
       variant: 'default' as const,
     },
     {
       label: 'Plan Outreach',
       icon: Calendar,
-      onClick: () =>
-        toast({ title: 'Plan Outreach', description: 'Outreach planning form would open here' }),
+      onClick: () => setActiveTab('outreach'),
       variant: 'outline' as const,
     },
     {
       label: 'Add Follow-up',
       icon: Target,
-      onClick: () =>
-        toast({ title: 'Add Follow-up', description: 'Follow-up contact form would open here' }),
+      onClick: () => setIsAddFollowUpOpen(true),
       variant: 'outline' as const,
     },
     {
       label: 'Training',
       icon: BookOpen,
-      onClick: () =>
-        toast({ title: 'Training', description: 'Evangelism training form would open here' }),
+      onClick: () => setIsTrainingOpen(true),
       variant: 'outline' as const,
     },
   ];
@@ -354,7 +358,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
             Manage outreach activities, follow-ups, and community evangelism efforts.
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsSettingsOpen(true)}>
           <Settings className="mr-2 h-4 w-4" />
           Evangelism Settings
         </Button>
@@ -476,13 +480,12 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="outreach">Outreach</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="followup">Follow-up</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -747,46 +750,29 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
 
         {/* Follow-up Tab */}
         <TabsContent value="followup" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Follow-up Contacts</h3>
-            <Button size="sm">
-              <Target className="mr-2 h-4 w-4" />
-              Add Contact
-            </Button>
-          </div>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center text-gray-500">
-                <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>Follow-up management coming soon</p>
-                <p className="text-sm">Track and manage evangelism contacts</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Reports Tab */}
-        <TabsContent value="reports" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Evangelism Reports</h3>
-            <Button size="sm" variant="outline">
-              <FileText className="mr-2 h-4 w-4" />
-              Generate Report
-            </Button>
-          </div>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center text-gray-500">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>Reports and analytics coming soon</p>
-                <p className="text-sm">View outreach effectiveness and conversion metrics</p>
-              </div>
-            </CardContent>
-          </Card>
+          <FollowUpManagement />
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <AddMemberDialog
+        isOpen={isAddMemberOpen}
+        onClose={() => setIsAddMemberOpen(false)}
+        departmentId={departmentId}
+        onSuccess={() => {
+          toast({ title: 'Success', description: 'Member added successfully' });
+        }}
+      />
+
+      <TrainingDialog
+        isOpen={isTrainingOpen}
+        onClose={() => setIsTrainingOpen(false)}
+        departmentId={departmentId}
+      />
+
+      <AddFollowUpDialog isOpen={isAddFollowUpOpen} onClose={() => setIsAddFollowUpOpen(false)} />
+
+      <EvangelismSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 };
