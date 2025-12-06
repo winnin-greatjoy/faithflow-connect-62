@@ -28,9 +28,9 @@ interface UserRole {
   role: string;
   branch_id: string;
   created_at: string;
-  user?: {
-    email: string;
-    full_name: string;
+  profiles?: {
+    first_name: string;
+    last_name: string;
   };
   branch?: {
     name: string;
@@ -75,8 +75,8 @@ export const GlobalRoleManagement: React.FC = () => {
           `
           *,
           profiles:user_id (
-            email,
-            full_name
+            first_name,
+            last_name
           )
         `
         )
@@ -209,10 +209,10 @@ export const GlobalRoleManagement: React.FC = () => {
   };
 
   const filteredRoles = userRoles.filter((userRole) => {
-    const matchesSearch =
-      searchTerm === '' ||
-      (userRole as any).profiles?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (userRole as any).profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const fullName = userRole.profiles 
+      ? `${userRole.profiles.first_name} ${userRole.profiles.last_name}`.toLowerCase()
+      : '';
+    const matchesSearch = searchTerm === '' || fullName.includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || userRole.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -398,10 +398,12 @@ export const GlobalRoleManagement: React.FC = () => {
                     </div>
                     <div>
                       <p className="font-medium">
-                        {(userRole as any).profiles?.full_name || 'Unknown User'}
+                        {userRole.profiles 
+                          ? `${userRole.profiles.first_name} ${userRole.profiles.last_name}` 
+                          : 'Unknown User'}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {(userRole as any).profiles?.email || 'No email'}
+                        User ID: {userRole.user_id.slice(0, 8)}...
                       </p>
                     </div>
                   </div>
