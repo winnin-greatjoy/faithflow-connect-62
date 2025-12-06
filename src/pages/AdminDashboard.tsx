@@ -34,6 +34,7 @@ import { MessageTemplateManager } from '@/components/admin/MessageTemplateManage
 import { MultiBranchManagement } from '@/components/admin/superadmin/MultiBranchManagement';
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
+import { GlobalRoleManagement } from '@/components/admin/superadmin/GlobalRoleManagement';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 
 const AdminDashboard = () => {
@@ -96,6 +97,7 @@ const AdminDashboard = () => {
     if (pathname.startsWith('/admin/multi-branch')) return 'multi-branch';
     if (pathname.startsWith('/admin/superadmin-transfers')) return 'superadmin-transfers';
     if (pathname.startsWith('/admin/system-config')) return 'system-config';
+    if (pathname.startsWith('/admin/global-roles')) return 'global-roles';
     return 'overview';
   };
 
@@ -198,6 +200,8 @@ const AdminDashboard = () => {
         return isSuperadmin && !superadminLoading ? <SuperadminTransferManagement /> : denied;
       case 'system-config':
         return isSuperadmin && !superadminLoading ? <SystemConfiguration /> : denied;
+      case 'global-roles':
+        return isSuperadmin && !superadminLoading ? <GlobalRoleManagement /> : denied;
       default:
         return <DashboardOverview />;
     }
