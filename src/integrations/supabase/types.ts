@@ -1824,6 +1824,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      setup_superadmin: { Args: { admin_email: string }; Returns: string }
     }
     Enums: {
       app_role:
