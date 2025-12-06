@@ -126,8 +126,7 @@ export const GlobalRoleManagement: React.FC = () => {
 
     try {
       // Get user by email
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+      const { data: profile, error: profileError } = await (supabase.from('profiles') as any)
         .select('id')
         .eq('email', assignForm.userEmail)
         .single();
