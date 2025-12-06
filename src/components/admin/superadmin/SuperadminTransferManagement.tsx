@@ -109,7 +109,7 @@ export const SuperadminTransferManagement: React.FC = () => {
         return;
       }
 
-      setTransfers(data || []);
+      setTransfers((data as any) || []);
     } catch (error) {
       console.error('Error:', error);
     }
@@ -501,7 +501,7 @@ export const SuperadminTransferManagement: React.FC = () => {
                       <Building className="h-4 w-4" />
                       {getBranchName(transfer.from_branch_id)}
                     </span>
-                    <Arrow RightLeft className="h-4 w-4" />
+                    <ArrowRightLeft className="h-4 w-4" />
                     <span className="flex items-center gap-1">
                       <Building className="h-4 w-4" />
                       {getBranchName(transfer.to_branch_id)}
