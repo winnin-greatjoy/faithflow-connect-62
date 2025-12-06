@@ -126,11 +126,11 @@ export const GlobalRoleManagement: React.FC = () => {
 
     try {
       // Get user by email
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = (await supabase
         .from('profiles')
         .select('id')
         .eq('email', assignForm.userEmail)
-        .single();
+        .single()) as any;
 
       if (profileError || !profile) {
         throw new Error('User not found with that email');
@@ -141,7 +141,7 @@ export const GlobalRoleManagement: React.FC = () => {
         user_id: profile.id,
         role: assignForm.role,
         branch_id: assignForm.branchId,
-      });
+      } as any);
 
       if (roleError) throw roleError;
 
