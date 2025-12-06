@@ -37,6 +37,7 @@ import { SuperadminTransferManagement } from '@/components/admin/superadmin/Supe
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { GlobalRoleManagement } from '@/components/admin/superadmin/GlobalRoleManagement';
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
+import { SuperAdminDashboardOverview } from '@/components/admin/superadmin/SuperAdminDashboardOverview';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 
 const AdminDashboard = () => {
@@ -118,7 +119,7 @@ const AdminDashboard = () => {
     );
     switch (activeModule) {
       case 'overview':
-        return <DashboardOverview />;
+        return isSuperadmin ? <SuperAdminDashboardOverview /> : <DashboardOverview />;
       case 'members':
         return can('admin', 'view') ? <MemberManagement /> : denied;
       case 'mens-ministry':
