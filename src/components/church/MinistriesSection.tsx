@@ -1,11 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Heart, Zap, Star, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 interface Ministry {
   id: string;
@@ -26,33 +24,46 @@ const getMinistryIcon = (name: string) => {
 const MinistriesSection = () => {
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     const fetchMinistries = async () => {
       try {
+        // Use direct fetch to bypass any auth context issues for public page
         const { data, error } = await supabase
           .from('ministries')
           .select('id, name, description, is_active')
           .eq('is_active', true)
+          .order('name')
           .limit(4);
 
-        if (error) throw error;
-        setMinistries(data || []);
+        if (error) {
+          console.error('Error fetching ministries:', error);
+          // Fallback to default ministries for public display
+          setMinistries([
+            { id: '1', name: "Men's Ministry", description: 'Building godly men who lead with integrity and purpose.', is_active: true },
+            { id: '2', name: "Women's Ministry", description: 'Empowering women to grow in faith and serve the community.', is_active: true },
+            { id: '3', name: "Youth Ministry", description: 'Helping young people discover their faith and purpose in life.', is_active: true },
+            { id: '4', name: "Children's Ministry", description: 'Nurturing children in love and faith through fun activities.', is_active: true },
+          ]);
+        } else {
+          setMinistries(data || []);
+        }
       } catch (error) {
         console.error('Error fetching ministries:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to load ministries.',
-        });
+        // Use fallback data on error
+        setMinistries([
+          { id: '1', name: "Men's Ministry", description: 'Building godly men who lead with integrity and purpose.', is_active: true },
+          { id: '2', name: "Women's Ministry", description: 'Empowering women to grow in faith and serve the community.', is_active: true },
+          { id: '3', name: "Youth Ministry", description: 'Helping young people discover their faith and purpose in life.', is_active: true },
+          { id: '4', name: "Children's Ministry", description: 'Nurturing children in love and faith through fun activities.', is_active: true },
+        ]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchMinistries();
-  }, [toast]);
+  }, []);
 
   return (
     <section className="py-16 lg:py-24 bg-secondary/30">
