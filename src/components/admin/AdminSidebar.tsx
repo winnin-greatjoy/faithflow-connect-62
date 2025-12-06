@@ -19,6 +19,7 @@ import {
   Bell,
   LogOut,
   ArrowRightLeft,
+  Shield,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';

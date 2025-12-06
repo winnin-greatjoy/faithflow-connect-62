@@ -55,8 +55,8 @@ export const BranchSettingsModule = () => {
           name: branch.name || '',
           address: branch.address || '',
           phone: branch.phone || '',
-          email: branch.contact_email || '',
-          website: branch.website || '',
+          email: (branch as any).contact_email || '',
+          website: (branch as any).website || '',
         });
       }
     } catch (error) {

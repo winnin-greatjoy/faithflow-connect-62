@@ -176,7 +176,7 @@ export const GlobalRoleManagement: React.FC = () => {
         .from('user_roles')
         .delete()
         .eq('user_id', userId)
-        .eq('role', role)
+        .eq('role', role as any)
         .eq('branch_id', branchId);
 
       if (error) throw error;
