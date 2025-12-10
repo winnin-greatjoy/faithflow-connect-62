@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useAdminContext } from '@/context/AdminContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -157,6 +158,12 @@ export const DepartmentsModule = () => {
   const [search, setSearch] = useState('');
   const { branchId } = useAuthz();
   const { toast } = useToast();
+  
+  // Get effective branch ID (respects superadmin branch selection)
+  const { selectedBranchId: contextBranchId } = useAdminContext();
+  const { hasRole } = useAuthz();
+  const isSuperadmin = hasRole('super_admin');
+  const effectiveBranchId = isSuperadmin ? contextBranchId : branchId;
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isAddMembersOpen, setIsAddMembersOpen] = useState(false);
@@ -183,20 +190,20 @@ export const DepartmentsModule = () => {
         .from('ministries')
         .select('id, name, description, branch_id')
         .order('created_at', { ascending: true });
-      if (branchId) ministriesQuery.eq('branch_id', branchId);
+      if (effectiveBranchId) ministriesQuery.eq('branch_id', effectiveBranchId);
       const { data: ministriesData } = await ministriesQuery;
 
       // Departments list and count (filter by branch if available)
       const deptListQuery = supabase
         .from('departments')
         .select('id, name, slug, description, branch_id');
-      if (branchId) deptListQuery.eq('branch_id', branchId);
+      if (effectiveBranchId) deptListQuery.eq('branch_id', effectiveBranchId);
       const { data: deptList } = await deptListQuery;
 
       const deptCountQuery = supabase
         .from('departments')
         .select('*', { count: 'exact', head: true });
-      if (branchId) deptCountQuery.eq('branch_id', branchId);
+      if (effectiveBranchId) deptCountQuery.eq('branch_id', effectiveBranchId);
       const deptCountRes = await deptCountQuery;
 
       // Aggregates across ministries
@@ -205,8 +212,8 @@ export const DepartmentsModule = () => {
         .from('ministry_events')
         .select('ministry_id, event_date');
 
-      // Branches (needed when no branch context)
-      if (!branchId) {
+      // Branches (needed when no branch context - superadmin global view)
+      if (!effectiveBranchId) {
         const { data: branchesData } = await supabase
           .from('church_branches')
           .select('id, name')
@@ -281,7 +288,7 @@ export const DepartmentsModule = () => {
       }).length;
       setRecentMinistryActivitiesCount(recentCount);
     })();
-  }, [branchId]);
+  }, [effectiveBranchId]);
 
   // reload departments (used after updates)
   const reloadDepartments = async () => {
@@ -289,7 +296,7 @@ export const DepartmentsModule = () => {
       const deptListQuery = supabase
         .from('departments')
         .select('id, name, slug, description, branch_id');
-      if (branchId) deptListQuery.eq('branch_id', branchId);
+      if (effectiveBranchId) deptListQuery.eq('branch_id', effectiveBranchId);
       const { data: deptList } = await deptListQuery;
       if (deptList) {
         setDepartments(
