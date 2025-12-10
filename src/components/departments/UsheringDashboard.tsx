@@ -32,6 +32,9 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { AddMemberToDepartmentDialog } from '@/components/departments/AddMemberToDepartmentDialog';
+import { DepartmentSettingsDialog } from '@/components/departments/DepartmentSettingsDialog';
 import { DepartmentTaskBoard } from './DepartmentTaskBoard';
 
 interface UsheringDashboardProps {
@@ -69,6 +72,10 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
   const [searchTerm, setSearchTerm] = useState('');
   const [stationFilter, setStationFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isAddMembersOpen, setIsAddMembersOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [deptMembers, setDeptMembers] = useState<Array<{ id: string; full_name: string }>>([]);
+  const [departmentName, setDepartmentName] = useState<string>('');
 
   // State for data from DB
   const [stats, setStats] = useState({
@@ -130,8 +137,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
     {
       label: 'Add Usher',
       icon: UserPlus,
-      onClick: () =>
-        toast({ title: 'Add Usher', description: 'Add new usher form would open here' }),
+      onClick: () => setIsAddMembersOpen(true),
       variant: 'default' as const,
     },
     {
@@ -161,6 +167,34 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
     navigate('/admin/departments');
   };
 
+  const loadDeptMembers = async () => {
+    try {
+      const { data } = await supabase
+        .from('members')
+        .select('id, full_name')
+        .eq('assigned_department', departmentId)
+        .order('full_name');
+      setDeptMembers((data || []).map((m: any) => ({ id: m.id, full_name: m.full_name })));
+    } catch (e) {
+      setDeptMembers([]);
+    }
+  };
+
+  const openSettings = async () => {
+    try {
+      const { data: dept } = await supabase
+        .from('departments')
+        .select('name')
+        .eq('id', departmentId)
+        .maybeSingle();
+      setDepartmentName(dept?.name ?? '');
+    } catch (e) {
+      setDepartmentName('');
+    }
+    await loadDeptMembers();
+    setIsSettingsOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with back button */}
@@ -175,6 +209,26 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
           Back to Departments
         </Button>
       </div>
+
+      {/* Add Members Dialog */}
+      <AddMemberToDepartmentDialog
+        open={isAddMembersOpen}
+        onOpenChange={(open) => setIsAddMembersOpen(open)}
+        departmentId={departmentId}
+        onMembersAdded={async () => await loadDeptMembers()}
+      />
+
+      {/* Department Settings Dialog */}
+      <DepartmentSettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={(open) => setIsSettingsOpen(open)}
+        departmentId={departmentId}
+        departmentName={departmentName}
+        members={deptMembers}
+        onUpdated={(name) => setDepartmentName(name)}
+        onDeleted={() => navigate('/admin/departments')}
+        onMembersChanged={async () => await loadDeptMembers()}
+      />
 
       {/* Dashboard Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -228,9 +282,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Services</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.upcomingServices}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{stats.upcomingServices}</p>
               </div>
             </div>
           </CardContent>
@@ -244,9 +296,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.completedServices}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{stats.completedServices}</p>
               </div>
             </div>
           </CardContent>

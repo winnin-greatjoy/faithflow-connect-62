@@ -11,8 +11,6 @@ import { AddDepartmentForm } from './AddDepartmentForm';
 import { supabase } from '@/integrations/supabase/client';
 import { AddMemberToDepartmentDialog } from '@/components/departments/AddMemberToDepartmentDialog';
 import { DepartmentSettingsDialog } from '@/components/departments/DepartmentSettingsDialog';
-import { MinistrySettingsDialog } from '@/components/ministries/MinistrySettingsDialog';
-import { AddMemberToMinistryDialog } from '@/components/ministries/AddMemberToMinistryDialog';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +23,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useToast } from '@/hooks/use-toast';
-import { useAdminContext } from '@/context/AdminContext';
 import {
   Select,
   SelectContent,
@@ -120,9 +117,7 @@ const DepartmentCard: React.FC<{
 const MinistryCard: React.FC<{
   ministry: Ministry;
   onOpen: (ministry: Ministry) => void;
-  onMembersClick: (ministry: Ministry) => void;
-  onSettingsClick: (ministry: Ministry) => void;
-}> = ({ ministry, onOpen, onMembersClick, onSettingsClick }) => (
+}> = ({ ministry, onOpen }) => (
   <Card
     key={ministry.id}
     className="hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02]"
@@ -151,31 +146,6 @@ const MinistryCard: React.FC<{
           <span className="text-muted-foreground">Activities:</span>
           <span className="font-medium">{ministry.activities}</span>
         </div>
-        <div className="flex gap-2 mt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 text-xs sm:text-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMembersClick(ministry);
-            }}
-          >
-            <Users className="mr-1.5 h-4 w-4" />
-            Members
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 sm:h-9 sm:w-9"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSettingsClick(ministry);
-            }}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
     </CardContent>
   </Card>
@@ -185,7 +155,7 @@ const MinistryCard: React.FC<{
 export const DepartmentsModule = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [ministrySearch, setMinistrySearch] = useState('');
+  const { branchId } = useAuthz();
   const { toast } = useToast();
 
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -200,40 +170,64 @@ export const DepartmentsModule = () => {
   const [mDesc, setMDesc] = useState('');
   const [savingMinistry, setSavingMinistry] = useState(false);
   const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
-
-  const { selectedBranchId, loading: contextLoading } = useAdminContext();
-  const { branchId: authBranchId, hasRole } = useAuthz();
-
-  const effectiveBranchId = selectedBranchId || authBranchId;
-  const [formBranchId, setFormBranchId] = useState<string>('');
-
-  // Ministry dialog state
-  const [activeMinistry, setActiveMinistry] = useState<Ministry | null>(null);
-  const [isMinistrySettingsOpen, setIsMinistrySettingsOpen] = useState(false);
-  const [isAddMinistryMembersOpen, setIsAddMinistryMembersOpen] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 
   const [totalDepartmentsCount, setTotalDepartmentsCount] = useState<number>(0);
   const [totalMinistryMembersCount, setTotalMinistryMembersCount] = useState<number>(0);
   const [recentMinistryActivitiesCount, setRecentMinistryActivitiesCount] = useState<number>(0);
 
-  // Load ministries
-  const loadMinistries = async () => {
-    try {
-      const query = supabase
+  useEffect(() => {
+    (async () => {
+      // Ministries (filter by branch if available)
+      const ministriesQuery = supabase
         .from('ministries')
-        .select('id, name, description, branch_id, head_id')
+        .select('id, name, description, branch_id')
         .order('created_at', { ascending: true });
+      if (branchId) ministriesQuery.eq('branch_id', branchId);
+      const { data: ministriesData } = await ministriesQuery;
 
-      if (effectiveBranchId) query.eq('branch_id', effectiveBranchId);
+      // Departments list and count (filter by branch if available)
+      const deptListQuery = supabase
+        .from('departments')
+        .select('id, name, slug, description, branch_id');
+      if (branchId) deptListQuery.eq('branch_id', branchId);
+      const { data: deptList } = await deptListQuery;
 
-      const { data: ministriesData, error } = await query;
-      if (error) throw error;
+      const deptCountQuery = supabase
+        .from('departments')
+        .select('*', { count: 'exact', head: true });
+      if (branchId) deptCountQuery.eq('branch_id', branchId);
+      const deptCountRes = await deptCountQuery;
 
-      // Aggregates
+      // Aggregates across ministries
       const { data: mmAll } = await supabase.from('ministry_members').select('ministry_id');
       const { data: evAll } = await supabase
         .from('ministry_events')
         .select('ministry_id, event_date');
+
+      // Branches (needed when no branch context)
+      if (!branchId) {
+        const { data: branchesData } = await supabase
+          .from('church_branches')
+          .select('id, name')
+          .order('name', { ascending: true });
+        const list = (branchesData || []).map((b: any) => ({ id: b.id, name: b.name }));
+        setBranches(list);
+        if (list.length === 1 && !selectedBranchId) setSelectedBranchId(list[0].id);
+        if (!selectedBranchId) {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user?.id) {
+            const { data: me } = await supabase
+              .from('members')
+              .select('branch_id')
+              .eq('id', user.id)
+              .maybeSingle();
+            if (me?.branch_id) setSelectedBranchId(me.branch_id);
+          }
+        }
+      }
 
       const mmMap: Record<string, number> = {};
       (mmAll || []).forEach((row: any) => {
@@ -246,33 +240,33 @@ export const DepartmentsModule = () => {
         evMap[k] = (evMap[k] || 0) + 1;
       });
 
-      // Fetch leader names manually since FK might be missing in types
-      const headIds = (ministriesData || []).map((m: any) => m.head_id).filter((id: any) => id);
-
-      const leaderMap: Record<string, string> = {};
-      if (headIds.length > 0) {
-        const { data: leaders } = await supabase
-          .from('members')
-          .select('id, full_name')
-          .in('id', headIds);
-
-        (leaders || []).forEach((l: any) => {
-          leaderMap[l.id] = l.full_name;
-        });
-      }
-
       const mapped: Ministry[] = (ministriesData || []).map((m: any) => ({
         id: m.id,
         name: m.name || 'Ministry',
         description: m.description || '',
-        leader: m.head_id ? leaderMap[m.head_id] || 'Unknown' : 'No Leader',
+        leader: 'TBD',
         members: mmMap[m.id] || 0,
         activities: evMap[m.id] || 0,
         status: 'Active',
       }));
       setMinistries(mapped);
 
-      // Update counts
+      // Departments DB-backed list (placeholder fields)
+      if (deptList) {
+        setDepartments(
+          deptList.map((d) => ({
+            id: d.id,
+            name: d.name,
+            slug: d.slug,
+            leader: 'TBD',
+            members: 0,
+            activities: 0,
+            status: 'Active',
+          }))
+        );
+      }
+
+      setTotalDepartmentsCount(deptCountRes.count || 0);
       const ministryIds = new Set<string>((ministriesData || []).map((m: any) => m.id));
       setTotalMinistryMembersCount(
         (mmAll || []).filter((row: any) => ministryIds.has(row.ministry_id)).length
@@ -286,68 +280,32 @@ export const DepartmentsModule = () => {
         return d && d >= startOfMonth && ministryIds.has(row.ministry_id);
       }).length;
       setRecentMinistryActivitiesCount(recentCount);
-    } catch (e) {
-      console.error('Failed to load ministries:', e);
-      toast({ title: 'Error', description: 'Failed to load ministries', variant: 'destructive' });
-    }
-  };
+    })();
+  }, [branchId]);
 
   // reload departments (used after updates)
   const reloadDepartments = async () => {
     try {
       const deptListQuery = supabase
         .from('departments')
-        .select(
-          'id, name, slug, description, branch_id, head_id, members!departments_head_id_fkey(full_name)'
-        );
-      if (effectiveBranchId) deptListQuery.eq('branch_id', effectiveBranchId);
+        .select('id, name, slug, description, branch_id');
+      if (branchId) deptListQuery.eq('branch_id', branchId);
       const { data: deptList } = await deptListQuery;
       if (deptList) {
-        // Get member counts
-        const deptIds = deptList.map((d) => d.id);
-        const { data: memberCounts } = await supabase
-          .from('members')
-          .select('assigned_department')
-          .in('assigned_department', deptIds);
-        const { data: taskCounts } = await supabase
-          .from('department_tasks')
-          .select('department_id')
-          .in('department_id', deptIds);
-
-        const memberCountMap: Record<string, number> = {};
-        (memberCounts || []).forEach((m: any) => {
-          if (m.assigned_department) {
-            memberCountMap[m.assigned_department] =
-              (memberCountMap[m.assigned_department] || 0) + 1;
-          }
-        });
-        const taskCountMap: Record<string, number> = {};
-        (taskCounts || []).forEach((t: any) => {
-          taskCountMap[t.department_id] = (taskCountMap[t.department_id] || 0) + 1;
-        });
-
         setDepartments(
           deptList.map((d) => ({
             id: d.id,
             name: d.name,
             slug: d.slug,
-            leader: d.members?.full_name || 'No Leader',
-            members: memberCountMap[d.id] || 0,
-            activities: taskCountMap[d.id] || 0,
+            leader: 'TBD',
+            members: 0,
+            activities: 0,
             status: 'Active' as const,
           }))
         );
       }
-
-      // Update total count
-      const deptCountQuery = supabase
-        .from('departments')
-        .select('*', { count: 'exact', head: true });
-      if (effectiveBranchId) deptCountQuery.eq('branch_id', effectiveBranchId);
-      const { count } = await deptCountQuery;
-      setTotalDepartmentsCount(count || 0);
     } catch (e) {
-      console.error('Failed to reload departments:', e);
+      // ignore for now
     }
   };
 
@@ -420,9 +378,8 @@ export const DepartmentsModule = () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      // use effectiveBranchId defined in component scope
-      const targetBranchId = effectiveBranchId || formBranchId;
-      if (!targetBranchId) {
+      const effectiveBranchId = branchId ?? selectedBranchId;
+      if (!effectiveBranchId) {
         toast({
           title: 'Branch required',
           description: 'Please select a branch for this ministry.',
@@ -432,7 +389,7 @@ export const DepartmentsModule = () => {
       const insertPayload: any = {
         name: mName.trim(),
         description: mDesc || null,
-        branch_id: targetBranchId,
+        branch_id: effectiveBranchId,
       };
       if (user?.id) insertPayload.head_id = user.id;
 
@@ -446,46 +403,36 @@ export const DepartmentsModule = () => {
       }
       const created = data && data[0];
       if (created) {
-        toast({ title: 'Ministry added', description: `${created.name} has been created.` });
-        setAddMinistryOpen(false);
-        setMName('');
-        setMDesc('');
-        // Reload list
-        loadMinistries();
+        setMinistries([
+          {
+            id: created.id,
+            name: created.name,
+            description: created.description || '',
+            leader: 'TBD',
+            members: 0,
+            activities: 0,
+            status: 'Active',
+          },
+          ...ministries,
+        ]);
+        toast({ title: 'Ministry created', description: `${created.name} added successfully.` });
       }
-    } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      setAddMinistryOpen(false);
+      setMName('');
+      setMDesc('');
+      setSelectedBranchId('');
     } finally {
       setSavingMinistry(false);
     }
   };
 
-  // Initial branch selection effect (handled by AdminContext mostly, but keeping loader for Select options if needed)
-  useEffect(() => {
-    const initBranch = async () => {
-      const { data: branchesData } = await supabase
-        .from('church_branches')
-        .select('id, name')
-        .order('name', { ascending: true });
-
-      const list = (branchesData || []).map((b: any) => ({ id: b.id, name: b.name }));
-      setBranches(list);
-    };
-    initBranch();
-  }, []);
-
-  // Data loading effect
-  useEffect(() => {
-    loadMinistries();
-    reloadDepartments();
-  }, [effectiveBranchId]);
   // ✅ Add new department
   const handleAddDepartment = async (newDept: Department) => {
     // Reload departments from database
     const deptListQuery = supabase
       .from('departments')
       .select('id, name, slug, description, branch_id');
-    if (effectiveBranchId) deptListQuery.eq('branch_id', effectiveBranchId);
+    if (branchId) deptListQuery.eq('branch_id', branchId);
     const { data: deptList } = await deptListQuery;
 
     if (deptList) {
@@ -613,29 +560,17 @@ export const DepartmentsModule = () => {
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-4">
-              {filteredDepartments.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Building className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="font-medium">No departments found</p>
-                  <p className="text-sm mt-1">
-                    {search
-                      ? 'Try adjusting your search'
-                      : 'Get started by adding your first department'}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                  {filteredDepartments.map((dept) => (
-                    <DepartmentCard
-                      key={dept.id}
-                      dept={dept}
-                      onOpen={handleDepartmentClick}
-                      onMembersClick={handleOpenAddMembers}
-                      onSettingsClick={handleOpenSettings}
-                    />
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                {filteredDepartments.map((dept) => (
+                  <DepartmentCard
+                    key={dept.id}
+                    dept={dept}
+                    onOpen={handleDepartmentClick}
+                    onMembersClick={handleOpenAddMembers}
+                    onSettingsClick={handleOpenSettings}
+                  />
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -644,7 +579,7 @@ export const DepartmentsModule = () => {
         <TabsContent value="ministries">
           <Card>
             <CardHeader className="p-4 sm:p-6 pb-0">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-lg sm:text-xl">Church Ministries</CardTitle>
                   <CardDescription>
@@ -655,64 +590,13 @@ export const DepartmentsModule = () => {
                   Add Ministry
                 </Button>
               </div>
-              <div className="mt-4">
-                <Input
-                  placeholder="Search ministries..."
-                  value={ministrySearch}
-                  onChange={(e) => setMinistrySearch(e.target.value)}
-                  className="max-w-sm"
-                />
-              </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-4">
-              {ministries.filter(
-                (m) =>
-                  m.name.toLowerCase().includes(ministrySearch.toLowerCase()) ||
-                  m.description.toLowerCase().includes(ministrySearch.toLowerCase())
-              ).length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="font-medium">No ministries found</p>
-                  <p className="text-sm mt-1">
-                    {ministrySearch
-                      ? 'Try adjusting your search'
-                      : 'Get started by adding your first ministry'}
-                  </p>
-                  {!ministrySearch && (
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => setAddMinistryOpen(true)}
-                    >
-                      Create Ministry
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-6">
-                  {ministries
-                    .filter(
-                      (m) =>
-                        m.name.toLowerCase().includes(ministrySearch.toLowerCase()) ||
-                        m.description.toLowerCase().includes(ministrySearch.toLowerCase())
-                    )
-                    .map((m) => (
-                      <MinistryCard
-                        key={m.id}
-                        ministry={m}
-                        onOpen={handleMinistryClick}
-                        onMembersClick={(ministry) => {
-                          setActiveMinistry(ministry);
-                          setIsAddMinistryMembersOpen(true);
-                        }}
-                        onSettingsClick={(ministry) => {
-                          setActiveMinistry(ministry);
-                          setIsMinistrySettingsOpen(true);
-                        }}
-                      />
-                    ))}
-                </div>
-              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-6">
+                {ministries.map((m) => (
+                  <MinistryCard key={m.id} ministry={m} onOpen={handleMinistryClick} />
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -725,10 +609,10 @@ export const DepartmentsModule = () => {
             <DialogTitle>Add New Ministry</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {!authBranchId && (
+            {!branchId && (
               <div className="grid gap-2">
                 <Label htmlFor="m-branch">Branch</Label>
-                <Select value={formBranchId} onValueChange={setFormBranchId}>
+                <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
                   <SelectTrigger id="m-branch">
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
@@ -767,7 +651,7 @@ export const DepartmentsModule = () => {
             </Button>
             <Button
               onClick={saveAddMinistry}
-              disabled={savingMinistry || !mName.trim() || (!effectiveBranchId && !formBranchId)}
+              disabled={savingMinistry || !mName.trim() || (!branchId && !selectedBranchId)}
             >
               {savingMinistry ? 'Saving...' : 'Save Ministry'}
             </Button>

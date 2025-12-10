@@ -20,12 +20,21 @@ import {
   Plus,
   ArrowLeft,
   Heart,
-  BookOpen
+  BookOpen,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { AddMemberToDepartmentDialog } from '@/components/departments/AddMemberToDepartmentDialog';
+import { DepartmentSettingsDialog } from '@/components/departments/DepartmentSettingsDialog';
 
 interface PrayerMember {
   id: number;
@@ -69,31 +78,173 @@ const mockPrayerStats = {
   pendingRequests: 12,
   completedSessions: 34,
   monthlyGrowth: 22,
-  answeredPrayers: 28
+  answeredPrayers: 28,
 };
 
 const mockPrayerMembers: PrayerMember[] = [
-  { id: 1, name: 'Ruth Johnson', role: 'Prayer Coordinator', status: 'active', joinDate: '2020-11-15', email: 'ruth@example.com', phone: '555-0201', specialization: 'Healing', prayerHours: 25, requestsHandled: 45 },
-  { id: 2, name: 'Pastor Mark', role: 'Senior Intercessor', status: 'active', joinDate: '2019-03-20', email: 'pastor@example.com', phone: '555-0202', specialization: 'Family', prayerHours: 30, requestsHandled: 67 },
-  { id: 3, name: 'Sarah Williams', role: 'Intercessor', status: 'active', joinDate: '2022-08-10', email: 'sarah@example.com', phone: '555-0203', specialization: 'Youth', prayerHours: 18, requestsHandled: 23 },
-  { id: 4, name: 'David Brown', role: 'Intercessor', status: 'active', joinDate: '2021-12-05', email: 'david@example.com', phone: '555-0204', specialization: 'Marriage', prayerHours: 22, requestsHandled: 31 },
-  { id: 5, name: 'Mary Davis', role: 'Intercessor', status: 'inactive', joinDate: '2020-06-18', email: 'mary@example.com', phone: '555-0205', specialization: 'Career', prayerHours: 12, requestsHandled: 18 }
+  {
+    id: 1,
+    name: 'Ruth Johnson',
+    role: 'Prayer Coordinator',
+    status: 'active',
+    joinDate: '2020-11-15',
+    email: 'ruth@example.com',
+    phone: '555-0201',
+    specialization: 'Healing',
+    prayerHours: 25,
+    requestsHandled: 45,
+  },
+  {
+    id: 2,
+    name: 'Pastor Mark',
+    role: 'Senior Intercessor',
+    status: 'active',
+    joinDate: '2019-03-20',
+    email: 'pastor@example.com',
+    phone: '555-0202',
+    specialization: 'Family',
+    prayerHours: 30,
+    requestsHandled: 67,
+  },
+  {
+    id: 3,
+    name: 'Sarah Williams',
+    role: 'Intercessor',
+    status: 'active',
+    joinDate: '2022-08-10',
+    email: 'sarah@example.com',
+    phone: '555-0203',
+    specialization: 'Youth',
+    prayerHours: 18,
+    requestsHandled: 23,
+  },
+  {
+    id: 4,
+    name: 'David Brown',
+    role: 'Intercessor',
+    status: 'active',
+    joinDate: '2021-12-05',
+    email: 'david@example.com',
+    phone: '555-0204',
+    specialization: 'Marriage',
+    prayerHours: 22,
+    requestsHandled: 31,
+  },
+  {
+    id: 5,
+    name: 'Mary Davis',
+    role: 'Intercessor',
+    status: 'inactive',
+    joinDate: '2020-06-18',
+    email: 'mary@example.com',
+    phone: '555-0205',
+    specialization: 'Career',
+    prayerHours: 12,
+    requestsHandled: 18,
+  },
 ];
 
 const mockPrayerRequests: PrayerRequest[] = [
-  { id: 1, title: 'Healing for Cancer', requester: 'Anonymous', category: 'Health', urgency: 'urgent', status: 'assigned', dateReceived: '2024-01-25', assignedTo: 'Ruth Johnson', description: 'Please pray for complete healing and strength during treatment.' },
-  { id: 2, title: 'Job Search', requester: 'John Smith', category: 'Career', urgency: 'medium', status: 'new', dateReceived: '2024-01-24', description: 'Seeking new employment opportunities and guidance.' },
-  { id: 3, title: 'Marriage Restoration', requester: 'Anonymous', category: 'Family', urgency: 'high', status: 'in-progress', dateReceived: '2024-01-23', assignedTo: 'Pastor Mark', description: 'Prayers for healing and reconciliation in marriage.' },
-  { id: 4, title: 'Financial Breakthrough', requester: 'Sarah Johnson', category: 'Finance', urgency: 'medium', status: 'answered', dateReceived: '2024-01-20', description: 'Trusting God for financial provision and wisdom.' },
-  { id: 5, title: 'Youth Ministry Growth', requester: 'Pastor Daniel', category: 'Ministry', urgency: 'low', status: 'new', dateReceived: '2024-01-22', description: 'Prayers for the youth ministry and young people.' }
+  {
+    id: 1,
+    title: 'Healing for Cancer',
+    requester: 'Anonymous',
+    category: 'Health',
+    urgency: 'urgent',
+    status: 'assigned',
+    dateReceived: '2024-01-25',
+    assignedTo: 'Ruth Johnson',
+    description: 'Please pray for complete healing and strength during treatment.',
+  },
+  {
+    id: 2,
+    title: 'Job Search',
+    requester: 'John Smith',
+    category: 'Career',
+    urgency: 'medium',
+    status: 'new',
+    dateReceived: '2024-01-24',
+    description: 'Seeking new employment opportunities and guidance.',
+  },
+  {
+    id: 3,
+    title: 'Marriage Restoration',
+    requester: 'Anonymous',
+    category: 'Family',
+    urgency: 'high',
+    status: 'in-progress',
+    dateReceived: '2024-01-23',
+    assignedTo: 'Pastor Mark',
+    description: 'Prayers for healing and reconciliation in marriage.',
+  },
+  {
+    id: 4,
+    title: 'Financial Breakthrough',
+    requester: 'Sarah Johnson',
+    category: 'Finance',
+    urgency: 'medium',
+    status: 'answered',
+    dateReceived: '2024-01-20',
+    description: 'Trusting God for financial provision and wisdom.',
+  },
+  {
+    id: 5,
+    title: 'Youth Ministry Growth',
+    requester: 'Pastor Daniel',
+    category: 'Ministry',
+    urgency: 'low',
+    status: 'new',
+    dateReceived: '2024-01-22',
+    description: 'Prayers for the youth ministry and young people.',
+  },
 ];
 
 const mockPrayerSessions: PrayerSession[] = [
-  { id: 1, title: 'Morning Prayer Meeting', date: '2024-01-28', type: 'Group Prayer', attendees: 12, duration: 60, status: 'scheduled' },
-  { id: 2, title: 'Healing Service Prayer', date: '2024-01-26', type: 'Service Support', attendees: 8, duration: 45, status: 'scheduled' },
-  { id: 3, title: 'Intercessory Prayer', date: '2024-01-24', type: 'Intercession', attendees: 6, duration: 90, status: 'completed' },
-  { id: 4, title: 'Wednesday Night Prayer', date: '2024-01-17', type: 'Group Prayer', attendees: 14, duration: 60, status: 'completed' },
-  { id: 5, title: 'Youth Prayer Walk', date: '2024-01-15', type: 'Special Event', attendees: 10, duration: 120, status: 'completed' }
+  {
+    id: 1,
+    title: 'Morning Prayer Meeting',
+    date: '2024-01-28',
+    type: 'Group Prayer',
+    attendees: 12,
+    duration: 60,
+    status: 'scheduled',
+  },
+  {
+    id: 2,
+    title: 'Healing Service Prayer',
+    date: '2024-01-26',
+    type: 'Service Support',
+    attendees: 8,
+    duration: 45,
+    status: 'scheduled',
+  },
+  {
+    id: 3,
+    title: 'Intercessory Prayer',
+    date: '2024-01-24',
+    type: 'Intercession',
+    attendees: 6,
+    duration: 90,
+    status: 'completed',
+  },
+  {
+    id: 4,
+    title: 'Wednesday Night Prayer',
+    date: '2024-01-17',
+    type: 'Group Prayer',
+    attendees: 14,
+    duration: 60,
+    status: 'completed',
+  },
+  {
+    id: 5,
+    title: 'Youth Prayer Walk',
+    date: '2024-01-15',
+    type: 'Special Event',
+    attendees: 10,
+    duration: 120,
+    status: 'completed',
+  },
 ];
 
 interface PrayerTeamDashboardProps {
@@ -107,12 +258,17 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [urgencyFilter, setUrgencyFilter] = useState('all');
+  const [isAddMembersOpen, setIsAddMembersOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [deptMembers, setDeptMembers] = useState<Array<{ id: string; full_name: string }>>([]);
+  const [departmentName, setDepartmentName] = useState<string>('');
 
   // Filter requests
   const filteredRequests = useMemo(() => {
-    return mockPrayerRequests.filter(request => {
-      const matchesSearch = request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           request.requester.toLowerCase().includes(searchTerm.toLowerCase());
+    return mockPrayerRequests.filter((request) => {
+      const matchesSearch =
+        request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.requester.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || request.category === categoryFilter;
       const matchesUrgency = urgencyFilter === 'all' || request.urgency === urgencyFilter;
       return matchesSearch && matchesCategory && matchesUrgency;
@@ -121,34 +277,99 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
 
   // Quick actions
   const quickActions = [
-    { label: 'Add Member', icon: UserPlus, onClick: () => toast({ title: 'Add Member', description: 'Add new prayer team member form would open here' }), variant: 'default' as const },
-    { label: 'New Request', icon: Heart, onClick: () => toast({ title: 'New Request', description: 'Prayer request form would open here' }), variant: 'outline' as const },
-    { label: 'Schedule Session', icon: Calendar, onClick: () => toast({ title: 'Schedule Session', description: 'Prayer session scheduling form would open here' }), variant: 'outline' as const },
-    { label: 'Prayer Guide', icon: BookOpen, onClick: () => toast({ title: 'Prayer Guide', description: 'Prayer resources form would open here' }), variant: 'outline' as const }
+    {
+      label: 'Add Member',
+      icon: UserPlus,
+      onClick: () => setIsAddMembersOpen(true),
+      variant: 'default' as const,
+    },
+    {
+      label: 'New Request',
+      icon: Heart,
+      onClick: () =>
+        toast({ title: 'New Request', description: 'Prayer request form would open here' }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Schedule Session',
+      icon: Calendar,
+      onClick: () =>
+        toast({
+          title: 'Schedule Session',
+          description: 'Prayer session scheduling form would open here',
+        }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Prayer Guide',
+      icon: BookOpen,
+      onClick: () =>
+        toast({ title: 'Prayer Guide', description: 'Prayer resources form would open here' }),
+      variant: 'outline' as const,
+    },
   ];
 
   const handleBack = () => {
     navigate('/admin/departments');
   };
 
+  const loadDeptMembers = async () => {
+    try {
+      const { data } = await supabase
+        .from('members')
+        .select('id, full_name')
+        .eq('assigned_department', departmentId)
+        .order('full_name');
+      setDeptMembers((data || []).map((m: any) => ({ id: m.id, full_name: m.full_name })));
+    } catch (e) {
+      setDeptMembers([]);
+    }
+  };
+
+  const openSettings = async () => {
+    try {
+      const { data: dept } = await supabase
+        .from('departments')
+        .select('name')
+        .eq('id', departmentId)
+        .maybeSingle();
+      setDepartmentName(dept?.name ?? '');
+    } catch (e) {
+      setDepartmentName('');
+    }
+    await loadDeptMembers();
+    setIsSettingsOpen(true);
+  };
+
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
-      case 'urgent': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'urgent':
+        return 'bg-red-500';
+      case 'high':
+        return 'bg-orange-500';
+      case 'medium':
+        return 'bg-yellow-500';
+      case 'low':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'answered': return 'bg-green-100 text-green-800';
-      case 'in-progress': return 'bg-blue-100 text-blue-800';
-      case 'assigned': return 'bg-yellow-100 text-yellow-800';
-      case 'new': return 'bg-gray-100 text-gray-800';
-      case 'closed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'answered':
+        return 'bg-green-100 text-green-800';
+      case 'in-progress':
+        return 'bg-blue-100 text-blue-800';
+      case 'assigned':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'new':
+        return 'bg-gray-100 text-gray-800';
+      case 'closed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -219,7 +440,9 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">{mockPrayerStats.pendingRequests}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {mockPrayerStats.pendingRequests}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -233,7 +456,9 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Sessions</p>
-                <p className="text-2xl font-bold text-gray-900">{mockPrayerStats.completedSessions}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {mockPrayerStats.completedSessions}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -247,7 +472,9 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Growth</p>
-                <p className="text-2xl font-bold text-gray-900">+{mockPrayerStats.monthlyGrowth}%</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  +{mockPrayerStats.monthlyGrowth}%
+                </p>
               </div>
             </div>
           </CardContent>
@@ -261,7 +488,9 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Answered</p>
-                <p className="text-2xl font-bold text-gray-900">{mockPrayerStats.answeredPrayers}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {mockPrayerStats.answeredPrayers}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -307,7 +536,7 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
                   { category: 'Health', count: 3, color: 'bg-red-500' },
                   { category: 'Family', count: 1, color: 'bg-blue-500' },
                   { category: 'Career', count: 1, color: 'bg-green-500' },
-                  { category: 'Ministry', count: 1, color: 'bg-purple-500' }
+                  { category: 'Ministry', count: 1, color: 'bg-purple-500' },
                 ].map((item) => (
                   <div key={item.category} className="text-center p-4 bg-gray-50 rounded-lg">
                     <div className="text-2xl font-bold text-gray-900">{item.count}</div>
@@ -326,25 +555,30 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockPrayerRequests.filter(r => r.urgency === 'urgent' || r.urgency === 'high').map((request) => (
-                  <div key={request.id} className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${getUrgencyColor(request.urgency)}`} />
-                      <div>
-                        <h4 className="font-medium">{request.title}</h4>
-                        <p className="text-sm text-gray-600">{request.requester} • {request.category}</p>
+                {mockPrayerRequests
+                  .filter((r) => r.urgency === 'urgent' || r.urgency === 'high')
+                  .map((request) => (
+                    <div
+                      key={request.id}
+                      className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className={`w-3 h-3 rounded-full ${getUrgencyColor(request.urgency)}`}
+                        />
+                        <div>
+                          <h4 className="font-medium">{request.title}</h4>
+                          <p className="text-sm text-gray-600">
+                            {request.requester} • {request.category}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge className={getStatusColor(request.status)}>{request.status}</Badge>
+                        <div className="text-xs text-gray-500 mt-1">{request.dateReceived}</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge className={getStatusColor(request.status)}>
-                        {request.status}
-                      </Badge>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {request.dateReceived}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -357,18 +591,25 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockPrayerSessions.filter(s => s.status === 'scheduled').map((session) => (
-                  <div key={session.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{session.title}</h4>
-                      <p className="text-sm text-gray-600">{session.date} • {session.duration} minutes</p>
+                {mockPrayerSessions
+                  .filter((s) => s.status === 'scheduled')
+                  .map((session) => (
+                    <div
+                      key={session.id}
+                      className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
+                    >
+                      <div>
+                        <h4 className="font-medium">{session.title}</h4>
+                        <p className="text-sm text-gray-600">
+                          {session.date} • {session.duration} minutes
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium">{session.attendees} attendees</div>
+                        <Badge variant="outline">{session.type}</Badge>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">{session.attendees} attendees</div>
-                      <Badge variant="outline">{session.type}</Badge>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -435,13 +676,27 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Urgency</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Request
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Urgency
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Assigned To
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -458,14 +713,14 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
-                            <div className={`w-3 h-3 rounded-full ${getUrgencyColor(request.urgency)}`} />
+                            <div
+                              className={`w-3 h-3 rounded-full ${getUrgencyColor(request.urgency)}`}
+                            />
                             <span className="text-sm capitalize">{request.urgency}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge className={getStatusColor(request.status)}>
-                            {request.status}
-                          </Badge>
+                          <Badge className={getStatusColor(request.status)}>{request.status}</Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {request.assignedTo || 'Unassigned'}
@@ -549,12 +804,36 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
               <div className="text-center text-gray-500">
                 <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p>Reports and analytics coming soon</p>
-                <p className="text-sm">View answered prayers, request trends, and team performance</p>
+                <p className="text-sm">
+                  View answered prayers, request trends, and team performance
+                </p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Add Members Dialog */}
+      <AddMemberToDepartmentDialog
+        open={isAddMembersOpen}
+        onOpenChange={(open) => setIsAddMembersOpen(open)}
+        departmentId={departmentId}
+        onMembersAdded={async () => {
+          await loadDeptMembers();
+        }}
+      />
+
+      {/* Department Settings Dialog */}
+      <DepartmentSettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={(open) => setIsSettingsOpen(open)}
+        departmentId={departmentId}
+        departmentName={departmentName}
+        members={deptMembers}
+        onUpdated={(name) => setDepartmentName(name)}
+        onDeleted={() => navigate('/admin/departments')}
+        onMembersChanged={async () => await loadDeptMembers()}
+      />
     </div>
   );
 };
