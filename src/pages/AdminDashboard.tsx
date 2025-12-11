@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -17,6 +17,12 @@ import { CMSDashboard } from '@/components/cms/CMSDashboard';
 import { StreamingModule } from '@/components/admin/StreamingModule';
 import { BranchReportsModule } from '@/components/admin/BranchReportsModule';
 import { MessageTemplateManager } from '@/components/admin/MessageTemplateManager';
+import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
+import { GlobalRoleManagement } from '@/components/admin/superadmin/GlobalRoleManagement';
+import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
+import { SuperAdminDashboardOverview } from '@/components/admin/superadmin/SuperAdminDashboardOverview';
+import { MultiBranchManagement } from '@/components/admin/superadmin/MultiBranchManagement';
+import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { useAuthz } from '@/hooks/useAuthz';
 import { AdminProvider, useAdminContext } from '@/context/AdminContext';
@@ -27,7 +33,7 @@ const DashboardContent = () => {
   const navigate = useNavigate();
   const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
   const { can, hasRole, loading: authzLoading } = useAuthz();
-  const { loading: contextLoading } = useAdminContext();
+  const { selectedBranchId, loading: contextLoading } = useAdminContext();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -58,13 +64,29 @@ const DashboardContent = () => {
   );
 
   if (superadminLoading || authzLoading || contextLoading) {
-    return <div>Loading...</div>;
+    return <div>Loading...</div>; // Replace with proper skeleton
   }
 
   const renderActiveModule = () => {
+    // If superadmin is in "Global View" (no branch selected), show superadmin modules
+    const isGlobalView = isSuperadmin && !selectedBranchId;
+
     switch (activeModule) {
       case 'overview':
-        return <DashboardOverview />;
+        // Show SuperAdmin overview ONLY if in global view
+        return isGlobalView ? <SuperAdminDashboardOverview /> : <DashboardOverview />;
+
+      // Superadmin Specific Modules - Only accessible in Global View
+      case 'multi-branch':
+        return isSuperadmin ? <MultiBranchManagement /> : denied;
+      case 'superadmin-transfers':
+        return isSuperadmin ? <SuperadminTransferManagement /> : denied;
+      case 'system-config':
+        return isSuperadmin ? <SystemConfiguration /> : denied;
+      case 'global-roles':
+        return isSuperadmin ? <GlobalRoleManagement /> : denied;
+      case 'system-reports':
+        return isSuperadmin ? <SystemReportsModule /> : denied;
 
       case 'members':
         return can('members', 'view') || isSuperadmin ? <MemberManagement /> : denied;

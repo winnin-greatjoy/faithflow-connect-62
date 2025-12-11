@@ -1800,6 +1800,7 @@ export type Database = {
       }
       has_branch_access: { Args: { p_branch_id: string }; Returns: boolean }
       has_role:
+        | { Args: { role: string; user_id: string }; Returns: boolean }
         | {
             Args: {
               _role: Database["public"]["Enums"]["app_role"]
@@ -1814,7 +1815,6 @@ export type Database = {
             }
             Returns: boolean
           }
-        | { Args: { role: string; user_id: string }; Returns: boolean }
       is_user_baptized: { Args: never; Returns: boolean }
       reject_member_transfer: {
         Args: {

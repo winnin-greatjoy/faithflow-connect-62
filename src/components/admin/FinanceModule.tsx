@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,146 +15,20 @@ import {
   TrendingUp,
   TrendingDown,
   Download,
+  CreditCard,
+  Banknote,
+  MoreHorizontal,
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAdminContext } from '@/context/AdminContext';
-import { useAuthz } from '@/hooks/useAuthz';
 
-type FinanceRecord = {
-  id: string;
-  date: string;
-  donor: string;
-  amount: number;
-  method: string;
-  type: string;
-};
+const recentDonations = [
+  { id: 1, date: '2024-01-07', donor: 'John Smith', amount: 150, method: 'Card' },
+  { id: 2, date: '2024-01-07', donor: 'Anonymous', amount: 75, method: 'Cash' },
+  { id: 3, date: '2024-01-06', donor: 'Sarah Johnson', amount: 200, method: 'Bank Transfer' },
+  { id: 4, date: '2024-01-06', donor: 'Mike Davis', amount: 50, method: 'Card' },
+  { id: 5, date: '2024-01-05', donor: 'Emma Wilson', amount: 100, method: 'Standing Order' },
+];
 
 export const FinanceModule = () => {
-  const { selectedBranchId } = useAdminContext();
-  const { branchId: authBranchId, hasRole } = useAuthz();
-  const isSuperadmin = hasRole('super_admin');
-  const effectiveBranchId = isSuperadmin ? selectedBranchId : authBranchId;
-
-  const [records, setRecords] = useState<FinanceRecord[]>([]);
-  const [stats, setStats] = useState({
-    monthlyGiving: 0,
-    weeklyAverage: 0,
-    expenses: 0,
-    monthlyChange: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [branchName, setBranchName] = useState('');
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Build query with branch filter
-        let query = supabase
-          .from('finance_records')
-          .select(`
-            id,
-            transaction_date,
-            amount,
-            type,
-            category,
-            description,
-            member_id,
-            members (full_name)
-          `)
-          .order('transaction_date', { ascending: false })
-          .limit(10);
-
-        if (effectiveBranchId) {
-          query = query.eq('branch_id', effectiveBranchId);
-          
-          // Fetch branch name
-          const { data: branchData } = await supabase
-            .from('church_branches')
-            .select('name')
-            .eq('id', effectiveBranchId)
-            .single();
-          if (branchData) setBranchName(branchData.name);
-        } else {
-          setBranchName('All Branches');
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        const mapped: FinanceRecord[] = (data || []).map((r: any) => ({
-          id: r.id,
-          date: r.transaction_date,
-          donor: r.members?.full_name || 'Anonymous',
-          amount: r.amount,
-          method: r.category || 'Cash',
-          type: r.type,
-        }));
-        setRecords(mapped);
-
-        // Calculate stats
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-        // Get all records for stats calculation
-        let statsQuery = supabase
-          .from('finance_records')
-          .select('amount, type, transaction_date');
-        if (effectiveBranchId) {
-          statsQuery = statsQuery.eq('branch_id', effectiveBranchId);
-        }
-        const { data: allRecords } = await statsQuery;
-
-        const income = (allRecords || [])
-          .filter((r: any) => {
-            const d = new Date(r.transaction_date);
-            return r.type === 'income' && d >= startOfMonth;
-          })
-          .reduce((sum: number, r: any) => sum + Number(r.amount), 0);
-
-        const lastMonthIncome = (allRecords || [])
-          .filter((r: any) => {
-            const d = new Date(r.transaction_date);
-            return r.type === 'income' && d >= startOfLastMonth && d < startOfMonth;
-          })
-          .reduce((sum: number, r: any) => sum + Number(r.amount), 0);
-
-        const expenses = (allRecords || [])
-          .filter((r: any) => {
-            const d = new Date(r.transaction_date);
-            return r.type === 'expense' && d >= startOfMonth;
-          })
-          .reduce((sum: number, r: any) => sum + Number(r.amount), 0);
-
-        const change = lastMonthIncome > 0 
-          ? Math.round(((income - lastMonthIncome) / lastMonthIncome) * 100) 
-          : 0;
-
-        setStats({
-          monthlyGiving: income,
-          weeklyAverage: Math.round(income / 4),
-          expenses,
-          monthlyChange: change,
-        });
-      } catch (error) {
-        console.error('Error fetching finance data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [effectiveBranchId]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-    }).format(amount);
-  };
-
   return (
     <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
       {/* Page Header */}
@@ -162,7 +36,7 @@ export const FinanceModule = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Finance Management</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-            Track donations, expenses, and financial reports{branchName ? ` for ${branchName}` : ''}.
+            Track donations, expenses, and financial reports.
           </p>
         </div>
         <Button size="sm" className="w-full sm:w-auto">
@@ -181,16 +55,10 @@ export const FinanceModule = () => {
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-2 sm:pt-2">
-            <div className="text-lg sm:text-2xl font-bold">
-              {loading ? '...' : formatCurrency(stats.monthlyGiving)}
-            </div>
-            <div className={`flex items-center text-xs mt-1 ${stats.monthlyChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {stats.monthlyChange >= 0 ? (
-                <TrendingUp className="mr-1 h-3 w-3" />
-              ) : (
-                <TrendingDown className="mr-1 h-3 w-3" />
-              )}
-              {stats.monthlyChange >= 0 ? '+' : ''}{stats.monthlyChange}% from last month
+            <div className="text-lg sm:text-2xl font-bold">£12,450</div>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <TrendingUp className="mr-1 h-3 w-3" />
+              +8% from last month
             </div>
           </CardContent>
         </Card>
@@ -203,11 +71,10 @@ export const FinanceModule = () => {
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-2 sm:pt-2">
-            <div className="text-lg sm:text-2xl font-bold">
-              {loading ? '...' : formatCurrency(stats.weeklyAverage)}
-            </div>
-            <div className="flex items-center text-xs text-muted-foreground mt-1">
-              Based on current month
+            <div className="text-lg sm:text-2xl font-bold">£3,112</div>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <TrendingUp className="mr-1 h-3 w-3" />
+              +12% from last quarter
             </div>
           </CardContent>
         </Card>
@@ -220,64 +87,126 @@ export const FinanceModule = () => {
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-2 sm:pt-2">
-            <div className="text-lg sm:text-2xl font-bold">
-              {loading ? '...' : formatCurrency(stats.expenses)}
-            </div>
-            <div className="flex items-center text-xs text-muted-foreground mt-1">
-              This month's expenses
+            <div className="text-lg sm:text-2xl font-bold">£8,750</div>
+            <div className="flex items-center text-xs text-red-600 mt-1">
+              <TrendingUp className="mr-1 h-3 w-3" />
+              +3% from budget
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Transactions */}
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+        <Card>
+          <CardHeader className="p-4 sm:p-6 pb-0 sm:pb-0">
+            <CardTitle className="text-lg sm:text-xl">Giving Trends</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Monthly giving over the last 12 months
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-4">
+            <div className="h-[250px] sm:h-[300px] flex items-center justify-center bg-gray-50 rounded text-center p-4">
+              <p className="text-sm sm:text-base text-gray-500">Monthly giving trends chart</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="p-4 sm:p-6 pb-0 sm:pb-0">
+            <CardTitle className="text-lg sm:text-xl">Giving Methods</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Breakdown of donation methods
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-4">
+            <div className="h-[250px] sm:h-[300px] flex items-center justify-center bg-gray-50 rounded text-center p-4">
+              <p className="text-sm sm:text-base text-gray-500">Giving methods breakdown chart</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Donations */}
       <Card>
-        <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4">
-          <CardTitle className="text-lg sm:text-xl">Recent Transactions</CardTitle>
+        <CardHeader className="p-4 sm:p-6 pb-0 sm:pb-0">
+          <CardTitle className="text-lg sm:text-xl">Recent Donations</CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Latest financial activities
+            Latest donations received by the church
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 sm:p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="hidden sm:table-header-group">
                 <TableRow>
                   <TableHead className="text-xs sm:text-sm">Date</TableHead>
                   <TableHead className="text-xs sm:text-sm">Donor</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-right">Amount</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Amount</TableHead>
                   <TableHead className="text-xs sm:text-sm">Method</TableHead>
+                  <TableHead className="text-right text-xs sm:text-sm">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                      Loading...
+                {recentDonations.map((donation) => (
+                  <TableRow key={donation.id} className="block sm:table-row border-b last:border-0">
+                    <TableCell className="block sm:table-cell px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="flex justify-between sm:block">
+                        <span className="text-xs text-muted-foreground sm:hidden">Date:</span>
+                        <span className="text-sm sm:text-base">{donation.date}</span>
+                      </div>
                     </TableCell>
-                  </TableRow>
-                ) : records.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                      No transactions found
+                    <TableCell className="block sm:table-cell px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="flex justify-between sm:block">
+                        <span className="text-xs text-muted-foreground sm:hidden">Donor:</span>
+                        <span className="font-medium text-sm sm:text-base">{donation.donor}</span>
+                      </div>
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  records.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="text-xs sm:text-sm">{record.date}</TableCell>
-                      <TableCell className="text-xs sm:text-sm">{record.donor}</TableCell>
-                      <TableCell className={`text-xs sm:text-sm text-right font-medium ${record.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                        {record.type === 'income' ? '+' : '-'}{formatCurrency(record.amount)}
-                      </TableCell>
-                      <TableCell className="text-xs sm:text-sm">
-                        <Badge variant="outline" className="text-xs">
-                          {record.method}
+                    <TableCell className="block sm:table-cell px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="flex justify-between sm:block">
+                        <span className="text-xs text-muted-foreground sm:hidden">Amount:</span>
+                        <span className="font-medium text-sm sm:text-base">
+                          £{donation.amount.toFixed(2)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="block sm:table-cell px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="flex justify-between items-center sm:block">
+                        <span className="text-xs text-muted-foreground sm:hidden">Method:</span>
+                        <Badge variant="outline" className="text-xs sm:text-sm h-5 sm:h-6">
+                          {donation.method === 'Card' && <CreditCard className="mr-1 h-3 w-3" />}
+                          {donation.method === 'Cash' && <Banknote className="mr-1 h-3 w-3" />}
+                          {donation.method === 'Bank Transfer' && (
+                            <DollarSign className="mr-1 h-3 w-3" />
+                          )}
+                          {donation.method === 'Standing Order' && (
+                            <TrendingUp className="mr-1 h-3 w-3" />
+                          )}
+                          <span className="hidden sm:inline">{donation.method}</span>
+                          <span className="sm:hidden">
+                            {donation.method === 'Bank Transfer'
+                              ? 'Bank'
+                              : donation.method === 'Standing Order'
+                                ? 'Standing'
+                                : donation.method}
+                          </span>
                         </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="block sm:table-cell px-4 py-3 sm:px-6 sm:py-4">
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-4"
+                        >
+                          <span className="sr-only sm:not-sr-only sm:mr-2">View</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
