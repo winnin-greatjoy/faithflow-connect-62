@@ -228,10 +228,13 @@ export type Database = {
       church_branches: {
         Row: {
           address: string
+          branch_type: string
           created_at: string | null
+          district_name: string | null
           id: string
           is_main: boolean | null
           name: string
+          parent_id: string | null
           pastor_name: string | null
           phone: string | null
           slug: string
@@ -239,10 +242,13 @@ export type Database = {
         }
         Insert: {
           address: string
+          branch_type?: string
           created_at?: string | null
+          district_name?: string | null
           id?: string
           is_main?: boolean | null
           name: string
+          parent_id?: string | null
           pastor_name?: string | null
           phone?: string | null
           slug: string
@@ -250,16 +256,27 @@ export type Database = {
         }
         Update: {
           address?: string
+          branch_type?: string
           created_at?: string | null
+          district_name?: string | null
           id?: string
           is_main?: boolean | null
           name?: string
+          parent_id?: string | null
           pastor_name?: string | null
           phone?: string | null
           slug?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "church_branches_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       committee_members: {
         Row: {
