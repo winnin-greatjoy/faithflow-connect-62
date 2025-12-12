@@ -30,6 +30,7 @@ import { Plus, Trash2, Upload } from 'lucide-react';
 import { Member, MembershipLevel, Gender, MaritalStatus } from '@/types/membership';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useBranchScope } from '@/hooks/useBranchScope';
 
 // Department Select Component
 const DepartmentSelect: React.FC<{ value?: string; onChange: (value: string) => void; branchId: string }> = ({ value, onChange, branchId }) => {
@@ -83,7 +84,7 @@ const memberSchema = z
     spouseName: z.string().optional(),
     numberOfChildren: z.coerce.number().min(0),
     children: z.array(childSchema).optional(),
-    email: z.string().email('Invalid email address'),
+    email: z.string().email('Invalid email address').optional().or(z.literal('')),
     phone: z.string().min(7, 'Phone number must be at least 7 characters'),
     community: z.string().min(1, 'Community is required'),
     area: z.string().min(1, 'Area is required'),
@@ -100,8 +101,17 @@ const memberSchema = z
     baptismOfficiator: z.string().optional(),
     spiritualMentor: z.string().optional(),
     assignedDepartment: z.string().optional(),
+    // Discipleship tracking
+    discipleshipClass1: z.boolean().optional(),
+    discipleshipClass2: z.boolean().optional(),
+    discipleshipClass3: z.boolean().optional(),
+    // Status
+    status: z.enum(['active', 'inactive', 'suspended', 'transferred']).optional(),
+    lastAttendance: z.string().optional(),
+    // Notes
     prayerNeeds: z.string().optional(),
     pastoralNotes: z.string().optional(),
+    // Account creation
     createAccount: z.boolean().optional(),
     username: z.string().optional(),
     password: z.string().min(8, 'Password must be at least 8 characters').optional(),
@@ -129,6 +139,7 @@ interface MemberFormProps {
 
 export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCancel }) => {
   const { toast } = useToast();
+  const { effectiveBranchId, canSwitchBranch } = useBranchScope();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
@@ -161,7 +172,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
           area: member.area ?? '',
           street: member.street ?? '',
           publicLandmark: member.publicLandmark ?? '',
-          branchId: '',
+          branchId: String(member.branchId ?? effectiveBranchId ?? ''),
           membershipLevel: member.membershipLevel ?? 'visitor',
           baptizedSubLevel: member.baptizedSubLevel ?? undefined,
           leaderRole: member.leaderRole ?? undefined,
@@ -172,6 +183,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
           baptismOfficiator: member.baptismOfficiator ?? '',
           spiritualMentor: member.spiritualMentor ?? '',
           assignedDepartment: member.assignedDepartment ?? '',
+          discipleshipClass1: member.discipleshipClass1 ?? false,
+          discipleshipClass2: member.discipleshipClass2 ?? false,
+          discipleshipClass3: member.discipleshipClass3 ?? false,
+          status: member.status ?? 'active',
+          lastAttendance: member.lastAttendance ?? '',
           prayerNeeds: member.prayerNeeds ?? '',
           pastoralNotes: member.pastoralNotes ?? '',
           createAccount: false,
@@ -193,7 +209,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
           area: '',
           street: '',
           publicLandmark: '',
-          branchId: '',
+          branchId: effectiveBranchId ?? '',
           membershipLevel: 'visitor',
           baptizedSubLevel: undefined,
           leaderRole: undefined,
@@ -202,6 +218,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
           baptismOfficiator: '',
           spiritualMentor: '',
           assignedDepartment: '',
+          discipleshipClass1: false,
+          discipleshipClass2: false,
+          discipleshipClass3: false,
+          status: 'active',
+          lastAttendance: '',
           prayerNeeds: '',
           pastoralNotes: '',
           createAccount: false,
@@ -209,6 +230,13 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
           password: '',
         },
   });
+
+  // Auto-set branch for branch admins
+  useEffect(() => {
+    if (!canSwitchBranch && effectiveBranchId && !form.getValues('branchId')) {
+      form.setValue('branchId', effectiveBranchId);
+    }
+  }, [effectiveBranchId, canSwitchBranch, form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -636,7 +664,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
                       <FormItem>
                         <FormLabel>Branch *</FormLabel>
                         <FormControl>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value}
+                            disabled={!canSwitchBranch && !!effectiveBranchId}
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="Select branch" />
                             </SelectTrigger>
