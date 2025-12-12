@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building, Plus, Edit, Trash2, Users, MapPin, Phone, UserCog, Shield } from 'lucide-react';
+import { Building, Plus, Edit, Trash2, Users, MapPin, Phone, UserCog, Shield, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAdminContext } from '@/context/AdminContext';
@@ -26,6 +26,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 
+type BranchType = 'main_hq' | 'district_hq' | 'local';
+
 interface Branch {
   id: string;
   name: string;
@@ -34,6 +36,9 @@ interface Branch {
   phone: string | null;
   pastor_name: string | null;
   is_main: boolean;
+  branch_type: BranchType;
+  parent_id: string | null;
+  district_name: string | null;
   created_at: string;
 }
 
@@ -43,9 +48,31 @@ interface Member {
   email: string | null;
 }
 
+interface BranchFormData {
+  name: string;
+  slug: string;
+  address: string;
+  phone: string;
+  pastor_name: string;
+  branch_type: BranchType;
+  parent_id: string;
+  district_name: string;
+}
+
+const defaultBranchForm: BranchFormData = {
+  name: '',
+  slug: '',
+  address: '',
+  phone: '',
+  pastor_name: '',
+  branch_type: 'local',
+  parent_id: '',
+  district_name: '',
+};
+
 /**
  * Multi-Branch Management Module for Superadmin
- * Allows creating branches, assigning admins, pastors, and workers
+ * Supports hierarchical structure: Main HQ > District HQs > Local Branches
  */
 export const MultiBranchManagement: React.FC = () => {
   const { toast } = useToast();
@@ -55,17 +82,12 @@ export const MultiBranchManagement: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
 
-  // Form states for new branch
-  const [newBranch, setNewBranch] = useState({
-    name: '',
-    slug: '',
-    address: '',
-    phone: '',
-    pastor_name: '',
-  });
+  // Form states
+  const [branchForm, setBranchForm] = useState<BranchFormData>(defaultBranchForm);
 
   // Assignment states
   const [assignmentData, setAssignmentData] = useState({
@@ -85,11 +107,11 @@ export const MultiBranchManagement: React.FC = () => {
       const { data, error } = await supabase
         .from('church_branches')
         .select('*')
-        .order('is_main', { ascending: false })
+        .order('branch_type')
         .order('name');
 
       if (error) throw error;
-      setBranches(data || []);
+      setBranches((data as Branch[]) || []);
     } catch (error) {
       console.error('Error fetching branches:', error);
       toast({
@@ -117,34 +139,38 @@ export const MultiBranchManagement: React.FC = () => {
     }
   };
 
+  // Get district HQ branches for parent selection
+  const districtHQs = branches.filter(b => b.branch_type === 'district_hq');
+
   const handleCreateBranch = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('church_branches')
         .insert([
           {
-            name: newBranch.name,
-            slug: newBranch.slug,
-            address: newBranch.address,
-            phone: newBranch.phone || null,
-            pastor_name: newBranch.pastor_name || null,
-            is_main: false,
+            name: branchForm.name,
+            slug: branchForm.slug,
+            address: branchForm.address,
+            phone: branchForm.phone || null,
+            pastor_name: branchForm.pastor_name || null,
+            is_main: branchForm.branch_type === 'main_hq',
+            branch_type: branchForm.branch_type,
+            parent_id: branchForm.parent_id || null,
+            district_name: branchForm.branch_type === 'district_hq' ? branchForm.district_name : null,
           },
-        ])
-        .select()
-        .single();
+        ]);
 
       if (error) throw error;
 
       toast({
         title: 'Success',
-        description: `Branch "${newBranch.name}" created successfully`,
+        description: `Branch "${branchForm.name}" created successfully`,
       });
 
       setIsCreateOpen(false);
-      setNewBranch({ name: '', slug: '', address: '', phone: '', pastor_name: '' });
+      setBranchForm(defaultBranchForm);
       fetchBranches();
     } catch (error: any) {
       console.error('Error creating branch:', error);
@@ -154,6 +180,61 @@ export const MultiBranchManagement: React.FC = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleEditBranch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBranch) return;
+
+    try {
+      const { error } = await supabase
+        .from('church_branches')
+        .update({
+          name: branchForm.name,
+          slug: branchForm.slug,
+          address: branchForm.address,
+          phone: branchForm.phone || null,
+          pastor_name: branchForm.pastor_name || null,
+          branch_type: branchForm.branch_type,
+          parent_id: branchForm.parent_id || null,
+          district_name: branchForm.branch_type === 'district_hq' ? branchForm.district_name : null,
+        })
+        .eq('id', selectedBranch.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Branch "${branchForm.name}" updated successfully`,
+      });
+
+      setIsEditOpen(false);
+      setSelectedBranch(null);
+      setBranchForm(defaultBranchForm);
+      fetchBranches();
+    } catch (error: any) {
+      console.error('Error updating branch:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update branch',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openEditDialog = (branch: Branch) => {
+    setSelectedBranch(branch);
+    setBranchForm({
+      name: branch.name,
+      slug: branch.slug,
+      address: branch.address,
+      phone: branch.phone || '',
+      pastor_name: branch.pastor_name || '',
+      branch_type: branch.branch_type,
+      parent_id: branch.parent_id || '',
+      district_name: branch.district_name || '',
+    });
+    setIsEditOpen(true);
   };
 
   const handleAssignRole = async (e: React.FormEvent) => {
@@ -217,7 +298,7 @@ export const MultiBranchManagement: React.FC = () => {
 
   // Auto-generate slug from name
   const handleNameChange = (name: string) => {
-    setNewBranch((prev) => ({
+    setBranchForm((prev) => ({
       ...prev,
       name,
       slug: name
@@ -227,13 +308,149 @@ export const MultiBranchManagement: React.FC = () => {
     }));
   };
 
+  const getBranchTypeBadge = (type: BranchType) => {
+    switch (type) {
+      case 'main_hq':
+        return <Badge className="bg-amber-500">Main HQ</Badge>;
+      case 'district_hq':
+        return <Badge className="bg-blue-500">District HQ</Badge>;
+      default:
+        return <Badge variant="secondary">Local</Badge>;
+    }
+  };
+
+  const getParentBranchName = (parentId: string | null) => {
+    if (!parentId) return null;
+    const parent = branches.find(b => b.id === parentId);
+    return parent?.name || 'Unknown';
+  };
+
+  // Group branches by hierarchy
+  const mainHQ = branches.find(b => b.branch_type === 'main_hq');
+  const districtBranches = branches.filter(b => b.branch_type === 'district_hq');
+  const localBranches = branches.filter(b => b.branch_type === 'local');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading branches...</div>
+        <div className="text-muted-foreground">Loading branches...</div>
       </div>
     );
   }
+
+  const BranchFormFields = () => (
+    <>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="name">Branch Name *</Label>
+          <Input
+            id="name"
+            value={branchForm.name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            placeholder="e.g., North Campus"
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="slug">Slug *</Label>
+          <Input
+            id="slug"
+            value={branchForm.slug}
+            onChange={(e) => setBranchForm((prev) => ({ ...prev, slug: e.target.value }))}
+            placeholder="e.g., north-campus"
+            required
+          />
+          <p className="text-xs text-muted-foreground mt-1">Auto-generated from name</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="branch_type">Branch Type *</Label>
+          <Select
+            value={branchForm.branch_type}
+            onValueChange={(value: BranchType) => setBranchForm((prev) => ({ ...prev, branch_type: value, parent_id: '' }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="main_hq">Main HQ (Central Administration)</SelectItem>
+              <SelectItem value="district_hq">District HQ</SelectItem>
+              <SelectItem value="local">Local Branch</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {branchForm.branch_type === 'district_hq' && (
+          <div>
+            <Label htmlFor="district_name">District Name *</Label>
+            <Input
+              id="district_name"
+              value={branchForm.district_name}
+              onChange={(e) => setBranchForm((prev) => ({ ...prev, district_name: e.target.value }))}
+              placeholder="e.g., Northern District"
+              required
+            />
+          </div>
+        )}
+
+        {branchForm.branch_type === 'local' && (
+          <div>
+            <Label htmlFor="parent_id">District HQ *</Label>
+            <Select
+              value={branchForm.parent_id}
+              onValueChange={(value) => setBranchForm((prev) => ({ ...prev, parent_id: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select district" />
+              </SelectTrigger>
+              <SelectContent>
+                {districtHQs.map((district) => (
+                  <SelectItem key={district.id} value={district.id}>
+                    {district.district_name || district.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="address">Address *</Label>
+        <Textarea
+          id="address"
+          value={branchForm.address}
+          onChange={(e) => setBranchForm((prev) => ({ ...prev, address: e.target.value }))}
+          placeholder="Full branch address"
+          required
+          rows={3}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"
+            value={branchForm.phone}
+            onChange={(e) => setBranchForm((prev) => ({ ...prev, phone: e.target.value }))}
+            placeholder="+1 (555) 123-4567"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pastor">Pastor Name</Label>
+          <Input
+            id="pastor"
+            value={branchForm.pastor_name}
+            onChange={(e) => setBranchForm((prev) => ({ ...prev, pastor_name: e.target.value }))}
+            placeholder="Pastor's name"
+          />
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <div className="space-y-6">
@@ -244,7 +461,7 @@ export const MultiBranchManagement: React.FC = () => {
             <Building className="h-6 w-6" />
             Multi-Branch Management
           </h2>
-          <p className="text-gray-600 mt-1">Create and manage church branches across the network</p>
+          <p className="text-muted-foreground mt-1">Manage church branches with district hierarchy</p>
         </div>
         <div className="flex gap-2">
           <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
@@ -334,7 +551,10 @@ export const MultiBranchManagement: React.FC = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <Dialog open={isCreateOpen} onOpenChange={(open) => {
+            setIsCreateOpen(open);
+            if (!open) setBranchForm(defaultBranchForm);
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -347,63 +567,7 @@ export const MultiBranchManagement: React.FC = () => {
                 <DialogDescription>Add a new church branch to the network</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateBranch} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Branch Name *</Label>
-                    <Input
-                      id="name"
-                      value={newBranch.name}
-                      onChange={(e) => handleNameChange(e.target.value)}
-                      placeholder="e.g., North Campus"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="slug">Slug *</Label>
-                    <Input
-                      id="slug"
-                      value={newBranch.slug}
-                      onChange={(e) => setNewBranch((prev) => ({ ...prev, slug: e.target.value }))}
-                      placeholder="e.g., north-campus"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Auto-generated from name</p>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="address">Address *</Label>
-                  <Textarea
-                    id="address"
-                    value={newBranch.address}
-                    onChange={(e) => setNewBranch({ ...newBranch, address: e.target.value })}
-                    placeholder="Full branch address"
-                    required
-                    rows={3}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={newBranch.phone}
-                      onChange={(e) => setNewBranch({ ...newBranch, phone: e.target.value })}
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="pastor">Pastor Name</Label>
-                    <Input
-                      id="pastor"
-                      value={newBranch.pastor_name}
-                      onChange={(e) => setNewBranch({ ...newBranch, pastor_name: e.target.value })}
-                      placeholder="Pastor's name"
-                    />
-                  </div>
-                </div>
-
+                <BranchFormFields />
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                     Cancel
@@ -416,16 +580,41 @@ export const MultiBranchManagement: React.FC = () => {
         </div>
       </div>
 
+      {/* Edit Branch Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={(open) => {
+        setIsEditOpen(open);
+        if (!open) {
+          setSelectedBranch(null);
+          setBranchForm(defaultBranchForm);
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Branch</DialogTitle>
+            <DialogDescription>Update branch information</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditBranch} className="space-y-4">
+            <BranchFormFields />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Update Branch</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Branch Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Branches</p>
+                <p className="text-sm text-muted-foreground">Total Branches</p>
                 <p className="text-2xl font-bold">{branches.length}</p>
               </div>
-              <Building className="h-8 w-8 text-blue-600" />
+              <Building className="h-8 w-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -433,8 +622,8 @@ export const MultiBranchManagement: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Main Branch</p>
-                <p className="text-2xl font-bold">{branches.filter((b) => b.is_main).length}</p>
+                <p className="text-sm text-muted-foreground">Main HQ</p>
+                <p className="text-2xl font-bold">{mainHQ ? 1 : 0}</p>
               </div>
               <Shield className="h-8 w-8 text-amber-600" />
             </div>
@@ -444,8 +633,19 @@ export const MultiBranchManagement: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active Members</p>
-                <p className="text-2xl font-bold">{members.length}</p>
+                <p className="text-sm text-muted-foreground">Districts</p>
+                <p className="text-2xl font-bold">{districtBranches.length}</p>
+              </div>
+              <Network className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Local Branches</p>
+                <p className="text-2xl font-bold">{localBranches.length}</p>
               </div>
               <Users className="h-8 w-8 text-green-600" />
             </div>
@@ -453,97 +653,274 @@ export const MultiBranchManagement: React.FC = () => {
         </Card>
       </div>
 
-      {/* Branches List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {branches.map((branch) => (
-          <Card key={branch.id} className={branch.is_main ? 'border-amber-400 border-2' : ''}>
+      {/* Main HQ */}
+      {mainHQ && (
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Shield className="h-5 w-5 text-amber-600" />
+            Central Administration
+          </h3>
+          <Card className="border-amber-400 border-2">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <CardTitle className="flex items-center gap-2">
-                    {branch.name}
-                    {branch.is_main && (
-                      <Badge variant="default" className="bg-amber-500">
-                        Main
-                      </Badge>
-                    )}
+                    {mainHQ.name}
+                    {getBranchTypeBadge(mainHQ.branch_type)}
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">
-                      {branch.slug}
+                    <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
+                      {mainHQ.slug}
                     </span>
                   </CardDescription>
                 </div>
-                {!branch.is_main && (
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedBranch(branch)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteBranch(branch.id, branch.name)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                )}
+                <Button variant="ghost" size="icon" onClick={() => openEditDialog(mainHQ)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-start gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-600">{branch.address}</span>
+                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <span className="text-muted-foreground">{mainHQ.address}</span>
               </div>
-              {branch.phone && (
+              {mainHQ.phone && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">{branch.phone}</span>
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">{mainHQ.phone}</span>
                 </div>
               )}
-              {branch.pastor_name && (
+              {mainHQ.pastor_name && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Users className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">{branch.pastor_name}</span>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">{mainHQ.pastor_name}</span>
                 </div>
               )}
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    setAssignmentData((prev) => ({ ...prev, branchId: branch.id }));
-                    setIsAssignOpen(true);
-                  }}
-                >
-                  <UserCog className="mr-2 h-4 w-4" />
-                  Assign Staff
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="w-full mt-2 bg-purple-600 hover:bg-purple-700"
-                  onClick={() => {
-                    setSelectedBranchId(branch.id);
-                    navigate('/admin');
-                  }}
-                >
-                  <Building className="mr-2 h-4 w-4" />
-                  Manage Dashboard
-                </Button>
-              </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {/* District HQs and their branches */}
+      {districtBranches.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Network className="h-5 w-5 text-blue-600" />
+            Districts
+          </h3>
+          {districtBranches.map((district) => {
+            const childBranches = localBranches.filter(b => b.parent_id === district.id);
+            return (
+              <div key={district.id} className="space-y-3">
+                <Card className="border-blue-400 border">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <CardTitle className="flex items-center gap-2">
+                          {district.district_name || district.name}
+                          {getBranchTypeBadge(district.branch_type)}
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          HQ: {district.name} • {childBranches.length} local branches
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(district)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteBranch(district.id, district.name)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <span className="text-muted-foreground">{district.address}</span>
+                    </div>
+                    {district.pastor_name && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">{district.pastor_name}</span>
+                      </div>
+                    )}
+                    <div className="pt-2 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAssignmentData((prev) => ({ ...prev, branchId: district.id }));
+                          setIsAssignOpen(true);
+                        }}
+                      >
+                        <UserCog className="mr-2 h-4 w-4" />
+                        Assign Staff
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedBranchId(district.id);
+                          navigate('/admin');
+                        }}
+                      >
+                        <Building className="mr-2 h-4 w-4" />
+                        Manage
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Local branches under this district */}
+                {childBranches.length > 0 && (
+                  <div className="ml-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {childBranches.map((branch) => (
+                      <Card key={branch.id}>
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-start">
+                            <CardTitle className="text-base">{branch.name}</CardTitle>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(branch)}>
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleDeleteBranch(branch.id, branch.name)}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-start gap-2 text-xs">
+                            <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
+                            <span className="text-muted-foreground">{branch.address}</span>
+                          </div>
+                          {branch.pastor_name && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">{branch.pastor_name}</span>
+                            </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-2"
+                            onClick={() => {
+                              setSelectedBranchId(branch.id);
+                              navigate('/admin');
+                            }}
+                          >
+                            Manage
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Unassigned local branches (no parent) */}
+      {localBranches.filter(b => !b.parent_id).length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-muted-foreground">Unassigned Branches</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {localBranches.filter(b => !b.parent_id).map((branch) => (
+              <Card key={branch.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        {branch.name}
+                        {getBranchTypeBadge(branch.branch_type)}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
+                          {branch.slug}
+                        </span>
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(branch)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteBranch(branch.id, branch.name)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex items-start gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <span className="text-muted-foreground">{branch.address}</span>
+                  </div>
+                  {branch.phone && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{branch.phone}</span>
+                    </div>
+                  )}
+                  {branch.pastor_name && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{branch.pastor_name}</span>
+                    </div>
+                  )}
+                  <div className="pt-2 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setAssignmentData((prev) => ({ ...prev, branchId: branch.id }));
+                        setIsAssignOpen(true);
+                      }}
+                    >
+                      <UserCog className="mr-2 h-4 w-4" />
+                      Assign Staff
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedBranchId(branch.id);
+                        navigate('/admin');
+                      }}
+                    >
+                      Manage
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {branches.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center">
-            <Building className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No branches yet</h3>
-            <p className="text-gray-600 mb-4">Create your first branch to get started</p>
+            <Building className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No branches yet</h3>
+            <p className="text-muted-foreground mb-4">Create your first branch to get started</p>
             <Button onClick={() => setIsCreateOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create First Branch
