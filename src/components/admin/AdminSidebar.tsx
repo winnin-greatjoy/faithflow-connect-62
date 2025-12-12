@@ -20,6 +20,7 @@ import {
   LogOut,
   ArrowRightLeft,
   Shield,
+  Network,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -83,6 +84,7 @@ const secondaryItems: MenuItem[] = [
 // Superadmin-only items
 const superadminItems: MenuItem[] = [
   { id: 'multi-branch', label: 'Multi-Branch', icon: Building },
+  { id: 'districts', label: 'Districts', icon: Network },
   { id: 'superadmin-transfers', label: 'Transfers', icon: ArrowRightLeft },
   { id: 'global-roles', label: 'Global Roles', icon: Shield },
   { id: 'system-reports', label: 'System Reports', icon: FileBarChart },

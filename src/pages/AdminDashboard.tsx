@@ -22,6 +22,8 @@ import { GlobalRoleManagement } from '@/components/admin/superadmin/GlobalRoleMa
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
 import { SuperAdminDashboardOverview } from '@/components/admin/superadmin/SuperAdminDashboardOverview';
 import { MultiBranchManagement } from '@/components/admin/superadmin/MultiBranchManagement';
+import { DistrictManagement } from '@/components/admin/superadmin/DistrictManagement';
+import { DistrictDashboard } from '@/components/admin/district/DistrictDashboard';
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { useAuthz } from '@/hooks/useAuthz';
@@ -74,7 +76,11 @@ const DashboardContent = () => {
     switch (activeModule) {
       case 'overview':
         // Show SuperAdmin overview ONLY if in global view
-        return isGlobalView ? <SuperAdminDashboardOverview /> : <DashboardOverview />;
+        if (isGlobalView) return <SuperAdminDashboardOverview />;
+        // Show District Dashboard for District Admins if no branch selected
+        if (hasRole('district_admin') && !selectedBranchId) return <DistrictDashboard />;
+
+        return <DashboardOverview />;
 
       // Superadmin Specific Modules - Only accessible in Global View
       case 'multi-branch':
@@ -87,6 +93,9 @@ const DashboardContent = () => {
         return isSuperadmin ? <GlobalRoleManagement /> : denied;
       case 'system-reports':
         return isSuperadmin ? <SystemReportsModule /> : denied;
+
+      case 'districts':
+        return isSuperadmin ? <DistrictManagement /> : denied;
 
       case 'members':
         return can('members', 'view') || isSuperadmin ? <OptimizedMemberManagement /> : denied;

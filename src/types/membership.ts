@@ -1,4 +1,3 @@
-
 export type MembershipLevel = 'baptized' | 'convert' | 'visitor';
 export type BaptizedSubLevel = 'leader' | 'worker' | 'disciple';
 export type LeaderRole = 'pastor' | 'assistant_pastor' | 'department_head' | 'ministry_head';
@@ -27,7 +26,7 @@ export interface Member {
   spouseName?: string;
   numberOfChildren: number;
   children: Child[];
-   
+
   // Contact Info
   email: string;
   phone: string;
@@ -35,7 +34,7 @@ export interface Member {
   area: string;
   street: string;
   publicLandmark: string;
-  
+
   // Church Info
   branchId: number;
   dateJoined: string;
@@ -53,14 +52,14 @@ export interface Member {
   discipleshipClass3: boolean;
   assignedDepartment?: string;
   status: MemberStatus;
-  
+
   // Auto-generated ministry based on age/gender
   ministry: string;
-  
+
   // Notes
   prayerNeeds: string;
   pastoralNotes: string;
-  
+
   // Metadata
   lastAttendance: string;
   createdAt: string;
@@ -100,13 +99,23 @@ export interface FirstTimer {
   createdAt: string;
 }
 
+export interface District {
+  id: string;
+  name: string;
+  headAdminId?: string;
+  createdAt: string;
+}
+
 export interface Branch {
-  id: number;
+  id: string | number;
   name: string;
   address: string;
   phone: string;
   pastorName: string;
   isMain: boolean;
+  districtId?: string;
+  districtName?: string;
+  isDistrictHq?: boolean;
 }
 
 export interface DepartmentAssignment {
