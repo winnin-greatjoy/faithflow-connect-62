@@ -70,6 +70,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
+import { useAdminContext } from '@/context/AdminContext';
+import { useAuthz } from '@/hooks/useAuthz';
+
 type TabType = 'workers' | 'converts' | 'visitors';
 
 interface MemberStats {
@@ -86,11 +89,18 @@ const MEMBERSHIP_LEVELS: MembershipLevel[] = ['baptized', 'convert', 'visitor'];
 
 export const OptimizedMemberManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedBranchId } = useAdminContext();
+  const { branchId: authBranchId, hasRole } = useAuthz();
+
+  // Determine effective branch ID (similar to MemberManagement)
+  const isSuperadmin = hasRole('super_admin');
+  const effectiveBranchId = isSuperadmin ? selectedBranchId : authBranchId;
+
   const [activeTab, setActiveTab] = useState<TabType>('workers');
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [membershipFilter, setMembershipFilter] = useState('all');
-  const [branchFilter, setBranchFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState(effectiveBranchId || 'all');
   const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
   const [selectedFirstTimers, setSelectedFirstTimers] = useState<number[]>([]);
   const [showMemberForm, setShowMemberForm] = useState(false);
@@ -107,6 +117,12 @@ export const OptimizedMemberManagement: React.FC = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   const [firstTimerToDelete, setFirstTimerToDelete] = useState<FirstTimer | null>(null);
+
+  // Sync branch filter with context
+  useEffect(() => {
+    if (effectiveBranchId) setBranchFilter(effectiveBranchId);
+    else setBranchFilter('all');
+  }, [effectiveBranchId]);
 
   // Live data state
   const [dbMembers, setDbMembers] = useState<Member[]>([]);
@@ -1108,7 +1124,7 @@ export const OptimizedMemberManagement: React.FC = () => {
 
         {/* Member form in dialog */}
         <Dialog open={showMemberForm} onOpenChange={setShowMemberForm}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl">
             <DialogHeader>
               <DialogTitle>{editingMember ? 'Edit Member' : 'Add New Member'}</DialogTitle>
             </DialogHeader>
@@ -1221,7 +1237,7 @@ export const OptimizedMemberManagement: React.FC = () => {
 
         {/* FirstTimer form in dialog */}
         <Dialog open={showFirstTimerForm} onOpenChange={setShowFirstTimerForm}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl">
             <DialogHeader>
               <DialogTitle>
                 {editingFirstTimer ? 'Edit First Timer' : 'Add New First Timer'}

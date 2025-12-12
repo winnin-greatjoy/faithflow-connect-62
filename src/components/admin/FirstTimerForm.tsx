@@ -3,12 +3,26 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+
+// import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useBranchScope } from '@/hooks/useBranchScope';
@@ -57,7 +71,11 @@ interface FirstTimerFormProps {
   onCancel: () => void;
 }
 
-export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSubmit, onCancel }) => {
+export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
+  firstTimer,
+  onSubmit,
+  onCancel,
+}) => {
   const { toast } = useToast();
   const { effectiveBranchId, canSwitchBranch } = useBranchScope();
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
@@ -66,8 +84,8 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
   useEffect(() => {
     (async () => {
       // Fetch branches based on scope
-      let branchQuery = supabase.from('church_branches').select('id, name').order('name');
-      
+      const branchQuery = supabase.from('church_branches').select('id, name').order('name');
+
       // Fetch members for "invited by" - scoped to branch
       let membersQuery = supabase.from('members').select('id, full_name').order('full_name');
       if (effectiveBranchId) {
@@ -110,108 +128,145 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
 
   const submit = (data: FirstTimerFormData) => {
     onSubmit(data);
-    toast({ 
-      title: firstTimer ? 'First timer updated' : 'First timer recorded', 
-      description: `${data.fullName} saved.` 
+    toast({
+      title: firstTimer ? 'First timer updated' : 'First timer recorded',
+      description: `${data.fullName} saved.`,
     });
   };
 
   return (
-    <Card className="max-w-3xl mx-auto">
-      <CardHeader>
-        <CardTitle>{firstTimer ? 'Edit First Timer' : 'Record First Timer'}</CardTitle>
-        <CardDescription>
-          {firstTimer ? 'Update visitor information' : 'Record a first-time visitor'}
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(submit)} className="space-y-6">
-            {/* Personal Information */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="fullName" render={({ field }) => (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(submit)} className="space-y-6">
+        <div className="h-[60vh] overflow-y-auto pr-2 space-y-6">
+          {/* Personal Information */}
+          <div className="space-y-4">
+            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+              Personal Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
                   <FormItem className="md:col-span-2">
                     <FormLabel>Full Name *</FormLabel>
-                    <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="email" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl><Input type="email" placeholder="john@example.com" {...field} /></FormControl>
+                    <FormControl>
+                      <Input type="email" placeholder="john@example.com" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="phone" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
-                    <FormControl><Input placeholder="+1234567890" {...field} /></FormControl>
+                    <FormControl>
+                      <Input placeholder="+1234567890" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
-              </div>
+                )}
+              />
             </div>
+          </div>
 
-            {/* Address */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Address
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="community" render={({ field }) => (
+          {/* Address */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+              Address
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="community"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Community *</FormLabel>
-                    <FormControl><Input placeholder="Downtown" {...field} /></FormControl>
+                    <FormControl>
+                      <Input placeholder="Downtown" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="area" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="area"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Area *</FormLabel>
-                    <FormControl><Input placeholder="District 5" {...field} /></FormControl>
+                    <FormControl>
+                      <Input placeholder="District 5" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="street" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="street"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Street *</FormLabel>
-                    <FormControl><Input placeholder="123 Main St" {...field} /></FormControl>
+                    <FormControl>
+                      <Input placeholder="123 Main St" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="publicLandmark" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="publicLandmark"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Public Landmark</FormLabel>
-                    <FormControl><Input placeholder="Near City Hall" {...field} /></FormControl>
+                    <FormControl>
+                      <Input placeholder="Near City Hall" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
-              </div>
+                )}
+              />
             </div>
+          </div>
 
-            {/* Visit Information */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Visit Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="branchId" render={({ field }) => (
+          {/* Visit Information */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+              Visit Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="branchId"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Branch *</FormLabel>
                     <FormControl>
-                      <Select 
-                        onValueChange={field.onChange} 
+                      <Select
+                        onValueChange={field.onChange}
                         value={field.value}
                         disabled={!canSwitchBranch && !!effectiveBranchId}
                       >
@@ -219,61 +274,88 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
                           <SelectValue placeholder="Select branch" />
                         </SelectTrigger>
                         <SelectContent>
-                          {branches.map(b => (
-                            <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                          {branches.map((b) => (
+                            <SelectItem key={b.id} value={b.id}>
+                              {b.name}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="serviceDate" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="serviceDate"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Service Date *</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="firstVisit" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="firstVisit"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>First Visit Date *</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="invitedBy" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="invitedBy"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Invited By</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={(val) => field.onChange(val === '_none' ? '' : val)}
+                        value={field.value || ''}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select member" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          {members.map(m => (
-                            <SelectItem key={m.id} value={m.full_name}>{m.full_name}</SelectItem>
+                          <SelectItem value="_none">None</SelectItem>
+                          {members.map((m) => (
+                            <SelectItem key={m.id} value={m.full_name}>
+                              {m.full_name}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
-              </div>
+                )}
+              />
             </div>
+          </div>
 
-            {/* Status & Follow-up */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Status & Follow-up
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="status" render={({ field }) => (
+          {/* Status & Follow-up */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+              Status & Follow-up
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status *</FormLabel>
                     <FormControl>
@@ -291,9 +373,13 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="followUpStatus" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="followUpStatus"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Follow-up Status *</FormLabel>
                     <FormControl>
@@ -311,33 +397,47 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({ firstTimer, onSu
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="followUpNotes" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="followUpNotes"
+                render={({ field }) => (
                   <FormItem className="md:col-span-2">
                     <FormLabel>Follow-up Notes</FormLabel>
-                    <FormControl><Textarea placeholder="Notes from follow-up calls/visits..." {...field} /></FormControl>
+                    <FormControl>
+                      <Textarea placeholder="Notes from follow-up calls/visits..." {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
 
-                <FormField control={form.control} name="notes" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
                   <FormItem className="md:col-span-2">
                     <FormLabel>General Notes</FormLabel>
-                    <FormControl><Textarea placeholder="Additional notes..." {...field} /></FormControl>
+                    <FormControl>
+                      <Textarea placeholder="Additional notes..." {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
-              </div>
+                )}
+              />
             </div>
+          </div>
+        </div>
 
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <Button variant="outline" type="button" onClick={onCancel}>Cancel</Button>
-              <Button type="submit">{firstTimer ? 'Update' : 'Record'}</Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+        <div className="flex justify-end space-x-3 pt-4 border-t">
+          <Button variant="outline" type="button" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">{firstTimer ? 'Update' : 'Record'}</Button>
+        </div>
+      </form>
+    </Form>
   );
 };

@@ -4,7 +4,7 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
-import { MemberManagement } from '@/components/admin/MemberManagement';
+import { OptimizedMemberManagement } from '@/components/admin/OptimizedMemberManagement';
 import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
 import { EventsModule } from '@/components/admin/EventsModule';
 import { FinanceModule } from '@/components/admin/FinanceModule';
@@ -89,7 +89,7 @@ const DashboardContent = () => {
         return isSuperadmin ? <SystemReportsModule /> : denied;
 
       case 'members':
-        return can('members', 'view') || isSuperadmin ? <MemberManagement /> : denied;
+        return can('members', 'view') || isSuperadmin ? <OptimizedMemberManagement /> : denied;
       case 'departments':
         return can('departments', 'view') || isSuperadmin ? <DepartmentsModule /> : denied;
       case 'events':
