@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useAuthz } from '@/hooks/useAuthz';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building, Users, Activity, Plus, MapPin, UserCog } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Building,
+  Users,
+  Activity,
+  Plus,
+  MapPin,
+  UserCog,
+  Crown,
+  Edit,
+  Trash2,
+  Phone,
+  Shield,
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,9 +26,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -24,55 +48,83 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface District {
   id: string;
   name: string;
   head_admin_id: string | null;
+  location: string | null;
 }
 
 interface Branch {
   id: string;
   name: string;
+  slug: string;
   address: string;
+  phone: string | null;
   pastor_name: string | null;
-  created_at: string;
   is_district_hq: boolean;
+  created_at: string;
 }
 
-interface MemberOption {
+interface StaffAssignment {
+  id: string;
+  user_id: string;
+  role: string;
+  branch_id: string;
+  branch_name?: string;
+  user_name?: string;
+  user_email?: string;
+}
+
+interface ProfileOption {
   id: string;
   full_name: string;
+  email: string | null;
 }
 
 export const DistrictDashboard: React.FC = () => {
-  const { user } = useAuth(); // Correct hook for user
-  const { hasRole } = useAuthz(); // Keep for role checks if needed, though not strictly used in this snippet yet
+  const { user } = useAuth();
   const { toast } = useToast();
   const [district, setDistrict] = useState<District | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [potentialAssignees, setPotentialAssignees] = useState<MemberOption[]>([]);
+  const [staffAssignments, setStaffAssignments] = useState<StaffAssignment[]>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<ProfileOption[]>([]);
   const [stats, setStats] = useState({
     totalMembers: 0,
     totalBranches: 0,
     totalDepartments: 0,
+    totalStaff: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('branches');
 
   // Create Branch State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newBranchData, setNewBranchData] = useState({
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [branchForm, setBranchForm] = useState({
     name: '',
     address: '',
     slug: '',
     phone: '',
+    pastor_name: '',
   });
 
   // Assign Role State
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [assignmentData, setAssignmentData] = useState({
     branchId: '',
-    memberId: '',
+    userId: '',
     role: 'admin' as 'admin' | 'pastor' | 'leader' | 'worker',
   });
 
@@ -96,7 +148,7 @@ export const DistrictDashboard: React.FC = () => {
 
       if (!districtData) {
         setLoading(false);
-        return; // Not a district admin or no district assigned
+        return;
       }
 
       setDistrict(districtData);
@@ -106,49 +158,68 @@ export const DistrictDashboard: React.FC = () => {
         .from('church_branches')
         .select('*')
         .eq('district_id', districtData.id)
+        .order('is_district_hq', { ascending: false })
         .order('name');
 
       if (branchError) throw branchError;
       setBranches(branchesData as Branch[]);
 
-      // 3. Fetch aggregated stats (approximate for performance)
-      // Count members in these branches
-      const branchIds = branchesData.map((b) => b.id); // array of UUIDs
+      // 3. Fetch aggregated stats
+      const branchIds = branchesData.map((b) => b.id);
       let memberCount = 0;
       let deptCount = 0;
 
       if (branchIds.length > 0) {
-        // We can't do .in() with potentially empty array easily in one go if list is huge,
-        // but for a district it should be fine.
-        const { count: mCount } = await supabase
-          .from('members')
-          .select('*', { count: 'exact', head: true })
-          .in('branch_id', branchIds);
-        memberCount = mCount || 0;
+        const [membersRes, deptsRes] = await Promise.all([
+          supabase
+            .from('members')
+            .select('*', { count: 'exact', head: true })
+            .in('branch_id', branchIds),
+          supabase
+            .from('departments')
+            .select('*', { count: 'exact', head: true })
+            .in('branch_id', branchIds),
+        ]);
 
-        const { count: dCount } = await supabase
-          .from('departments')
-          .select('*', { count: 'exact', head: true })
-          .in('branch_id', branchIds);
-        deptCount = dCount || 0;
-
-        // Fetch members for assignment (limit to 100 for performance or logic to search)
-        // Assuming we want to assign people ALREADY in these branches to admin roles
-        const { data: membersData } = await supabase
-          .from('members')
-          .select('id, full_name')
-          .in('branch_id', branchIds)
-          .eq('status', 'active')
-          .order('full_name')
-          .limit(500);
-
-        setPotentialAssignees(membersData || []);
+        memberCount = membersRes.count || 0;
+        deptCount = deptsRes.count || 0;
       }
+
+      // 4. Fetch staff assignments in district branches
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('id, user_id, role, branch_id')
+        .in('branch_id', branchIds);
+
+      // 5. Fetch profiles for assignment dropdown and to enrich staff list
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .order('first_name');
+
+      const profileMap = new Map<string, string>();
+      const profiles: ProfileOption[] = [];
+      (profilesData || []).forEach((p) => {
+        const fullName = `${p.first_name} ${p.last_name}`.trim();
+        profileMap.set(p.id, fullName);
+        profiles.push({ id: p.id, full_name: fullName, email: null });
+      });
+
+      setAvailableProfiles(profiles);
+
+      // Enrich staff assignments with names
+      const enrichedStaff: StaffAssignment[] = (rolesData || []).map((r) => ({
+        ...r,
+        user_name: profileMap.get(r.user_id) || 'Unknown',
+        branch_name: branchesData.find((b) => b.id === r.branch_id)?.name || 'Unknown',
+      }));
+      setStaffAssignments(enrichedStaff);
 
       setStats({
         totalMembers: memberCount,
         totalBranches: branchesData.length,
         totalDepartments: deptCount,
+        totalStaff: enrichedStaff.length,
       });
     } catch (error: any) {
       console.error('Error loading district dashboard:', error);
@@ -162,30 +233,30 @@ export const DistrictDashboard: React.FC = () => {
     }
   };
 
+  // ================== Branch Operations ==================
+
   const handleCreateBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!district) return;
 
     try {
-      // Auto-generate slug if empty
       const slug =
-        newBranchData.slug ||
-        newBranchData.name
+        branchForm.slug ||
+        branchForm.name
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/(^-|-$)/g, '');
 
       const { error } = await supabase.from('church_branches').insert([
         {
-          name: newBranchData.name,
-          address: newBranchData.address,
-          phone: newBranchData.phone || null,
-          slug: slug,
+          name: branchForm.name,
+          address: branchForm.address,
+          phone: branchForm.phone || null,
+          pastor_name: branchForm.pastor_name || null,
+          slug,
           district_id: district.id,
-          branch_type: 'local', // defaulting to local
-          parent_id: branches.find((b) => b.is_district_hq)?.id || null, // Parent is the District HQ if exists? Or null?
-          // Requirement says "Assign existing and new branches to specific districts".
-          // Hierarchy usually implies parent_id. If this district has an HQ, set it as parent.
+          branch_type: 'local',
+          is_district_hq: false,
         },
       ]);
 
@@ -193,37 +264,119 @@ export const DistrictDashboard: React.FC = () => {
 
       toast({ title: 'Success', description: 'Branch created successfully' });
       setIsCreateOpen(false);
-      setNewBranchData({ name: '', address: '', slug: '', phone: '' });
-      fetchDistrictData(); // Refresh list
+      setBranchForm({ name: '', address: '', slug: '', phone: '', pastor_name: '' });
+      fetchDistrictData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
-  const handleAssignRole = async (e: React.FormEvent) => {
+  const handleEditBranch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!processAssign()) return;
+    if (!selectedBranch) return;
+
+    try {
+      const { error } = await supabase
+        .from('church_branches')
+        .update({
+          name: branchForm.name,
+          address: branchForm.address,
+          phone: branchForm.phone || null,
+          pastor_name: branchForm.pastor_name || null,
+          slug: branchForm.slug,
+        })
+        .eq('id', selectedBranch.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Success', description: 'Branch updated successfully' });
+      setIsEditOpen(false);
+      setSelectedBranch(null);
+      setBranchForm({ name: '', address: '', slug: '', phone: '', pastor_name: '' });
+      fetchDistrictData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
   };
 
-  // Extracted logic to avoid async promise void return issue in event handler if strict
-  const processAssign = async () => {
+  const handleDeleteBranch = async (branchId: string) => {
     try {
-      // Note: user_roles usually links to auth.users (user_id).
-      // 'members' table has 'id' as UUID?
-      // In typical setup, members.id might NOT be auth.users.id unless synced.
-      // If members are just records, we can't assign 'user_roles' to them unless they have an account.
-      // For this implementation, we assume member.id corresponds to a user_id or we have a way to look it up.
-      // But 'members' table usually has 'user_id' generic foreign key if linked.
-      // Let's assume for now Member ID is what we use, or better:
-      // Does 'members' table have 'user_id' column linked to auth.users?
-      // If not, we can only assign roles to profiles/users.
-      // The existing MultiBranchManagement fetches from 'members' table: select('id, full_name, email').
-      // And inserts into 'user_roles' with user_id: assignmentData.memberId.
-      // This implies member.id IS valid for user_roles.user_id (which is uuid referencing auth.users).
+      const { error } = await supabase.from('church_branches').delete().eq('id', branchId);
 
+      if (error) throw error;
+
+      toast({ title: 'Success', description: 'Branch deleted successfully' });
+      fetchDistrictData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete branch',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openEditDialog = (branch: Branch) => {
+    setSelectedBranch(branch);
+    setBranchForm({
+      name: branch.name,
+      address: branch.address,
+      slug: branch.slug,
+      phone: branch.phone || '',
+      pastor_name: branch.pastor_name || '',
+    });
+    setIsEditOpen(true);
+  };
+
+  // ================== Set HQ Toggle ==================
+
+  const handleSetHQ = async (branchId: string, currentStatus: boolean) => {
+    if (!district) return;
+
+    try {
+      // If enabling HQ, first unset any existing HQ in this district
+      if (!currentStatus) {
+        const { error: resetError } = await supabase
+          .from('church_branches')
+          .update({ is_district_hq: false })
+          .eq('district_id', district.id);
+
+        if (resetError) throw resetError;
+      }
+
+      // Set or unset the selected branch
+      const { error } = await supabase
+        .from('church_branches')
+        .update({ is_district_hq: !currentStatus })
+        .eq('id', branchId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: !currentStatus
+          ? 'Branch set as District HQ'
+          : 'District HQ status removed',
+      });
+      fetchDistrictData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update HQ status',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // ================== Staff Assignment ==================
+
+  const handleAssignRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
       const { error } = await supabase.from('user_roles').insert([
         {
-          user_id: assignmentData.memberId,
+          user_id: assignmentData.userId,
           role: assignmentData.role,
           branch_id: assignmentData.branchId,
         },
@@ -233,29 +386,53 @@ export const DistrictDashboard: React.FC = () => {
 
       toast({ title: 'Success', description: 'Role assigned successfully' });
       setIsAssignOpen(false);
-      setAssignmentData({ branchId: '', memberId: '', role: 'admin' });
-      return true;
+      setAssignmentData({ branchId: '', userId: '', role: 'admin' });
+      fetchDistrictData();
     } catch (error: any) {
-      console.error('Error assigning role:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to assign role',
         variant: 'destructive',
       });
-      return false;
     }
   };
 
-  const openAssignDialog = (branchId: string) => {
-    setAssignmentData((prev) => ({ ...prev, branchId }));
+  const handleRemoveRole = async (assignmentId: string) => {
+    try {
+      const { error } = await supabase.from('user_roles').delete().eq('id', assignmentId);
+
+      if (error) throw error;
+
+      toast({ title: 'Success', description: 'Role removed successfully' });
+      fetchDistrictData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to remove role',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openAssignDialog = (branchId?: string) => {
+    setAssignmentData((prev) => ({ ...prev, branchId: branchId || '' }));
     setIsAssignOpen(true);
   };
 
-  if (loading) return <div>Loading dashboard...</div>;
+  // ================== Render ==================
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!district) {
     return (
-      <div className="p-8 text-center bg-gray-50 rounded-lg border-2 border-dashed">
+      <div className="p-8 text-center bg-muted/20 rounded-lg border-2 border-dashed">
+        <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
         <h2 className="text-xl font-semibold mb-2">No District Assigned</h2>
         <p className="text-muted-foreground">
           You are logged in as a District Admin but no district is linked to your account.
@@ -264,19 +441,39 @@ export const DistrictDashboard: React.FC = () => {
     );
   }
 
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'default';
+      case 'pastor':
+        return 'secondary';
+      case 'leader':
+        return 'outline';
+      default:
+        return 'outline';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">{district.name} Dashboard</h1>
-        <p className="text-muted-foreground">District Overview & Management</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Crown className="h-8 w-8 text-primary" />
+            {district.name}
+          </h1>
+          <p className="text-muted-foreground">
+            {district.location || 'District'} • District Administration
+          </p>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Branches</CardTitle>
+            <CardTitle className="text-sm font-medium">Branches</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -285,7 +482,7 @@ export const DistrictDashboard: React.FC = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+            <CardTitle className="text-sm font-medium">Members</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -301,136 +498,370 @@ export const DistrictDashboard: React.FC = () => {
             <div className="text-2xl font-bold">{stats.totalDepartments}</div>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Staff</CardTitle>
+            <UserCog className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalStaff}</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Branches Management */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">District Branches</h2>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> New Branch
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Local Branch</DialogTitle>
-                <DialogDescription>Add a new branch to {district.name}.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateBranch} className="space-y-4">
-                <div>
-                  <Label>Branch Name *</Label>
-                  <Input
-                    value={newBranchData.name}
-                    onChange={(e) => setNewBranchData({ ...newBranchData, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Address *</Label>
-                  <Textarea
-                    value={newBranchData.address}
-                    onChange={(e) =>
-                      setNewBranchData({ ...newBranchData, address: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Phone</Label>
-                  <Input
-                    value={newBranchData.phone}
-                    onChange={(e) => setNewBranchData({ ...newBranchData, phone: e.target.value })}
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" type="button" onClick={() => setIsCreateOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Create Branch</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="branches">Branches</TabsTrigger>
+          <TabsTrigger value="staff">Staff Assignments</TabsTrigger>
+        </TabsList>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {branches.map((branch) => (
-            <Card
-              key={branch.id}
-              className={branch.is_district_hq ? 'border-blue-200 bg-blue-50/20' : ''}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex justify-between">
-                  <CardTitle className="text-lg">{branch.name}</CardTitle>
-                  {branch.is_district_hq && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
-                      HQ
-                    </span>
-                  )}
-                </div>
-                <CardDescription className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> {branch.address}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground mt-2 mb-4">
-                  Pastor: {branch.pastor_name || 'Unassigned'}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => openAssignDialog(branch.id)}
-                >
-                  <UserCog className="mr-2 h-4 w-4" /> Assign Staff
+        {/* Branches Tab */}
+        <TabsContent value="branches" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">District Branches</h2>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" /> New Branch
                 </Button>
-              </CardContent>
-            </Card>
-          ))}
-          {branches.length === 0 && (
-            <div className="col-span-full py-8 text-center text-muted-foreground bg-muted/10 rounded-lg border-2 border-dashed">
-              No branches in this district yet.
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Branch</DialogTitle>
+                  <DialogDescription>Add a new local branch to {district.name}.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateBranch} className="space-y-4">
+                  <div>
+                    <Label>Branch Name *</Label>
+                    <Input
+                      value={branchForm.name}
+                      onChange={(e) =>
+                        setBranchForm({
+                          ...branchForm,
+                          name: e.target.value,
+                          slug: e.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, '-')
+                            .replace(/(^-|-$)/g, ''),
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Slug</Label>
+                    <Input
+                      value={branchForm.slug}
+                      onChange={(e) => setBranchForm({ ...branchForm, slug: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Address *</Label>
+                    <Textarea
+                      value={branchForm.address}
+                      onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Phone</Label>
+                      <Input
+                        value={branchForm.phone}
+                        onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Pastor Name</Label>
+                      <Input
+                        value={branchForm.pastor_name}
+                        onChange={(e) =>
+                          setBranchForm({ ...branchForm, pastor_name: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" type="button" onClick={() => setIsCreateOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">Create Branch</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {branches.map((branch) => (
+              <Card
+                key={branch.id}
+                className={branch.is_district_hq ? 'border-primary/50 bg-primary/5' : ''}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        {branch.name}
+                        {branch.is_district_hq && (
+                          <Badge variant="default" className="text-xs">
+                            HQ
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-1 mt-1">
+                        <MapPin className="h-3 w-3" /> {branch.address}
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(branch)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Branch?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{branch.name}". This action cannot be
+                              undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteBranch(branch.id)}
+                              className="bg-destructive text-destructive-foreground"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {branch.phone && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-3 w-3" /> {branch.phone}
+                    </div>
+                  )}
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Pastor:</span>{' '}
+                    {branch.pastor_name || 'Unassigned'}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`hq-${branch.id}`} className="text-sm cursor-pointer">
+                        District HQ
+                      </Label>
+                      <Switch
+                        id={`hq-${branch.id}`}
+                        checked={branch.is_district_hq}
+                        onCheckedChange={() => handleSetHQ(branch.id, branch.is_district_hq)}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => openAssignDialog(branch.id)}>
+                      <UserCog className="h-3 w-3 mr-1" /> Assign
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {branches.length === 0 && (
+              <div className="col-span-full py-8 text-center text-muted-foreground bg-muted/10 rounded-lg border-2 border-dashed">
+                No branches in this district yet.
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Staff Tab */}
+        <TabsContent value="staff" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Staff Assignments</h2>
+            <Button onClick={() => openAssignDialog()}>
+              <Plus className="mr-2 h-4 w-4" /> Assign Role
+            </Button>
+          </div>
+
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {staffAssignments.map((assignment) => (
+                  <TableRow key={assignment.id}>
+                    <TableCell className="font-medium">{assignment.user_name}</TableCell>
+                    <TableCell>
+                      <Badge variant={getRoleBadgeVariant(assignment.role)}>
+                        {assignment.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{assignment.branch_name}</TableCell>
+                    <TableCell className="text-right">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove Role?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will remove the {assignment.role} role from{' '}
+                              {assignment.user_name}.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleRemoveRole(assignment.id)}
+                              className="bg-destructive text-destructive-foreground"
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {staffAssignments.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      No staff assignments yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit Branch Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Branch</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditBranch} className="space-y-4">
+            <div>
+              <Label>Branch Name *</Label>
+              <Input
+                value={branchForm.name}
+                onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
+                required
+              />
             </div>
-          )}
-        </div>
-      </div>
+            <div>
+              <Label>Slug</Label>
+              <Input
+                value={branchForm.slug}
+                onChange={(e) => setBranchForm({ ...branchForm, slug: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Address *</Label>
+              <Textarea
+                value={branchForm.address}
+                onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  value={branchForm.phone}
+                  onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Pastor Name</Label>
+                <Input
+                  value={branchForm.pastor_name}
+                  onChange={(e) => setBranchForm({ ...branchForm, pastor_name: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" type="button" onClick={() => setIsEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Role Dialog */}
       <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign Role to Branch</DialogTitle>
-            <DialogDescription>Assign an admin, pastor, or worker to this branch</DialogDescription>
+            <DialogTitle>Assign Role</DialogTitle>
+            <DialogDescription>Assign a staff role to a branch</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAssignRole} className="space-y-4">
             <div>
-              <Label htmlFor="member">Select Member</Label>
+              <Label>Branch *</Label>
               <Select
-                value={assignmentData.memberId}
+                value={assignmentData.branchId}
                 onValueChange={(value) =>
-                  setAssignmentData((prev) => ({ ...prev, memberId: value }))
+                  setAssignmentData((prev) => ({ ...prev, branchId: value }))
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select member" />
+                  <SelectValue placeholder="Select branch" />
                 </SelectTrigger>
                 <SelectContent>
-                  {potentialAssignees.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.full_name}
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name} {branch.is_district_hq && '(HQ)'}
                     </SelectItem>
                   ))}
-                  {potentialAssignees.length === 0 && (
-                    <div className="p-2 text-sm text-muted">No eligible members found</div>
-                  )}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="role">Role</Label>
+              <Label>User *</Label>
+              <Select
+                value={assignmentData.userId}
+                onValueChange={(value) =>
+                  setAssignmentData((prev) => ({ ...prev, userId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select user" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableProfiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Role *</Label>
               <Select
                 value={assignmentData.role}
                 onValueChange={(value: any) =>
@@ -453,7 +884,12 @@ export const DistrictDashboard: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setIsAssignOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Assign Role</Button>
+              <Button
+                type="submit"
+                disabled={!assignmentData.branchId || !assignmentData.userId}
+              >
+                Assign Role
+              </Button>
             </div>
           </form>
         </DialogContent>
