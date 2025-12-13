@@ -9,12 +9,10 @@ import {
   Edit,
   Trash2,
   Users,
-  MapPin,
   Network,
   UserCog,
   ArrowRight,
   ArrowLeft,
-  Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +41,7 @@ interface District {
   name: string;
   head_admin_id: string | null;
   created_at: string;
+  location: string | null;
 }
 
 interface Branch {
@@ -72,15 +71,16 @@ export const DistrictManagement: React.FC = () => {
   // Dialog states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isAssignBranchOpen, setIsAssignBranchOpen] = useState(false);
+
   const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
   const [newDistrictName, setNewDistrictName] = useState('');
+  const [newDistrictLocation, setNewDistrictLocation] = useState('');
   const [newHeadAdminId, setNewHeadAdminId] = useState<string>('none');
-  const [branchToAssign, setBranchToAssign] = useState<string>('');
 
   // Determine active district from URL
   const districtIdFromUrl = location.pathname.split('/admin/districts/')[1];
   const activeDistrict = districts.find((d) => d.id === districtIdFromUrl);
+  const isUnassignedView = districtIdFromUrl === 'unassigned';
 
   useEffect(() => {
     fetchData();
@@ -131,7 +131,7 @@ export const DistrictManagement: React.FC = () => {
   const handleCreateDistrict = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload: any = { name: newDistrictName };
+      const payload: any = { name: newDistrictName, location: newDistrictLocation };
       if (newHeadAdminId && newHeadAdminId !== 'none') {
         payload.head_admin_id = newHeadAdminId;
       }
@@ -143,6 +143,7 @@ export const DistrictManagement: React.FC = () => {
       toast({ title: 'Success', description: 'District created successfully' });
       setIsCreateOpen(false);
       setNewDistrictName('');
+      setNewDistrictLocation('');
       setNewHeadAdminId('none');
       fetchData();
     } catch (error: any) {
@@ -155,7 +156,7 @@ export const DistrictManagement: React.FC = () => {
     if (!selectedDistrict) return;
 
     try {
-      const payload: any = { name: newDistrictName };
+      const payload: any = { name: newDistrictName, location: newDistrictLocation };
       if (newHeadAdminId && newHeadAdminId !== 'none') {
         payload.head_admin_id = newHeadAdminId;
       } else {
@@ -199,72 +200,10 @@ export const DistrictManagement: React.FC = () => {
     }
   };
 
-  const handleAssignBranch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeDistrict || !branchToAssign) return;
-
-    try {
-      const { error } = await supabase
-        .from('church_branches')
-        .update({ district_id: activeDistrict.id })
-        .eq('id', branchToAssign);
-
-      if (error) throw error;
-
-      toast({ title: 'Success', description: 'Branch assigned to district' });
-      setIsAssignBranchOpen(false);
-      setBranchToAssign('');
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const handleRemoveBranch = async (branchId: string) => {
-    if (!confirm('Remove this branch from the district?')) return;
-    try {
-      const { error } = await supabase
-        .from('church_branches')
-        .update({ district_id: null, is_district_hq: false })
-        .eq('id', branchId);
-
-      if (error) throw error;
-      toast({ title: 'Success', description: 'Branch removed from district' });
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const handleSetHQ = async (branchId: string, currentStatus: boolean) => {
-    if (!activeDistrict) return;
-    try {
-      // If setting to true, ideally uncheck others in this district first if multiple HQs not allowed.
-      // For now, assuming single HQ per district, so we verify.
-      if (!currentStatus) {
-        // We are enabling HQ. Disable others in this district.
-        await supabase
-          .from('church_branches')
-          .update({ is_district_hq: false })
-          .eq('district_id', activeDistrict.id);
-      }
-
-      const { error } = await supabase
-        .from('church_branches')
-        .update({ is_district_hq: !currentStatus })
-        .eq('id', branchId);
-
-      if (error) throw error;
-      toast({ title: 'Success', description: 'District HQ status updated' });
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
   const openEditDialog = (district: District) => {
     setSelectedDistrict(district);
     setNewDistrictName(district.name);
+    setNewDistrictLocation(district.location || '');
     setNewHeadAdminId(district.head_admin_id || 'none');
     setIsEditOpen(true);
   };
@@ -272,7 +211,32 @@ export const DistrictManagement: React.FC = () => {
   if (loading)
     return <div className="p-8 text-center text-muted-foreground">Loading districts...</div>;
 
-  // Detail View
+  // Unassigned Branches Detail View
+  if (isUnassignedView) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => navigate('/admin/districts')}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Network className="h-6 w-6" /> Unassigned Branches
+            </h2>
+            <p className="text-muted-foreground">Branches not currently assigned to any district</p>
+          </div>
+        </div>
+
+        <MultiBranchView
+          filterType="unassigned"
+          defaultDistrictName="Unassigned Branches"
+          allDistricts={districts}
+        />
+      </div>
+    );
+  }
+
+  // Generic District Detail View
   if (activeDistrict) {
     const districtBranches = branches.filter((b) => b.district_id === activeDistrict.id);
     const orphanBranches = branches.filter((b) => !b.district_id);
@@ -295,6 +259,8 @@ export const DistrictManagement: React.FC = () => {
   }
 
   // Dashboard View
+  const unassignedBranches = branches.filter((b) => !b.district_id);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -331,10 +297,19 @@ export const DistrictManagement: React.FC = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="create-head">Head Administrator</Label>
+                <Label htmlFor="create-location">Location/Region</Label>
+                <Input
+                  id="create-location"
+                  value={newDistrictLocation}
+                  onChange={(e) => setNewDistrictLocation(e.target.value)}
+                  placeholder="e.g. Northern Zone"
+                />
+              </div>
+              <div>
+                <Label htmlFor="create-head">District Overseer</Label>
                 <Select value={newHeadAdminId} onValueChange={setNewHeadAdminId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select admin" />
+                    <SelectValue placeholder="Select overseer" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
@@ -369,7 +344,14 @@ export const DistrictManagement: React.FC = () => {
             <Card key={district.id} className="h-full flex flex-col">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{district.name}</CardTitle>
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg">{district.name}</CardTitle>
+                    {district.location && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Building className="h-3 w-3" /> {district.location}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-1">
                     <Button
                       variant="ghost"
@@ -419,7 +401,7 @@ export const DistrictManagement: React.FC = () => {
 
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider text-xs">
-                    Administrator
+                    District Overseer
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <UserCog className="h-4 w-4" />
@@ -445,6 +427,36 @@ export const DistrictManagement: React.FC = () => {
             </Card>
           );
         })}
+
+        {/* Unassigned Branches Card */}
+        <Card className="h-full flex flex-col border-dashed border-2 bg-muted/5">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Network className="h-5 w-5 text-muted-foreground" />
+                Unassigned
+              </CardTitle>
+            </div>
+            <CardDescription>Branches not in any district</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1 space-y-4 flex flex-col">
+            <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
+              <p className="text-4xl font-bold text-muted-foreground mb-2">
+                {unassignedBranches.length}
+              </p>
+              <p className="text-sm text-muted-foreground">Unassigned Branches</p>
+            </div>
+            <div className="pt-4 mt-auto">
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => navigate(`/admin/districts/unassigned`)}
+              >
+                Manage Unassigned <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {districts.length === 0 && (
           <div className="col-span-full py-12 text-center border-2 border-dashed rounded-lg bg-muted/10">
@@ -477,10 +489,19 @@ export const DistrictManagement: React.FC = () => {
               />
             </div>
             <div>
-              <Label htmlFor="edit-head">Head Administrator</Label>
+              <Label htmlFor="edit-location">Location/Region</Label>
+              <Input
+                id="edit-location"
+                value={newDistrictLocation}
+                onChange={(e) => setNewDistrictLocation(e.target.value)}
+                placeholder="e.g. Northern Zone"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-head">District Overseer</Label>
               <Select value={newHeadAdminId} onValueChange={setNewHeadAdminId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select admin" />
+                  <SelectValue placeholder="Select overseer" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>

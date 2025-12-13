@@ -61,6 +61,13 @@ interface Member {
   email: string | null;
 }
 
+interface MultiBranchViewProps {
+  districtId?: string; // Optional: if provided, filters by this district
+  defaultDistrictName?: string; // Optional: name of the district for labeling
+  filterType?: 'all' | 'by_district' | 'unassigned';
+  allDistricts?: { id: string; name: string }[];
+}
+
 interface BranchFormData {
   name: string;
   slug: string;
@@ -70,6 +77,7 @@ interface BranchFormData {
   branch_type: BranchType;
   parent_id: string;
   district_name: string;
+  district_id: string;
 }
 
 const defaultBranchForm: BranchFormData = {
@@ -81,6 +89,7 @@ const defaultBranchForm: BranchFormData = {
   branch_type: 'local',
   parent_id: '',
   district_name: '',
+  district_id: '',
 };
 
 interface BranchFormFieldsProps {
@@ -90,6 +99,7 @@ interface BranchFormFieldsProps {
   districtId?: string;
   mainHQ?: Branch;
   districtHQs: Branch[];
+  allDistricts?: { id: string; name: string }[];
 }
 
 const BranchFormFields: React.FC<BranchFormFieldsProps> = ({
@@ -99,6 +109,7 @@ const BranchFormFields: React.FC<BranchFormFieldsProps> = ({
   districtId,
   mainHQ,
   districtHQs,
+  allDistricts,
 }) => {
   return (
     <>
@@ -139,16 +150,46 @@ const BranchFormFields: React.FC<BranchFormFieldsProps> = ({
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
-              {!districtId && (
-                <SelectItem value="main_hq">Main HQ (Central Administration)</SelectItem>
-              )}
-              {!districtId && <SelectItem value="district_hq">District HQ</SelectItem>}
-              <SelectItem value="local">Local Branch</SelectItem>
+              {!districtId && <SelectItem value="main_hq">Main HQ</SelectItem>}
+              {!districtId && <SelectItem value="district_hq">HQ</SelectItem>}
+              <SelectItem value="local">Local</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {branchForm.branch_type === 'district_hq' && !districtId && (
+        {/* Unified Parent District Selection */}
+        {!districtId &&
+          allDistricts &&
+          allDistricts.length > 0 &&
+          branchForm.branch_type !== 'main_hq' && (
+            <div>
+              <Label htmlFor="assign_district">Parent District</Label>
+              <Select
+                value={branchForm.district_id}
+                onValueChange={(value) =>
+                  setBranchForm((prev) => ({
+                    ...prev,
+                    district_id: value === 'none' ? '' : value,
+                    district_name: allDistricts.find((d) => d.id === value)?.name || '',
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select District" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {allDistricts.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+        {branchForm.branch_type === 'district_hq' && !districtId && !allDistricts && (
           <div>
             <Label htmlFor="district_name">District Name *</Label>
             <Input
@@ -160,31 +201,6 @@ const BranchFormFields: React.FC<BranchFormFieldsProps> = ({
               placeholder="e.g., Northern District"
               required
             />
-          </div>
-        )}
-
-        {branchForm.branch_type === 'local' && (
-          <div>
-            <Label htmlFor="parent_id">Parent Branch (HQ)</Label>
-            <Select
-              value={branchForm.parent_id}
-              onValueChange={(value) => setBranchForm((prev) => ({ ...prev, parent_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select parent HQ" />
-              </SelectTrigger>
-              <SelectContent>
-                {mainHQ && <SelectItem value={mainHQ.id}>Main HQ: {mainHQ.name}</SelectItem>}
-                {districtHQs.map((district) => (
-                  <SelectItem key={district.id} value={district.id}>
-                    Dist HQ: {district.district_name || district.name}
-                  </SelectItem>
-                ))}
-                {districtHQs.length === 0 && !mainHQ && (
-                  <div className="p-2 text-sm text-gray-500">No HQs found</div>
-                )}
-              </SelectContent>
-            </Select>
           </div>
         )}
       </div>
@@ -225,14 +241,11 @@ const BranchFormFields: React.FC<BranchFormFieldsProps> = ({
   );
 };
 
-interface MultiBranchViewProps {
-  districtId?: string; // Optional: if provided, filters by this district
-  defaultDistrictName?: string; // Optional: name of the district for labeling
-}
-
 export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
   districtId,
   defaultDistrictName,
+  filterType = 'all',
+  allDistricts,
 }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -258,7 +271,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
   useEffect(() => {
     fetchBranches();
     fetchMembers();
-  }, [districtId]);
+  }, [districtId, filterType]);
 
   const fetchBranches = async () => {
     try {
@@ -273,6 +286,8 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
 
       if (districtId) {
         fetchedBranches = fetchedBranches.filter((b) => b.district_id === districtId);
+      } else if (filterType === 'unassigned') {
+        fetchedBranches = fetchedBranches.filter((b) => !b.district_id);
       }
 
       setBranches(fetchedBranches);
@@ -362,6 +377,8 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
 
       if (districtId) {
         payload.district_id = districtId;
+      } else if (branchForm.district_id) {
+        payload.district_id = branchForm.district_id;
       }
 
       const { error } = await supabase.from('church_branches').insert([payload]);
@@ -391,18 +408,28 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
     if (!selectedBranch) return;
 
     try {
+      const payload: any = {
+        name: branchForm.name,
+        slug: branchForm.slug,
+        address: branchForm.address,
+        phone: branchForm.phone || null,
+        pastor_name: branchForm.pastor_name || null,
+        branch_type: branchForm.branch_type,
+        parent_id: branchForm.parent_id || null,
+        district_name: branchForm.branch_type === 'district_hq' ? branchForm.district_name : null,
+      };
+
+      // Allow updating district_id if provided from form
+      if (branchForm.district_id) {
+        payload.district_id = branchForm.district_id;
+      } else if (!districtId && branchForm.district_id === '') {
+        // Explicit unassign if selected "Unassigned" (value='') in global view
+        payload.district_id = null;
+      }
+
       const { error } = await supabase
         .from('church_branches')
-        .update({
-          name: branchForm.name,
-          slug: branchForm.slug,
-          address: branchForm.address,
-          phone: branchForm.phone || null,
-          pastor_name: branchForm.pastor_name || null,
-          branch_type: branchForm.branch_type,
-          parent_id: branchForm.parent_id || null,
-          district_name: branchForm.branch_type === 'district_hq' ? branchForm.district_name : null,
-        })
+        .update(payload)
         .eq('id', selectedBranch.id);
 
       if (error) throw error;
@@ -437,6 +464,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
       branch_type: branch.branch_type,
       parent_id: branch.parent_id || '',
       district_name: branch.district_name || '',
+      district_id: branch.district_id || '',
     });
     setIsEditOpen(true);
   };

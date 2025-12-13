@@ -665,18 +665,21 @@ export type Database = {
           head_admin_id: string | null;
           id: string;
           name: string;
+          location: string | null;
         };
         Insert: {
           created_at?: string;
           head_admin_id?: string | null;
           id?: string;
           name: string;
+          location?: string | null;
         };
         Update: {
           created_at?: string;
           head_admin_id?: string | null;
           id?: string;
           name?: string;
+          location?: string | null;
         };
         Relationships: [];
       };

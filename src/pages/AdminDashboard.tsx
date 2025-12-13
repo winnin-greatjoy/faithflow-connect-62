@@ -83,8 +83,7 @@ const DashboardContent = () => {
         return <DashboardOverview />;
 
       // Superadmin Specific Modules - Only accessible in Global View
-      case 'multi-branch':
-        return isSuperadmin ? <MultiBranchManagement /> : denied;
+
       case 'superadmin-transfers':
         return isSuperadmin ? <SuperadminTransferManagement /> : denied;
       case 'system-config':
