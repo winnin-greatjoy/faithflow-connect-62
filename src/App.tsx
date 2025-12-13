@@ -56,6 +56,11 @@ const DirectorySettingsPage = lazy(
   () => import('./pages/portal/profilepage/DirectorySettingsPage')
 );
 const EditAccountInfoPage = lazy(() => import('./pages/portal/profilepage/EditAccountInfoPage'));
+const DistrictDashboard = lazy(() =>
+  import('./components/admin/district/DistrictDashboard').then((m) => ({
+    default: m.DistrictDashboard,
+  }))
+);
 
 const queryClient = new QueryClient();
 
@@ -179,6 +184,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <DepartmentPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/district-portal/:districtId"
+              element={
+                <ProtectedRoute>
+                  <DistrictDashboard />
                 </ProtectedRoute>
               }
             />

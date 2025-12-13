@@ -1,62 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
+  LayoutDashboard,
   Building,
   Users,
-  Activity,
-  Plus,
-  MapPin,
-  UserCog,
-  Crown,
-  Edit,
-  Trash2,
-  Phone,
+  FileBarChart,
+  Settings,
   Shield,
+  Menu,
+  LogOut,
+  ArrowLeft,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { DistrictOverview } from './DistrictOverview';
+import { DistrictBranches } from './DistrictBranches';
+import { DistrictStaff } from './DistrictStaff';
+import { DistrictReports } from './DistrictReports';
+import { DistrictSettings } from './DistrictSettings';
 
 interface District {
   id: string;
@@ -97,8 +63,13 @@ interface DistrictDashboardProps {
 }
 
 export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId }) => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const { isSuperadmin } = useSuperadmin();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const params = useParams();
+  const effectiveDistrictId = districtId || params.districtId;
+
   const [district, setDistrict] = useState<District | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [staffAssignments, setStaffAssignments] = useState<StaffAssignment[]>([]);
@@ -110,33 +81,16 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     totalStaff: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('branches');
-
-  // Create Branch State
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
-  const [branchForm, setBranchForm] = useState({
-    name: '',
-    address: '',
-    slug: '',
-    phone: '',
-    pastor_name: '',
-  });
-
-  // Assign Role State
-  const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [assignmentData, setAssignmentData] = useState({
-    branchId: '',
-    userId: '',
-    role: 'admin' as 'admin' | 'pastor' | 'leader' | 'worker',
-  });
+  const [activeModule, setActiveModule] = useState<
+    'overview' | 'branches' | 'staff' | 'reports' | 'settings'
+  >('overview');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For mobile
 
   useEffect(() => {
-    if (districtId || user?.id) {
+    if (effectiveDistrictId || user?.id) {
       fetchDistrictData();
     }
-  }, [districtId, user?.id]);
+  }, [effectiveDistrictId, user?.id]);
 
   const fetchDistrictData = async () => {
     setLoading(true);
@@ -144,9 +98,13 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
       let data: District | null = null;
       let error: any = null;
 
-      if (districtId) {
+      if (effectiveDistrictId) {
         // Fetch specific district by ID (Super Admin view)
-        const response = await supabase.from('districts').select('*').eq('id', districtId).single();
+        const response = await supabase
+          .from('districts')
+          .select('*')
+          .eq('id', effectiveDistrictId)
+          .single();
         data = response.data;
         error = response.error;
       } else {
@@ -168,7 +126,6 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
       }
 
       const districtData = data;
-
       setDistrict(districtData);
 
       // 2. Fetch branches in this district
@@ -251,195 +208,9 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     }
   };
 
-  // ================== Branch Operations ==================
-
-  const handleCreateBranch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!district) return;
-
-    try {
-      const slug =
-        branchForm.slug ||
-        branchForm.name
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '');
-
-      const { error } = await supabase.from('church_branches').insert([
-        {
-          name: branchForm.name,
-          address: branchForm.address,
-          phone: branchForm.phone || null,
-          pastor_name: branchForm.pastor_name || null,
-          slug,
-          district_id: district.id,
-          branch_type: 'local',
-          is_district_hq: false,
-        },
-      ]);
-
-      if (error) throw error;
-
-      toast({ title: 'Success', description: 'Branch created successfully' });
-      setIsCreateOpen(false);
-      setBranchForm({ name: '', address: '', slug: '', phone: '', pastor_name: '' });
-      fetchDistrictData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const handleEditBranch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedBranch) return;
-
-    try {
-      const { error } = await supabase
-        .from('church_branches')
-        .update({
-          name: branchForm.name,
-          address: branchForm.address,
-          phone: branchForm.phone || null,
-          pastor_name: branchForm.pastor_name || null,
-          slug: branchForm.slug,
-        })
-        .eq('id', selectedBranch.id);
-
-      if (error) throw error;
-
-      toast({ title: 'Success', description: 'Branch updated successfully' });
-      setIsEditOpen(false);
-      setSelectedBranch(null);
-      setBranchForm({ name: '', address: '', slug: '', phone: '', pastor_name: '' });
-      fetchDistrictData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const handleDeleteBranch = async (branchId: string) => {
-    try {
-      const { error } = await supabase.from('church_branches').delete().eq('id', branchId);
-
-      if (error) throw error;
-
-      toast({ title: 'Success', description: 'Branch deleted successfully' });
-      fetchDistrictData();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete branch',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const openEditDialog = (branch: Branch) => {
-    setSelectedBranch(branch);
-    setBranchForm({
-      name: branch.name,
-      address: branch.address,
-      slug: branch.slug,
-      phone: branch.phone || '',
-      pastor_name: branch.pastor_name || '',
-    });
-    setIsEditOpen(true);
-  };
-
-  // ================== Set HQ Toggle ==================
-
-  const handleSetHQ = async (branchId: string, currentStatus: boolean) => {
-    if (!district) return;
-
-    try {
-      // If enabling HQ, first unset any existing HQ in this district
-      if (!currentStatus) {
-        const { error: resetError } = await supabase
-          .from('church_branches')
-          .update({ is_district_hq: false })
-          .eq('district_id', district.id);
-
-        if (resetError) throw resetError;
-      }
-
-      // Set or unset the selected branch
-      const { error } = await supabase
-        .from('church_branches')
-        .update({ is_district_hq: !currentStatus })
-        .eq('id', branchId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: !currentStatus ? 'Branch set as District HQ' : 'District HQ status removed',
-      });
-      fetchDistrictData();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to update HQ status',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // ================== Staff Assignment ==================
-
-  const handleAssignRole = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      const { error } = await supabase.from('user_roles').insert([
-        {
-          user_id: assignmentData.userId,
-          role: assignmentData.role,
-          branch_id: assignmentData.branchId,
-        },
-      ]);
-
-      if (error) throw error;
-
-      toast({ title: 'Success', description: 'Role assigned successfully' });
-      setIsAssignOpen(false);
-      setAssignmentData({ branchId: '', userId: '', role: 'admin' });
-      fetchDistrictData();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to assign role',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleRemoveRole = async (assignmentId: string) => {
-    try {
-      const { error } = await supabase.from('user_roles').delete().eq('id', assignmentId);
-
-      if (error) throw error;
-
-      toast({ title: 'Success', description: 'Role removed successfully' });
-      fetchDistrictData();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to remove role',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const openAssignDialog = (branchId?: string) => {
-    setAssignmentData((prev) => ({ ...prev, branchId: branchId || '' }));
-    setIsAssignOpen(true);
-  };
-
-  // ================== Render ==================
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8 h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
@@ -447,7 +218,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
 
   if (!district) {
     return (
-      <div className="p-8 text-center bg-muted/20 rounded-lg border-2 border-dashed">
+      <div className="p-8 text-center bg-muted/20 rounded-lg border-2 border-dashed m-8">
         <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
         <h2 className="text-xl font-semibold mb-2">No District Assigned</h2>
         <p className="text-muted-foreground">
@@ -457,454 +228,129 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     );
   }
 
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'default';
-      case 'pastor':
-        return 'secondary';
-      case 'leader':
-        return 'outline';
-      default:
-        return 'outline';
-    }
-  };
+  const menuItems = [
+    { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
+    { id: 'branches' as const, label: 'Branches', icon: Building },
+    { id: 'staff' as const, label: 'Staff', icon: Users },
+    { id: 'reports' as const, label: 'Reports', icon: FileBarChart },
+    { id: 'settings' as const, label: 'Settings', icon: Settings },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Crown className="h-8 w-8 text-primary" />
-            {district.name}
-          </h1>
-          <p className="text-muted-foreground">
-            {district.location || 'District'} • District Administration
-          </p>
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+      {/* Mobile Header */}
+      <div className="md:hidden bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10">
+        <div className="flex items-center gap-2 font-bold text-primary">
+          <Shield className="h-6 w-6" />
+          {district.name}
+        </div>
+        <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          <Menu className="h-6 w-6" />
+        </Button>
+      </div>
+
+      {/* Sidebar */}
+      <div
+        className={cn(
+          'fixed inset-y-0 left-0 bg-white border-r w-64 transform transition-transform duration-200 ease-in-out z-20 md:relative md:translate-x-0',
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        <div className="flex flex-col h-full">
+          <div className="p-6 border-b">
+            {isSuperadmin && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start mb-4 -ml-2 text-muted-foreground hover:text-foreground"
+                onClick={() => navigate('/admin/districts')}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Admin
+              </Button>
+            )}
+            <div className="flex items-center gap-2 font-bold text-xl text-primary">
+              <Shield className="h-8 w-8" />
+              District Portal
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 truncate">{district.name}</p>
+          </div>
+
+          <ScrollArea className="flex-1 py-4">
+            <nav className="space-y-1 px-2">
+              {menuItems.map((item) => (
+                <Button
+                  key={item.id}
+                  variant={activeModule === item.id ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setActiveModule(item.id);
+                    setIsSidebarOpen(false);
+                  }}
+                >
+                  <item.icon className="mr-2 h-4 w-4" />
+                  {item.label}
+                </Button>
+              ))}
+            </nav>
+          </ScrollArea>
+
+          <div className="p-4 border-t">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => signOut()}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Log Out
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Branches</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalBranches}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalMembers}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Departments</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalDepartments}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Staff</CardTitle>
-            <UserCog className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalStaff}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Overlay for mobile sidebar */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-10 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="branches">Branches</TabsTrigger>
-          <TabsTrigger value="staff">Staff Assignments</TabsTrigger>
-        </TabsList>
-
-        {/* Branches Tab */}
-        <TabsContent value="branches" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">District Branches</h2>
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" /> New Branch
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Branch</DialogTitle>
-                  <DialogDescription>Add a new local branch to {district.name}.</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreateBranch} className="space-y-4">
-                  <div>
-                    <Label>Branch Name *</Label>
-                    <Input
-                      value={branchForm.name}
-                      onChange={(e) =>
-                        setBranchForm({
-                          ...branchForm,
-                          name: e.target.value,
-                          slug: e.target.value
-                            .toLowerCase()
-                            .replace(/[^a-z0-9]+/g, '-')
-                            .replace(/(^-|-$)/g, ''),
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Slug</Label>
-                    <Input
-                      value={branchForm.slug}
-                      onChange={(e) => setBranchForm({ ...branchForm, slug: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Address *</Label>
-                    <Textarea
-                      value={branchForm.address}
-                      onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Phone</Label>
-                      <Input
-                        value={branchForm.phone}
-                        onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Pastor Name</Label>
-                      <Input
-                        value={branchForm.pastor_name}
-                        onChange={(e) =>
-                          setBranchForm({ ...branchForm, pastor_name: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" type="button" onClick={() => setIsCreateOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Create Branch</Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <header className="bg-white border-b px-6 py-4 flex justify-between items-center shrink-0">
+          <div>
+            <h1 className="text-2xl font-bold">
+              {menuItems.find((m) => m.id === activeModule)?.label}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {district.location || 'District Administration'}
+            </p>
           </div>
+        </header>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {branches.map((branch) => (
-              <Card
-                key={branch.id}
-                className={branch.is_district_hq ? 'border-primary/50 bg-primary/5' : ''}
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        {branch.name}
-                        {branch.is_district_hq && (
-                          <Badge variant="default" className="text-xs">
-                            HQ
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      <CardDescription className="flex items-center gap-1 mt-1">
-                        <MapPin className="h-3 w-3" /> {branch.address}
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(branch)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Branch?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete "{branch.name}". This action cannot be
-                              undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteBranch(branch.id)}
-                              className="bg-destructive text-destructive-foreground"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {branch.phone && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-3 w-3" /> {branch.phone}
-                    </div>
-                  )}
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Pastor:</span>{' '}
-                    {branch.pastor_name || 'Unassigned'}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`hq-${branch.id}`} className="text-sm cursor-pointer">
-                        District HQ
-                      </Label>
-                      <Switch
-                        id={`hq-${branch.id}`}
-                        checked={branch.is_district_hq}
-                        onCheckedChange={() => handleSetHQ(branch.id, branch.is_district_hq)}
-                      />
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => openAssignDialog(branch.id)}>
-                      <UserCog className="h-3 w-3 mr-1" /> Assign
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {branches.length === 0 && (
-              <div className="col-span-full py-8 text-center text-muted-foreground bg-muted/10 rounded-lg border-2 border-dashed">
-                No branches in this district yet.
-              </div>
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-6xl mx-auto">
+            {activeModule === 'overview' && <DistrictOverview stats={stats} />}
+            {activeModule === 'branches' && (
+              <DistrictBranches
+                district={district}
+                branches={branches}
+                onRefresh={fetchDistrictData}
+              />
             )}
+            {activeModule === 'staff' && (
+              <DistrictStaff
+                branches={branches}
+                staffAssignments={staffAssignments}
+                availableProfiles={availableProfiles}
+                onRefresh={fetchDistrictData}
+              />
+            )}
+            {activeModule === 'reports' && <DistrictReports />}
+            {activeModule === 'settings' && <DistrictSettings district={district} />}
           </div>
-        </TabsContent>
-
-        {/* Staff Tab */}
-        <TabsContent value="staff" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Staff Assignments</h2>
-            <Button onClick={() => openAssignDialog()}>
-              <Plus className="mr-2 h-4 w-4" /> Assign Role
-            </Button>
-          </div>
-
-          <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {staffAssignments.map((assignment) => (
-                  <TableRow key={assignment.id}>
-                    <TableCell className="font-medium">{assignment.user_name}</TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(assignment.role)}>
-                        {assignment.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{assignment.branch_name}</TableCell>
-                    <TableCell className="text-right">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remove Role?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will remove the {assignment.role} role from{' '}
-                              {assignment.user_name}.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleRemoveRole(assignment.id)}
-                              className="bg-destructive text-destructive-foreground"
-                            >
-                              Remove
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {staffAssignments.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                      No staff assignments yet.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Edit Branch Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Branch</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleEditBranch} className="space-y-4">
-            <div>
-              <Label>Branch Name *</Label>
-              <Input
-                value={branchForm.name}
-                onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label>Slug</Label>
-              <Input
-                value={branchForm.slug}
-                onChange={(e) => setBranchForm({ ...branchForm, slug: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Address *</Label>
-              <Textarea
-                value={branchForm.address}
-                onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Phone</Label>
-                <Input
-                  value={branchForm.phone}
-                  onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Pastor Name</Label>
-                <Input
-                  value={branchForm.pastor_name}
-                  onChange={(e) => setBranchForm({ ...branchForm, pastor_name: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" type="button" onClick={() => setIsEditOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">Save Changes</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Assign Role Dialog */}
-      <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign Role</DialogTitle>
-            <DialogDescription>Assign a staff role to a branch</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAssignRole} className="space-y-4">
-            <div>
-              <Label>Branch *</Label>
-              <Select
-                value={assignmentData.branchId}
-                onValueChange={(value) =>
-                  setAssignmentData((prev) => ({ ...prev, branchId: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name} {branch.is_district_hq && '(HQ)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>User *</Label>
-              <Select
-                value={assignmentData.userId}
-                onValueChange={(value) => setAssignmentData((prev) => ({ ...prev, userId: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableProfiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Role *</Label>
-              <Select
-                value={assignmentData.role}
-                onValueChange={(value: any) =>
-                  setAssignmentData((prev) => ({ ...prev, role: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Branch Admin</SelectItem>
-                  <SelectItem value="pastor">Pastor</SelectItem>
-                  <SelectItem value="leader">Leader</SelectItem>
-                  <SelectItem value="worker">Worker</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsAssignOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!assignmentData.branchId || !assignmentData.userId}>
-                Assign Role
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+        </main>
+      </div>
     </div>
   );
 };

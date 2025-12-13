@@ -491,7 +491,7 @@ export const DistrictManagement: React.FC = () => {
                   <Button
                     className="w-full"
                     variant="secondary"
-                    onClick={() => navigate(`/admin/districts/${district.id}`)}
+                    onClick={() => navigate(`/district-portal/${district.id}`)}
                   >
                     Open Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
