@@ -1,0 +1,182 @@
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+interface CreateUserDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+}
+
+export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
+  open,
+  onOpenChange,
+  onSuccess,
+}) => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: '',
+    role: 'district_admin',
+  });
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-create-member', {
+        body: {
+          action: 'insert',
+          data: {
+            full_name: `${newUserForm.firstName} ${newUserForm.lastName}`,
+            email: newUserForm.email,
+            phone: newUserForm.phone || 'N/A', // Required field
+            status: 'active',
+            createAccount: true,
+            username: newUserForm.email,
+            password: newUserForm.password,
+            role: newUserForm.role,
+            // Defaults for required fields not in form
+            gender: 'Male',
+            marital_status: 'Single',
+            membership_level: 'Member',
+            street: 'N/A',
+          },
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast({
+        title: 'Success',
+        description: `User ${newUserForm.firstName} created successfully`,
+      });
+
+      onOpenChange(false);
+      setNewUserForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        password: '',
+        role: 'district_admin',
+      });
+
+      if (onSuccess) onSuccess();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create user',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Administrator</DialogTitle>
+          <DialogDescription>
+            Create a new user account with administrative privileges.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleCreateUser} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>First Name *</Label>
+              <Input
+                value={newUserForm.firstName}
+                onChange={(e) => setNewUserForm({ ...newUserForm, firstName: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label>Last Name *</Label>
+              <Input
+                value={newUserForm.lastName}
+                onChange={(e) => setNewUserForm({ ...newUserForm, lastName: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Email *</Label>
+            <Input
+              type="email"
+              value={newUserForm.email}
+              onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label>Phone</Label>
+            <Input
+              value={newUserForm.phone}
+              onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Password *</Label>
+            <Input
+              type="password"
+              value={newUserForm.password}
+              onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+              required
+              minLength={6}
+            />
+          </div>
+          <div>
+            <Label>Role</Label>
+            <Select
+              value={newUserForm.role}
+              onValueChange={(val) => setNewUserForm({ ...newUserForm, role: val })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="district_admin">District Admin</SelectItem>
+
+                <SelectItem value="super_admin">Super Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Creating...' : 'Create User'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};

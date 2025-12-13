@@ -695,6 +695,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
                   districtId={districtId}
                   mainHQ={mainHQ}
                   districtHQs={districtHQs}
+                  allDistricts={allDistricts}
                 />
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
@@ -731,6 +732,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
               districtId={districtId}
               mainHQ={mainHQ}
               districtHQs={districtHQs}
+              allDistricts={allDistricts}
             />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>

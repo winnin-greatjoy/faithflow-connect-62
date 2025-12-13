@@ -1,13 +1,97 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Church, Users, Bell, Shield, Database } from 'lucide-react';
+import { Settings, Church, Users, Bell, Shield, Database, Edit } from 'lucide-react';
 import { RolesManager } from '@/components/admin/roles/RolesManager';
+import { CreateUserDialog } from './CreateUserDialog';
+import { EditUserDialog } from './EditUserDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface User {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  email: string | null; // Profile might not have email, but we often join or store it. Wait, profiles table doesn't have email in schema usually, it's in auth. But previous code in DistrictManagement fetched it?
+  // Checking DistrictManagement fetching:
+  // membersRes.data.map(p => ({ ... email: null ... }))
+  // So profiles table doesn't have email readily available unless we join auth.
+  // BUT `admin-create-member` uses `data.email` to insert into members.
+  // Members table HAS email. Profiles table DOES NOT usually.
+  // If we list "Current Admin Users", we are listing PROFILES.
+  // Profiles are linked to Members? Ideally one to one.
+  // Let's use `full_name` and `role`. Email might be missing or we try to fetch it?
+  // Getting email from `auth.users` client side is not easy (admin only).
+  // We can join `members` table on `id` -> `id` (if they are same?)
+  // Actually, `admin-create-member` tries to keep them in sync.
+  // Let's try to join members to get email.
+  role: string | null;
+}
+
+// Update User interface to reflect what we can actually get easily
+interface UserProfile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  role: string | null;
+  // We will try to get email from linked member record if possible
+  member?: {
+    email: string | null;
+  };
+}
 
 export const SystemConfiguration = () => {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('general');
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Dialog states
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      // Fetch profiles with administrative roles
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('role', ['admin', 'super_admin', 'district_admin'] as any)
+        .order('first_name');
+
+      if (error) throw error;
+
+      setUsers((data as any) || []);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load users',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleEditUser = (user: UserProfile) => {
+    setSelectedUser(user);
+    setIsEditUserOpen(true);
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Page Header */}
@@ -18,7 +102,7 @@ export const SystemConfiguration = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-4 md:space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
         <div className="relative">
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-full md:w-auto flex-nowrap justify-start md:justify-normal px-4 md:px-0">
@@ -241,34 +325,53 @@ export const SystemConfiguration = () => {
                     People with access to the admin dashboard
                   </p>
                 </div>
-                <Button size="sm" className="w-full sm:w-auto">
+                <Button
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => setIsCreateUserOpen(true)}
+                >
                   Add New User
                 </Button>
               </div>
 
               <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-3 mb-2 sm:mb-0">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex-shrink-0 flex items-center justify-center">
-                      <Users className="h-4 w-4 text-blue-600" />
+                {loadingUsers ? (
+                  <div className="text-center py-4 text-gray-500">Loading users...</div>
+                ) : users.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">No admin users found.</div>
+                ) : (
+                  users.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-3 mb-2 sm:mb-0">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex-shrink-0 flex items-center justify-center text-blue-600 font-bold text-xs uppercase">
+                          {user.first_name?.[0] || user.full_name?.[0] || 'U'}
+                          {user.last_name?.[0] || ''}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm sm:text-base truncate">
+                            {user.full_name || 'Unknown'}
+                          </p>
+                          <p className="text-xs sm:text-sm text-gray-500 truncate capitalize">
+                            {user.role?.replace('_', ' ')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-end space-x-2 pt-2 sm:pt-0 border-t sm:border-0 mt-2 sm:mt-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 sm:px-3"
+                          onClick={() => handleEditUser(user)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" /> Edit Role
+                        </Button>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm sm:text-base truncate">Admin User</p>
-                      <p className="text-xs sm:text-sm text-gray-500 truncate">
-                        admin@fhbcbeccle.org
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between sm:justify-end space-x-2 pt-2 sm:pt-0 border-t sm:border-0 mt-2 sm:mt-0">
-                    <span className="text-xs sm:text-sm bg-green-100 text-green-800 px-2 py-1 rounded whitespace-nowrap">
-                      Super Admin
-                    </span>
-                    <Button variant="ghost" size="sm" className="h-8 px-2 sm:px-3">
-                      <span className="sr-only sm:not-sr-only">Edit</span>
-                      <span className="sm:hidden">✏️</span>
-                    </Button>
-                  </div>
-                </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -285,6 +388,20 @@ export const SystemConfiguration = () => {
               <RolesManager />
             </CardContent>
           </Card>
+
+          {/* Dialogs */}
+          <CreateUserDialog
+            open={isCreateUserOpen}
+            onOpenChange={setIsCreateUserOpen}
+            onSuccess={fetchUsers}
+          />
+
+          <EditUserDialog
+            open={isEditUserOpen}
+            onOpenChange={setIsEditUserOpen}
+            user={selectedUser}
+            onSuccess={fetchUsers}
+          />
 
           <Card className="overflow-hidden">
             <CardHeader className="pb-4">

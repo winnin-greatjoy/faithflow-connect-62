@@ -81,7 +81,7 @@ export function useAuthz(): UseAuthzResult {
         const { data: rp } = await supabase
           .from('role_permissions')
           .select(
-            'role_id, actions, scope_type, branch_id, coverage_type, department_id, ministry_id, committee_id, task_id, module:modules(slug)'
+            'role_id, actions, scope_type, branch_id, coverage_type, department_id, ministry_id, module:modules(slug)'
           )
           .in('role_id', dynIds);
         v2Perms = (rp as any[]) || [];

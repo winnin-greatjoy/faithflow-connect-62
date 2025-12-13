@@ -92,7 +92,11 @@ interface ProfileOption {
   email: string | null;
 }
 
-export const DistrictDashboard: React.FC = () => {
+interface DistrictDashboardProps {
+  districtId?: string;
+}
+
+export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [district, setDistrict] = useState<District | null>(null);
@@ -129,27 +133,41 @@ export const DistrictDashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    if (user?.id) {
+    if (districtId || user?.id) {
       fetchDistrictData();
     }
-  }, [user?.id]);
+  }, [districtId, user?.id]);
 
   const fetchDistrictData = async () => {
     setLoading(true);
     try {
-      // 1. Find the district this user manages
-      const { data: districtData, error: distError } = await supabase
-        .from('districts')
-        .select('*')
-        .eq('head_admin_id', user?.id)
-        .single();
+      let data: District | null = null;
+      let error: any = null;
 
-      if (distError && distError.code !== 'PGRST116') throw distError;
+      if (districtId) {
+        // Fetch specific district by ID (Super Admin view)
+        const response = await supabase.from('districts').select('*').eq('id', districtId).single();
+        data = response.data;
+        error = response.error;
+      } else {
+        // Find the district this user manages (District Admin view)
+        const response = await supabase
+          .from('districts')
+          .select('*')
+          .eq('head_admin_id', user?.id)
+          .single();
+        data = response.data;
+        error = response.error;
+      }
 
-      if (!districtData) {
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (!data) {
         setLoading(false);
         return;
       }
+
+      const districtData = data;
 
       setDistrict(districtData);
 
@@ -354,9 +372,7 @@ export const DistrictDashboard: React.FC = () => {
 
       toast({
         title: 'Success',
-        description: !currentStatus
-          ? 'Branch set as District HQ'
-          : 'District HQ status removed',
+        description: !currentStatus ? 'Branch set as District HQ' : 'District HQ status removed',
       });
       fetchDistrictData();
     } catch (error: any) {
@@ -843,9 +859,7 @@ export const DistrictDashboard: React.FC = () => {
               <Label>User *</Label>
               <Select
                 value={assignmentData.userId}
-                onValueChange={(value) =>
-                  setAssignmentData((prev) => ({ ...prev, userId: value }))
-                }
+                onValueChange={(value) => setAssignmentData((prev) => ({ ...prev, userId: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select user" />
@@ -884,10 +898,7 @@ export const DistrictDashboard: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setIsAssignOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={!assignmentData.branchId || !assignmentData.userId}
-              >
+              <Button type="submit" disabled={!assignmentData.branchId || !assignmentData.userId}>
                 Assign Role
               </Button>
             </div>

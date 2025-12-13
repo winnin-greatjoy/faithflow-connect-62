@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { CreateUserDialog } from './CreateUserDialog';
 import { MultiBranchView } from './MultiBranchView';
-
+import { DistrictDashboard } from '@/components/admin/district/DistrictDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -57,6 +58,7 @@ interface Member {
   id: string;
   full_name: string;
   email: string | null;
+  role: string | null;
 }
 
 export const DistrictManagement: React.FC = () => {
@@ -76,6 +78,12 @@ export const DistrictManagement: React.FC = () => {
   const [newDistrictName, setNewDistrictName] = useState('');
   const [newDistrictLocation, setNewDistrictLocation] = useState('');
   const [newHeadAdminId, setNewHeadAdminId] = useState<string>('none');
+  const [newOverseerId, setNewOverseerId] = useState<string>('none');
+
+  // Create Admin User State
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+
+  // Determine active district from URL
 
   // Determine active district from URL
   const districtIdFromUrl = location.pathname.split('/admin/districts/')[1];
@@ -95,10 +103,7 @@ export const DistrictManagement: React.FC = () => {
           .from('church_branches')
           .select('id, name, district_id, is_district_hq, address, pastor_name')
           .order('name'),
-        supabase
-          .from('profiles')
-          .select('id, first_name, last_name, role')
-          .in('role', ['admin', 'pastor', 'district_admin']),
+        supabase.from('profiles').select('id, first_name, last_name, role').order('first_name'),
       ]);
 
       if (districtsRes.error) throw districtsRes.error;
@@ -113,6 +118,7 @@ export const DistrictManagement: React.FC = () => {
             id: p.id,
             full_name: `${p.first_name} ${p.last_name}`,
             email: null,
+            role: p.role,
           }))
         );
       }
@@ -134,6 +140,21 @@ export const DistrictManagement: React.FC = () => {
       const payload: any = { name: newDistrictName, location: newDistrictLocation };
       if (newHeadAdminId && newHeadAdminId !== 'none') {
         payload.head_admin_id = newHeadAdminId;
+
+        // Auto-promote to District Admin if needed
+        const selectedMember = members.find((m) => m.id === newHeadAdminId);
+        if (
+          selectedMember &&
+          !['super_admin', 'admin', 'district_admin'].includes(selectedMember.role || '')
+        ) {
+          await supabase
+            .from('profiles')
+            .update({ role: 'district_admin' })
+            .eq('id', newHeadAdminId);
+        }
+      }
+      if (newOverseerId && newOverseerId !== 'none') {
+        payload.overseer_id = newOverseerId;
       }
 
       const { error } = await supabase.from('districts').insert([payload]);
@@ -145,6 +166,7 @@ export const DistrictManagement: React.FC = () => {
       setNewDistrictName('');
       setNewDistrictLocation('');
       setNewHeadAdminId('none');
+      setNewOverseerId('none');
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -159,8 +181,26 @@ export const DistrictManagement: React.FC = () => {
       const payload: any = { name: newDistrictName, location: newDistrictLocation };
       if (newHeadAdminId && newHeadAdminId !== 'none') {
         payload.head_admin_id = newHeadAdminId;
+
+        // Auto-promote to District Admin if needed
+        const selectedMember = members.find((m) => m.id === newHeadAdminId);
+        if (
+          selectedMember &&
+          !['super_admin', 'admin', 'district_admin'].includes(selectedMember.role || '')
+        ) {
+          await supabase
+            .from('profiles')
+            .update({ role: 'district_admin' })
+            .eq('id', newHeadAdminId);
+        }
       } else {
         payload.head_admin_id = null;
+      }
+
+      if (newOverseerId && newOverseerId !== 'none') {
+        payload.overseer_id = newOverseerId;
+      } else {
+        payload.overseer_id = null;
       }
 
       const { error } = await supabase
@@ -205,6 +245,7 @@ export const DistrictManagement: React.FC = () => {
     setNewDistrictName(district.name);
     setNewDistrictLocation(district.location || '');
     setNewHeadAdminId(district.head_admin_id || 'none');
+    setNewOverseerId((district as any).overseer_id || 'none');
     setIsEditOpen(true);
   };
 
@@ -238,22 +279,15 @@ export const DistrictManagement: React.FC = () => {
 
   // Generic District Detail View
   if (activeDistrict) {
-    const districtBranches = branches.filter((b) => b.district_id === activeDistrict.id);
-    const orphanBranches = branches.filter((b) => !b.district_id);
-
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mb-4">
           <Button variant="ghost" onClick={() => navigate('/admin/districts')}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Districts
           </Button>
-          <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">{activeDistrict.name}</h2>
-            <p className="text-muted-foreground">District Management</p>
-          </div>
         </div>
 
-        <MultiBranchView districtId={activeDistrict.id} defaultDistrictName={activeDistrict.name} />
+        <DistrictDashboard districtId={activeDistrict.id} />
       </div>
     );
   }
@@ -306,23 +340,62 @@ export const DistrictManagement: React.FC = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="create-head">District Overseer</Label>
-                <Select value={newHeadAdminId} onValueChange={setNewHeadAdminId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select overseer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {members
-                      .filter((m) => !districts.find((d) => d.head_admin_id === m.id))
-                      .map((m) => (
+                <Label htmlFor="create-overseer">District Overseer</Label>
+                <div className="flex gap-2">
+                  <Select value={newOverseerId} onValueChange={setNewOverseerId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select overseer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {members.map((m) => (
                         <SelectItem key={m.id} value={m.id}>
                           {m.full_name}
                         </SelectItem>
                       ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">Only available admins shown</p>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsCreateUserOpen(true)}
+                    title="Create New User"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="create-head">District Admin</Label>
+                <div className="flex gap-2">
+                  <Select value={newHeadAdminId} onValueChange={setNewHeadAdminId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select admin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {members
+                        .filter((m) => !districts.find((d) => d.head_admin_id === m.id))
+                        .map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.full_name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsCreateUserOpen(true)}
+                    title="Create New User"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Operational Head</p>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" type="button" onClick={() => setIsCreateOpen(false)}>
@@ -420,7 +493,7 @@ export const DistrictManagement: React.FC = () => {
                     variant="secondary"
                     onClick={() => navigate(`/admin/districts/${district.id}`)}
                   >
-                    Manage Hierarchy <ArrowRight className="ml-2 h-4 w-4" />
+                    Open Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -498,20 +571,59 @@ export const DistrictManagement: React.FC = () => {
               />
             </div>
             <div>
-              <Label htmlFor="edit-head">District Overseer</Label>
-              <Select value={newHeadAdminId} onValueChange={setNewHeadAdminId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select overseer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="edit-overseer">District Overseer</Label>
+              <div className="flex gap-2">
+                <Select value={newOverseerId} onValueChange={setNewOverseerId}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select overseer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {members.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsCreateUserOpen(true)}
+                  title="Create New User"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit-head">District Admin</Label>
+              <div className="flex gap-2">
+                <Select value={newHeadAdminId} onValueChange={setNewHeadAdminId}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select admin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {members.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsCreateUserOpen(true)}
+                  title="Create New User"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" type="button" onClick={() => setIsEditOpen(false)}>
@@ -522,6 +634,12 @@ export const DistrictManagement: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={isCreateUserOpen}
+        onOpenChange={setIsCreateUserOpen}
+        onSuccess={fetchData}
+      />
     </div>
   );
 };
