@@ -187,11 +187,22 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Standalone District Portal */}
             <Route
               path="/district-portal/:districtId"
               element={
                 <ProtectedRoute>
                   <DistrictDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Standalone Branch Portal for Superadmins */}
+            <Route
+              path="/branch-portal/:branchId/*"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard isPortalMode={true} />
                 </ProtectedRoute>
               }
             />

@@ -11,7 +11,13 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-export const AdminProvider = ({ children }: { children: ReactNode }) => {
+export const AdminProvider = ({
+  children,
+  initialBranchId,
+}: {
+  children: ReactNode;
+  initialBranchId?: string;
+}) => {
   const { branchId: userBranchId, hasRole, loading: authLoading } = useAuthz();
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [branchName, setBranchName] = useState<string | null>(null);
@@ -24,13 +30,18 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
     const initializeContext = async () => {
       setLoading(true);
-      // If NOT superadmin, always enforce their assigned branch
-      if (!isSuperadmin) {
+
+      // 1. If explicitly initialized (e.g. Portal Mode), use that
+      if (initialBranchId) {
+        setSelectedBranchId(initialBranchId);
+      }
+      // 2. If NOT superadmin, always enforce their assigned branch
+      else if (!isSuperadmin) {
         if (userBranchId && selectedBranchId !== userBranchId) {
           setSelectedBranchId(userBranchId);
         }
       } else {
-        // If superadmin, selectedBranchId persists (or starts null for global view)
+        // 3. If superadmin, selectedBranchId persists (or starts null for global view)
         // If they have selected a branch, fetch its name for display
         if (!selectedBranchId) {
           setBranchName(null);
@@ -40,7 +51,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initializeContext();
-  }, [authLoading, isSuperadmin, userBranchId, selectedBranchId]);
+  }, [authLoading, isSuperadmin, userBranchId, selectedBranchId, initialBranchId]);
 
   // Effect to fetch branch name when selectedBranchId changes
   useEffect(() => {

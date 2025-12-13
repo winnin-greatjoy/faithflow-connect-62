@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Users,
@@ -9,19 +9,75 @@ import {
   Shield,
   Building,
   Globe,
-  Server,
+  Loader2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { DistrictHealthTable, DistrictHealthData } from './DistrictHealthTable';
+import { SystemAlertsWidget } from './SystemAlertsWidget';
 
 export const SuperAdminDashboardOverview = () => {
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ['superadmin-governance-dashboard'],
+    queryFn: async () => {
+      // Parallel data fetching
+      const [
+        { count: districtCount, data: districts },
+        { count: branchCount, data: branches },
+        { count: memberCount },
+        { count: userCount },
+      ] = await Promise.all([
+        supabase.from('districts').select('id, name, overseer_id', { count: 'exact' }),
+        supabase
+          .from('church_branches')
+          .select('id, district_id, is_district_hq, branch_type', { count: 'exact' }),
+        supabase.from('members').select('*', { count: 'exact', head: true }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      ]);
+
+      return {
+        districtCount: districtCount || 0,
+        districts: districts || [],
+        branchCount: branchCount || 0,
+        branches: branches || [],
+        memberCount: memberCount || 0,
+        userCount: userCount || 0,
+      };
+    },
+  });
+
+  if (isLoading || !dashboardData) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Process data for widgets
+  const districtsHealth: DistrictHealthData[] = dashboardData.districts.map((d) => {
+    const districtBranches = dashboardData.branches.filter((b) => b.district_id === d.id);
+    const hasHQ = districtBranches.some((b) => b.is_district_hq);
+    return {
+      id: d.id,
+      name: d.name,
+      branchCount: districtBranches.length,
+      hasOverseer: !!d.overseer_id,
+      hasHQ,
+    };
+  });
+
+  const orphanedBranchesCount = dashboardData.branches.filter((b) => !b.district_id).length;
+
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+    <div className="space-y-6">
       {/* Page Header */}
-      <div className="px-2 sm:px-0 flex justify-between items-start">
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">System Overview</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-            Global system monitoring and administration.
+          <h1 className="text-3xl font-bold text-gray-900">Governance Command Center</h1>
+          <p className="text-gray-600 mt-2">
+            Global oversight, compliance monitoring, and system health.
           </p>
         </div>
         <div className="flex gap-2">
@@ -35,122 +91,118 @@ export const SuperAdminDashboardOverview = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="hover:shadow-lg transition-shadow border-purple-100 min-h-[120px] sm:min-h-[140px] flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-4 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Branches</CardTitle>
-            <Building className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
+      {/* Global KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="hover:shadow-md transition-shadow border-l-4 border-l-purple-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Districts
+            </CardTitle>
+            <NetworkIcon className="h-4 w-4 text-purple-500" />
           </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">12</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">3 new this month</p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold">{dashboardData.districtCount}</div>
+            <p className="text-xs text-muted-foreground">Governance Zones</p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow border-purple-100 min-h-[120px] sm:min-h-[140px] flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-4 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">System Users</CardTitle>
-            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
+        <Card className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Branches
+            </CardTitle>
+            <Building className="h-4 w-4 text-blue-500" />
           </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">2,450</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              Across all branches
-            </p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold">{dashboardData.branchCount}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {orphanedBranchesCount > 0 ? (
+                  <span className="text-yellow-600 font-medium">
+                    {orphanedBranchesCount} Unassigned
+                  </span>
+                ) : (
+                  'All assigned'
+                )}
+              </span>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow border-purple-100 min-h-[120px] sm:min-h-[140px] flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-4 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">System Health</CardTitle>
-            <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500" />
+        <Card className="hover:shadow-md transition-shadow border-l-4 border-l-green-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Members
+            </CardTitle>
+            <Users className="h-4 w-4 text-green-500" />
           </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-green-600">99.9%</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              All systems operational
-            </p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold">{dashboardData.memberCount.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Registered Profiles</p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow border-purple-100 min-h-[120px] sm:min-h-[140px] flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-4 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Active Sessions</CardTitle>
-            <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
+        <Card className="hover:shadow-md transition-shadow border-l-4 border-l-amber-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Active Users
+            </CardTitle>
+            <Activity className="h-4 w-4 text-amber-500" />
           </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">142</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              Current active admins
-            </p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold">{dashboardData.userCount.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">System Access</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* System Resources & Recent Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="border-purple-100">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Server className="h-5 w-5 text-purple-600" />
-              Resource Usage
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Storage Used</span>
-                  <span className="font-medium">450 GB / 1 TB</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-purple-500 w-[45%]" />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Database Load</span>
-                  <span className="font-medium">24%</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 w-[24%]" />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>API Rate Limits</span>
-                  <span className="font-medium">12%</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 w-[12%]" />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Main Governance View */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: District Health Matrix */}
+        <div className="lg:col-span-2">
+          <DistrictHealthTable districts={districtsHealth} />
+        </div>
 
-        <Card className="border-purple-100">
-          <CardHeader>
-            <CardTitle>Recent System Alerts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Activity className="h-4 w-4 text-blue-500 mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Backup Completed Successfully</p>
-                    <p className="text-xs text-gray-500">
-                      System automated backup finished at 04:00 AM
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Right Column: System Alerts */}
+        <div>
+          <SystemAlertsWidget
+            districts={districtsHealth}
+            orphanedBranchesCount={orphanedBranchesCount}
+          />
+
+          {/* Placeholder for future financial/global summary */}
+          <Card className="mt-4 border-gray-100 bg-gray-50/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-gray-600">Global Financials</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <DollarSign className="h-4 w-4" />
+                <span>Aggregated data coming soon</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
 };
+
+// Helper Icon
+function NetworkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect width="7" height="7" x="14" y="3" rx="1" />
+      <path d="M10 21V8a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H6l3-11" />
+    </svg>
+  );
+}

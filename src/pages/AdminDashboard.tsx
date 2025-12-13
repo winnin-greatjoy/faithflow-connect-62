@@ -30,7 +30,10 @@ import { useAuthz } from '@/hooks/useAuthz';
 import { AdminProvider, useAdminContext } from '@/context/AdminContext';
 
 // Define the inner dashboard content to use the context
-const DashboardContent = () => {
+import { useParams } from 'react-router-dom';
+
+// Define the inner dashboard content to use the context
+const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
@@ -41,6 +44,17 @@ const DashboardContent = () => {
 
   // Determine active module based on URL
   const getActiveModule = () => {
+    if (isPortalMode) {
+      // In portal mode, URL is /branch-portal/:id/module
+      // So split by /branch-portal/:id/
+      // Ideally relative paths?
+      // Simplest: Check if path has segments after ID.
+      const parts = location.pathname.split('/');
+      // /branch-portal/123/members -> parts: ["", "branch-portal", "123", "members"]
+      if (parts[3]) return parts[3];
+      return 'overview';
+    }
+
     const path = location.pathname.split('/admin/')[1];
     if (!path) return 'overview';
     return path.split('/')[0];
@@ -49,21 +63,22 @@ const DashboardContent = () => {
   const activeModule = getActiveModule();
 
   const handleModuleChange = (module: string) => {
-    if (module === 'overview') {
-      navigate('/admin');
+    if (isPortalMode) {
+      // preserve branch ID
+      const parts = location.pathname.split('/');
+      const branchId = parts[2];
+      if (module === 'overview') navigate(`/branch-portal/${branchId}`);
+      else navigate(`/branch-portal/${branchId}/${module}`);
     } else {
-      navigate(`/admin/${module}`);
+      if (module === 'overview') {
+        navigate('/admin');
+      } else {
+        navigate(`/admin/${module}`);
+      }
     }
   };
 
-  const denied = (
-    <div className="flex items-center justify-center h-[50vh]">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold text-gray-900">Access Denied</h2>
-        <p className="text-gray-500 mt-2">You don't have permission to view this module.</p>
-      </div>
-    </div>
-  );
+  // ... (denied definition)
 
   if (superadminLoading || authzLoading || contextLoading) {
     return <div>Loading...</div>; // Replace with proper skeleton
@@ -75,26 +90,27 @@ const DashboardContent = () => {
 
     switch (activeModule) {
       case 'overview':
-        // Show SuperAdmin overview ONLY if in global view
-        if (isGlobalView) return <SuperAdminDashboardOverview />;
+        // Show SuperAdmin overview ONLY if in global view AND not in portal mode
+        // If in portal mode, we represent a branch, so show DashboardOverview
+        if (isGlobalView && !isPortalMode) return <SuperAdminDashboardOverview />;
         // Show District Dashboard for District Admins if no branch selected
         if (hasRole('district_admin') && !selectedBranchId) return <DistrictDashboard />;
 
         return <DashboardOverview />;
 
       // Superadmin Specific Modules - Only accessible in Global View
-
+      // ... (keep same)
       case 'superadmin-transfers':
-        return isSuperadmin ? <SuperadminTransferManagement /> : denied;
+        return isSuperadmin && !isPortalMode ? <SuperadminTransferManagement /> : denied;
       case 'system-config':
-        return isSuperadmin ? <SystemConfiguration /> : denied;
+        return isSuperadmin && !isPortalMode ? <SystemConfiguration /> : denied;
       case 'global-roles':
-        return isSuperadmin ? <GlobalRoleManagement /> : denied;
+        return isSuperadmin && !isPortalMode ? <GlobalRoleManagement /> : denied;
       case 'system-reports':
-        return isSuperadmin ? <SystemReportsModule /> : denied;
+        return isSuperadmin && !isPortalMode ? <SystemReportsModule /> : denied;
 
       case 'districts':
-        return isSuperadmin ? <DistrictManagement /> : denied;
+        return isSuperadmin && !isPortalMode ? <DistrictManagement /> : denied;
 
       case 'members':
         return can('members', 'view') || isSuperadmin ? <OptimizedMemberManagement /> : denied;
@@ -138,10 +154,14 @@ const DashboardContent = () => {
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
           variant="admin"
+          isPortalMode={isPortalMode}
         />
 
         <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-0">
-          <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+          <AdminHeader
+            onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
+            isPortalMode={isPortalMode}
+          />
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
             <div className="max-w-7xl mx-auto">{renderActiveModule()}</div>
@@ -153,10 +173,15 @@ const DashboardContent = () => {
 };
 
 // Wrap the dashboard in the provider
-const AdminDashboard = () => {
+const AdminDashboard = ({ isPortalMode = false }: { isPortalMode?: boolean }) => {
+  const params = useParams();
+  // Get branchId from params if in portal mode.
+  // URL: /branch-portal/:branchId/*
+  const initialBranchId = isPortalMode ? params.branchId : undefined;
+
   return (
-    <AdminProvider>
-      <DashboardContent />
+    <AdminProvider initialBranchId={initialBranchId}>
+      <DashboardContent isPortalMode={isPortalMode} />
     </AdminProvider>
   );
 };

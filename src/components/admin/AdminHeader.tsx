@@ -29,9 +29,10 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface AdminHeaderProps {
   onMenuToggle: () => void;
+  isPortalMode?: boolean;
 }
 
-export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
+export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderProps) => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
@@ -165,7 +166,7 @@ export const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
             <Menu className="w-5 h-5" />
           </button>
 
-          {isSuperadmin && (
+          {isSuperadmin && !isPortalMode && (
             <div className="hidden md:block mr-2">
               <Select
                 value={selectedBranchId || 'global'}

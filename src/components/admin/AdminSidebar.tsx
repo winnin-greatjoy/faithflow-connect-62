@@ -21,7 +21,9 @@ import {
   ArrowRightLeft,
   Shield,
   Network,
+  ArrowLeft,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -56,6 +58,7 @@ interface AdminSidebarProps {
    */
   variant?: 'admin' | 'portal';
   menuItems?: MenuItem[];
+  isPortalMode?: boolean;
 }
 
 // Primary tabs shown in the bottom bar (max 4 for good mobile UX)
@@ -118,6 +121,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onCollapse,
   variant = 'admin',
   menuItems,
+  isPortalMode = false,
 }) => {
   const { isSuperadmin } = useSuperadmin();
   const { selectedBranchId } = useAdminContext();
@@ -390,6 +394,31 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Back Button for Portal Mode */}
+            {isPortalMode && isSuperadmin && (
+              <div className="px-2 py-2 border-b">
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    'w-full justify-start text-muted-foreground hover:text-foreground',
+                    !showFullSidebar && 'justify-center px-0'
+                  )}
+                  onClick={() => _navigate('/admin')}
+                  title={!showFullSidebar ? 'Back to Global View' : undefined}
+                >
+                  <ArrowLeft className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
+                  <span
+                    className={cn(
+                      'transition-all duration-300 overflow-hidden whitespace-nowrap',
+                      showFullSidebar ? 'w-auto opacity-100' : 'w-0 opacity-0 hidden'
+                    )}
+                  >
+                    Back to HQ
+                  </span>
+                </Button>
+              </div>
+            )}
 
             {/* Menu Items */}
             <SidebarGroup className="flex-1 overflow-y-auto">
