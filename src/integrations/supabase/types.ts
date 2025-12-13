@@ -1869,6 +1869,14 @@ export type Database = {
             Returns: boolean
           }
         | { Args: { role: string; user_id: string }; Returns: boolean }
+      is_district_admin_for_branch: {
+        Args: { p_branch_id: string }
+        Returns: boolean
+      }
+      is_district_admin_for_district: {
+        Args: { p_district_id: string }
+        Returns: boolean
+      }
       is_user_baptized: { Args: never; Returns: boolean }
       reject_member_transfer: {
         Args: {
