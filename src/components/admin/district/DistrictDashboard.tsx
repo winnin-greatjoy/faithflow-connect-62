@@ -14,6 +14,8 @@ import {
   Menu,
   LogOut,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -85,6 +87,22 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     'overview' | 'branches' | 'staff' | 'reports' | 'settings'
   >('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For mobile
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Auto-collapse on laptop logic (optional but good for consistency)
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w >= 1024 && w < 1280) setIsCollapsed(true);
+      else setIsCollapsed(false);
+    };
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const showFullSidebar = !isCollapsed || isHovered;
 
   useEffect(() => {
     if (effectiveDistrictId || user?.id) {
@@ -252,27 +270,57 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
       {/* Sidebar */}
       <div
         className={cn(
-          'fixed inset-y-0 left-0 bg-white border-r w-64 transform transition-transform duration-200 ease-in-out z-20 md:relative md:translate-x-0',
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          'fixed inset-y-0 left-0 bg-white border-r transform transition-all duration-300 ease-in-out z-20',
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          'md:relative md:translate-x-0',
+          isCollapsed ? 'md:w-20' : 'md:w-64',
+          isCollapsed ? 'md:hover:w-64' : ''
         )}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="flex flex-col h-full">
-          <div className="p-6 border-b">
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="p-6 border-b whitespace-nowrap overflow-hidden">
             {isSuperadmin && (
               <Button
                 variant="ghost"
-                className="w-full justify-start mb-4 -ml-2 text-muted-foreground hover:text-foreground"
+                className={cn(
+                  'justify-start mb-4 text-muted-foreground hover:text-foreground',
+                  !showFullSidebar ? 'px-0 justify-center' : '-ml-2 w-full'
+                )}
                 onClick={() => navigate('/admin/districts')}
+                title={!showFullSidebar ? 'Back to Admin' : undefined}
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Admin
+                <ArrowLeft className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
+                <span
+                  className={cn(
+                    'transition-all duration-300 overflow-hidden',
+                    !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
+                  )}
+                >
+                  Back to Admin
+                </span>
               </Button>
             )}
             <div className="flex items-center gap-2 font-bold text-xl text-primary">
-              <Shield className="h-8 w-8" />
-              District Portal
+              <Shield className="h-8 w-8 shrink-0" />
+              <span
+                className={cn(
+                  'transition-all duration-300 overflow-hidden',
+                  !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
+                )}
+              >
+                District Portal
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1 truncate">{district.name}</p>
+            <div
+              className={cn(
+                'transition-all duration-300 overflow-hidden',
+                !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
+              )}
+            >
+              <p className="text-xs text-muted-foreground mt-1 truncate">{district.name}</p>
+            </div>
           </div>
 
           <ScrollArea className="flex-1 py-4">
@@ -281,27 +329,59 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
                 <Button
                   key={item.id}
                   variant={activeModule === item.id ? 'secondary' : 'ghost'}
-                  className="w-full justify-start"
+                  className={cn('w-full justify-start', !showFullSidebar && 'justify-center px-2')}
                   onClick={() => {
                     setActiveModule(item.id);
                     setIsSidebarOpen(false);
                   }}
+                  title={!showFullSidebar ? item.label : undefined}
                 >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.label}
+                  <item.icon className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
+                  <span
+                    className={cn(
+                      'transition-all duration-300 overflow-hidden',
+                      !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
+                    )}
+                  >
+                    {item.label}
+                  </span>
                 </Button>
               ))}
             </nav>
           </ScrollArea>
 
-          <div className="p-4 border-t">
+          <div className="p-4 border-t mt-auto">
             <Button
               variant="ghost"
-              className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => signOut()}
+              size="sm"
+              className="w-full mb-2 hidden md:flex hover:bg-black/5"
+              onClick={() => setIsCollapsed(!isCollapsed)}
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Log Out
+              {isCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
+
+            <Button
+              variant="ghost"
+              className={cn(
+                'w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive',
+                !showFullSidebar && 'justify-center px-2'
+              )}
+              onClick={() => signOut()}
+              title={!showFullSidebar ? 'Log Out' : undefined}
+            >
+              <LogOut className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
+              <span
+                className={cn(
+                  'transition-all duration-300 overflow-hidden',
+                  !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
+                )}
+              >
+                Log Out
+              </span>
             </Button>
           </div>
         </div>
