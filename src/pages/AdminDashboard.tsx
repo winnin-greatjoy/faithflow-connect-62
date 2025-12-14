@@ -88,6 +88,15 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
     // If superadmin is in "Global View" (no branch selected), show superadmin modules
     const isGlobalView = isSuperadmin && !selectedBranchId;
 
+    const denied = (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h3>
+        <p className="text-gray-500 max-w-md">
+          You do not have the required permissions to view this module.
+        </p>
+      </div>
+    );
+
     switch (activeModule) {
       case 'overview':
         // Show SuperAdmin overview ONLY if in global view AND not in portal mode
