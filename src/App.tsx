@@ -12,6 +12,7 @@ import Auth from './pages/Auth';
 
 // Lazy load admin pages
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const SuperadminDashboard = lazy(() => import('./pages/SuperadminDashboard'));
 const MemberProfilePage = lazy(() =>
   import('./pages/admin/MemberProfilePage').then((module) => ({
     default: module.MemberProfilePage,
@@ -203,6 +204,15 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminDashboard isPortalMode={true} />
+                </ProtectedRoute>
+              }
+            />
+            {/* Dedicated Superadmin Dashboard */}
+            <Route
+              path="/superadmin/*"
+              element={
+                <ProtectedRoute>
+                  <SuperadminDashboard />
                 </ProtectedRoute>
               }
             />

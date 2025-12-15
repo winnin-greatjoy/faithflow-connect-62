@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,116 +20,106 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Shield,
-  Search,
-  Download,
-  Clock,
-  User,
-  FileText,
-  AlertCircle,
-  CheckCircle,
-  Info,
-} from 'lucide-react';
+import { Shield, Search, Download, Clock, User, AlertCircle, Info, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-// Placeholder audit log data structure
 interface AuditLogEntry {
   id: string;
   timestamp: string;
-  user: string;
+  user_id: string | null;
   action: string;
   resource: string;
-  details: string;
-  severity: 'info' | 'warning' | 'critical';
-  ipAddress: string;
+  details: string | null;
+  severity: 'info' | 'warning' | 'critical' | null;
+  ip_address: string | null;
+  profile?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
 }
 
-// Placeholder data - in production, this would come from a database
-const placeholderLogs: AuditLogEntry[] = [
-  {
-    id: '1',
-    timestamp: new Date().toISOString(),
-    user: 'admin@church.org',
-    action: 'ROLE_ASSIGNED',
-    resource: 'user_roles',
-    details: 'Assigned admin role to user john@church.org for branch Main Campus',
-    severity: 'warning',
-    ipAddress: '192.168.1.1',
-  },
-  {
-    id: '2',
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
-    user: 'superadmin@church.org',
-    action: 'DISTRICT_CREATED',
-    resource: 'districts',
-    details: 'Created new district: Northern Region',
-    severity: 'info',
-    ipAddress: '192.168.1.2',
-  },
-  {
-    id: '3',
-    timestamp: new Date(Date.now() - 7200000).toISOString(),
-    user: 'admin@church.org',
-    action: 'ROLE_REVOKED',
-    resource: 'user_roles',
-    details: 'Revoked pastor role from user jane@church.org',
-    severity: 'critical',
-    ipAddress: '192.168.1.1',
-  },
-  {
-    id: '4',
-    timestamp: new Date(Date.now() - 10800000).toISOString(),
-    user: 'superadmin@church.org',
-    action: 'BRANCH_REASSIGNED',
-    resource: 'church_branches',
-    details: 'Moved branch West Campus from District A to District B',
-    severity: 'warning',
-    ipAddress: '192.168.1.2',
-  },
-  {
-    id: '5',
-    timestamp: new Date(Date.now() - 14400000).toISOString(),
-    user: 'admin@church.org',
-    action: 'LOGIN_SUCCESS',
-    resource: 'auth',
-    details: 'User logged in successfully',
-    severity: 'info',
-    ipAddress: '192.168.1.3',
-  },
-];
-
 export const AuditLogsModule: React.FC = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
 
-  const getSeverityBadge = (severity: string) => {
+  const {
+    data: logs = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['audit-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select(
+          `
+          *,
+          profile:profiles(first_name, last_name, email)
+        `
+        )
+        .order('timestamp', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch audit logs',
+          variant: 'destructive',
+        });
+        throw error;
+      }
+
+      return data as unknown as AuditLogEntry[];
+    },
+  });
+
+  const getSeverityBadge = (severity: string | null) => {
+    const s = severity || 'info';
     const config = {
       info: { icon: Info, class: 'bg-blue-100 text-blue-700 border-blue-200' },
       warning: { icon: AlertCircle, class: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
       critical: { icon: AlertCircle, class: 'bg-red-100 text-red-700 border-red-200' },
     };
-    const c = config[severity as keyof typeof config] || config.info;
+    const c = config[s as keyof typeof config] || config.info;
+    const Icon = c.icon;
+
     return (
       <Badge variant="outline" className={c.class}>
-        <c.icon className="h-3 w-3 mr-1" />
-        {severity.toUpperCase()}
+        <Icon className="h-3 w-3 mr-1" />
+        {s.toUpperCase()}
       </Badge>
     );
   };
 
-  const filteredLogs = placeholderLogs.filter((log) => {
+  const filteredLogs = logs.filter((log) => {
+    const userName = log.profile
+      ? `${log.profile.first_name} ${log.profile.last_name}`
+      : 'Unknown User';
+
     const matchesSearch =
       searchTerm === '' ||
-      log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSeverity = severityFilter === 'all' || log.severity === severityFilter;
+      (log.details || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesSeverity = severityFilter === 'all' || (log.severity || 'info') === severityFilter;
     const matchesAction = actionFilter === 'all' || log.action === actionFilter;
+
     return matchesSearch && matchesSeverity && matchesAction;
   });
 
-  const uniqueActions = [...new Set(placeholderLogs.map((l) => l.action))];
+  const uniqueActions = [...new Set(logs.map((l) => l.action))];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -169,14 +161,14 @@ export const AuditLogsModule: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{placeholderLogs.length}</div>
+            <div className="text-2xl font-bold">{logs.length}</div>
             <p className="text-xs text-muted-foreground">Total Entries</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-blue-600">
-              {placeholderLogs.filter((l) => l.severity === 'info').length}
+              {logs.filter((l) => l.severity === 'info' || !l.severity).length}
             </div>
             <p className="text-xs text-muted-foreground">Info Events</p>
           </CardContent>
@@ -184,7 +176,7 @@ export const AuditLogsModule: React.FC = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-yellow-600">
-              {placeholderLogs.filter((l) => l.severity === 'warning').length}
+              {logs.filter((l) => l.severity === 'warning').length}
             </div>
             <p className="text-xs text-muted-foreground">Warnings</p>
           </CardContent>
@@ -192,7 +184,7 @@ export const AuditLogsModule: React.FC = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-red-600">
-              {placeholderLogs.filter((l) => l.severity === 'critical').length}
+              {logs.filter((l) => l.severity === 'critical').length}
             </div>
             <p className="text-xs text-muted-foreground">Critical Events</p>
           </CardContent>
@@ -282,7 +274,11 @@ export const AuditLogsModule: React.FC = () => {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <User className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-sm">{log.user}</span>
+                          <span className="text-sm">
+                            {log.profile
+                              ? `${log.profile.first_name} ${log.profile.last_name}`
+                              : 'System / Unknown'}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>

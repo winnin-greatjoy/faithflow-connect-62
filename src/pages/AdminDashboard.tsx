@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
+import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -101,7 +101,8 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
       case 'overview':
         // Show SuperAdmin overview ONLY if in global view AND not in portal mode
         // If in portal mode, we represent a branch, so show DashboardOverview
-        if (isGlobalView && !isPortalMode) return <SuperAdminDashboardOverview />;
+        // Redirect SuperAdmin to the new Governance Dashboard
+        if (isGlobalView && !isPortalMode) return <Navigate to="/superadmin" replace />;
         // Show District Dashboard for District Admins if no branch selected
         if (hasRole('district_admin') && !selectedBranchId) return <DistrictDashboard />;
 
@@ -109,17 +110,35 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
 
       // Superadmin Specific Modules - Only accessible in Global View
       // ... (keep same)
+      // Superadmin Specific Modules - Redirect to new Dashboard
+      // All these are now handled in the dedicated /superadmin route
       case 'superadmin-transfers':
-        return isSuperadmin && !isPortalMode ? <SuperadminTransferManagement /> : denied;
+        return isSuperadmin && !isPortalMode ? (
+          <Navigate to="/superadmin/transfers" replace />
+        ) : (
+          denied
+        );
       case 'system-config':
-        return isSuperadmin && !isPortalMode ? <SystemConfiguration /> : denied;
+        return isSuperadmin && !isPortalMode ? (
+          <Navigate to="/superadmin/settings" replace />
+        ) : (
+          denied
+        );
       case 'global-roles':
-        return isSuperadmin && !isPortalMode ? <GlobalRoleManagement /> : denied;
+        return isSuperadmin && !isPortalMode ? <Navigate to="/superadmin/users" replace /> : denied;
       case 'system-reports':
-        return isSuperadmin && !isPortalMode ? <SystemReportsModule /> : denied;
+        return isSuperadmin && !isPortalMode ? (
+          <Navigate to="/superadmin/reports" replace />
+        ) : (
+          denied
+        );
 
       case 'districts':
-        return isSuperadmin && !isPortalMode ? <DistrictManagement /> : denied;
+        return isSuperadmin && !isPortalMode ? (
+          <Navigate to="/superadmin/districts" replace />
+        ) : (
+          denied
+        );
 
       case 'members':
         return can('members', 'view') || isSuperadmin ? <OptimizedMemberManagement /> : denied;

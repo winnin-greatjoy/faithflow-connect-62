@@ -59,6 +59,13 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
       if (error) throw error;
 
+      await supabase.from('audit_logs').insert({
+        action: 'UPDATE_ROLE',
+        resource: 'profiles',
+        details: `Updated role for user ${user.id} to ${role}`,
+        severity: 'info',
+      });
+
       toast({
         title: 'Success',
         description: `User role updated successfully`,

@@ -10,6 +10,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ArrowRightLeft,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -38,7 +39,7 @@ interface SuperadminSidebarProps {
 const menuItems: MenuItem[] = [
   { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, description: 'Global overview' },
   { id: 'districts', label: 'Districts', icon: Network, description: 'Manage districts' },
-  { id: 'branches', label: 'Branches', icon: Building, description: 'All branches' },
+  { id: 'transfers', label: 'Transfers', icon: ArrowRightLeft, description: 'Member approvals' },
   { id: 'users', label: 'Users & Roles', icon: Users, description: 'Access control' },
   { id: 'reports', label: 'Reports', icon: FileBarChart, description: 'System reports' },
   { id: 'settings', label: 'System Settings', icon: Settings, description: 'Configuration' },
@@ -184,12 +185,7 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
                 )}
               >
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span
-                  className={cn(
-                    'transition-all duration-300',
-                    !showFullSidebar && 'hidden'
-                  )}
-                >
+                <span className={cn('transition-all duration-300', !showFullSidebar && 'hidden')}>
                   System Online
                 </span>
               </div>

@@ -459,52 +459,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* Superadmin Section - Only visible in Global View (no branch selected) */}
-            {isSuperadmin && !selectedBranchId && variant === 'admin' && (
-              <SidebarGroup className="mt-auto border-t">
-                <div
-                  className={cn(
-                    'px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider transition-opacity duration-300',
-                    !showFullSidebar && 'opacity-0 hidden'
-                  )}
-                >
-                  Superadmin Controls
-                </div>
-                <SidebarMenu>
-                  {superadminItems.map(({ id, label, icon: Icon }) => (
-                    <SidebarMenuItem key={id}>
-                      <SidebarMenuButton
-                        isActive={activeModule === id}
-                        onClick={() => handleModuleChange(id)}
-                        className="group relative w-full justify-start px-4 py-3 text-sm font-medium text-purple-700 hover:text-purple-900 hover:bg-purple-50"
-                      >
-                        <Icon
-                          className={cn(
-                            'h-5 w-5 flex-shrink-0 transition-all duration-300',
-                            showFullSidebar ? 'mr-3' : 'mx-auto'
-                          )}
-                        />
-                        <span
-                          className={cn(
-                            'truncate transition-all duration-300',
-                            showFullSidebar ? 'opacity-100 w-auto' : 'opacity-0 w-0'
-                          )}
-                        >
-                          {label}
-                        </span>
-
-                        {/* Tooltip for collapsed state */}
-                        {!showFullSidebar && (
-                          <span className="absolute left-full ml-2 px-2 py-1 bg-purple-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                            {label}
-                          </span>
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroup>
-            )}
+            {/* Legacy Superadmin Controls removed in favor of dedicated Superadmin Dashboard */}
 
             {/* Collapse Toggle - Desktop Only */}
             <div className="hidden lg:block border-t p-2 mt-auto">

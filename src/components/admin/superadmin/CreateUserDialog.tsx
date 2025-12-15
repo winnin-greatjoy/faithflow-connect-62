@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -32,18 +32,57 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [districts, setDistricts] = useState<{ id: string; name: string }[]>([]);
+  const [branches, setBranches] = useState<
+    { id: string; name: string; district_id: string | null }[]
+  >([]);
+
   const [newUserForm, setNewUserForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     password: '',
-    role: 'district_admin',
+    role: 'member',
+    districtId: '',
+    branchId: '',
   });
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      const { data: d } = await supabase.from('districts').select('id, name').order('name');
+      const { data: b } = await supabase
+        .from('church_branches')
+        .select('id, name, district_id')
+        .order('name');
+
+      if (d) setDistricts(d);
+      if (b) setBranches(b);
+    };
+
+    if (open) {
+      fetchLocations();
+    }
+  }, [open]);
+
+  const filteredBranches = newUserForm.districtId
+    ? branches.filter((b) => b.district_id === newUserForm.districtId)
+    : branches;
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    if (!newUserForm.branchId) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select a branch',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('admin-create-member', {
         body: {
@@ -51,23 +90,34 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
           data: {
             full_name: `${newUserForm.firstName} ${newUserForm.lastName}`,
             email: newUserForm.email,
-            phone: newUserForm.phone || 'N/A', // Required field
+            phone: newUserForm.phone || 'N/A',
             status: 'active',
             createAccount: true,
             username: newUserForm.email,
             password: newUserForm.password,
             role: newUserForm.role,
-            // Defaults for required fields not in form
+            branch_id: newUserForm.branchId,
+            // Defaults for required fields
             gender: 'Male',
             marital_status: 'Single',
             membership_level: 'Member',
             street: 'N/A',
+            area: 'N/A',
+            community: 'N/A',
           },
         },
       });
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
+
+      // Log to audit trial
+      await supabase.from('audit_logs').insert({
+        action: 'CREATE_USER',
+        resource: 'users',
+        details: `Created user ${newUserForm.email} with role ${newUserForm.role}`,
+        severity: 'info',
+      });
 
       toast({
         title: 'Success',
@@ -81,7 +131,9 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
         email: '',
         phone: '',
         password: '',
-        role: 'district_admin',
+        role: 'member',
+        districtId: '',
+        branchId: '',
       });
 
       if (onSuccess) onSuccess();
@@ -99,11 +151,11 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create New Administrator</DialogTitle>
+          <DialogTitle>Create New User</DialogTitle>
           <DialogDescription>
-            Create a new user account with administrative privileges.
+            Create a new user account and associated member profile.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreateUser} className="space-y-4">
@@ -125,22 +177,26 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               />
             </div>
           </div>
-          <div>
-            <Label>Email *</Label>
-            <Input
-              type="email"
-              value={newUserForm.email}
-              onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-              required
-            />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={newUserForm.email}
+                onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input
+                value={newUserForm.phone}
+                onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })}
+              />
+            </div>
           </div>
-          <div>
-            <Label>Phone</Label>
-            <Input
-              value={newUserForm.phone}
-              onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })}
-            />
-          </div>
+
           <div>
             <Label>Password *</Label>
             <Input
@@ -151,6 +207,49 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               minLength={6}
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>District</Label>
+              <Select
+                value={newUserForm.districtId}
+                onValueChange={(val) =>
+                  setNewUserForm({ ...newUserForm, districtId: val, branchId: '' })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select District" />
+                </SelectTrigger>
+                <SelectContent>
+                  {districts.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Branch *</Label>
+              <Select
+                value={newUserForm.branchId}
+                onValueChange={(val) => setNewUserForm({ ...newUserForm, branchId: val })}
+                disabled={!newUserForm.districtId && branches.length > 50} // Optional optimization
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredBranches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div>
             <Label>Role</Label>
             <Select
@@ -161,12 +260,17 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="worker">Worker</SelectItem>
+                <SelectItem value="leader">Leader</SelectItem>
+                <SelectItem value="pastor">Pastor</SelectItem>
+                <SelectItem value="admin">Branch Admin</SelectItem>
                 <SelectItem value="district_admin">District Admin</SelectItem>
-
                 <SelectItem value="super_admin">Super Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

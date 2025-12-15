@@ -6,7 +6,8 @@ import { SuperadminSidebar } from '@/components/admin/superadmin/SuperadminSideb
 import { SuperadminHeader } from '@/components/admin/superadmin/SuperadminHeader';
 import { SuperadminOverview } from '@/components/admin/superadmin/SuperadminOverview';
 import { DistrictManagement } from '@/components/admin/superadmin/DistrictManagement';
-import { SuperadminBranchDirectory } from '@/components/admin/superadmin/SuperadminBranchDirectory';
+import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
+
 import { SuperadminUsersRoles } from '@/components/admin/superadmin/SuperadminUsersRoles';
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
@@ -53,10 +54,7 @@ const SuperadminDashboard: React.FC = () => {
         <p className="text-muted-foreground mb-4">
           You do not have permission to access the Superadmin Dashboard.
         </p>
-        <button
-          onClick={() => navigate('/admin')}
-          className="text-primary hover:underline"
-        >
+        <button onClick={() => navigate('/admin')} className="text-primary hover:underline">
           Go to Admin Dashboard
         </button>
       </div>
@@ -69,8 +67,9 @@ const SuperadminDashboard: React.FC = () => {
         return <SuperadminOverview />;
       case 'districts':
         return <DistrictManagement />;
-      case 'branches':
-        return <SuperadminBranchDirectory />;
+      case 'transfers':
+        return <SuperadminTransferManagement />;
+
       case 'users':
         return <SuperadminUsersRoles />;
       case 'reports':

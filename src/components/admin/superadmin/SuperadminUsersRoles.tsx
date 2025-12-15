@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -39,6 +39,7 @@ import {
   Loader2,
   UserCog,
   Crown,
+  KeyRound,
 } from 'lucide-react';
 
 interface UserRole {
@@ -50,6 +51,7 @@ interface UserRole {
   profile?: {
     first_name: string;
     last_name: string;
+    email?: string;
   };
   branch?: {
     name: string;
@@ -61,6 +63,7 @@ interface Profile {
   first_name: string;
   last_name: string;
   role: string | null;
+  email?: string;
 }
 
 interface Branch {
@@ -84,16 +87,15 @@ export const SuperadminUsersRoles: React.FC = () => {
     branchId: '',
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [rolesRes, profilesRes, branchesRes] = await Promise.all([
         supabase.from('user_roles').select('*').order('created_at', { ascending: false }),
-        supabase.from('profiles').select('id, first_name, last_name, role').order('first_name'),
+        supabase
+          .from('profiles')
+          .select('id, first_name, last_name, role, email')
+          .order('first_name'),
         supabase.from('church_branches').select('id, name').order('name'),
       ]);
 
@@ -103,17 +105,23 @@ export const SuperadminUsersRoles: React.FC = () => {
 
       // Enrich roles with profile and branch info
       const enrichedRoles = (rolesRes.data || []).map((role) => {
-        const profile = profilesRes.data?.find((p) => p.id === role.user_id);
+        const profile = (profilesRes.data as any)?.find((p: any) => p.id === role.user_id);
         const branch = branchesRes.data?.find((b) => b.id === role.branch_id);
         return {
           ...role,
-          profile: profile ? { first_name: profile.first_name, last_name: profile.last_name } : undefined,
+          profile: profile
+            ? {
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                email: profile.email,
+              }
+            : undefined,
           branch: branch ? { name: branch.name } : undefined,
         };
       });
 
       setUserRoles(enrichedRoles);
-      setProfiles(profilesRes.data || []);
+      setProfiles((profilesRes.data as unknown as Profile[]) || []);
       setBranches(branchesRes.data || []);
     } catch (error: any) {
       toast({
@@ -124,18 +132,57 @@ export const SuperadminUsersRoles: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleResetCredentials = async (email: string) => {
+    if (!confirm(`Are you sure you want to send a password reset email to ${email}?`)) return;
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/auth/reset-password',
+      });
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        action: 'RESET_PASSWORD',
+        resource: 'auth',
+        details: `Sent password reset email to ${email}`,
+        severity: 'info',
+      });
+
+      toast({ title: 'Success', description: 'Reset email sent successfully' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleAssignRole = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { error } = await supabase.from('user_roles').insert([{
-        user_id: assignForm.userId,
-        role: assignForm.role as any,
-        branch_id: assignForm.branchId || null,
-      }]);
+      const { error } = await supabase.from('user_roles').insert([
+        {
+          user_id: assignForm.userId,
+          role: assignForm.role as any,
+          branch_id:
+            assignForm.branchId === 'global' || !assignForm.branchId ? null : assignForm.branchId,
+        },
+      ]);
 
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        action: 'ASSIGN_ROLE',
+        resource: 'user_roles',
+        details: `Assigned role ${assignForm.role} to user ${assignForm.userId}`,
+        severity: 'warning',
+      });
 
       toast({ title: 'Success', description: 'Role assigned successfully' });
       setIsAssignOpen(false);
@@ -156,6 +203,13 @@ export const SuperadminUsersRoles: React.FC = () => {
     try {
       const { error } = await supabase.from('user_roles').delete().eq('id', roleId);
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        action: 'REVOKE_ROLE',
+        resource: 'user_roles',
+        details: `Revoked role assignment ${roleId}`,
+        severity: 'warning',
+      });
 
       toast({ title: 'Success', description: 'Role revoked successfully' });
       fetchData();
@@ -182,7 +236,9 @@ export const SuperadminUsersRoles: React.FC = () => {
   };
 
   const filteredRoles = userRoles.filter((ur) => {
-    const fullName = ur.profile ? `${ur.profile.first_name} ${ur.profile.last_name}`.toLowerCase() : '';
+    const fullName = ur.profile
+      ? `${ur.profile.first_name} ${ur.profile.last_name}`.toLowerCase()
+      : '';
     const matchesSearch = searchTerm === '' || fullName.includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || ur.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -213,9 +269,7 @@ export const SuperadminUsersRoles: React.FC = () => {
             <Shield className="h-7 w-7" />
             Users & Roles
           </h1>
-          <p className="text-muted-foreground mt-1">
-            System-wide user registry and access control
-          </p>
+          <p className="text-muted-foreground mt-1">System-wide user registry and access control</p>
         </div>
         <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
           <DialogTrigger asChild>
@@ -282,9 +336,11 @@ export const SuperadminUsersRoles: React.FC = () => {
                     <SelectValue placeholder="Global (no branch)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Global (no branch)</SelectItem>
+                    <SelectItem value="global">Global (no branch)</SelectItem>
                     {branches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -382,7 +438,7 @@ export const SuperadminUsersRoles: React.FC = () => {
                   <TableHead>Role</TableHead>
                   <TableHead>Branch Scope</TableHead>
                   <TableHead>Assigned</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -406,10 +462,12 @@ export const SuperadminUsersRoles: React.FC = () => {
                           </div>
                           <div>
                             <p className="font-medium">
-                              {ur.profile ? `${ur.profile.first_name} ${ur.profile.last_name}` : 'Unknown User'}
+                              {ur.profile
+                                ? `${ur.profile.first_name} ${ur.profile.last_name}`
+                                : 'Unknown User'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              ID: {ur.user_id.slice(0, 8)}...
+                              {ur.profile?.email || 'No email'}
                             </p>
                           </div>
                         </div>
@@ -433,14 +491,28 @@ export const SuperadminUsersRoles: React.FC = () => {
                         {new Date(ur.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRevokeRole(ur.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Reset Password"
+                            onClick={() =>
+                              ur.profile?.email && handleResetCredentials(ur.profile.email)
+                            }
+                            disabled={!ur.profile?.email}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRevokeRole(ur.id)}
+                            className="text-destructive hover:text-destructive"
+                            title="Revoke Role"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
