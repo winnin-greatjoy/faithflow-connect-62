@@ -35,8 +35,7 @@ interface AuditLogEntry {
   profile?: {
     first_name: string;
     last_name: string;
-    email: string;
-  };
+  } | null;
 }
 
 export const AuditLogsModule: React.FC = () => {
@@ -54,25 +53,46 @@ export const AuditLogsModule: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('audit_logs')
-        .select(
-          `
-          *,
-          profile:profiles(first_name, last_name, email)
-        `
-        )
+        .select(`
+          id,
+          timestamp,
+          user_id,
+          action,
+          resource,
+          details,
+          severity,
+          ip_address
+        `)
         .order('timestamp', { ascending: false })
         .limit(100);
 
       if (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch audit logs',
-          variant: 'destructive',
-        });
+        console.error('Audit logs error:', error);
         throw error;
       }
 
-      return data as unknown as AuditLogEntry[];
+      // Fetch profile names separately for user_ids
+      const userIds = [...new Set((data || []).map(d => d.user_id).filter(Boolean))];
+      let profileMap: Record<string, { first_name: string; last_name: string }> = {};
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', userIds);
+        
+        if (profiles) {
+          profileMap = profiles.reduce((acc, p) => {
+            acc[p.id] = { first_name: p.first_name, last_name: p.last_name };
+            return acc;
+          }, {} as Record<string, { first_name: string; last_name: string }>);
+        }
+      }
+
+      return (data || []).map(log => ({
+        ...log,
+        profile: log.user_id ? profileMap[log.user_id] || null : null
+      })) as AuditLogEntry[];
     },
   });
 
