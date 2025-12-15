@@ -7,11 +7,13 @@ import { SuperadminHeader } from '@/components/admin/superadmin/SuperadminHeader
 import { SuperadminOverview } from '@/components/admin/superadmin/SuperadminOverview';
 import { DistrictManagement } from '@/components/admin/superadmin/DistrictManagement';
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
-
 import { SuperadminUsersRoles } from '@/components/admin/superadmin/SuperadminUsersRoles';
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { AuditLogsModule } from '@/components/admin/superadmin/AuditLogsModule';
+import { SuperAdminFinanceDashboard } from '@/components/admin/superadmin/SuperAdminFinanceDashboard';
+import { SuperAdminCMSDashboard } from '@/components/admin/superadmin/SuperAdminCMSDashboard';
+import { SuperAdminStreamingDashboard } from '@/components/admin/superadmin/SuperAdminStreamingDashboard';
 import { Loader2 } from 'lucide-react';
 
 const SuperadminDashboard: React.FC = () => {
@@ -69,9 +71,14 @@ const SuperadminDashboard: React.FC = () => {
         return <DistrictManagement />;
       case 'transfers':
         return <SuperadminTransferManagement />;
-
       case 'users':
         return <SuperadminUsersRoles />;
+      case 'finance':
+        return <SuperAdminFinanceDashboard />;
+      case 'cms':
+        return <SuperAdminCMSDashboard />;
+      case 'streaming':
+        return <SuperAdminStreamingDashboard />;
       case 'reports':
         return <SystemReportsModule />;
       case 'settings':

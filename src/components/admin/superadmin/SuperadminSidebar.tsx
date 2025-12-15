@@ -11,6 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRightLeft,
+  DollarSign,
+  FileText,
+  Video,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -41,6 +44,9 @@ const menuItems: MenuItem[] = [
   { id: 'districts', label: 'Districts', icon: Network, description: 'Manage districts' },
   { id: 'transfers', label: 'Transfers', icon: ArrowRightLeft, description: 'Member approvals' },
   { id: 'users', label: 'Users & Roles', icon: Users, description: 'Access control' },
+  { id: 'finance', label: 'Finance', icon: DollarSign, description: 'Financial overview' },
+  { id: 'cms', label: 'Content', icon: FileText, description: 'Content management' },
+  { id: 'streaming', label: 'Streaming', icon: Video, description: 'Live streams' },
   { id: 'reports', label: 'Reports', icon: FileBarChart, description: 'System reports' },
   { id: 'settings', label: 'System Settings', icon: Settings, description: 'Configuration' },
   { id: 'audit', label: 'Audit Logs', icon: Shield, description: 'Activity history' },
