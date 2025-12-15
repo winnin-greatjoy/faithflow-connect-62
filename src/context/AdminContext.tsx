@@ -41,9 +41,14 @@ export const AdminProvider = ({
           setSelectedBranchId(userBranchId);
         }
       } else {
-        // 3. If superadmin, selectedBranchId persists (or starts null for global view)
-        // If they have selected a branch, fetch its name for display
-        if (!selectedBranchId) {
+        // 3. If superadmin, selectedBranchId persists.
+        // If they have a "home" branch assigned and nothing selected, default to it.
+        if (!selectedBranchId && userBranchId) {
+          setSelectedBranchId(userBranchId);
+        }
+
+        // If still no branch selected (Global View), clear branch name
+        if (!selectedBranchId && !userBranchId) {
           setBranchName(null);
         }
       }

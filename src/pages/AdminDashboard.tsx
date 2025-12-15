@@ -203,9 +203,11 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
 // Wrap the dashboard in the provider
 const AdminDashboard = ({ isPortalMode = false }: { isPortalMode?: boolean }) => {
   const params = useParams();
-  // Get branchId from params if in portal mode.
+  const location = useLocation();
+
+  // Get branchId from params if in portal mode, OR from navigation state if passed (e.g. from Superadmin "Manage" button)
   // URL: /branch-portal/:branchId/*
-  const initialBranchId = isPortalMode ? params.branchId : undefined;
+  const initialBranchId = isPortalMode ? params.branchId : (location.state as any)?.branchId;
 
   return (
     <AdminProvider initialBranchId={initialBranchId}>

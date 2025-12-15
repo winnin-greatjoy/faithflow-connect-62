@@ -523,7 +523,7 @@ export const DistrictManagement: React.FC = () => {
               <Button
                 className="w-full"
                 variant="outline"
-                onClick={() => navigate(`/admin/districts/unassigned`)}
+                onClick={() => navigate(`/superadmin/districts/unassigned`)}
               >
                 Manage Unassigned <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

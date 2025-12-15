@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAdminContext } from '@/context/AdminContext';
 import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
@@ -249,7 +248,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
 }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { setSelectedBranchId } = useAdminContext();
+  // Removed useAdminContext
   const [branches, setBranches] = useState<Branch[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -914,8 +913,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
                       size="sm"
                       className="w-full"
                       onClick={() => {
-                        setSelectedBranchId(branch.id);
-                        navigate('/admin');
+                        navigate(`/branch-portal/${branch.id}`);
                       }}
                     >
                       Manage
@@ -995,8 +993,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
                             variant="default"
                             size="sm"
                             onClick={() => {
-                              setSelectedBranchId(district.id);
-                              navigate('/admin');
+                              navigate(`/district-portal/${district.id}`);
                             }}
                           >
                             <Building className="mr-2 h-4 w-4" />
@@ -1052,8 +1049,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
                                   size="sm"
                                   className="flex-1"
                                   onClick={() => {
-                                    setSelectedBranchId(branch.id);
-                                    navigate('/admin');
+                                    navigate(`/branch-portal/${branch.id}`);
                                   }}
                                 >
                                   Manage
@@ -1123,8 +1119,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
                             size="sm"
                             className="flex-1"
                             onClick={() => {
-                              setSelectedBranchId(branch.id);
-                              navigate('/admin');
+                              navigate(`/branch-portal/${branch.id}`);
                             }}
                           >
                             Manage

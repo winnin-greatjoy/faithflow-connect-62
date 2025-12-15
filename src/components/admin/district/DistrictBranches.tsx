@@ -356,11 +356,12 @@ export const DistrictBranches: React.FC<DistrictBranchesProps> = ({
                     onCheckedChange={() => handleSetHQ(branch.id, branch.is_district_hq)}
                   />
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                  {/* Link to branch details or similar - for now just a placeholder action */}
-                  <div className="flex items-center cursor-pointer">
-                    <Building className="h-3 w-3 mr-1" /> View
-                  </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/branch-portal/${branch.id}`)}
+                >
+                  <Building className="h-3 w-3 mr-1" /> View
                 </Button>
               </div>
             </CardContent>
