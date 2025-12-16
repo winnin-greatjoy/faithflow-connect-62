@@ -28,6 +28,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Building, Plus, MapPin, Edit, Trash2, Phone, UserCog, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthz } from '@/hooks/useAuthz';
 
 interface District {
   id: string;
@@ -58,6 +60,8 @@ export const DistrictBranches: React.FC<DistrictBranchesProps> = ({
   onRefresh,
 }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { hasRole } = useAuthz();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
@@ -359,7 +363,17 @@ export const DistrictBranches: React.FC<DistrictBranchesProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/branch-portal/${branch.id}`)}
+                  onClick={() => {
+                    const to = hasRole('super_admin')
+                      ? `/superadmin/district-portal/branch/${branch.id}`
+                      : `/district-portal/branch/${branch.id}`;
+                    navigate(to, {
+                      state: {
+                        from: `/district-portal/${district.id}`,
+                        fromState: { activeModule: 'branches' },
+                      },
+                    });
+                  }}
                 >
                   <Building className="h-3 w-3 mr-1" /> View
                 </Button>

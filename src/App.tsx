@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { useAuthz } from './hooks/useAuthz';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { DashboardSkeleton } from './components/ui/skeletons';
 
@@ -83,6 +84,42 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const SuperadminOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+  const { hasRole, loading } = useAuthz();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-6">
+        <DashboardSkeleton />
+      </div>
+    );
+  }
+
+  if (!hasRole('super_admin')) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const DistrictAdminOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+  const { hasRole, loading } = useAuthz();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-6">
+        <DashboardSkeleton />
+      </div>
+    );
+  }
+
+  if (!hasRole('district_admin')) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -124,14 +161,6 @@ const App = () => (
               <Route path="directory-settings" element={<DirectorySettingsPage />} />
               <Route path="edit-account" element={<EditAccountInfoPage />} />
             </Route>
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
             <Route
               path="/admin/mens-ministry/:ministryId"
               element={
@@ -198,12 +227,38 @@ const App = () => (
               }
             />
 
+            {/* District Admin Branch Dashboard */}
+            <Route
+              path="/district-portal/branch/:branchId/*"
+              element={
+                <ProtectedRoute>
+                  <DistrictAdminOnlyRoute>
+                    <AdminDashboard isPortalMode={true} />
+                  </DistrictAdminOnlyRoute>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Superadmin District Portal Branch Dashboard */}
+            <Route
+              path="/superadmin/district-portal/branch/:branchId/*"
+              element={
+                <ProtectedRoute>
+                  <SuperadminOnlyRoute>
+                    <AdminDashboard isPortalMode={true} />
+                  </SuperadminOnlyRoute>
+                </ProtectedRoute>
+              }
+            />
+
             {/* Standalone Branch Portal for Superadmins */}
             <Route
               path="/branch-portal/:branchId/*"
               element={
                 <ProtectedRoute>
-                  <AdminDashboard isPortalMode={true} />
+                  <SuperadminOnlyRoute>
+                    <AdminDashboard isPortalMode={true} />
+                  </SuperadminOnlyRoute>
                 </ProtectedRoute>
               }
             />
@@ -212,7 +267,9 @@ const App = () => (
               path="/superadmin/*"
               element={
                 <ProtectedRoute>
-                  <SuperadminDashboard />
+                  <SuperadminOnlyRoute>
+                    <SuperadminDashboard />
+                  </SuperadminOnlyRoute>
                 </ProtectedRoute>
               }
             />

@@ -18,22 +18,93 @@ export const AdminProvider = ({
   children: ReactNode;
   initialBranchId?: string;
 }) => {
-  const { branchId: userBranchId, hasRole, loading: authLoading } = useAuthz();
+  const { userId, branchId: userBranchId, hasRole, loading: authLoading } = useAuthz();
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [branchName, setBranchName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [districtAdminDistrictId, setDistrictAdminDistrictId] = useState<string | null>(null);
+  const [districtAdminBranchIds, setDistrictAdminBranchIds] = useState<string[] | null>(null);
+  const [districtScopeLoading, setDistrictScopeLoading] = useState(false);
+
   const isSuperadmin = hasRole('super_admin');
+  const isDistrictAdmin = hasRole('district_admin');
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!userId) return;
+
+    if (!isDistrictAdmin || isSuperadmin) {
+      setDistrictAdminDistrictId(null);
+      setDistrictAdminBranchIds(null);
+      return;
+    }
+
+    let active = true;
+    (async () => {
+      setDistrictScopeLoading(true);
+      try {
+        const { data: district } = await supabase
+          .from('districts')
+          .select('id')
+          .eq('head_admin_id', userId)
+          .maybeSingle();
+
+        if (!active) return;
+        const did = district?.id ?? null;
+        setDistrictAdminDistrictId(did);
+
+        if (!did) {
+          setDistrictAdminBranchIds([]);
+          return;
+        }
+
+        const { data: branches } = await supabase
+          .from('church_branches')
+          .select('id')
+          .eq('district_id', did);
+
+        if (!active) return;
+        setDistrictAdminBranchIds((branches || []).map((b) => b.id));
+      } finally {
+        if (active) setDistrictScopeLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [authLoading, userId, isDistrictAdmin, isSuperadmin]);
 
   useEffect(() => {
     if (authLoading) return;
 
+    // If we're a district admin, we need district scope info before we can safely accept initialBranchId
+    if (isDistrictAdmin && !isSuperadmin && districtScopeLoading) return;
+
     const initializeContext = async () => {
       setLoading(true);
 
-      // 1. If explicitly initialized (e.g. Portal Mode), use that
+      // 1. If explicitly initialized (e.g. Portal Mode), validate based on role
       if (initialBranchId) {
-        setSelectedBranchId(initialBranchId);
+        if (isSuperadmin) {
+          setSelectedBranchId(initialBranchId);
+        } else if (isDistrictAdmin) {
+          const allowed = (districtAdminBranchIds || []).includes(initialBranchId);
+          if (allowed) {
+            setSelectedBranchId(initialBranchId);
+          } else if (userBranchId) {
+            setSelectedBranchId(userBranchId);
+          } else {
+            setSelectedBranchId(null);
+          }
+        } else if (userBranchId && initialBranchId === userBranchId) {
+          setSelectedBranchId(initialBranchId);
+        } else if (userBranchId) {
+          setSelectedBranchId(userBranchId);
+        } else {
+          setSelectedBranchId(null);
+        }
       }
       // 2. If NOT superadmin, always enforce their assigned branch
       else if (!isSuperadmin) {
@@ -56,7 +127,16 @@ export const AdminProvider = ({
     };
 
     initializeContext();
-  }, [authLoading, isSuperadmin, userBranchId, selectedBranchId, initialBranchId]);
+  }, [
+    authLoading,
+    isSuperadmin,
+    isDistrictAdmin,
+    userBranchId,
+    selectedBranchId,
+    initialBranchId,
+    districtAdminBranchIds,
+    districtScopeLoading,
+  ]);
 
   // Effect to fetch branch name when selectedBranchId changes
   useEffect(() => {

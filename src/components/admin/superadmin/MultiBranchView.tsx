@@ -913,7 +913,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
                       size="sm"
                       className="w-full"
                       onClick={() => {
-                        navigate(`/branch-portal/${branch.id}`);
+                        navigate('/admin', { state: { branchId: branch.id } });
                       }}
                     >
                       Manage
@@ -1049,7 +1049,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
                                   size="sm"
                                   className="flex-1"
                                   onClick={() => {
-                                    navigate(`/branch-portal/${branch.id}`);
+                                    navigate('/admin', { state: { branchId: branch.id } });
                                   }}
                                 >
                                   Manage
@@ -1119,7 +1119,7 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
                             size="sm"
                             className="flex-1"
                             onClick={() => {
-                              navigate(`/branch-portal/${branch.id}`);
+                              navigate('/admin', { state: { branchId: branch.id } });
                             }}
                           >
                             Manage

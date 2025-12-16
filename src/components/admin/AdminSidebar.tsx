@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +38,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAdminContext } from '@/context/AdminContext';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
+import { useAuthz } from '@/hooks/useAuthz';
 
 interface MenuItem {
   id: string;
@@ -125,6 +126,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const { isSuperadmin } = useSuperadmin();
   const { selectedBranchId } = useAdminContext();
+  const location = useLocation();
+  const { hasRole } = useAuthz();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
   const sidebarRef = React.useRef<HTMLDivElement | null>(null);
@@ -396,7 +399,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
 
             {/* Back Button for Portal Mode */}
-            {isPortalMode && isSuperadmin && (
+            {isPortalMode && (isSuperadmin || hasRole('district_admin')) && (
               <div className="px-2 py-2 border-b">
                 <Button
                   variant="ghost"
@@ -404,7 +407,26 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     'w-full justify-start text-muted-foreground hover:text-foreground',
                     !showFullSidebar && 'justify-center px-0'
                   )}
-                  onClick={() => _navigate('/admin')}
+                  onClick={() => {
+                    const from = (location.state as any)?.from as string | undefined;
+                    const fromState = (location.state as any)?.fromState as any | undefined;
+                    if (from) {
+                      _navigate(from, fromState ? { state: fromState } : undefined);
+                      return;
+                    }
+
+                    if (location.pathname.startsWith('/superadmin/district-portal/branch/')) {
+                      _navigate('/superadmin/districts');
+                      return;
+                    }
+
+                    if (location.pathname.startsWith('/district-portal/branch/')) {
+                      _navigate('/district-portal');
+                      return;
+                    }
+
+                    _navigate('/admin');
+                  }}
                   title={!showFullSidebar ? 'Back to Global View' : undefined}
                 >
                   <ArrowLeft className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />

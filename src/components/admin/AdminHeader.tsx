@@ -1,15 +1,18 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Search, Settings, User, LogOut, Menu, X } from 'lucide-react';
+import { Bell, Search, Settings, User, LogOut, Menu, X, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -17,15 +20,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { SuperadminBadge } from './SuperadminBadge';
 import { useAdminContext } from '@/context/AdminContext';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthz } from '@/hooks/useAuthz';
 
 interface AdminHeaderProps {
   onMenuToggle: () => void;
@@ -34,8 +31,10 @@ interface AdminHeaderProps {
 
 export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signOut, user } = useAuth();
   const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
+  const { hasRole } = useAuthz();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -47,14 +46,87 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
   const { toast } = useToast();
   const { selectedBranchId, setSelectedBranchId, branchName } = useAdminContext();
 
-  const { data: branches } = useQuery({
-    queryKey: ['admin-header-branches'],
+  const { data: districtTree } = useQuery({
+    queryKey: ['admin-header-district-tree'],
     queryFn: async () => {
-      const { data } = await supabase.from('church_branches').select('id, name');
-      return data || [];
+      const [districtsRes, branchesRes] = await Promise.all([
+        supabase.from('districts').select('id, name').order('name'),
+        supabase.from('church_branches').select('id, name, district_id').order('name'),
+      ]);
+
+      return {
+        districts: (districtsRes.data || []) as { id: string; name: string }[],
+        branches: (branchesRes.data || []) as {
+          id: string;
+          name: string;
+          district_id: string | null;
+        }[],
+      };
     },
-    enabled: isSuperadmin,
+    enabled: isSuperadmin && !isPortalMode,
   });
+
+  const branchesByDistrict = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }[]>();
+    const unassigned: { id: string; name: string }[] = [];
+
+    (districtTree?.branches || []).forEach((b) => {
+      if (!b.district_id) {
+        unassigned.push({ id: b.id, name: b.name });
+        return;
+      }
+      const arr = map.get(b.district_id) || [];
+      arr.push({ id: b.id, name: b.name });
+      map.set(b.district_id, arr);
+    });
+
+    return { map, unassigned };
+  }, [districtTree]);
+
+  const isDistrictAdmin = hasRole('district_admin') && !isSuperadmin;
+
+  const { data: portalDistrictBranches } = useQuery({
+    queryKey: ['admin-header-portal-district-branches', selectedBranchId],
+    queryFn: async () => {
+      if (!selectedBranchId)
+        return {
+          districtId: null as string | null,
+          branches: [] as { id: string; name: string }[],
+        };
+
+      const { data: b } = await supabase
+        .from('church_branches')
+        .select('district_id')
+        .eq('id', selectedBranchId)
+        .maybeSingle();
+
+      const districtId = (b as any)?.district_id ?? null;
+      if (!districtId) return { districtId, branches: [] as { id: string; name: string }[] };
+
+      const { data: branches } = await supabase
+        .from('church_branches')
+        .select('id, name')
+        .eq('district_id', districtId)
+        .order('name');
+
+      return { districtId, branches: (branches || []) as { id: string; name: string }[] };
+    },
+    enabled:
+      isPortalMode &&
+      (isSuperadmin || isDistrictAdmin) &&
+      (location.pathname.startsWith('/district-portal/branch/') ||
+        location.pathname.startsWith('/superadmin/district-portal/branch/')),
+  });
+
+  const handlePortalBranchSwitch = (nextBranchId: string) => {
+    const match = location.pathname.match(
+      /^(\/superadmin\/district-portal\/branch\/|\/district-portal\/branch\/|\/branch-portal\/)([^/]+)(.*)$/
+    );
+    if (!match) return;
+    const prefix = match[1];
+    const suffix = match[3] || '';
+    navigate(`${prefix}${nextBranchId}${suffix}`, { state: location.state });
+  };
 
   // Debounce function with proper TypeScript types
   function debounce<T extends (...args: any[]) => any>(func: T, wait: number) {
@@ -168,26 +240,91 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
 
           {isSuperadmin && !isPortalMode && (
             <div className="hidden md:block mr-2">
-              <Select
-                value={selectedBranchId || 'global'}
-                onValueChange={(val) => setSelectedBranchId(val === 'global' ? null : val)}
-              >
-                <SelectTrigger className="w-[180px] h-9 bg-purple-50 border-purple-200 text-purple-900 focus:ring-purple-500">
-                  <SelectValue placeholder="System View" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="global" className="font-semibold text-purple-700">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-[220px] h-9 bg-purple-50 border-purple-200 text-purple-900 justify-between"
+                  >
+                    <span className="truncate">
+                      {selectedBranchId ? branchName || 'Branch View' : 'System View'}
+                    </span>
+                    <ChevronDown className="h-4 w-4 ml-2 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[260px]">
+                  <DropdownMenuItem
+                    onClick={() => setSelectedBranchId(null)}
+                    className="font-semibold text-purple-700"
+                  >
                     System View
-                  </SelectItem>
-                  {branches?.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </SelectItem>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+
+                  {(districtTree?.districts || []).map((d) => (
+                    <DropdownMenuSub key={d.id}>
+                      <DropdownMenuSubTrigger>{d.name}</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-[240px]">
+                        {(branchesByDistrict.map.get(d.id) || []).length === 0 ? (
+                          <DropdownMenuItem disabled>No branches</DropdownMenuItem>
+                        ) : (
+                          (branchesByDistrict.map.get(d.id) || []).map((b) => (
+                            <DropdownMenuItem key={b.id} onClick={() => setSelectedBranchId(b.id)}>
+                              {b.name}
+                            </DropdownMenuItem>
+                          ))
+                        )}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                   ))}
-                </SelectContent>
-              </Select>
+
+                  {branchesByDistrict.unassigned.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>Unassigned</DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-[240px]">
+                          {branchesByDistrict.unassigned.map((b) => (
+                            <DropdownMenuItem key={b.id} onClick={() => setSelectedBranchId(b.id)}>
+                              {b.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
+
+          {isPortalMode &&
+            (isSuperadmin || isDistrictAdmin) &&
+            (location.pathname.startsWith('/district-portal/branch/') ||
+              location.pathname.startsWith('/superadmin/district-portal/branch/')) && (
+              <div className="hidden md:block mr-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-9 justify-between w-[220px]">
+                      <span className="truncate">{branchName || 'Select Branch'}</span>
+                      <ChevronDown className="h-4 w-4 ml-2 opacity-70" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[260px]">
+                    <DropdownMenuLabel>Branches in District</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {(portalDistrictBranches?.branches || []).map((b) => (
+                      <DropdownMenuItem key={b.id} onClick={() => handlePortalBranchSwitch(b.id)}>
+                        {b.name}
+                      </DropdownMenuItem>
+                    ))}
+                    {(portalDistrictBranches?.branches || []).length === 0 && (
+                      <DropdownMenuItem disabled>No branches</DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
 
           <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center lg:hidden">
             <img

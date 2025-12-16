@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -30,29 +30,37 @@ import { useAuthz } from '@/hooks/useAuthz';
 import { AdminProvider, useAdminContext } from '@/context/AdminContext';
 
 // Define the inner dashboard content to use the context
-import { useParams } from 'react-router-dom';
-
-// Define the inner dashboard content to use the context
 const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const params = useParams();
   const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
   const { can, hasRole, loading: authzLoading } = useAuthz();
   const { selectedBranchId, loading: contextLoading } = useAdminContext();
+
+  const portalModule = useMemo(() => {
+    const splat = (params as any)['*'] as string | undefined;
+    if (!splat) return 'overview';
+    const first = splat.split('/')[0];
+    return first || 'overview';
+  }, [params]);
+
+  const portalBasePath = useMemo(() => {
+    const splat = (params as any)['*'] as string | undefined;
+    if (!splat) return location.pathname;
+    const suffix = `/${splat}`;
+    if (location.pathname.endsWith(suffix)) {
+      return location.pathname.slice(0, -suffix.length);
+    }
+    return location.pathname;
+  }, [location.pathname, params]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Determine active module based on URL
   const getActiveModule = () => {
     if (isPortalMode) {
-      // In portal mode, URL is /branch-portal/:id/module
-      // So split by /branch-portal/:id/
-      // Ideally relative paths?
-      // Simplest: Check if path has segments after ID.
-      const parts = location.pathname.split('/');
-      // /branch-portal/123/members -> parts: ["", "branch-portal", "123", "members"]
-      if (parts[3]) return parts[3];
-      return 'overview';
+      return portalModule;
     }
 
     const path = location.pathname.split('/admin/')[1];
@@ -64,11 +72,8 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
 
   const handleModuleChange = (module: string) => {
     if (isPortalMode) {
-      // preserve branch ID
-      const parts = location.pathname.split('/');
-      const branchId = parts[2];
-      if (module === 'overview') navigate(`/branch-portal/${branchId}`);
-      else navigate(`/branch-portal/${branchId}/${module}`);
+      if (module === 'overview') navigate(portalBasePath);
+      else navigate(`${portalBasePath}/${module}`);
     } else {
       if (module === 'overview') {
         navigate('/admin');

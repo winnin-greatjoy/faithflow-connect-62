@@ -105,7 +105,11 @@ export const SuperadminBranchDirectory: React.FC = () => {
     }
   };
 
-  const handleSetHQ = async (branchId: string, districtId: string | null, currentStatus: boolean) => {
+  const handleSetHQ = async (
+    branchId: string,
+    districtId: string | null,
+    currentStatus: boolean
+  ) => {
     if (!districtId) {
       toast({
         title: 'Error',
@@ -149,7 +153,7 @@ export const SuperadminBranchDirectory: React.FC = () => {
     try {
       const { error } = await supabase
         .from('church_branches')
-        .update({ 
+        .update({
           district_id: newDistrictId === 'unassigned' ? null : newDistrictId,
           is_district_hq: false, // Reset HQ status when moving
         })
@@ -172,9 +176,11 @@ export const SuperadminBranchDirectory: React.FC = () => {
   };
 
   const filteredBranches = branches.filter((branch) => {
-    const matchesSearch = branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch =
+      branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       branch.address.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDistrict = districtFilter === 'all' ||
+    const matchesDistrict =
+      districtFilter === 'all' ||
       (districtFilter === 'unassigned' && !branch.district_id) ||
       branch.district_id === districtFilter;
     return matchesSearch && matchesDistrict;
@@ -209,9 +215,7 @@ export const SuperadminBranchDirectory: React.FC = () => {
             <Building className="h-7 w-7" />
             Branch Directory
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Cross-district branch management
-          </p>
+          <p className="text-muted-foreground mt-1">Cross-district branch management</p>
         </div>
       </div>
 
@@ -264,7 +268,9 @@ export const SuperadminBranchDirectory: React.FC = () => {
                 <SelectItem value="all">All Districts</SelectItem>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
                 {districts.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -276,9 +282,7 @@ export const SuperadminBranchDirectory: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>All Branches ({filteredBranches.length})</CardTitle>
-          <CardDescription>
-            Click actions to manage branch assignments and settings
-          </CardDescription>
+          <CardDescription>Click actions to manage branch assignments and settings</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -308,7 +312,9 @@ export const SuperadminBranchDirectory: React.FC = () => {
                           <div className="font-medium flex items-center gap-2">
                             {branch.name}
                             {branch.is_main && (
-                              <Badge className="bg-blue-100 text-blue-700 text-[10px]">Main HQ</Badge>
+                              <Badge className="bg-blue-100 text-blue-700 text-[10px]">
+                                Main HQ
+                              </Badge>
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -320,7 +326,11 @@ export const SuperadminBranchDirectory: React.FC = () => {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={branch.district_id ? '' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}
+                          className={
+                            branch.district_id
+                              ? ''
+                              : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                          }
                         >
                           {getDistrictName(branch.district_id)}
                         </Badge>
@@ -349,11 +359,17 @@ export const SuperadminBranchDirectory: React.FC = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/branch-portal/${branch.id}`)}>
+                            <DropdownMenuItem
+                              onClick={() => navigate('/admin', { state: { branchId: branch.id } })}
+                            >
                               <ExternalLink className="mr-2 h-4 w-4" />
                               Open Branch
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleSetHQ(branch.id, branch.district_id, branch.is_district_hq)}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleSetHQ(branch.id, branch.district_id, branch.is_district_hq)
+                              }
+                            >
                               {branch.is_district_hq ? (
                                 <>
                                   <StarOff className="mr-2 h-4 w-4" />

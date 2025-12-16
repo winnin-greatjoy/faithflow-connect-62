@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
+import { useAuthz } from '@/hooks/useAuthz';
 import { useToast } from '@/hooks/use-toast';
 import {
   LayoutDashboard,
@@ -67,10 +68,14 @@ interface DistrictDashboardProps {
 export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId }) => {
   const { user, signOut } = useAuth();
   const { isSuperadmin } = useSuperadmin();
+  const { hasRole } = useAuthz();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams();
+  const isDistrictAdmin = hasRole('district_admin') && !isSuperadmin;
   const effectiveDistrictId = districtId || params.districtId;
+  const requestedDistrictId = params.districtId;
 
   const [district, setDistrict] = useState<District | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -103,6 +108,17 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
   }, []);
 
   const showFullSidebar = !isCollapsed || isHovered;
+
+  useEffect(() => {
+    const requested = (location.state as any)?.activeModule as
+      | 'overview'
+      | 'branches'
+      | 'staff'
+      | 'reports'
+      | 'settings'
+      | undefined;
+    if (requested) setActiveModule(requested);
+  }, [location.state]);
 
   useEffect(() => {
     if (effectiveDistrictId || user?.id) {
@@ -235,6 +251,16 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
   }
 
   if (!district) {
+    if (isDistrictAdmin && requestedDistrictId) {
+      return (
+        <div className="p-8 text-center bg-muted/20 rounded-lg border-2 border-dashed m-8">
+          <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">You do not have access to view this district.</p>
+        </div>
+      );
+    }
+
     return (
       <div className="p-8 text-center bg-muted/20 rounded-lg border-2 border-dashed m-8">
         <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
