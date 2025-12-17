@@ -10,6 +10,7 @@ import {
   Building,
   Users,
   FileBarChart,
+  DollarSign,
   Settings,
   Shield,
   Menu,
@@ -26,6 +27,7 @@ import { DistrictBranches } from './DistrictBranches';
 import { DistrictStaff } from './DistrictStaff';
 import { DistrictReports } from './DistrictReports';
 import { DistrictSettings } from './DistrictSettings';
+import { FinanceDashboard } from '@/components/finance/FinanceDashboard';
 
 interface District {
   id: string;
@@ -90,7 +92,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
   });
   const [loading, setLoading] = useState(true);
   const [activeModule, setActiveModule] = useState<
-    'overview' | 'branches' | 'staff' | 'reports' | 'settings'
+    'overview' | 'branches' | 'staff' | 'finance' | 'reports' | 'settings'
   >('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For mobile
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -115,6 +117,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
       | 'overview'
       | 'branches'
       | 'staff'
+      | 'finance'
       | 'reports'
       | 'settings'
       | undefined;
@@ -280,6 +283,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
     { id: 'branches' as const, label: 'Branches', icon: Building },
     { id: 'staff' as const, label: 'Staff', icon: Users },
+    { id: 'finance' as const, label: 'Finance', icon: DollarSign },
     { id: 'reports' as const, label: 'Reports', icon: FileBarChart },
     { id: 'settings' as const, label: 'Settings', icon: Settings },
   ];
@@ -455,6 +459,9 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
                 availableProfiles={availableProfiles}
                 onRefresh={fetchDistrictData}
               />
+            )}
+            {activeModule === 'finance' && (
+              <FinanceDashboard mode="district" districtId={district.id} />
             )}
             {activeModule === 'reports' && <DistrictReports branches={branches} />}
             {activeModule === 'settings' && (

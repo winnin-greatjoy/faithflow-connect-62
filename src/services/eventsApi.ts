@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { useAuthz } from '@/hooks/useAuthz';
 
 // Minimal types for the service responses/payloads
 export type Scope = 'local' | 'district' | 'national';
@@ -43,11 +42,21 @@ async function getProfileForCurrentUser() {
   if (!uid) return null;
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('id, branch_id, district_id, role')
+    .select('id, branch_id, role')
     .eq('id', uid)
     .maybeSingle();
   if (error) throw error;
   return profile as any;
+}
+
+async function getDistrictIdForDistrictAdmin(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('districts')
+    .select('id')
+    .eq('head_admin_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as any)?.id ?? null;
 }
 
 export const eventsApi = {
@@ -83,12 +92,16 @@ export const eventsApi = {
     if (!profile) return { error: new Error('Not authenticated') } as any;
 
     const role = profile.role as string;
-    const allowedScope: Scope =
-      role === 'super_admin' ? 'national' : role === 'district_admin' ? 'district' : 'local';
+    const finalScope: Scope =
+      role === 'super_admin'
+        ? 'national'
+        : role === 'district_admin'
+          ? 'district'
+          : role === 'admin'
+            ? 'local'
+            : null;
 
-    // Normalize incoming scope but enforce allowedScope for non-superadmins
-    const requested = normalizeScope(payload.scope);
-    const finalScope: Scope = role === 'super_admin' ? requested : allowedScope;
+    if (!finalScope) return { error: new Error('Not authorized to create events') } as any;
 
     const record: any = {
       title: payload.title,
@@ -107,9 +120,18 @@ export const eventsApi = {
 
     // Attach branch/district ids according to finalScope
     if (finalScope === 'local') {
-      record.branch_id = profile.branch_id ?? payload.branch_id ?? null;
+      record.branch_id = profile.branch_id ?? null;
+      record.district_id = null;
+      if (!record.branch_id) return { error: new Error('Missing branch for local event') } as any;
     } else if (finalScope === 'district') {
-      record.district_id = profile.district_id ?? payload.district_id ?? null;
+      record.branch_id = null;
+      record.district_id = await getDistrictIdForDistrictAdmin(profile.id);
+      if (!record.district_id)
+        return { error: new Error('Missing district assignment for district admin') } as any;
+    } else {
+      // national
+      record.branch_id = null;
+      record.district_id = null;
     }
 
     return supabase.from('events').insert(record).select().single();
@@ -119,21 +141,30 @@ export const eventsApi = {
     const profile = await getProfileForCurrentUser();
     if (!profile) return { error: new Error('Not authenticated') } as any;
     const role = profile.role as string;
-    const allowedScope: Scope =
-      role === 'super_admin' ? 'national' : role === 'district_admin' ? 'district' : 'local';
+    const finalScope: Scope =
+      role === 'super_admin'
+        ? 'national'
+        : role === 'district_admin'
+          ? 'district'
+          : role === 'admin'
+            ? 'local'
+            : null;
 
-    const requested = normalizeScope(payload.scope);
-    const finalScope: Scope = role === 'super_admin' ? requested : allowedScope;
+    if (!finalScope) return { error: new Error('Not authorized to update events') } as any;
 
     const updatePayload: any = { ...payload };
     updatePayload.scope = finalScope;
 
     if (finalScope === 'local') {
-      updatePayload.branch_id = profile.branch_id ?? payload.branch_id ?? null;
+      updatePayload.branch_id = profile.branch_id ?? null;
       updatePayload.district_id = null;
+      if (!updatePayload.branch_id)
+        return { error: new Error('Missing branch for local event') } as any;
     } else if (finalScope === 'district') {
-      updatePayload.district_id = profile.district_id ?? payload.district_id ?? null;
+      updatePayload.district_id = await getDistrictIdForDistrictAdmin(profile.id);
       updatePayload.branch_id = null;
+      if (!updatePayload.district_id)
+        return { error: new Error('Missing district assignment for district admin') } as any;
     } else {
       updatePayload.branch_id = null;
       updatePayload.district_id = null;

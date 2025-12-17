@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useAdminContext } from '@/context/AdminContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -338,6 +338,10 @@ export const EventsModule: React.FC = () => {
     return 'Local';
   }, [hasRole]);
 
+  const canManageEvents = useMemo(() => {
+    return hasRole('super_admin') || hasRole('district_admin') || hasRole('admin');
+  }, [hasRole]);
+
   // dynamic load FullCalendar to avoid SSR issues
   useEffect(() => {
     let mounted = true;
@@ -435,27 +439,66 @@ export const EventsModule: React.FC = () => {
     };
   }, [hasRole, userId]);
 
-  // sync calendar events whenever events change
+  // filters
+  const filteredEvents = events.filter(
+    (e) => (tab === 'All' || e.type === tab) && (scopeFilter === 'All' || e.scope === scopeFilter)
+  );
+
+  // sync calendar events whenever filtered events change
   useEffect(() => {
     // generate occurrences for next 90 days for calendar plotting
     const items: any[] = [];
-    for (const ev of events) {
+    for (const ev of filteredEvents) {
       const occs = generateOccurrencesWithinWithPattern(ev, 90);
       if (occs.length === 0) continue;
+      const attendeeCount = (ev.attendeesList ?? []).length || 0;
+      const capacity = ev.capacity || 0;
+      const capacityLabel = capacity > 0 ? ` ${attendeeCount}/${capacity}` : ` ${attendeeCount}`;
+
+      // compute color based on fullness
+      let backgroundColor = '#06b6d4'; // cyan (default)
+      if (capacity > 0 && attendeeCount >= capacity)
+        backgroundColor = '#ef4444'; // red
+      else if (capacity > 0 && attendeeCount >= Math.ceil(capacity * 0.8))
+        backgroundColor = '#f59e0b'; // amber
+
       for (const iso of occs) {
+        // include time if available (ev.time may be 'HH:MM:SS' or human like '10:00 AM')
+        let start = iso;
+        if (ev.time && typeof ev.time === 'string' && ev.time.includes(':')) {
+          // if already ISO-like (HH:MM:SS), append directly
+          const hhmm = ev.time.split(' ')[0];
+          start = `${iso}T${hhmm}`;
+        }
+
         items.push({
-          title: ev.title,
-          start: iso,
-          extendedProps: { eventId: ev.id },
+          title: `${ev.title} —${capacityLabel}`,
+          start,
+          allDay: false,
+          backgroundColor,
+          borderColor: backgroundColor,
+          textColor: '#ffffff',
+          extendedProps: {
+            eventId: ev.id,
+            capacity,
+            attendeeCount,
+            scope: ev.scope,
+            status: ev.status,
+          },
         });
       }
     }
     setCalendarEvents(items);
-  }, [events]);
+  }, [filteredEvents]);
 
-  // filters
-  const filteredEvents = events.filter(
-    (e) => (tab === 'All' || e.type === tab) && (scopeFilter === 'All' || e.scope === scopeFilter)
+  const canEditEvent = useCallback(
+    (e: EventItem) => {
+      if (!canManageEvents) return false;
+      if (allowedScope === 'National') return e.scope === 'National';
+      if (allowedScope === 'District') return e.scope === 'District';
+      return e.scope === 'Local';
+    },
+    [allowedScope, canManageEvents]
   );
 
   // CRUD handlers
@@ -481,6 +524,7 @@ export const EventsModule: React.FC = () => {
   };
 
   const openEdit = (ev: EventItem) => {
+    if (!canManageEvents) return;
     setForm({ ...ev });
     // if weekly, prefill weekdays
     const pattern = ev.recurrencePattern ?? {};
@@ -508,6 +552,14 @@ export const EventsModule: React.FC = () => {
   };
 
   const saveCreate = async () => {
+    if (!canManageEvents) {
+      toast({
+        title: 'Access denied',
+        description: 'You do not have permission to create events.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!form || !form.title || !form.date) {
       toast({
         title: 'Validation',
@@ -566,6 +618,14 @@ export const EventsModule: React.FC = () => {
   };
 
   const saveEdit = () => {
+    if (!canManageEvents) {
+      toast({
+        title: 'Access denied',
+        description: 'You do not have permission to edit events.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!form || !form.id) return;
     const rec: RecurrencePattern = form.recurrencePattern ?? {};
     if (form.frequency === 'Weekly') {
@@ -617,7 +677,15 @@ export const EventsModule: React.FC = () => {
     })();
   };
 
-  const deleteEvent = (id: number) => {
+  const deleteEvent = (id: string | number) => {
+    if (!canManageEvents) {
+      toast({
+        title: 'Access denied',
+        description: 'You do not have permission to delete events.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!confirm('Delete event?')) return;
     (async () => {
       try {
@@ -637,20 +705,16 @@ export const EventsModule: React.FC = () => {
   };
 
   // Attendee management for the active event
-  const registerAttendee = (eventId: number, a: Partial<Attendee>) => {
+  const registerAttendee = (eventId: string | number, a: Partial<Attendee>) => {
     if (!a.name || !a.name.trim()) {
       alert('Provide name');
       return;
     }
     (async () => {
       try {
-        const { data, error } = await eventsApi.registerToEvent(String(eventId), {
-          name: String(a.name),
-          memberLink: a.memberLink,
-          contact: a.contact,
-          role: a.role,
-          checkedIn: false,
-        });
+        // Current API supports registering the authenticated user (or a known member_id).
+        // For now we register the current user; name/contact fields remain UI-only.
+        const { data, error } = await eventsApi.registerToEvent(String(eventId));
         if (error) throw error;
         toast({ title: 'Registered', description: 'Attendee registered successfully' });
         await fetchEvents();
@@ -664,7 +728,7 @@ export const EventsModule: React.FC = () => {
       }
     })();
   };
-  const unregisterAttendee = (eventId: number, attendeeId: number) => {
+  const unregisterAttendee = (eventId: string | number, attendeeId: number) => {
     if (!confirm('Remove attendee?')) return;
     (async () => {
       try {
@@ -682,7 +746,7 @@ export const EventsModule: React.FC = () => {
       }
     })();
   };
-  const toggleCheckIn = (eventId: number, attendeeId: number) => {
+  const toggleCheckIn = (eventId: string | number, attendeeId: number) => {
     // For now, this remains local-state only (no DB persistence for check-in status)
     // To add DB persistence, we'd need an updateParticipant method in eventsApi
     setEvents((prev) =>
@@ -901,13 +965,16 @@ export const EventsModule: React.FC = () => {
             <SelectContent>
               <SelectItem value="All">All</SelectItem>
               <SelectItem value="Local">Local</SelectItem>
+              <SelectItem value="District">District</SelectItem>
               <SelectItem value="National">National</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={openCreate}>
-            <Plus className="mr-2" />
-            Create Event
-          </Button>
+          {canManageEvents && (
+            <Button onClick={openCreate}>
+              <Plus className="mr-2" />
+              Create Event
+            </Button>
+          )}
         </div>
       </div>
 
@@ -954,10 +1021,20 @@ export const EventsModule: React.FC = () => {
                       <Button size="sm" variant="outline" onClick={() => openView(ev)}>
                         View
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => openEdit(ev)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!canEditEvent(ev)}
+                        onClick={() => openEdit(ev)}
+                      >
                         Edit
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteEvent(ev.id)}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={!canEditEvent(ev)}
+                        onClick={() => deleteEvent(ev.id)}
+                      >
                         Delete
                       </Button>
                     </div>
