@@ -20,6 +20,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Clock, MapPin, Users, Plus, FileText, Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import eventsApi from '@/services/eventsApi';
 
 // Try to load FullCalendar (optional)
 let FullCalendar: any = null;
@@ -62,7 +64,7 @@ interface RecurrencePattern {
 }
 
 interface EventItem {
-  id: number;
+  id: string | number;
   title: string;
   description?: string;
   date: string; // base date (YYYY-MM-DD)
@@ -297,91 +299,12 @@ const exportEventPDF = async (eventTitle: string, htmlElement: HTMLElement | nul
 // Mock initial data (kept small)
 // -----------------------------
 const nowIso = formatDateISO(new Date());
-const initialEvents: EventItem[] = [
-  {
-    id: 1,
-    title: 'Sunday Morning Service',
-    description: 'Weekly worship and sermon',
-    date: nowIso,
-    time: '10:00 AM',
-    location: 'Main Sanctuary',
-    capacity: 300,
-    status: 'Open',
-    type: 'General',
-    frequency: 'Weekly',
-    scope: 'Local',
-    requiresRegistration: false,
-    attendeesList: [
-      {
-        id: 1,
-        name: 'John Doe',
-        memberLink: 'M-001',
-        contact: '555-0101',
-        role: 'Member',
-        checkedIn: true,
-        registeredAt: new Date().toISOString(),
-      },
-      {
-        id: 2,
-        name: 'Jane Smith',
-        memberLink: '',
-        contact: '555-0102',
-        role: 'Visitor',
-        checkedIn: false,
-        registeredAt: new Date().toISOString(),
-      },
-    ],
-    recurrencePattern: { weekdays: [0] }, // Sunday
-  },
-  {
-    id: 2,
-    title: "Men's Prayer Breakfast",
-    description: 'Monthly breakfast and prayer',
-    date: nowIso,
-    time: '08:00 AM',
-    location: 'Fellowship Hall',
-    capacity: 60,
-    status: 'Open',
-    type: 'Departmental',
-    frequency: 'Monthly',
-    scope: 'Local',
-    requiresRegistration: false,
-    attendeesList: [
-      {
-        id: 10,
-        name: 'Samuel K',
-        memberLink: 'M-011',
-        contact: '555-0201',
-        role: 'Member',
-        checkedIn: false,
-        registeredAt: new Date().toISOString(),
-      },
-    ],
-    recurrencePattern: { dom: 1 }, // first day of month
-  },
-  {
-    id: 3,
-    title: 'National Youth Conference',
-    description: 'Annual national youth conference',
-    date: formatDateISO(addMonths(new Date(), 3)),
-    time: '09:00 AM',
-    location: 'Convention Center',
-    capacity: 800,
-    status: 'Registration Required',
-    type: 'Registration',
-    frequency: 'Yearly',
-    scope: 'National',
-    requiresRegistration: true,
-    attendeesList: [],
-    recurrencePattern: { month: new Date().getMonth() + 4, day: 2 }, // example
-  },
-];
 
 // -----------------------------
 // Component
 // -----------------------------
 export const EventsModule: React.FC = () => {
-  const [events, setEvents] = useState<EventItem[]>(initialEvents);
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [tab, setTab] = useState<'All' | EventType>('All');
   const [scopeFilter, setScopeFilter] = useState<'All' | Scope>('All');
   const [dialog, setDialog] = useState<'create' | 'edit' | 'view' | 'calendar' | null>(null);
@@ -400,6 +323,7 @@ export const EventsModule: React.FC = () => {
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const { hasRole, branchId: userBranchId, userId } = useAuthz();
   const { selectedBranchId, branchName } = useAdminContext();
+  const { toast } = useToast();
 
   // district id for district admins (fetched once)
   const [adminDistrictId, setAdminDistrictId] = useState<string | null>(null);
@@ -433,6 +357,60 @@ export const EventsModule: React.FC = () => {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  // Fetch events from DB (RLS will scope results)
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await eventsApi.getEvents({ limit: 500 });
+      if (error) throw error;
+      const rows = (data || []) as any[];
+      const mapped: EventItem[] = rows.map((r) => {
+        // map DB record to UI EventItem; fallbacks provided
+        const start = r.start_at || r.created_at || null;
+        const date = start ? start.split('T')[0] : nowIso;
+        const time = start
+          ? (start.split('T')[1]?.replace('Z', '')?.split('.')[0] ?? '00:00:00')
+          : '00:00:00';
+        return {
+          id: r.id,
+          title: r.title || 'Untitled',
+          description: r.description || '',
+          date,
+          time: time.includes(':') ? time : '00:00:00',
+          location: r.location || '',
+          capacity: r.capacity || 0,
+          status: (r.status === 'cancelled'
+            ? 'Cancelled'
+            : r.status === 'published'
+              ? 'Open'
+              : 'Open') as Status,
+          type: 'General',
+          frequency: 'One-time',
+          scope: (r.scope === 'national'
+            ? 'National'
+            : r.scope === 'district'
+              ? 'District'
+              : 'Local') as Scope,
+          requiresRegistration: false,
+          attendeesList: r.attendeesList || [],
+          recurrencePattern: r.recurrencePattern || {},
+        } as EventItem;
+      });
+      setEvents(mapped);
+    } catch (err: any) {
+      console.error('Failed to load events', err);
+      toast({
+        title: 'Load failed',
+        description: err.message || 'Could not fetch events',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // If current user is district admin, resolve their district id so created events can be tagged
@@ -529,9 +507,13 @@ export const EventsModule: React.FC = () => {
     setDialog('view');
   };
 
-  const saveCreate = () => {
+  const saveCreate = async () => {
     if (!form || !form.title || !form.date) {
-      alert('Title and date required');
+      toast({
+        title: 'Validation',
+        description: 'Title and date required',
+        variant: 'destructive',
+      });
       return;
     }
     // persist recurrencePattern from weekdaySelection if weekly
@@ -547,32 +529,40 @@ export const EventsModule: React.FC = () => {
       rec.month = form.recurrencePattern?.month ?? parseDate(form.date).getMonth() + 1;
       rec.day = form.recurrencePattern?.day ?? parseDate(form.date).getDate();
     }
-    const newEvent: EventItem = {
-      id: Date.now(),
-      title: String(form.title),
-      description: String(form.description ?? ''),
-      date: String(form.date),
-      time: String(form.time ?? '10:00 AM'),
-      location: String(form.location ?? ''),
-      capacity: Number(form.capacity ?? 100),
-      status: (form.status as Status) ?? 'Open',
-      type: (form.type as EventType) ?? 'General',
-      frequency: (form.frequency as Frequency) ?? 'One-time',
-      scope: (form.scope as Scope) ?? allowedScope,
-      requiresRegistration: !!form.requiresRegistration,
-      attendeesList: form.attendeesList ?? [],
-      recurrencePattern: rec,
-    };
-    // Attach scope-specific identifiers (branch/district)
-    if ((newEvent.scope as Scope) === 'Local') {
-      // prefer selectedBranchId from admin context, fallback to user's branch
-      (newEvent as any).branchId = selectedBranchId || userBranchId;
-    } else if ((newEvent.scope as Scope) === 'District') {
-      (newEvent as any).districtId = adminDistrictId || null;
+
+    try {
+      const payload: any = {
+        title: String(form.title),
+        description: String(form.description ?? ''),
+        scope: (form.scope as Scope) ?? allowedScope,
+        start_at: `${String(form.date)}T${String(form.time ?? '00:00:00')}`,
+        end_at: (form as any).end_at ?? null,
+        location: String(form.location ?? ''),
+        capacity: Number(form.capacity ?? 100),
+        status: 'published',
+        visibility: 'public',
+        metadata: rec,
+      };
+
+      if (String(payload.scope).toLowerCase() === 'local')
+        payload.branch_id = selectedBranchId || userBranchId || null;
+      if (String(payload.scope).toLowerCase() === 'district')
+        payload.district_id = adminDistrictId || null;
+
+      const { data, error } = await eventsApi.createEvent(payload);
+      if (error) throw error;
+      toast({ title: 'Created', description: 'Event created successfully' });
+      await fetchEvents();
+      setDialog(null);
+      setForm(null);
+    } catch (err: any) {
+      console.error('Create event failed', err);
+      toast({
+        title: 'Create failed',
+        description: err.message || 'Unable to create event',
+        variant: 'destructive',
+      });
     }
-    setEvents((p) => [newEvent, ...p]);
-    setDialog(null);
-    setForm(null);
   };
 
   const saveEdit = () => {
@@ -599,29 +589,51 @@ export const EventsModule: React.FC = () => {
 
     // ensure scope-specific ids are set
     if (form.scope === 'Local') {
-      (form as any).branchId = selectedBranchId || userBranchId;
+      (form as any).branch_id = selectedBranchId || userBranchId || null;
     } else if (form.scope === 'District') {
-      (form as any).districtId = adminDistrictId || null;
+      (form as any).district_id = adminDistrictId || null;
     }
 
-    setEvents((p) =>
-      p.map((ev) =>
-        ev.id === form.id
-          ? {
-              ...(ev as EventItem),
-              ...(form as EventItem),
-              recurrencePattern: rec,
-            }
-          : ev
-      )
-    );
-    setDialog(null);
-    setForm(null);
+    (async () => {
+      try {
+        const payload: any = { ...form };
+        payload.recurrencePattern = rec;
+        if (payload.scope === 'Local') payload.branch_id = selectedBranchId || userBranchId || null;
+        if (payload.scope === 'District') payload.district_id = adminDistrictId || null;
+        const { data, error } = await eventsApi.updateEvent(String(form.id), payload);
+        if (error) throw error;
+        toast({ title: 'Updated', description: 'Event updated successfully' });
+        await fetchEvents();
+        setDialog(null);
+        setForm(null);
+      } catch (err: any) {
+        console.error('Update failed', err);
+        toast({
+          title: 'Update failed',
+          description: err.message || 'Unable to update event',
+          variant: 'destructive',
+        });
+      }
+    })();
   };
 
   const deleteEvent = (id: number) => {
     if (!confirm('Delete event?')) return;
-    setEvents((p) => p.filter((e) => e.id !== id));
+    (async () => {
+      try {
+        const { error } = await eventsApi.deleteEvent(String(id));
+        if (error) throw error;
+        toast({ title: 'Deleted', description: 'Event deleted successfully' });
+        await fetchEvents();
+      } catch (err: any) {
+        console.error('Delete failed', err);
+        toast({
+          title: 'Delete failed',
+          description: err.message || 'Unable to delete event',
+          variant: 'destructive',
+        });
+      }
+    })();
   };
 
   // Attendee management for the active event
@@ -630,33 +642,49 @@ export const EventsModule: React.FC = () => {
       alert('Provide name');
       return;
     }
-    setEvents((prev) =>
-      prev.map((ev) => {
-        if (ev.id !== eventId) return ev;
-        const newAtt: Attendee = {
-          id: Date.now(),
+    (async () => {
+      try {
+        const { data, error } = await eventsApi.registerToEvent(String(eventId), {
           name: String(a.name),
           memberLink: a.memberLink,
           contact: a.contact,
           role: a.role,
           checkedIn: false,
-          registeredAt: new Date().toISOString(),
-        };
-        return { ...ev, attendeesList: [...(ev.attendeesList ?? []), newAtt] };
-      })
-    );
+        });
+        if (error) throw error;
+        toast({ title: 'Registered', description: 'Attendee registered successfully' });
+        await fetchEvents();
+      } catch (err: any) {
+        console.error('Registration failed', err);
+        toast({
+          title: 'Registration failed',
+          description: err.message || 'Unable to register attendee',
+          variant: 'destructive',
+        });
+      }
+    })();
   };
   const unregisterAttendee = (eventId: number, attendeeId: number) => {
     if (!confirm('Remove attendee?')) return;
-    setEvents((prev) =>
-      prev.map((ev) =>
-        ev.id !== eventId
-          ? ev
-          : { ...ev, attendeesList: (ev.attendeesList ?? []).filter((a) => a.id !== attendeeId) }
-      )
-    );
+    (async () => {
+      try {
+        const { error } = await eventsApi.unregisterFromEvent(String(eventId), String(attendeeId));
+        if (error) throw error;
+        toast({ title: 'Unregistered', description: 'Attendee removed successfully' });
+        await fetchEvents();
+      } catch (err: any) {
+        console.error('Unregistration failed', err);
+        toast({
+          title: 'Unregistration failed',
+          description: err.message || 'Unable to remove attendee',
+          variant: 'destructive',
+        });
+      }
+    })();
   };
   const toggleCheckIn = (eventId: number, attendeeId: number) => {
+    // For now, this remains local-state only (no DB persistence for check-in status)
+    // To add DB persistence, we'd need an updateParticipant method in eventsApi
     setEvents((prev) =>
       prev.map((ev) => {
         if (ev.id !== eventId) return ev;

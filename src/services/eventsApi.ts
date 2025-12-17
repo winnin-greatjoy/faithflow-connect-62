@@ -59,7 +59,7 @@ export const eventsApi = {
     limit?: number;
     offset?: number;
   }) {
-    let q = supabase.from('events').select('*');
+    let q: any = supabase.from('events').select('*');
 
     if (opts?.scope) q = q.eq('scope', normalizeScope(opts.scope));
     if (opts?.branchId) q = q.eq('branch_id', opts.branchId);
@@ -154,11 +154,12 @@ export const eventsApi = {
       mid = userRes.user?.id || null;
       if (!mid) return { error: new Error('Not authenticated') } as any;
     }
-    return supabase
-      .from('event_participants')
+    const result = supabase
+      .from('event_participants' as any)
       .insert({ event_id: eventId, member_id: mid })
       .select()
       .single();
+    return result;
   },
 
   async unregisterFromEvent(eventId: string, memberId?: string) {
@@ -168,26 +169,29 @@ export const eventsApi = {
       mid = userRes.user?.id || null;
       if (!mid) return { error: new Error('Not authenticated') } as any;
     }
-    return supabase
-      .from('event_participants')
+    const result = supabase
+      .from('event_participants' as any)
       .delete()
       .match({ event_id: eventId, member_id: mid });
+    return result;
   },
 
   async getEventsForBranch(branchId: string) {
-    return supabase
+    const result = (supabase as any)
       .from('events')
       .select('*')
       .eq('branch_id', branchId)
       .order('start_at', { ascending: true });
+    return result;
   },
 
   async getEventsForDistrict(districtId: string) {
-    return supabase
+    const result = (supabase as any)
       .from('events')
       .select('*')
       .eq('district_id', districtId)
       .order('start_at', { ascending: true });
+    return result;
   },
 };
 
