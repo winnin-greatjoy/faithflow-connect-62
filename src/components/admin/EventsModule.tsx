@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { useAuthz } from '@/hooks/useAuthz';
+import { useAdminContext } from '@/context/AdminContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +35,7 @@ try {
 // Types
 // -----------------------------
 type EventType = 'General' | 'Registration' | 'Departmental';
-type Scope = 'Local' | 'National';
+type Scope = 'Local' | 'District' | 'National';
 type Frequency = 'One-time' | 'Weekly' | 'Monthly' | 'Yearly';
 type Status = 'Open' | 'Registration Required' | 'Full' | 'Cancelled';
 
@@ -395,6 +398,21 @@ export const EventsModule: React.FC = () => {
   });
   const [calendarLoaded, setCalendarLoaded] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+  const { hasRole, branchId: userBranchId, userId } = useAuthz();
+  const { selectedBranchId, branchName } = useAdminContext();
+
+  // district id for district admins (fetched once)
+  const [adminDistrictId, setAdminDistrictId] = useState<string | null>(null);
+
+  // Determine allowed scope for current user:
+  // - super_admin -> National only (per requirement)
+  // - district_admin -> District only
+  // - branch-level admins -> Local only
+  const allowedScope = useMemo<Scope>(() => {
+    if (hasRole('super_admin')) return 'National';
+    if (hasRole('district_admin')) return 'District';
+    return 'Local';
+  }, [hasRole]);
 
   // dynamic load FullCalendar to avoid SSR issues
   useEffect(() => {
@@ -416,6 +434,28 @@ export const EventsModule: React.FC = () => {
       mounted = false;
     };
   }, []);
+
+  // If current user is district admin, resolve their district id so created events can be tagged
+  useEffect(() => {
+    let active = true;
+    if (!hasRole('district_admin')) return;
+    (async () => {
+      try {
+        const { data: district } = await supabase
+          .from('districts')
+          .select('id')
+          .eq('head_admin_id', userId)
+          .maybeSingle();
+        if (!active) return;
+        setAdminDistrictId(district?.id ?? null);
+      } catch (err) {
+        console.error('Failed to resolve district for district admin', err);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [hasRole, userId]);
 
   // sync calendar events whenever events change
   useEffect(() => {
@@ -453,7 +493,7 @@ export const EventsModule: React.FC = () => {
       status: 'Open',
       type: 'General',
       frequency: 'One-time',
-      scope: 'Local',
+      scope: allowedScope,
       requiresRegistration: false,
       attendeesList: [],
       recurrencePattern: {},
@@ -518,11 +558,18 @@ export const EventsModule: React.FC = () => {
       status: (form.status as Status) ?? 'Open',
       type: (form.type as EventType) ?? 'General',
       frequency: (form.frequency as Frequency) ?? 'One-time',
-      scope: (form.scope as Scope) ?? 'Local',
+      scope: (form.scope as Scope) ?? allowedScope,
       requiresRegistration: !!form.requiresRegistration,
       attendeesList: form.attendeesList ?? [],
       recurrencePattern: rec,
     };
+    // Attach scope-specific identifiers (branch/district)
+    if ((newEvent.scope as Scope) === 'Local') {
+      // prefer selectedBranchId from admin context, fallback to user's branch
+      (newEvent as any).branchId = selectedBranchId || userBranchId;
+    } else if ((newEvent.scope as Scope) === 'District') {
+      (newEvent as any).districtId = adminDistrictId || null;
+    }
     setEvents((p) => [newEvent, ...p]);
     setDialog(null);
     setForm(null);
@@ -543,10 +590,28 @@ export const EventsModule: React.FC = () => {
       rec.month = form.recurrencePattern?.month ?? parseDate(form.date!).getMonth() + 1;
       rec.day = form.recurrencePattern?.day ?? parseDate(form.date!).getDate();
     }
+    // enforce scope restrictions for non-superadmins
+    const enforcedScope = hasRole('super_admin') ? (form.scope as Scope) : allowedScope;
+    if (enforcedScope !== (form.scope as Scope)) {
+      // if user attempted to change scope but isn't allowed, force it back
+      form.scope = enforcedScope;
+    }
+
+    // ensure scope-specific ids are set
+    if (form.scope === 'Local') {
+      (form as any).branchId = selectedBranchId || userBranchId;
+    } else if (form.scope === 'District') {
+      (form as any).districtId = adminDistrictId || null;
+    }
+
     setEvents((p) =>
       p.map((ev) =>
         ev.id === form.id
-          ? { ...(ev as EventItem), ...(form as EventItem), recurrencePattern: rec }
+          ? {
+              ...(ev as EventItem),
+              ...(form as EventItem),
+              recurrencePattern: rec,
+            }
           : ev
       )
     );
@@ -994,18 +1059,20 @@ export const EventsModule: React.FC = () => {
 
               <div>
                 <Label>Scope</Label>
-                <Select
-                  value={form.scope ?? 'Local'}
-                  onValueChange={(v) => setForm({ ...form, scope: v as Scope })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Scope" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Local">Local</SelectItem>
-                    <SelectItem value="National">National</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/**
+                 * Scope selection is restricted by role:
+                 * - super_admin: National only
+                 * - district_admin: District only
+                 * - others (branch admins): Local only
+                 * The UI surface here either shows a static label or a restricted select.
+                 */}
+                {allowedScope === 'National' ? (
+                  <div className="px-3 py-2 border rounded text-sm">National</div>
+                ) : allowedScope === 'District' ? (
+                  <div className="px-3 py-2 border rounded text-sm">District</div>
+                ) : (
+                  <div className="px-3 py-2 border rounded text-sm">Local</div>
+                )}
               </div>
 
               <div>
