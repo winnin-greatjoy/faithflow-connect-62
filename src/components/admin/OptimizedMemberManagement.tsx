@@ -865,20 +865,29 @@ export const OptimizedMemberManagement: React.FC = () => {
             />
           </div>
           <div className="flex gap-2">
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm w-[140px] sm:w-[160px]">
-                <Building2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                <SelectValue placeholder="All Branches" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Branches</SelectItem>
-                {branches.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    {b.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isSuperadmin ? (
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm w-[140px] sm:w-[160px]">
+                  <Building2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="h-9 sm:h-10 text-xs sm:text-sm w-[140px] sm:w-[160px] flex items-center gap-2 px-3 rounded border bg-white">
+                <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="truncate">
+                  {branches.find((b) => b.id === effectiveBranchId)?.name || 'Branch'}
+                </span>
+              </div>
+            )}
 
             {activeTab !== 'visitors' && (
               <Select value={membershipFilter} onValueChange={setMembershipFilter}>
