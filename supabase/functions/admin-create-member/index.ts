@@ -49,13 +49,30 @@ serve(async (req: Request) => {
     });
   }
 
-  // Check admin role
-  const { data: isAdmin, error: roleError } = await supabase.rpc('has_role', {
+  // Check allowed roles
+  const { data: isAdmin, error: adminRoleError } = await supabase.rpc('has_role', {
     role: 'admin',
     user_id: user.id,
   });
 
-  if (roleError || !isAdmin) {
+  const { data: isSuperAdmin, error: superRoleError } = await supabase.rpc('has_role', {
+    role: 'super_admin',
+    user_id: user.id,
+  });
+
+  const { data: isDistrictAdmin, error: districtRoleError } = await supabase.rpc('has_role', {
+    role: 'district_admin',
+    user_id: user.id,
+  });
+
+  if (adminRoleError || superRoleError || districtRoleError) {
+    return new Response(JSON.stringify({ error: 'Forbidden: Role verification failed' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (!isAdmin && !isSuperAdmin && !isDistrictAdmin) {
     return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },

@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -39,7 +40,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Pencil } from 'lucide-react';
 
 interface Branch {
   id: string;
@@ -55,6 +56,7 @@ interface StaffAssignment {
   branch_name?: string;
   user_name?: string;
   user_email?: string;
+  user_phone?: string | null;
 }
 
 interface ProfileOption {
@@ -78,11 +80,26 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
 }) => {
   const { toast } = useToast();
   const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const [assignmentData, setAssignmentData] = useState({
     branchId: '',
     userId: '',
     role: 'admin' as 'admin' | 'pastor' | 'leader' | 'worker',
   });
+
+  const [editData, setEditData] = useState({
+    assignmentId: '',
+    branchId: '',
+    role: 'admin' as 'admin' | 'pastor' | 'leader' | 'worker',
+  });
+
+  const allowedRoles: Array<'admin' | 'pastor' | 'leader' | 'worker'> = [
+    'pastor',
+    'admin',
+    'leader',
+    'worker',
+  ];
 
   const handleAssignRole = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +123,49 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
       toast({
         title: 'Error',
         description: error.message || 'Failed to assign role',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openEdit = (assignment: StaffAssignment) => {
+    setEditData({
+      assignmentId: assignment.id,
+      branchId: assignment.branch_id,
+      role: (assignment.role as any) || 'admin',
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateAssignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editData.assignmentId) return;
+    if (!allowedRoles.includes(editData.role)) {
+      toast({
+        title: 'Error',
+        description: 'Invalid role selected',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ branch_id: editData.branchId, role: editData.role })
+        .eq('id', editData.assignmentId);
+
+      if (error) throw error;
+
+      toast({ title: 'Success', description: 'Staff assignment updated successfully' });
+      setIsEditOpen(false);
+      setEditData({ assignmentId: '', branchId: '', role: 'admin' });
+      onRefresh();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update staff assignment',
         variant: 'destructive',
       });
     }
@@ -141,11 +201,23 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
     }
   };
 
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredAssignments = staffAssignments
+    .filter((a) => allowedRoles.includes(a.role as any))
+    .filter((a) => {
+      if (!normalizedSearch) return true;
+      const hay = [a.user_name, a.branch_name, a.role, a.user_phone ?? '']
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(normalizedSearch);
+    });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
         <div>
-          <h3 className="text-lg font-medium">District Directory</h3>
+          <h3 className="text-lg font-medium">Staff Directory</h3>
           <p className="text-sm text-muted-foreground">
             Manage staff assignments across your branches.
           </p>
@@ -155,6 +227,16 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
         </Button>
       </div>
 
+      <div className="bg-card p-4 rounded-lg border shadow-sm">
+        <div className="flex items-center gap-3">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search staff by name, role, branch, phone"
+          />
+        </div>
+      </div>
+
       <Card>
         <Table>
           <TableHeader>
@@ -162,18 +244,32 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Branch</TableHead>
+              <TableHead>Contact Info</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {staffAssignments.map((assignment) => (
+            {filteredAssignments.map((assignment) => (
               <TableRow key={assignment.id}>
                 <TableCell className="font-medium">{assignment.user_name}</TableCell>
                 <TableCell>
                   <Badge variant={getRoleBadgeVariant(assignment.role)}>{assignment.role}</Badge>
                 </TableCell>
                 <TableCell>{assignment.branch_name}</TableCell>
+                <TableCell>{assignment.user_phone || 'N/A'}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">Active</Badge>
+                </TableCell>
                 <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEdit(assignment)}
+                    title="Edit"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="text-destructive">
@@ -201,9 +297,9 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
                 </TableCell>
               </TableRow>
             ))}
-            {staffAssignments.length === 0 && (
+            {filteredAssignments.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   No staff assignments yet.
                 </TableCell>
               </TableRow>
@@ -211,6 +307,71 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
           </TableBody>
         </Table>
       </Card>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Staff Assignment</DialogTitle>
+            <DialogDescription>
+              Move staff between branches or promote/demote within allowed roles.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateAssignment} className="space-y-4">
+            <div>
+              <Label>Branch *</Label>
+              <Select
+                value={editData.branchId}
+                onValueChange={(value) => setEditData((prev) => ({ ...prev, branchId: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name} {branch.is_district_hq && '(HQ)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Role *</Label>
+              <Select
+                value={editData.role}
+                onValueChange={(value: any) => setEditData((prev) => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Branch Admin</SelectItem>
+                  <SelectItem value="pastor">Pastor</SelectItem>
+                  <SelectItem value="leader">Leader</SelectItem>
+                  <SelectItem value="worker">Worker</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditOpen(false);
+                  setEditData({ assignmentId: '', branchId: '', role: 'admin' });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!editData.branchId || !editData.role}>
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Role Dialog */}
       <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>

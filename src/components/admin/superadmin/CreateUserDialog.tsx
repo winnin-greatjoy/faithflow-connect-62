@@ -84,7 +84,18 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     }
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('You must be logged in to perform this action.');
+      }
+
       const { data, error } = await supabase.functions.invoke('admin-create-member', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: {
           action: 'insert',
           data: {

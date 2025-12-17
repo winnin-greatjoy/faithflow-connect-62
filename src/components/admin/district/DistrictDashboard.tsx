@@ -53,6 +53,7 @@ interface StaffAssignment {
   branch_name?: string;
   user_name?: string;
   user_email?: string;
+  user_phone?: string | null;
 }
 
 interface ProfileOption {
@@ -203,14 +204,16 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
       // 5. Fetch profiles for assignment dropdown and to enrich staff list
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, phone')
         .order('first_name');
 
       const profileMap = new Map<string, string>();
+      const phoneMap = new Map<string, string | null>();
       const profiles: ProfileOption[] = [];
       (profilesData || []).forEach((p) => {
         const fullName = `${p.first_name} ${p.last_name}`.trim();
         profileMap.set(p.id, fullName);
+        phoneMap.set(p.id, (p as any).phone ?? null);
         profiles.push({ id: p.id, full_name: fullName, email: null });
       });
 
@@ -220,6 +223,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
       const enrichedStaff: StaffAssignment[] = (rolesData || []).map((r) => ({
         ...r,
         user_name: profileMap.get(r.user_id) || 'Unknown',
+        user_phone: phoneMap.get(r.user_id) ?? null,
         branch_name: branchesData.find((b) => b.id === r.branch_id)?.name || 'Unknown',
       }));
       setStaffAssignments(enrichedStaff);
@@ -452,8 +456,14 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
                 onRefresh={fetchDistrictData}
               />
             )}
-            {activeModule === 'reports' && <DistrictReports />}
-            {activeModule === 'settings' && <DistrictSettings district={district} />}
+            {activeModule === 'reports' && <DistrictReports branches={branches} />}
+            {activeModule === 'settings' && (
+              <DistrictSettings
+                district={district}
+                branches={branches}
+                onRefresh={fetchDistrictData}
+              />
+            )}
           </div>
         </main>
       </div>

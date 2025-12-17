@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Network,
-  Building,
   Users,
   FileBarChart,
   Settings,
@@ -69,7 +68,12 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
     const handleResize = () => {
       const w = window.innerWidth;
       const inLaptopRange = w >= 1024 && w < 1280;
-      setIsCollapsed(inLaptopRange);
+
+      if (inLaptopRange) {
+        setIsCollapsed(true);
+      } else {
+        setIsCollapsed(false);
+      }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -98,9 +102,9 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
       <div
         ref={sidebarRef}
         className={cn(
-          'h-screen bg-gradient-to-b from-slate-900 to-slate-800 transform transition-all duration-300 ease-in-out flex flex-col overflow-hidden',
+          'h-screen bg-white border-r transform transition-all duration-300 ease-in-out flex flex-col overflow-hidden',
           'fixed top-0 left-0 z-50 w-64',
-          isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
+          isOpen ? 'translate-x-0 shadow-lg' : '-translate-x-full',
           'lg:sticky lg:z-20 lg:translate-x-0 lg:transition-[width]',
           isCollapsed ? 'lg:w-20' : 'lg:w-64',
           isCollapsed ? 'lg:hover:w-64' : ''
@@ -110,26 +114,33 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
         role="navigation"
         aria-label="Superadmin navigation"
       >
-        <Sidebar className="w-full h-full flex flex-col border-r-0">
-          <SidebarContent className="bg-transparent">
+        <Sidebar className="w-full h-full flex flex-col">
+          <SidebarContent>
             {/* Header */}
-            <div className="p-4 border-b border-white/10">
+            <div className="pt-4 p-4 border-b sticky top-0 bg-white z-10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-lg flex items-center justify-center shadow-lg">
-                  <Shield className="h-5 w-5 text-white" />
-                </div>
                 <div
                   className={cn(
-                    'transition-all duration-300 overflow-hidden whitespace-nowrap',
+                    'flex-shrink-0 flex items-center justify-center rounded-lg bg-primary/10 transition-all duration-300',
+                    isCollapsed ? 'w-8 h-8' : 'w-10 h-10'
+                  )}
+                >
+                  <Shield className={cn('text-primary', isCollapsed ? 'h-4 w-4' : 'h-5 w-5')} />
+                </div>
+
+                <div
+                  className={cn(
+                    'hidden lg:block overflow-hidden transition-all duration-300 whitespace-nowrap',
                     !showFullSidebar ? 'w-0 opacity-0' : 'w-auto opacity-100'
                   )}
                 >
-                  <div className="text-sm font-semibold text-white">Superadmin</div>
-                  <div className="text-xs text-white/60">Command Center</div>
+                  <div className="text-sm font-medium text-foreground">Superadmin</div>
+                  <div className="text-xs text-muted-foreground">Command Center</div>
                 </div>
+
                 <button
                   onClick={onToggle}
-                  className="ml-auto lg:hidden p-1 rounded-md hover:bg-white/10 text-white/60"
+                  className="ml-auto lg:hidden p-1 rounded-md hover:bg-gray-100"
                   aria-label="Close menu"
                 >
                   <X className="h-5 w-5" />
@@ -138,19 +149,14 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
             </div>
 
             {/* Menu Items */}
-            <SidebarGroup className="flex-1 overflow-y-auto py-4">
-              <SidebarMenu className="space-y-1 px-2">
-                {menuItems.map(({ id, label, icon: Icon, description }) => (
+            <SidebarGroup className="flex-1 overflow-y-auto">
+              <SidebarMenu>
+                {menuItems.map(({ id, label, icon: Icon }) => (
                   <SidebarMenuItem key={id}>
                     <SidebarMenuButton
                       isActive={activeModule === id}
                       onClick={() => handleModuleClick(id)}
-                      className={cn(
-                        'group relative w-full justify-start px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200',
-                        activeModule === id
-                          ? 'bg-purple-600/90 text-white shadow-lg shadow-purple-500/25'
-                          : 'text-white/70 hover:bg-white/10 hover:text-white'
-                      )}
+                      className="group relative w-full justify-start px-4 py-3 text-sm font-medium"
                     >
                       <Icon
                         className={cn(
@@ -158,21 +164,18 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
                           showFullSidebar ? 'mr-3' : 'mx-auto'
                         )}
                       />
-                      <div
+                      <span
                         className={cn(
-                          'flex flex-col transition-all duration-300 overflow-hidden',
+                          'truncate transition-all duration-300',
                           showFullSidebar ? 'opacity-100 w-auto' : 'opacity-0 w-0'
                         )}
                       >
-                        <span className="truncate">{label}</span>
-                        {description && (
-                          <span className="text-[10px] text-white/50 truncate">{description}</span>
-                        )}
-                      </div>
+                        {label}
+                      </span>
 
                       {/* Tooltip for collapsed state */}
                       {!showFullSidebar && (
-                        <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                        <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                           {label}
                         </span>
                       )}
@@ -182,19 +185,22 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* Footer */}
-            <div className="p-4 border-t border-white/10">
-              <div
-                className={cn(
-                  'flex items-center gap-2 text-xs text-white/40 transition-all duration-300',
-                  !showFullSidebar && 'justify-center'
-                )}
+            {/* Collapse Toggle - Desktop Only */}
+            <div className="hidden lg:block border-t p-2 mt-auto">
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="w-full flex items-center justify-center p-2 rounded-md hover:bg-gray-100 text-sm font-medium"
+                aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className={cn('transition-all duration-300', !showFullSidebar && 'hidden')}>
-                  System Online
-                </span>
-              </div>
+                {isCollapsed ? (
+                  <ChevronRight className="h-5 w-5" />
+                ) : (
+                  <>
+                    <ChevronLeft className="h-5 w-5 mr-2" />
+                    <span>Collapse</span>
+                  </>
+                )}
+              </button>
             </div>
           </SidebarContent>
         </Sidebar>
