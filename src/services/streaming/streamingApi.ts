@@ -39,7 +39,24 @@ export type StreamChat = {
   };
 };
 
+const STREAM_SAFE_SELECT =
+  'id,title,description,thumbnail_url,video_url,storage_path,platform,embed_url,privacy,status,start_time,end_time,branch_id,created_by,created_at,updated_at,category,view_count,is_featured';
+
 export const streamingApi = {
+  // Get admin-only credentials (rtmp_server, stream_key) via Edge Function
+  async getAdminCredentials(
+    streamId: string
+  ): Promise<ApiResult<{ stream_key?: string; rtmp_server?: string }>> {
+    try {
+      const { data, error }: any = await (supabase as any).functions.invoke('stream-admin', {
+        body: { action: 'get_credentials', streamId },
+      });
+      if (error) return handleApiError(error);
+      return createApiResponse({ stream_key: data?.stream_key, rtmp_server: data?.rtmp_server });
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
   // Get all streams
   async list(filters?: {
     status?: Stream['status'];
@@ -49,7 +66,7 @@ export const streamingApi = {
     try {
       let query = supabase
         .from('streams')
-        .select('*')
+        .select(STREAM_SAFE_SELECT)
         .order('start_time', { ascending: false });
 
       if (filters?.status) {
@@ -79,7 +96,7 @@ export const streamingApi = {
     try {
       const { data, error } = await supabase
         .from('streams')
-        .select('*')
+        .select(STREAM_SAFE_SELECT)
         .eq('id', id)
         .single();
 
@@ -94,12 +111,14 @@ export const streamingApi = {
   },
 
   // Create stream
-  async create(stream: Omit<Stream, 'id' | 'created_at' | 'updated_at' | 'view_count'>): Promise<ApiResult<Stream>> {
+  async create(
+    stream: Omit<Stream, 'id' | 'created_at' | 'updated_at' | 'view_count'>
+  ): Promise<ApiResult<Stream>> {
     try {
       const { data, error } = await supabase
         .from('streams')
         .insert([stream as any])
-        .select()
+        .select(STREAM_SAFE_SELECT)
         .single();
 
       if (error) {
@@ -119,7 +138,7 @@ export const streamingApi = {
         .from('streams')
         .update(updates)
         .eq('id', id)
-        .select()
+        .select(STREAM_SAFE_SELECT)
         .single();
 
       if (error) {
@@ -135,10 +154,7 @@ export const streamingApi = {
   // Delete stream
   async delete(id: string): Promise<ApiResult<void>> {
     try {
-      const { error } = await supabase
-        .from('streams')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('streams').delete().eq('id', id);
 
       if (error) {
         return handleApiError(error);
@@ -172,8 +188,10 @@ export const streamingApi = {
   // Send chat message
   async sendChat(streamId: string, message: string): Promise<ApiResult<StreamChat>> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         return handleApiError(new Error('User not authenticated'));
       }
@@ -197,15 +215,17 @@ export const streamingApi = {
   // Log stream view
   async logView(streamId: string, watchDuration: number = 0): Promise<ApiResult<void>> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      const { error } = await supabase
-        .from('stream_views')
-        .insert([{ 
-          stream_id: streamId, 
-          user_id: user?.id, 
-          watch_duration: watchDuration 
-        }]);
+      const { error } = await supabase.from('stream_views').insert([
+        {
+          stream_id: streamId,
+          user_id: user?.id,
+          watch_duration: watchDuration,
+        },
+      ]);
 
       if (error) {
         return handleApiError(error);
@@ -227,10 +247,21 @@ export const streamingApi = {
           event: 'INSERT',
           schema: 'public',
           table: 'stream_chats',
-          filter: `stream_id=eq.${streamId}`
+          filter: `stream_id=eq.${streamId}`,
         },
-        (payload) => {
-          callback(payload.new as StreamChat);
+        async (payload) => {
+          try {
+            const inserted = payload.new as any;
+            // Re-fetch with joined user profile so UI can render names/avatars.
+            const { data } = await supabase
+              .from('stream_chats')
+              .select('*, user:profiles(first_name, last_name, profile_photo)')
+              .eq('id', inserted.id)
+              .maybeSingle();
+            callback((data || inserted) as StreamChat);
+          } catch {
+            callback(payload.new as StreamChat);
+          }
         }
       )
       .subscribe();
@@ -244,7 +275,7 @@ export const streamingApi = {
   async getPlaybackUrl(streamId: string): Promise<ApiResult<string | null>> {
     try {
       const { data, error }: any = await (supabase as any).functions.invoke('stream-playback-url', {
-        body: { streamId }
+        body: { streamId },
       });
       if (error) {
         return handleApiError(error);
@@ -259,10 +290,7 @@ export const streamingApi = {
   // Delete a chat message (moderation)
   async deleteChat(chatId: string): Promise<ApiResult<void>> {
     try {
-      const { error } = await supabase
-        .from('stream_chats')
-        .delete()
-        .eq('id', chatId);
+      const { error } = await supabase.from('stream_chats').delete().eq('id', chatId);
       if (error) return handleApiError(error);
       return createApiResponse(undefined as any);
     } catch (error) {
@@ -273,19 +301,31 @@ export const streamingApi = {
   // Regenerate stream key (client-side update, relies on RLS for privileged roles)
   async regenerateStreamKey(streamId: string): Promise<ApiResult<Stream>> {
     try {
-      const key = Array.from(crypto.getRandomValues(new Uint8Array(24)))
-        .map((b) => (b % 36).toString(36))
-        .join('');
-      const { data, error } = await supabase
-        .from('streams')
-        .update({ stream_key: key })
-        .eq('id', streamId)
-        .select('*')
-        .single();
-      if (error) return handleApiError(error);
-      return createApiResponse(data as Stream);
+      // Prefer Edge Function so we can return the key despite column-level restrictions
+      const invoke: any = await (supabase as any).functions.invoke('stream-admin', {
+        body: { action: 'regenerate_key', streamId },
+      });
+      if (invoke?.error) return handleApiError(invoke.error);
+      const newKey = invoke?.data?.stream_key as string | undefined;
+      // Fetch latest stream (does not include restricted columns)
+      const latest = await this.get(streamId);
+      const creds = await this.getAdminCredentials(streamId);
+      if (!latest.error) {
+        const withKey = {
+          ...(latest.data as any),
+          ...(creds.error ? {} : (creds.data as any)),
+          stream_key: newKey,
+        } as Stream;
+        return createApiResponse(withKey);
+      }
+      // Fallback to returning minimal object if fetch failed
+      return createApiResponse({
+        id: streamId,
+        ...(creds.error ? {} : (creds.data as any)),
+        stream_key: newKey,
+      } as any as Stream);
     } catch (error) {
       return handleApiError(error);
     }
-  }
+  },
 };

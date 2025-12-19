@@ -9,7 +9,9 @@ import { StreamPlayer } from '@/components/streaming/StreamPlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface Props { streamId: string }
+interface Props {
+  streamId: string;
+}
 
 export default function StreamControlRoom({ streamId }: Props) {
   const [stream, setStream] = useState<Stream | null>(null);
@@ -19,18 +21,32 @@ export default function StreamControlRoom({ streamId }: Props) {
   const [chats, setChats] = useState<StreamChat[]>([]);
   const presenceRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // Live chat updates
+  useEffect(() => {
+    const unsubscribe = streamingApi.subscribeToChat(streamId, (newMessage) => {
+      setChats((prev) => {
+        if (prev.some((m) => m.id === newMessage.id)) return prev;
+        return [...prev, newMessage];
+      });
+    });
+    return () => unsubscribe();
+  }, [streamId]);
+
   useEffect(() => {
     load();
   }, [streamId]);
 
   async function load() {
     setLoading(true);
-    const [s, c] = await Promise.all([
-      streamingApi.get(streamId),
-      streamingApi.getChats(streamId)
-    ]);
+    const [s, c] = await Promise.all([streamingApi.get(streamId), streamingApi.getChats(streamId)]);
     if (!s.error && s.data) setStream(s.data);
     if (!c.error && c.data) setChats(c.data);
+
+    // Fetch admin-only credentials (rtmp_server, stream_key) via Edge Function
+    const creds = await streamingApi.getAdminCredentials(streamId);
+    if (!creds.error && creds.data && s?.data) {
+      setStream({ ...s.data, ...creds.data } as Stream);
+    }
 
     const { count } = await supabase
       .from('stream_views' as any)
@@ -40,12 +56,17 @@ export default function StreamControlRoom({ streamId }: Props) {
     setLoading(false);
 
     // presence
-    const key = (await supabase.auth.getUser()).data.user?.id || `anon-${Math.random().toString(36).slice(2)}`;
+    const key =
+      (await supabase.auth.getUser()).data.user?.id ||
+      `anon-${Math.random().toString(36).slice(2)}`;
     const ch = supabase.channel(`stream-presence-${streamId}`, { config: { presence: { key } } });
     presenceRef.current = ch;
     ch.on('presence', { event: 'sync' }, () => {
       const state = ch.presenceState() as Record<string, any[]>;
-      const count = Object.values(state).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+      const count = Object.values(state).reduce(
+        (acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0),
+        0
+      );
       setViewerCount(count);
     }).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
@@ -54,7 +75,12 @@ export default function StreamControlRoom({ streamId }: Props) {
     });
   }
 
-  useEffect(() => () => { if (presenceRef.current) supabase.removeChannel(presenceRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (presenceRef.current) supabase.removeChannel(presenceRef.current);
+    },
+    []
+  );
 
   function copy(text: string) {
     navigator.clipboard.writeText(text);
@@ -63,13 +89,21 @@ export default function StreamControlRoom({ streamId }: Props) {
 
   async function handleStatus(newStatus: Stream['status']) {
     if (!stream) return;
+    const prevCreds = { stream_key: stream.stream_key, rtmp_server: stream.rtmp_server };
     const updates: Partial<Stream> = { status: newStatus };
     if (newStatus === 'live' && !stream.start_time) updates.start_time = new Date().toISOString();
     if (newStatus === 'ended' && !stream.end_time) updates.end_time = new Date().toISOString();
     const res = await streamingApi.update(stream.id, updates);
     if (!res.error && res.data) {
-      setStream(res.data);
+      // update() response omits restricted columns; preserve creds
+      setStream({ ...(res.data as any), ...prevCreds } as Stream);
       toast.success(`Status updated to ${newStatus}`);
+
+      // Refresh creds from Edge Function in case they changed
+      const creds = await streamingApi.getAdminCredentials(stream.id);
+      if (!creds.error && creds.data) {
+        setStream((prev) => (prev ? ({ ...prev, ...creds.data } as Stream) : prev));
+      }
     } else if (res.error) {
       toast.error(res.error.message);
     }
@@ -91,7 +125,7 @@ export default function StreamControlRoom({ streamId }: Props) {
     if (res.error) {
       toast.error(res.error.message || 'Failed to delete message');
     } else {
-      setChats((prev) => prev.filter(m => m.id !== id));
+      setChats((prev) => prev.filter((m) => m.id !== id));
     }
   }
 
@@ -107,8 +141,15 @@ export default function StreamControlRoom({ streamId }: Props) {
           <p className="text-muted-foreground">Manage stream, monitor viewers, and moderate chat</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.open('/admin/streaming/dashboard', '_self')}>Dashboard</Button>
-          <Button variant="secondary" onClick={() => window.open('/admin/streaming', '_self')}>Manage Streams</Button>
+          <Button
+            variant="outline"
+            onClick={() => window.open('/admin/streaming/dashboard', '_self')}
+          >
+            Dashboard
+          </Button>
+          <Button variant="secondary" onClick={() => window.open('/admin/streaming', '_self')}>
+            Manage Streams
+          </Button>
         </div>
       </div>
 
@@ -118,7 +159,14 @@ export default function StreamControlRoom({ streamId }: Props) {
             <CardHeader>
               <CardTitle>{stream.title}</CardTitle>
               <CardDescription className="flex items-center gap-2">
-                {stream.status === 'live' ? <Badge variant="destructive" className="flex items-center gap-1"><Radio className="w-3 h-3"/>LIVE</Badge> : <Badge variant="outline">{stream.status}</Badge>}
+                {stream.status === 'live' ? (
+                  <Badge variant="destructive" className="flex items-center gap-1">
+                    <Radio className="w-3 h-3" />
+                    LIVE
+                  </Badge>
+                ) : (
+                  <Badge variant="outline">{stream.status}</Badge>
+                )}
                 <span className="text-muted-foreground">{viewerCount} online</span>
                 <span className="text-muted-foreground">{viewsTotal ?? '—'} total views</span>
               </CardDescription>
@@ -130,10 +178,15 @@ export default function StreamControlRoom({ streamId }: Props) {
                   <Button onClick={() => handleStatus('live')}>Start</Button>
                 )}
                 {stream.status === 'live' && (
-                  <Button variant="destructive" onClick={() => handleStatus('ended')}>End</Button>
+                  <Button variant="destructive" onClick={() => handleStatus('ended')}>
+                    End
+                  </Button>
                 )}
-                <Button variant="outline" onClick={() => window.open(`/portal/streaming/${stream.id}`, '_blank')}>
-                  <Eye className="w-4 h-4 mr-2"/> View Public Page
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(`/portal/streaming/${stream.id}`, '_blank')}
+                >
+                  <Eye className="w-4 h-4 mr-2" /> View Public Page
                 </Button>
               </div>
             </CardContent>
@@ -150,15 +203,22 @@ export default function StreamControlRoom({ streamId }: Props) {
                 <div className="text-xs text-muted-foreground mb-1">RTMP Server</div>
                 <div className="flex gap-2">
                   <Input readOnly value={stream.rtmp_server || ''} />
-                  <Button variant="secondary" onClick={() => copy(stream.rtmp_server || '')}><Copy className="w-4 h-4"/></Button>
+                  <Button variant="secondary" onClick={() => copy(stream.rtmp_server || '')}>
+                    <Copy className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground mb-1">Stream Key</div>
                 <div className="flex gap-2">
                   <Input readOnly value={stream.stream_key || ''} />
-                  <Button variant="secondary" onClick={() => copy(stream.stream_key || '')}><Copy className="w-4 h-4"/></Button>
-                  <Button variant="outline" onClick={handleRegenerateKey}><RefreshCw className="w-4 h-4 mr-2"/>Regenerate</Button>
+                  <Button variant="secondary" onClick={() => copy(stream.stream_key || '')}>
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" onClick={handleRegenerateKey}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Regenerate
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -174,14 +234,20 @@ export default function StreamControlRoom({ streamId }: Props) {
                 {chats.length === 0 ? (
                   <div className="text-sm text-muted-foreground py-6 text-center">No messages</div>
                 ) : (
-                  chats.map(m => (
+                  chats.map((m) => (
                     <div key={m.id} className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium">{m.user?.first_name} {m.user?.last_name}</div>
-                        <div className="text-sm text-muted-foreground">{new Date(m.created_at).toLocaleTimeString()}</div>
+                        <div className="text-sm font-medium">
+                          {m.user?.first_name} {m.user?.last_name}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(m.created_at).toLocaleTimeString()}
+                        </div>
                         <div className="text-sm mt-1">{m.message}</div>
                       </div>
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteChat(m.id)}>Delete</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDeleteChat(m.id)}>
+                        Delete
+                      </Button>
                     </div>
                   ))
                 )}

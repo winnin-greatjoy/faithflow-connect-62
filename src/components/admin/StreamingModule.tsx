@@ -5,9 +5,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Eye, Video, Radio } from 'lucide-react';
 import { streamingApi, type Stream } from '@/services/streaming/streamingApi';
@@ -38,6 +57,8 @@ export function StreamingModule() {
     category: '',
     branch_id: '',
     storage_path: '',
+    stream_key: '',
+    rtmp_server: '',
   });
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -70,6 +91,8 @@ export function StreamingModule() {
       category: '',
       branch_id: '',
       storage_path: '',
+      stream_key: '',
+      rtmp_server: '',
     });
     setIsDialogOpen(true);
   }
@@ -89,8 +112,24 @@ export function StreamingModule() {
       category: stream.category || '',
       branch_id: stream.branch_id || '',
       storage_path: stream.storage_path || '',
+      stream_key: '',
+      rtmp_server: '',
     });
     setIsDialogOpen(true);
+
+    // stream_key/rtmp_server are restricted columns; fetch securely for custom RTMP streams
+    if (stream.platform === 'custom') {
+      (async () => {
+        const creds = await streamingApi.getAdminCredentials(stream.id);
+        if (!creds.error && creds.data) {
+          setFormData((prev) => ({
+            ...prev,
+            stream_key: creds.data.stream_key || '',
+            rtmp_server: creds.data.rtmp_server || '',
+          }));
+        }
+      })();
+    }
   }
 
   async function handleSave() {
@@ -99,8 +138,16 @@ export function StreamingModule() {
       return;
     }
 
+    const generatedKey =
+      formData.platform === 'custom' && !formData.stream_key
+        ? Array.from(crypto.getRandomValues(new Uint8Array(24)))
+            .map((b) => (b % 36).toString(36))
+            .join('')
+        : null;
+
     const streamData: Partial<Stream> = {
       ...formData,
+      ...(generatedKey ? { stream_key: generatedKey } : {}),
       start_time: formData.start_time ? new Date(formData.start_time).toISOString() : undefined,
       is_featured: false,
     };
@@ -132,7 +179,12 @@ export function StreamingModule() {
       setUploading(true);
       const bucket = formData.privacy === 'public' ? 'public-videos' : 'private-videos';
       const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
-      const slugBase = formData.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'video';
+      const slugBase =
+        formData.title
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '') || 'video';
       const path = `${slugBase}-${Date.now()}.${ext}`;
       const res = await uploadFile(bucket, path, file, { contentType: file.type || undefined });
       if (res.error) {
@@ -208,10 +260,18 @@ export function StreamingModule() {
               </CardTitle>
               <CardDescription>Manage live streams and recorded services</CardDescription>
             </div>
-            <Button onClick={openCreateDialog}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Stream
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.open('/admin/streaming/dashboard', '_self')}
+              >
+                Dashboard
+              </Button>
+              <Button onClick={openCreateDialog}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Stream
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -248,7 +308,9 @@ export function StreamingModule() {
                     <TableCell>
                       <Select
                         value={stream.status}
-                        onValueChange={(value) => handleStatusChange(stream, value as Stream['status'])}
+                        onValueChange={(value) =>
+                          handleStatusChange(stream, value as Stream['status'])
+                        }
                       >
                         <SelectTrigger className="w-[130px]">
                           <SelectValue />
@@ -268,12 +330,19 @@ export function StreamingModule() {
                     </TableCell>
                     <TableCell>{stream.view_count}</TableCell>
                     <TableCell>
-                      {stream.start_time
-                        ? new Date(stream.start_time).toLocaleString()
-                        : 'Not set'}
+                      {stream.start_time ? new Date(stream.start_time).toLocaleString() : 'Not set'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            window.open(`/admin/streaming/control/${stream.id}`, '_self')
+                          }
+                        >
+                          Control Room
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -284,11 +353,7 @@ export function StreamingModule() {
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(stream)}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(stream.id)}
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(stream.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -304,9 +369,7 @@ export function StreamingModule() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingStream ? 'Edit Stream' : 'Create New Stream'}
-            </DialogTitle>
+            <DialogTitle>{editingStream ? 'Edit Stream' : 'Create New Stream'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -372,6 +435,43 @@ export function StreamingModule() {
               </div>
             </div>
 
+            {formData.platform === 'custom' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rtmp_server">RTMP Server</Label>
+                  <Input
+                    id="rtmp_server"
+                    value={formData.rtmp_server}
+                    onChange={(e) => setFormData({ ...formData, rtmp_server: e.target.value })}
+                    placeholder="rtmp://your-server/live"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stream_key">Stream Key</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="stream_key"
+                      value={formData.stream_key}
+                      onChange={(e) => setFormData({ ...formData, stream_key: e.target.value })}
+                      placeholder="auto-generated or paste"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const key = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+                          .map((b) => (b % 36).toString(36))
+                          .join('');
+                        setFormData((prev) => ({ ...prev, stream_key: key }));
+                      }}
+                    >
+                      Generate
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="embed_url">Embed/Stream URL</Label>
               <Input
@@ -385,13 +485,25 @@ export function StreamingModule() {
             <div className="space-y-2">
               <Label htmlFor="storage_upload">Upload video to Supabase Storage</Label>
               <div className="flex items-center gap-2">
-                <Input id="storage_upload" type="file" accept="video/*,application/vnd.apple.mpegurl,video/mp2t" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                <Button type="button" variant="secondary" onClick={handleUpload} disabled={uploading || !file}>
+                <Input
+                  id="storage_upload"
+                  type="file"
+                  accept="video/*,application/vnd.apple.mpegurl,video/mp2t"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleUpload}
+                  disabled={uploading || !file}
+                >
                   {uploading ? 'Uploading...' : 'Upload'}
                 </Button>
               </div>
               {formData.storage_path && (
-                <div className="text-sm text-muted-foreground">Stored as: {formData.storage_path}</div>
+                <div className="text-sm text-muted-foreground">
+                  Stored as: {formData.storage_path}
+                </div>
               )}
             </div>
 
@@ -450,9 +562,7 @@ export function StreamingModule() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              {editingStream ? 'Update' : 'Create'}
-            </Button>
+            <Button onClick={handleSave}>{editingStream ? 'Update' : 'Create'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
