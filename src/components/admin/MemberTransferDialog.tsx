@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowRight, Loader2 } from 'lucide-react';
@@ -28,7 +41,7 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
   memberId,
   memberName,
   currentBranchId,
-  onTransferRequested
+  onTransferRequested,
 }) => {
   const { toast } = useToast();
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -70,10 +83,25 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
       setBranches(branchesData || []);
     } catch (error) {
       console.error('Error loading branches:', error);
+      // Try RPC fallback for environments with strict RLS that prevents listing branches
+      try {
+        const { data: rpcBranches, error: rpcError } = await (supabase as any).rpc(
+          'list_transfer_branches'
+        );
+        if (!rpcError && rpcBranches && Array.isArray(rpcBranches)) {
+          // Exclude current branch
+          const filtered = rpcBranches.filter((b: any) => b.id !== currentBranchId);
+          setBranches(filtered || []);
+          return;
+        }
+      } catch (rpcErr) {
+        console.error('RPC fallback failed:', rpcErr);
+      }
+
       toast({
         title: 'Error',
         description: 'Failed to load branches',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     }
   };
@@ -83,7 +111,7 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
       toast({
         title: 'Validation Error',
         description: 'Please select a branch and provide a reason',
-        variant: 'destructive'
+        variant: 'destructive',
       });
       return;
     }
@@ -91,26 +119,26 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
     try {
       setSubmitting(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
-        .from('member_transfers')
-        .insert({
-          member_id: memberId,
-          from_branch_id: currentBranchId,
-          to_branch_id: selectedBranch,
-          requested_by: user.id,
-          reason: reason.trim(),
-          notes: notes.trim() || null,
-          status: 'pending'
-        });
+      const { error } = await supabase.from('member_transfers').insert({
+        member_id: memberId,
+        from_branch_id: currentBranchId,
+        to_branch_id: selectedBranch,
+        requested_by: user.id,
+        reason: reason.trim(),
+        notes: notes.trim() || null,
+        status: 'pending',
+      });
 
       if (error) throw error;
 
       toast({
         title: 'Transfer Requested',
-        description: 'Member transfer request has been submitted for approval'
+        description: 'Member transfer request has been submitted for approval',
       });
 
       onOpenChange(false);
@@ -120,7 +148,7 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
       toast({
         title: 'Error',
         description: error.message || 'Failed to request transfer',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     } finally {
       setSubmitting(false);
@@ -132,9 +160,7 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Transfer Member</DialogTitle>
-          <DialogDescription>
-            Request to transfer {memberName} to another branch
-          </DialogDescription>
+          <DialogDescription>Request to transfer {memberName} to another branch</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -156,7 +182,7 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
                 <SelectValue placeholder="Select destination branch" />
               </SelectTrigger>
               <SelectContent>
-                {branches.map(branch => (
+                {branches.map((branch) => (
                   <SelectItem key={branch.id} value={branch.id}>
                     {branch.name}
                   </SelectItem>
@@ -175,9 +201,7 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
               rows={3}
               maxLength={500}
             />
-            <p className="text-xs text-muted-foreground">
-              {reason.length}/500 characters
-            </p>
+            <p className="text-xs text-muted-foreground">{reason.length}/500 characters</p>
           </div>
 
           <div className="space-y-2">
@@ -194,17 +218,10 @@ export const MemberTransferDialog: React.FC<MemberTransferDialogProps> = ({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting || !selectedBranch || !reason.trim()}
-          >
+          <Button onClick={handleSubmit} disabled={submitting || !selectedBranch || !reason.trim()}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Request Transfer
           </Button>

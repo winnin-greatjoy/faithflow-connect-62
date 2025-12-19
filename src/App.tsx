@@ -58,6 +58,7 @@ const DirectorySettingsPage = lazy(
   () => import('./pages/portal/profilepage/DirectorySettingsPage')
 );
 const EditAccountInfoPage = lazy(() => import('./pages/portal/profilepage/EditAccountInfoPage'));
+const TransferRequestPage = lazy(() => import('./pages/portal/TransferRequestPage'));
 const DistrictDashboard = lazy(() =>
   import('./components/admin/district/DistrictDashboard').then((m) => ({
     default: m.DistrictDashboard,
@@ -156,6 +157,7 @@ const App = () => (
               <Route path="departments" element={<DepartmentsPage />} />
               <Route path="streaming" element={<StreamingPage />} />
               <Route path="streaming/:streamId" element={<StreamingPage />} />
+              <Route path="transfer-request" element={<TransferRequestPage />} />
               <Route path="qr-code" element={<QRCodePage />} />
               <Route path="change-password" element={<ChangePasswordPage />} />
               <Route path="directory-settings" element={<DirectorySettingsPage />} />

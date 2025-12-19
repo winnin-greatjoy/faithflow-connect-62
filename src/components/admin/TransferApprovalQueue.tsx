@@ -3,21 +3,28 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  ArrowRight, 
-  User, 
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ArrowRight,
+  User,
   Building2,
   Calendar,
   FileText,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -29,6 +36,10 @@ interface TransferRequest {
   requested_by: string;
   requested_at: string;
   processed_by: string | null;
+  processor?: {
+    first_name: string;
+    last_name: string;
+  } | null;
   processed_at: string | null;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   reason: string;
@@ -44,17 +55,17 @@ interface TransferRequest {
   to_branch: {
     name: string;
   };
-  requester: {
+  requester?: {
     first_name: string;
     last_name: string;
-  };
+  } | null;
 }
 
 export const TransferApprovalQueue: React.FC = () => {
   const { toast } = useToast();
   const [transfers, setTransfers] = useState<TransferRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'pending' | 'processed'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [selectedTransfer, setSelectedTransfer] = useState<TransferRequest | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionNotes, setRejectionNotes] = useState('');
@@ -62,7 +73,7 @@ export const TransferApprovalQueue: React.FC = () => {
 
   useEffect(() => {
     loadTransfers();
-    
+
     // Set up realtime subscription
     const channel = supabase
       .channel('member-transfers-changes')
@@ -71,7 +82,7 @@ export const TransferApprovalQueue: React.FC = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'member_transfers'
+          table: 'member_transfers',
         },
         () => {
           loadTransfers();
@@ -89,23 +100,59 @@ export const TransferApprovalQueue: React.FC = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('member_transfers')
-        .select(`
+        .select(
+          `
           *,
           member:member_id (full_name, email, phone),
           from_branch:from_branch_id (name),
-          to_branch:to_branch_id (name),
-          requester:requested_by (first_name, last_name)
-        `)
+          to_branch:to_branch_id (name)
+        `
+        )
         .order('requested_at', { ascending: false });
 
       if (error) throw error;
-      setTransfers((data as any) || []);
+
+      const transfersData = (data as any) || [];
+
+      // Collect profile ids from requested_by and processed_by
+      const profileIds = new Set<string>();
+      transfersData.forEach((t: any) => {
+        if (t.requested_by) profileIds.add(t.requested_by);
+        if (t.processed_by) profileIds.add(t.processed_by);
+      });
+
+      let profilesMap: Record<string, { first_name?: string; last_name?: string }> = {};
+      if (profileIds.size > 0) {
+        const ids = Array.from(profileIds);
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', ids);
+
+        if (!profilesError && profiles) {
+          profilesMap = (profiles as any).reduce(
+            (acc: any, p: any) => {
+              acc[p.id] = { first_name: p.first_name, last_name: p.last_name };
+              return acc;
+            },
+            {} as Record<string, { first_name?: string; last_name?: string }>
+          );
+        }
+      }
+
+      const enriched = transfersData.map((t: any) => ({
+        ...t,
+        requester: profilesMap[t.requested_by] || null,
+        processor: profilesMap[t.processed_by] || null,
+      }));
+
+      setTransfers(enriched as TransferRequest[]);
     } catch (error) {
       console.error('Error loading transfers:', error);
       toast({
         title: 'Error',
         description: 'Failed to load transfer requests',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -115,19 +162,21 @@ export const TransferApprovalQueue: React.FC = () => {
   const handleApprove = async (transfer: TransferRequest) => {
     try {
       setProcessing(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
       const { error } = await supabase.rpc('approve_member_transfer', {
         transfer_id: transfer.id,
-        approver_id: user.id
+        approver_id: user.id,
       });
 
       if (error) throw error;
 
       toast({
         title: 'Transfer Approved',
-        description: `${transfer.member.full_name} has been transferred to ${transfer.to_branch.name}`
+        description: `${transfer.member.full_name} has been transferred to ${transfer.to_branch.name}`,
       });
 
       loadTransfers();
@@ -136,7 +185,7 @@ export const TransferApprovalQueue: React.FC = () => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to approve transfer',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     } finally {
       setProcessing(false);
@@ -148,20 +197,22 @@ export const TransferApprovalQueue: React.FC = () => {
 
     try {
       setProcessing(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
       const { error } = await supabase.rpc('reject_member_transfer', {
         transfer_id: selectedTransfer.id,
         rejector_id: user.id,
-        rejection_notes: rejectionNotes.trim() || null
+        rejection_notes: rejectionNotes.trim() || null,
       });
 
       if (error) throw error;
 
       toast({
         title: 'Transfer Rejected',
-        description: 'The transfer request has been rejected'
+        description: 'The transfer request has been rejected',
       });
 
       setShowRejectDialog(false);
@@ -173,7 +224,7 @@ export const TransferApprovalQueue: React.FC = () => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to reject transfer',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     } finally {
       setProcessing(false);
@@ -188,16 +239,22 @@ export const TransferApprovalQueue: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'cancelled': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'approved':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      case 'cancelled':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const pendingTransfers = transfers.filter(t => t.status === 'pending');
-  const processedTransfers = transfers.filter(t => t.status !== 'pending');
+  const pendingTransfers = transfers.filter((t) => t.status === 'pending');
+  const approvedTransfers = transfers.filter((t) => t.status === 'approved');
+  const rejectedTransfers = transfers.filter((t) => t.status === 'rejected');
 
   const renderTransferCard = (transfer: TransferRequest, showActions: boolean = false) => (
     <Card key={transfer.id} className="mb-4">
@@ -209,12 +266,12 @@ export const TransferApprovalQueue: React.FC = () => {
             </div>
             <div>
               <h3 className="font-semibold text-lg">{transfer.member.full_name}</h3>
-              <p className="text-sm text-muted-foreground">{transfer.member.email || transfer.member.phone}</p>
+              <p className="text-sm text-muted-foreground">
+                {transfer.member.email || transfer.member.phone}
+              </p>
             </div>
           </div>
-          <Badge className={getStatusColor(transfer.status)}>
-            {transfer.status}
-          </Badge>
+          <Badge className={getStatusColor(transfer.status)}>{transfer.status}</Badge>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -262,7 +319,9 @@ export const TransferApprovalQueue: React.FC = () => {
         <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-4">
           <div className="flex items-center gap-1">
             <User className="h-3 w-3" />
-            <span>Requested by {transfer.requester.first_name} {transfer.requester.last_name}</span>
+            <span>
+              Requested by {transfer.requester.first_name} {transfer.requester.last_name}
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
@@ -301,6 +360,11 @@ export const TransferApprovalQueue: React.FC = () => {
             <p>
               {transfer.status === 'approved' ? 'Approved' : 'Rejected'} on{' '}
               {format(new Date(transfer.processed_at), 'MMM d, yyyy h:mm a')}
+              {transfer.processor && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  by {transfer.processor.first_name} {transfer.processor.last_name}
+                </span>
+              )}
             </p>
           </div>
         )}
@@ -327,9 +391,19 @@ export const TransferApprovalQueue: React.FC = () => {
                 <Badge variant="secondary">{pendingTransfers.length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="processed" className="gap-2">
-              <FileText className="h-4 w-4" />
-              History
+            <TabsTrigger value="approved" className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Approved
+              {approvedTransfers.length > 0 && (
+                <Badge variant="secondary">{approvedTransfers.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="rejected" className="gap-2">
+              <XCircle className="h-4 w-4" />
+              Rejected
+              {rejectedTransfers.length > 0 && (
+                <Badge variant="secondary">{rejectedTransfers.length}</Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -353,11 +427,11 @@ export const TransferApprovalQueue: React.FC = () => {
                 </CardContent>
               </Card>
             ) : (
-              pendingTransfers.map(transfer => renderTransferCard(transfer, true))
+              pendingTransfers.map((transfer) => renderTransferCard(transfer, true))
             )}
           </TabsContent>
 
-          <TabsContent value="processed" className="space-y-4 mt-6">
+          <TabsContent value="approved" className="space-y-4 mt-6">
             {loading ? (
               <Card>
                 <CardContent className="p-6">
@@ -366,18 +440,38 @@ export const TransferApprovalQueue: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            ) : processedTransfers.length === 0 ? (
+            ) : approvedTransfers.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No Transfer History</h3>
-                  <p className="text-muted-foreground">
-                    Processed transfers will appear here
-                  </p>
+                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No Approved Transfers</h3>
+                  <p className="text-muted-foreground">Approved transfers will appear here</p>
                 </CardContent>
               </Card>
             ) : (
-              processedTransfers.map(transfer => renderTransferCard(transfer, false))
+              approvedTransfers.map((transfer) => renderTransferCard(transfer, false))
+            )}
+          </TabsContent>
+
+          <TabsContent value="rejected" className="space-y-4 mt-6">
+            {loading ? (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+            ) : rejectedTransfers.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No Rejected Transfers</h3>
+                  <p className="text-muted-foreground">Rejected transfers will appear here</p>
+                </CardContent>
+              </Card>
+            ) : (
+              rejectedTransfers.map((transfer) => renderTransferCard(transfer, false))
             )}
           </TabsContent>
         </Tabs>
@@ -414,11 +508,7 @@ export const TransferApprovalQueue: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={processing}
-            >
+            <Button variant="destructive" onClick={handleReject} disabled={processing}>
               {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Reject Transfer
             </Button>
