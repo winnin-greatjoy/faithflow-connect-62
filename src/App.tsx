@@ -58,6 +58,9 @@ const DirectorySettingsPage = lazy(
   () => import('./pages/portal/profilepage/DirectorySettingsPage')
 );
 const EditAccountInfoPage = lazy(() => import('./pages/portal/profilepage/EditAccountInfoPage'));
+const MemberTransfersPage = lazy(() =>
+  import('./pages/portal/MemberTransfersPage').then((m) => ({ default: m.MemberTransfersPage }))
+);
 const TransferRequestPage = lazy(() => import('./pages/portal/TransferRequestPage'));
 const DistrictDashboard = lazy(() =>
   import('./components/admin/district/DistrictDashboard').then((m) => ({
@@ -162,6 +165,7 @@ const App = () => (
               <Route path="change-password" element={<ChangePasswordPage />} />
               <Route path="directory-settings" element={<DirectorySettingsPage />} />
               <Route path="edit-account" element={<EditAccountInfoPage />} />
+              <Route path="transfers" element={<MemberTransfersPage />} />
             </Route>
             <Route
               path="/admin/mens-ministry/:ministryId"

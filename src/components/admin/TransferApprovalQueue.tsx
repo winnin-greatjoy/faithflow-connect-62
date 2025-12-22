@@ -27,6 +27,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAdminContext } from '@/context/AdminContext';
 
 interface TransferRequest {
   id: string;
@@ -63,6 +64,7 @@ interface TransferRequest {
 
 export const TransferApprovalQueue: React.FC = () => {
   const { toast } = useToast();
+  const { selectedBranchId } = useAdminContext();
   const [transfers, setTransfers] = useState<TransferRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
@@ -98,7 +100,7 @@ export const TransferApprovalQueue: React.FC = () => {
   const loadTransfers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('member_transfers')
         .select(
           `
@@ -109,6 +111,12 @@ export const TransferApprovalQueue: React.FC = () => {
         `
         )
         .order('requested_at', { ascending: false });
+
+      if (selectedBranchId) {
+        query = query.eq('to_branch_id', selectedBranchId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 

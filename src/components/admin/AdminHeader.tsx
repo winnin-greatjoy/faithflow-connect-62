@@ -38,11 +38,7 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: 'New member registered', read: false },
-    { id: 2, text: 'Upcoming event tomorrow', read: false },
-    { id: 3, text: 'New message from John', read: true },
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const { toast } = useToast();
   const { selectedBranchId, setSelectedBranchId, branchName } = useAdminContext();
 
@@ -84,6 +80,44 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
   }, [districtTree]);
 
   const isDistrictAdmin = hasRole('district_admin') && !isSuperadmin;
+
+  useEffect(() => {
+    if (!selectedBranchId) return;
+
+    const channel = supabase
+      .channel('admin-header-transfers')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'member_transfers',
+          filter: `to_branch_id=eq.${selectedBranchId}`,
+        },
+        (payload) => {
+          console.log('New transfer request:', payload);
+          toast({
+            title: 'New Transfer Request',
+            description: 'A new member transfer request has been received.',
+          });
+          setNotifications((prev) => [
+            {
+              id: payload.new.id,
+              text: 'New Transfer Request Received',
+              read: false,
+              timestamp: new Date().toISOString(),
+              link: isPortalMode ? '/portal/transfers' : '/admin/transfers',
+            },
+            ...prev,
+          ]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedBranchId, toast, isPortalMode]);
 
   const { data: portalDistrictBranches } = useQuery({
     queryKey: ['admin-header-portal-district-branches', selectedBranchId],

@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 type Branch = {
   id: string;
@@ -31,6 +32,7 @@ export const TransferRequestForm: React.FC<TransferRequestFormProps> = ({
   onSubmitted,
 }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { branchId: authBranchId } = useAuthz();
   const { branches, isLoading: branchesLoading } = useBranches();
 
@@ -88,6 +90,9 @@ export const TransferRequestForm: React.FC<TransferRequestFormProps> = ({
       setTargetBranchId('');
       setNotes('');
       onSubmitted?.();
+
+      // Redirect to transfers history page
+      navigate('/portal/transfers');
     } catch (err: any) {
       toast({
         title: 'Error',
