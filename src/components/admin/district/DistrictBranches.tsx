@@ -196,6 +196,18 @@ export const DistrictBranches: React.FC<DistrictBranchesProps> = ({
     setIsEditOpen(true);
   };
 
+  const handleViewBranch = (branchId: string) => {
+    const to = hasRole('super_admin')
+      ? `/superadmin/district-portal/branch/${branchId}`
+      : `/district-portal/branch/${branchId}`;
+    navigate(to, {
+      state: {
+        from: `/district-portal/${district.id}`,
+        fromState: { activeModule: 'branches' },
+      },
+    });
+  };
+
   const filteredBranches = branches.filter(
     (b) =>
       b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -360,21 +372,7 @@ export const DistrictBranches: React.FC<DistrictBranchesProps> = ({
                     onCheckedChange={() => handleSetHQ(branch.id, branch.is_district_hq)}
                   />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const to = hasRole('super_admin')
-                      ? `/superadmin/district-portal/branch/${branch.id}`
-                      : `/district-portal/branch/${branch.id}`;
-                    navigate(to, {
-                      state: {
-                        from: `/district-portal/${district.id}`,
-                        fromState: { activeModule: 'branches' },
-                      },
-                    });
-                  }}
-                >
+                <Button variant="outline" size="sm" onClick={() => handleViewBranch(branch.id)}>
                   <Building className="h-3 w-3 mr-1" /> View
                 </Button>
               </div>
