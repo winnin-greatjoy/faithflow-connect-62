@@ -1,12 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 
-// Minimal types for the service responses/payloads
-export type Scope = 'local' | 'district' | 'national';
+export type EventLevel = 'NATIONAL' | 'DISTRICT' | 'BRANCH';
 
 export interface EventPayload {
   title: string;
   description?: string | null;
-  scope?: Scope | string; // incoming from UI (may be TitleCase)
+  event_level: EventLevel;
+  owner_scope_id?: string | null;
   branch_id?: string | null;
   district_id?: string | null;
   start_at?: string | null;
@@ -25,15 +25,6 @@ export interface EventRecord extends EventPayload {
   created_at: string;
   updated_at: string;
 }
-
-// Utility: normalize scope to lowercase DB enum values
-const normalizeScope = (s?: string | Scope | null): Scope => {
-  if (!s) return 'local';
-  const v = String(s).toLowerCase();
-  if (v === 'national') return 'national';
-  if (v === 'district') return 'district';
-  return 'local';
-};
 
 // Get profile for current user
 async function getProfileForCurrentUser() {
@@ -61,16 +52,16 @@ async function getDistrictIdForDistrictAdmin(userId: string): Promise<string | n
 
 export const eventsApi = {
   async getEvents(opts?: {
-    scope?: Scope | string;
+    level?: EventLevel;
     branchId?: string | null;
     districtId?: string | null;
     upcomingOnly?: boolean;
     limit?: number;
     offset?: number;
   }) {
-    let q: any = supabase.from('events').select('*');
+    let q: any = (supabase as any).from('events').select('*');
 
-    if (opts?.scope) q = q.eq('scope', normalizeScope(opts.scope));
+    if (opts?.level) q = q.eq('event_level', opts.level);
     if (opts?.branchId) q = q.eq('branch_id', opts.branchId);
     if (opts?.districtId) q = q.eq('district_id', opts.districtId);
     if (opts?.upcomingOnly) q = q.gte('end_at', new Date().toISOString());
@@ -83,30 +74,39 @@ export const eventsApi = {
   },
 
   async getEvent(id: string) {
-    return supabase.from('events').select('*').eq('id', id).maybeSingle();
+    return (supabase as any).from('events').select('*').eq('id', id).maybeSingle();
   },
 
-  async createEvent(payload: EventPayload) {
-    // fetch current profile to ensure we populate branch/district from server side
+  async createEvent(payload: Partial<EventPayload>) {
     const profile = await getProfileForCurrentUser();
     if (!profile) return { error: new Error('Not authenticated') } as any;
 
     const role = profile.role as string;
-    const finalScope: Scope =
-      role === 'super_admin'
-        ? 'national'
-        : role === 'district_admin'
-          ? 'district'
-          : role === 'admin'
-            ? 'local'
-            : null;
 
-    if (!finalScope) return { error: new Error('Not authorized to create events') } as any;
+    // Auto-assign level and scope based on role
+    let event_level: EventLevel = 'BRANCH';
+    let owner_scope_id: string | null = profile.branch_id;
+    let district_id: string | null = null;
+    let branch_id: string | null = profile.branch_id;
+
+    if (role === 'super_admin') {
+      event_level = 'NATIONAL';
+      owner_scope_id = null;
+      branch_id = null;
+    } else if (role === 'district_admin') {
+      event_level = 'DISTRICT';
+      district_id = await getDistrictIdForDistrictAdmin(profile.id);
+      owner_scope_id = district_id;
+      branch_id = null;
+    }
 
     const record: any = {
       title: payload.title,
       description: payload.description ?? null,
-      scope: finalScope,
+      event_level,
+      owner_scope_id,
+      district_id,
+      branch_id,
       start_at: payload.start_at ?? null,
       end_at: payload.end_at ?? null,
       location: payload.location ?? null,
@@ -118,79 +118,41 @@ export const eventsApi = {
       organizer_role: role,
     };
 
-    // Attach branch/district ids according to finalScope
-    if (finalScope === 'local') {
-      record.branch_id = profile.branch_id ?? null;
-      record.district_id = null;
-      if (!record.branch_id) return { error: new Error('Missing branch for local event') } as any;
-    } else if (finalScope === 'district') {
-      record.branch_id = null;
-      record.district_id = await getDistrictIdForDistrictAdmin(profile.id);
-      if (!record.district_id)
-        return { error: new Error('Missing district assignment for district admin') } as any;
-    } else {
-      // national
-      record.branch_id = null;
-      record.district_id = null;
-    }
-
-    return supabase.from('events').insert(record).select().single();
+    return (supabase as any).from('events').insert(record).select().single();
   },
 
   async updateEvent(id: string, payload: Partial<EventPayload>) {
-    const profile = await getProfileForCurrentUser();
-    if (!profile) return { error: new Error('Not authenticated') } as any;
-    const role = profile.role as string;
-    const finalScope: Scope =
-      role === 'super_admin'
-        ? 'national'
-        : role === 'district_admin'
-          ? 'district'
-          : role === 'admin'
-            ? 'local'
-            : null;
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) return { error: new Error('Not authenticated') } as any;
 
-    if (!finalScope) return { error: new Error('Not authorized to update events') } as any;
+    const record: any = {
+      ...payload,
+      updated_at: new Date().toISOString(),
+    };
 
-    const updatePayload: any = { ...payload };
-    updatePayload.scope = finalScope;
+    // Remove immutable fields to prevent scope escalation
+    delete record.event_level;
+    delete record.owner_scope_id;
 
-    if (finalScope === 'local') {
-      updatePayload.branch_id = profile.branch_id ?? null;
-      updatePayload.district_id = null;
-      if (!updatePayload.branch_id)
-        return { error: new Error('Missing branch for local event') } as any;
-    } else if (finalScope === 'district') {
-      updatePayload.district_id = await getDistrictIdForDistrictAdmin(profile.id);
-      updatePayload.branch_id = null;
-      if (!updatePayload.district_id)
-        return { error: new Error('Missing district assignment for district admin') } as any;
-    } else {
-      updatePayload.branch_id = null;
-      updatePayload.district_id = null;
-    }
-
-    return supabase.from('events').update(updatePayload).eq('id', id).select().single();
+    return (supabase as any).from('events').update(record).eq('id', id).select().single();
   },
 
   async deleteEvent(id: string) {
-    return supabase.from('events').delete().eq('id', id);
+    return (supabase as any).from('events').delete().eq('id', id);
   },
 
   async registerToEvent(eventId: string, memberId?: string) {
-    // If memberId not provided, assume current user
     let mid = memberId;
     if (!mid) {
       const { data: userRes } = await supabase.auth.getUser();
       mid = userRes.user?.id || null;
       if (!mid) return { error: new Error('Not authenticated') } as any;
     }
-    const result = supabase
-      .from('event_participants' as any)
+    return (supabase as any)
+      .from('event_rsvps')
       .insert({ event_id: eventId, member_id: mid })
       .select()
       .single();
-    return result;
   },
 
   async unregisterFromEvent(eventId: string, memberId?: string) {
@@ -200,29 +162,26 @@ export const eventsApi = {
       mid = userRes.user?.id || null;
       if (!mid) return { error: new Error('Not authenticated') } as any;
     }
-    const result = supabase
-      .from('event_participants' as any)
+    return (supabase as any)
+      .from('event_rsvps')
       .delete()
       .match({ event_id: eventId, member_id: mid });
-    return result;
   },
 
   async getEventsForBranch(branchId: string) {
-    const result = (supabase as any)
+    return (supabase as any)
       .from('events')
       .select('*')
       .eq('branch_id', branchId)
       .order('start_at', { ascending: true });
-    return result;
   },
 
   async getEventsForDistrict(districtId: string) {
-    const result = (supabase as any)
+    return (supabase as any)
       .from('events')
       .select('*')
       .eq('district_id', districtId)
       .order('start_at', { ascending: true });
-    return result;
   },
 };
 
