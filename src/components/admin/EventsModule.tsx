@@ -87,6 +87,7 @@ interface EventItem {
   recurrencePattern?: RecurrencePattern;
   end_date?: string;
   end_time?: string;
+  numberOfDays?: number;
 }
 
 // -----------------------------
@@ -126,6 +127,7 @@ export const EventsModule: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [adminDistrictId, setAdminDistrictId] = useState<string | null>(null);
+  const [numberOfDays, setNumberOfDays] = useState<number>(1);
   const { hasRole, branchId: userBranchId, userId, loading: authzLoading } = useAuthz();
   const { selectedBranchId, loading: contextLoading } = useAdminContext();
   const { toast } = useToast();
@@ -230,7 +232,7 @@ export const EventsModule: React.FC = () => {
     setForm({
       title: '',
       date: formatDateISO(new Date()),
-      time: '10:00 AM',
+      time: '10:00',
       location: '',
       capacity: 100,
       status: 'Open',
@@ -239,12 +241,22 @@ export const EventsModule: React.FC = () => {
       event_level: currentUserLevel,
       owner_scope_id: owner_id,
       end_date: formatDateISO(new Date()),
+      end_time: '12:00',
+      numberOfDays: 1,
     });
+    setNumberOfDays(1);
     setDialog('create');
   };
 
   const openEdit = (ev: EventItem) => {
-    setForm({ ...ev });
+    // Calculate numberOfDays from the date difference
+    const startDate = parseDate(ev.date);
+    const endDate = parseDate(ev.end_date || ev.date);
+    const daysDiff =
+      Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    setForm({ ...ev, numberOfDays: daysDiff });
+    setNumberOfDays(daysDiff);
     setDialog('edit');
   };
 
@@ -475,12 +487,12 @@ export const EventsModule: React.FC = () => {
         open={!!dialog && dialog !== 'view' && dialog !== 'calendar'}
         onOpenChange={() => setDialog(null)}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialog === 'create' ? 'Create Event' : 'Edit Event'}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+            <div className="col-span-1 sm:col-span-2">
               <Label>Title</Label>
               <Input
                 value={form?.title || ''}
@@ -489,37 +501,107 @@ export const EventsModule: React.FC = () => {
               />
             </div>
             <div>
-              <Label>Start Date</Label>
+              <Label>Number of Days</Label>
               <Input
-                type="date"
-                value={form?.date || ''}
-                onChange={(e) => setForm((f) => ({ ...f!, date: e.target.value }))}
+                type="number"
+                min="1"
+                value={numberOfDays}
+                onChange={(e) => {
+                  const days = parseInt(e.target.value) || 1;
+                  setNumberOfDays(days);
+
+                  // Auto-calculate end date
+                  if (form?.date) {
+                    const startDate = parseDate(form.date);
+                    const endDate = new Date(startDate);
+                    endDate.setDate(startDate.getDate() + days - 1);
+
+                    setForm((f) => ({
+                      ...f!,
+                      numberOfDays: days,
+                      end_date: formatDateISO(endDate),
+                    }));
+                  } else {
+                    setForm((f) => ({ ...f!, numberOfDays: days }));
+                  }
+                }}
+                placeholder="1"
               />
             </div>
-            <div>
-              <Label>End Date</Label>
-              <Input
-                type="date"
-                value={form?.end_date || form?.date || ''}
-                onChange={(e) => setForm((f) => ({ ...f!, end_date: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>Start Time</Label>
-              <Input
-                type="time"
-                value={form?.time || '10:00'}
-                onChange={(e) => setForm((f) => ({ ...f!, time: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>End Time</Label>
-              <Input
-                type="time"
-                value={form?.end_time || '12:00'}
-                onChange={(e) => setForm((f) => ({ ...f!, end_time: e.target.value }))}
-              />
-            </div>
+
+            {numberOfDays === 1 ? (
+              // Single-day event: Show simple Date and Time
+              <>
+                <div>
+                  <Label>Date</Label>
+                  <Input
+                    type="date"
+                    value={form?.date || ''}
+                    onChange={(e) => {
+                      setForm((f) => ({
+                        ...f!,
+                        date: e.target.value,
+                        end_date: e.target.value,
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Time</Label>
+                  <Input
+                    type="time"
+                    value={form?.time || '10:00'}
+                    onChange={(e) => setForm((f) => ({ ...f!, time: e.target.value }))}
+                  />
+                </div>
+              </>
+            ) : (
+              // Multi-day event: Show Start/End Date and Time
+              <>
+                <div>
+                  <Label>Start Date</Label>
+                  <Input
+                    type="date"
+                    value={form?.date || ''}
+                    onChange={(e) => {
+                      const startDate = parseDate(e.target.value);
+                      const endDate = new Date(startDate);
+                      endDate.setDate(startDate.getDate() + numberOfDays - 1);
+
+                      setForm((f) => ({
+                        ...f!,
+                        date: e.target.value,
+                        end_date: formatDateISO(endDate),
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>End Date</Label>
+                  <Input
+                    type="date"
+                    value={form?.end_date || form?.date || ''}
+                    onChange={(e) => setForm((f) => ({ ...f!, end_date: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Start Time</Label>
+                  <Input
+                    type="time"
+                    value={form?.time || '10:00'}
+                    onChange={(e) => setForm((f) => ({ ...f!, time: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>End Time</Label>
+                  <Input
+                    type="time"
+                    value={form?.end_time || '12:00'}
+                    onChange={(e) => setForm((f) => ({ ...f!, end_time: e.target.value }))}
+                  />
+                </div>
+              </>
+            )}
             <div>
               <Label>Category</Label>
               <Select
@@ -613,7 +695,7 @@ export const EventsModule: React.FC = () => {
                 <Badge variant="outline">{form?.event_level}</Badge>
               </div>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <Label>Description</Label>
               <Textarea
                 value={form?.description || ''}
