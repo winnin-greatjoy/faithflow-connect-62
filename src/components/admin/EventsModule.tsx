@@ -47,7 +47,7 @@ type EventType =
 
 type EventLevel = 'NATIONAL' | 'DISTRICT' | 'BRANCH';
 type Frequency = 'One-time' | 'Weekly' | 'Monthly' | 'Yearly';
-type Status = 'Open' | 'Registration Required' | 'Full' | 'Cancelled';
+type Status = 'Open' | 'Upcoming' | 'Registration Required' | 'Full' | 'Cancelled';
 
 interface Attendee {
   id: number;
@@ -86,7 +86,6 @@ interface EventItem {
   attendeesList?: Attendee[];
   recurrencePattern?: RecurrencePattern;
   end_date?: string;
-  end_time?: string;
   numberOfDays?: number;
 }
 
@@ -170,7 +169,6 @@ export const EventsModule: React.FC = () => {
           attendeesList: [],
           recurrencePattern: r.metadata?.recurrencePattern || {},
           end_date: r.end_at ? r.end_at.split('T')[0] : r.start_at ? r.start_at.split('T')[0] : '',
-          end_time: r.end_at ? r.end_at.split('T')[1]?.substring(0, 5) || '12:00' : '12:00',
         };
       });
       setEvents(mapped);
@@ -241,7 +239,6 @@ export const EventsModule: React.FC = () => {
       event_level: currentUserLevel,
       owner_scope_id: owner_id,
       end_date: formatDateISO(new Date()),
-      end_time: '12:00',
       numberOfDays: 1,
     });
     setNumberOfDays(1);
@@ -289,7 +286,7 @@ export const EventsModule: React.FC = () => {
         event_level: form.event_level,
         owner_scope_id: form.owner_scope_id,
         start_at: `${form.date}T${formatTime(form.time)}`,
-        end_at: `${form.end_date || form.date}T${formatTime(form.end_time)}`,
+        end_at: `${form.end_date || form.date}T${formatTime(form.time)}`,
         location: form.location,
         capacity: form.capacity,
         status: mapStatus(form.status || 'Open'),
@@ -334,7 +331,7 @@ export const EventsModule: React.FC = () => {
         location: form.location,
         capacity: form.capacity,
         start_at: `${form.date}T${formatTime(form.time)}`,
-        end_at: `${form.end_date || form.date}T${formatTime(form.end_time)}`,
+        end_at: `${form.end_date || form.date}T${formatTime(form.time)}`,
         status: mapStatus(form.status || 'Open'),
         metadata: { type: form.type, frequency: form.frequency },
       });
@@ -489,7 +486,6 @@ export const EventsModule: React.FC = () => {
                   </span>
                   <span className="flex items-center">
                     <Clock className="mr-1 h-4 w-4" /> {ev.time}
-                    {ev.end_time ? ` - ${ev.end_time}` : ''}
                   </span>
                   <span className="flex items-center">
                     <MapPin className="mr-1 h-4 w-4" /> {ev.location || 'N/A'}
@@ -646,14 +642,6 @@ export const EventsModule: React.FC = () => {
                     onChange={(e) => setForm((f) => ({ ...f!, time: e.target.value }))}
                   />
                 </div>
-                <div>
-                  <Label>End Time</Label>
-                  <Input
-                    type="time"
-                    value={form?.end_time || '12:00'}
-                    onChange={(e) => setForm((f) => ({ ...f!, end_time: e.target.value }))}
-                  />
-                </div>
               </>
             )}
             <div>
@@ -735,7 +723,7 @@ export const EventsModule: React.FC = () => {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  {['Open', 'Registration Required', 'Full', 'Cancelled'].map((s) => (
+                  {['Open', 'Upcoming', 'Registration Required', 'Full', 'Cancelled'].map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}
                     </SelectItem>
@@ -801,7 +789,7 @@ export const EventsModule: React.FC = () => {
                     </span>
                     <span className="mx-1">→</span>
                     <span>
-                      {activeEvent.end_date || activeEvent.date} {activeEvent.end_time || '12:00'}
+                      {activeEvent.end_date || activeEvent.date} {activeEvent.time}
                     </span>
                   </div>
                 </div>
