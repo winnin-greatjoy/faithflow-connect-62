@@ -375,41 +375,66 @@ export const EventsModule: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 px-4 sm:px-0">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 lg:px-0">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Events Management</h1>
-          <p className="text-gray-500">Hierarchical system: National, District, Branch</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Events Management</h1>
+          <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">
+            Hierarchical system: National, District, Branch
+          </p>
         </div>
-        <Button onClick={() => setDialog('calendar')} variant="outline">
+        <Button
+          onClick={() => setDialog('calendar')}
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+        >
           <Calendar className="mr-2 h-4 w-4" /> Calendar
         </Button>
       </div>
 
       <div className="flex flex-col gap-4">
         <Tabs value={scopeFilter} onValueChange={(v: any) => setScopeFilter(v)}>
-          <TabsList className="bg-muted w-full sm:w-auto overflow-x-auto justify-start">
-            <TabsTrigger value="All text-xs">All Levels</TabsTrigger>
-            <TabsTrigger value="NATIONAL text-xs">National</TabsTrigger>
-            <TabsTrigger value="DISTRICT text-xs">District</TabsTrigger>
-            <TabsTrigger value="BRANCH text-xs">Branch</TabsTrigger>
+          <TabsList className="bg-muted w-full sm:w-auto grid grid-cols-4 sm:inline-flex">
+            <TabsTrigger value="All" className="text-xs sm:text-sm">
+              All
+            </TabsTrigger>
+            <TabsTrigger value="NATIONAL" className="text-xs sm:text-sm">
+              National
+            </TabsTrigger>
+            <TabsTrigger value="DISTRICT" className="text-xs sm:text-sm">
+              District
+            </TabsTrigger>
+            <TabsTrigger value="BRANCH" className="text-xs sm:text-sm">
+              Branch
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <Tabs value={tab} onValueChange={(v: any) => setTab(v)}>
-            <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="All">All Categories</TabsTrigger>
-              <TabsTrigger value="General">General</TabsTrigger>
-              <TabsTrigger value="Registration">Registration</TabsTrigger>
-              <TabsTrigger value="Conference">Conferences</TabsTrigger>
-              <TabsTrigger value="Crusade">Crusades</TabsTrigger>
+            <TabsList className="w-full sm:w-auto flex-wrap h-auto justify-start">
+              <TabsTrigger value="All" className="text-xs sm:text-sm">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="General" className="text-xs sm:text-sm">
+                General
+              </TabsTrigger>
+              <TabsTrigger value="Registration" className="text-xs sm:text-sm">
+                Registration
+              </TabsTrigger>
+              <TabsTrigger value="Conference" className="text-xs sm:text-sm">
+                Conference
+              </TabsTrigger>
+              <TabsTrigger value="Crusade" className="text-xs sm:text-sm">
+                Crusade
+              </TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>
               <SelectContent>
@@ -425,7 +450,7 @@ export const EventsModule: React.FC = () => {
               {sortOrder === 'asc' ? '↑' : '↓'}
             </Button>
             {canManageEvents && (
-              <Button onClick={openCreate}>
+              <Button onClick={openCreate} className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" /> Create
               </Button>
             )}
@@ -471,14 +496,19 @@ export const EventsModule: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 sm:items-end">
+              <div className="flex flex-col gap-2 sm:items-end w-full sm:w-auto">
                 <div
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${getStatusColor(ev.status)}`}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold text-center sm:text-left ${getStatusColor(ev.status)}`}
                 >
                   {ev.status}
                 </div>
-                <div className="flex gap-2 mt-auto">
-                  <Button size="sm" variant="outline" onClick={() => openView(ev)}>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openView(ev)}
+                    className="w-full sm:w-auto"
+                  >
                     View
                   </Button>
                   <Button
@@ -486,13 +516,14 @@ export const EventsModule: React.FC = () => {
                     variant="outline"
                     disabled={!canEditEvent(ev)}
                     onClick={() => openEdit(ev)}
+                    className="w-full sm:w-auto"
                   >
                     Edit
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-red-500"
+                    className="text-red-500 w-full sm:w-auto"
                     disabled={!canEditEvent(ev)}
                     onClick={() => deleteEvent(ev.id)}
                   >
