@@ -223,9 +223,31 @@ export const EventsModule: React.FC = () => {
   );
 
   const openCreate = () => {
+    // Determine event level and scope based on dashboard context
+    // Super admins can create events at any level depending on which dashboard they're viewing
+    let event_level: EventLevel = currentUserLevel;
     let owner_id: string | null = selectedBranchId || userBranchId || null;
-    if (currentUserLevel === 'NATIONAL') owner_id = null;
-    if (currentUserLevel === 'DISTRICT') owner_id = adminDistrictId;
+
+    // If super admin is viewing a specific branch/district dashboard, scope the event accordingly
+    if (hasRole('super_admin')) {
+      if (selectedBranchId) {
+        // Super admin on branch dashboard → create BRANCH event
+        event_level = 'BRANCH';
+        owner_id = selectedBranchId;
+      } else if (adminDistrictId) {
+        // Super admin on district dashboard → create DISTRICT event
+        event_level = 'DISTRICT';
+        owner_id = adminDistrictId;
+      } else {
+        // Super admin on national dashboard → create NATIONAL event
+        event_level = 'NATIONAL';
+        owner_id = null;
+      }
+    } else {
+      // Non-super admins use their default level
+      if (currentUserLevel === 'NATIONAL') owner_id = null;
+      if (currentUserLevel === 'DISTRICT') owner_id = adminDistrictId;
+    }
 
     setForm({
       title: '',
@@ -236,7 +258,7 @@ export const EventsModule: React.FC = () => {
       status: 'Open',
       type: 'General',
       frequency: 'One-time',
-      event_level: currentUserLevel,
+      event_level,
       owner_scope_id: owner_id,
       end_date: formatDateISO(new Date()),
       numberOfDays: 1,
