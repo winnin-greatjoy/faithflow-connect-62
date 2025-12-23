@@ -13,8 +13,12 @@ export interface EventPayload {
   end_at?: string | null;
   location?: string | null;
   capacity?: number | null;
-  status?: 'draft' | 'published' | 'cancelled';
+  status?: 'draft' | 'published' | 'cancelled' | 'upcoming' | 'active' | 'ended';
+  requires_registration?: boolean;
+  is_paid?: boolean;
   visibility?: 'public' | 'private';
+  registration_fee?: number;
+  target_audience?: string;
   metadata?: any;
 }
 
@@ -119,7 +123,11 @@ export const eventsApi = {
       location: payload.location ?? null,
       capacity: payload.capacity ?? null,
       status: payload.status ?? 'draft',
+      requires_registration: payload.requires_registration ?? false,
+      is_paid: payload.is_paid ?? false,
       visibility: payload.visibility ?? 'public',
+      registration_fee: payload.registration_fee ?? 0,
+      target_audience: payload.target_audience ?? 'everyone',
       metadata: payload.metadata ?? null,
       organizer_id: profile.id,
       organizer_role: role,
@@ -189,6 +197,31 @@ export const eventsApi = {
       .select('*')
       .eq('district_id', districtId)
       .order('start_at', { ascending: true });
+  },
+
+  // Quota Management
+  async getEventQuotas(eventId: string) {
+    return (supabase as any).from('event_quotas').select('*').eq('event_id', eventId);
+  },
+
+  async upsertEventQuota(payload: {
+    event_id: string;
+    district_id?: string | null;
+    branch_id?: string | null;
+    target_amount: number;
+    notes?: string;
+  }) {
+    return (supabase as any)
+      .from('event_quotas')
+      .upsert(payload, {
+        onConflict: payload.district_id ? 'event_id, district_id' : 'event_id, branch_id',
+      })
+      .select()
+      .single();
+  },
+
+  async deleteEventQuota(id: string) {
+    return (supabase as any).from('event_quotas').delete().eq('id', id);
   },
 };
 

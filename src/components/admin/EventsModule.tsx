@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -20,10 +22,38 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calendar, Clock, MapPin, Users, Plus, FileText, Download } from 'lucide-react';
+import {
+  Calendar as CalendarIcon,
+  Plus,
+  Search,
+  Filter,
+  Users,
+  Clock,
+  MapPin,
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
+  Check,
+  X,
+  ChevronDown,
+  Download,
+  ShieldAlert,
+  Edit,
+  Trash2,
+  ExternalLink,
+  ChevronUp,
+  History,
+  Info,
+  Banknote,
+  FileText,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import eventsApi from '@/services/eventsApi';
+import registrationsApi from '@/services/registrationsApi';
 import EventCalendar from '@/components/shared/EventCalendar';
+import { EventRegistrationForm } from '@/components/events/EventRegistrationForm';
+import { RegistrationsManagementDialog } from '@/components/admin/RegistrationsManagementDialog';
+import { EventQuotasDialog } from '@/components/admin/EventQuotasDialog';
 
 // -----------------------------
 // Types
@@ -47,7 +77,7 @@ type EventType =
 
 type EventLevel = 'NATIONAL' | 'DISTRICT' | 'BRANCH';
 type Frequency = 'One-time' | 'Weekly' | 'Monthly' | 'Yearly';
-type Status = 'Open' | 'Upcoming' | 'Registration Required' | 'Full' | 'Cancelled';
+type Status = 'Open' | 'Upcoming' | 'Active' | 'Ended' | 'Cancelled';
 
 interface Attendee {
   id: number;
@@ -87,6 +117,11 @@ interface EventItem {
   recurrencePattern?: RecurrencePattern;
   end_date?: string;
   numberOfDays?: number;
+  registration_fee?: number;
+  is_paid?: boolean;
+  requires_registration?: boolean;
+  target_audience?: string;
+  visibility?: 'public' | 'private';
 }
 
 // -----------------------------
@@ -120,13 +155,16 @@ export const EventsModule: React.FC = () => {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [tab, setTab] = useState<'All' | EventType>('All');
   const [scopeFilter, setScopeFilter] = useState<'All' | EventLevel>('All');
-  const [dialog, setDialog] = useState<'create' | 'edit' | 'view' | 'calendar' | null>(null);
+  const [dialog, setDialog] = useState<
+    'create' | 'edit' | 'view' | 'calendar' | 'register' | 'manage' | 'quotas' | null
+  >(null);
   const [form, setForm] = useState<Partial<EventItem> | null>(null);
   const [activeEvent, setActiveEvent] = useState<EventItem | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [adminDistrictId, setAdminDistrictId] = useState<string | null>(null);
   const [numberOfDays, setNumberOfDays] = useState<number>(1);
+  const [regCount, setRegCount] = useState<number | null>(null);
   const { hasRole, branchId: userBranchId, userId, loading: authzLoading } = useAuthz();
   const { selectedBranchId, loading: contextLoading } = useAdminContext();
   const { toast } = useToast();
@@ -262,6 +300,11 @@ export const EventsModule: React.FC = () => {
       owner_scope_id: owner_id,
       end_date: formatDateISO(new Date()),
       numberOfDays: 1,
+      visibility: 'public',
+      target_audience: 'everyone',
+      registration_fee: 0,
+      is_paid: false,
+      requires_registration: true,
     });
     setNumberOfDays(1);
     setDialog('create');
@@ -279,16 +322,28 @@ export const EventsModule: React.FC = () => {
     setDialog('edit');
   };
 
-  const openView = (ev: EventItem) => {
+  const openView = async (ev: EventItem) => {
     setActiveEvent(ev);
     setDialog('view');
+    setRegCount(null);
+    try {
+      const { count } = await registrationsApi.getRegistrationCount(String(ev.id));
+      setRegCount(count || 0);
+    } catch (err) {
+      console.error('Failed to fetch registration count', err);
+    }
   };
 
   const saveCreate = async () => {
     if (!form?.title || !form?.date) return;
 
-    const mapStatus = (s: string): 'draft' | 'published' | 'cancelled' => {
+    const mapStatus = (
+      s: string
+    ): 'draft' | 'published' | 'cancelled' | 'upcoming' | 'active' | 'ended' => {
       if (s === 'Cancelled') return 'cancelled';
+      if (s === 'Upcoming') return 'upcoming';
+      if (s === 'Active') return 'active';
+      if (s === 'Ended') return 'ended';
       return 'published';
     };
 
@@ -312,6 +367,11 @@ export const EventsModule: React.FC = () => {
         location: form.location,
         capacity: form.capacity,
         status: mapStatus(form.status || 'Open'),
+        requires_registration: form.requires_registration ?? false,
+        is_paid: form.is_paid ?? false,
+        visibility: form.visibility || 'public',
+        registration_fee: form.registration_fee || 0,
+        target_audience: form.target_audience || 'everyone',
         metadata: { type: form.type, frequency: form.frequency },
       };
 
@@ -334,8 +394,13 @@ export const EventsModule: React.FC = () => {
   const saveEdit = async () => {
     if (!form?.id) return;
 
-    const mapStatus = (s: string): 'draft' | 'published' | 'cancelled' => {
+    const mapStatus = (
+      s: string
+    ): 'draft' | 'published' | 'cancelled' | 'upcoming' | 'active' | 'ended' => {
       if (s === 'Cancelled') return 'cancelled';
+      if (s === 'Upcoming') return 'upcoming';
+      if (s === 'Active') return 'active';
+      if (s === 'Ended') return 'ended';
       return 'published';
     };
 
@@ -355,6 +420,11 @@ export const EventsModule: React.FC = () => {
         start_at: `${form.date}T${formatTime(form.time)}`,
         end_at: `${form.end_date || form.date}T${formatTime(form.time)}`,
         status: mapStatus(form.status || 'Open'),
+        requires_registration: form.requires_registration ?? false,
+        is_paid: form.is_paid ?? false,
+        visibility: form.visibility || 'public',
+        registration_fee: form.registration_fee || 0,
+        target_audience: form.target_audience || 'everyone',
         metadata: { type: form.type, frequency: form.frequency },
       });
       if (error) throw error;
@@ -379,8 +449,20 @@ export const EventsModule: React.FC = () => {
   };
 
   const getStatusColor = (status: Status) => {
-    if (status === 'Cancelled') return 'bg-gray-100 text-gray-800';
-    return 'bg-green-100 text-green-800';
+    switch (status) {
+      case 'Cancelled':
+        return 'bg-gray-100 text-gray-800';
+      case 'Upcoming':
+        return 'bg-blue-100 text-blue-800';
+      case 'Active':
+        return 'bg-green-100 text-green-800';
+      case 'Ended':
+        return 'bg-amber-100 text-amber-800';
+      case 'Open':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
   const recurrenceLabel = (ev: EventItem) => ev.frequency;
@@ -408,7 +490,7 @@ export const EventsModule: React.FC = () => {
           size="sm"
           className="w-full sm:w-auto"
         >
-          <Calendar className="mr-2 h-4 w-4" /> Calendar
+          <CalendarIcon className="mr-2 h-4 w-4" /> Calendar
         </Button>
       </div>
 
@@ -493,17 +575,32 @@ export const EventsModule: React.FC = () => {
           >
             <CardContent className="p-5 flex flex-col sm:flex-row justify-between gap-4">
               <div className="flex-1">
-                <div className="flex gap-2 mb-2">
+                <div className="flex flex-wrap gap-2 mb-2">
                   <Badge variant={ev.event_level === 'NATIONAL' ? 'destructive' : 'default'}>
                     {ev.event_level}
                   </Badge>
                   <Badge variant="secondary">{ev.type}</Badge>
+                  {ev.is_paid ? (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-200 bg-amber-50 text-amber-700"
+                    >
+                      Paid: GHS {ev.registration_fee?.toFixed(2)}
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="border-green-200 bg-green-50 text-green-700"
+                    >
+                      Free
+                    </Badge>
+                  )}
                 </div>
                 <h3 className="text-xl font-bold">{ev.title}</h3>
                 <p className="text-sm text-gray-500 line-clamp-1">{ev.description}</p>
                 <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-600">
                   <span className="flex items-center">
-                    <Calendar className="mr-1 h-4 w-4" /> {ev.date}
+                    <CalendarIcon className="mr-1 h-4 w-4" /> {ev.date}
                     {ev.end_date && ev.end_date !== ev.date ? ` - ${ev.end_date}` : ''}
                   </span>
                   <span className="flex items-center">
@@ -520,7 +617,24 @@ export const EventsModule: React.FC = () => {
                 >
                   {ev.status}
                 </div>
+                {ev.requires_registration && (
+                  <div className="text-[10px] font-semibold text-blue-600 uppercase tracking-tight">
+                    Requires Registration
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  {ev.requires_registration && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setActiveEvent(ev);
+                        setDialog('register');
+                      }}
+                      className="w-full sm:w-auto"
+                    >
+                      Register
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -745,7 +859,7 @@ export const EventsModule: React.FC = () => {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  {['Open', 'Upcoming', 'Registration Required', 'Full', 'Cancelled'].map((s) => (
+                  {['Upcoming', 'Active', 'Ended', 'Cancelled', 'Open'].map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}
                     </SelectItem>
@@ -759,6 +873,85 @@ export const EventsModule: React.FC = () => {
                 <Badge variant="outline">{form?.event_level}</Badge>
               </div>
             </div>
+            <div>
+              <Label>Visibility</Label>
+              <Select
+                value={form?.visibility || 'public'}
+                onValueChange={(v: any) => setForm((f) => ({ ...f!, visibility: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">Public</SelectItem>
+                  <SelectItem value="private">Private (Internal)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Target Audience</Label>
+              <Select
+                value={form?.target_audience || 'everyone'}
+                onValueChange={(v: any) => setForm((f) => ({ ...f!, target_audience: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Target Audience" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="everyone">Everyone</SelectItem>
+                  <SelectItem value="baptized_members">Baptized Members</SelectItem>
+                  <SelectItem value="workers_and_leaders">Workers & Leaders</SelectItem>
+                  <SelectItem value="leaders_only">Leaders Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between p-2 border rounded-md bg-muted/20">
+              <div className="space-y-0.5">
+                <Label>Requires Registration</Label>
+                <p className="text-[10px] text-muted-foreground italic leading-none">
+                  Toggle if users must register
+                </p>
+              </div>
+              <Switch
+                checked={form?.requires_registration}
+                onCheckedChange={(checked) =>
+                  setForm((f) => ({ ...f!, requires_registration: checked }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Payment Type</Label>
+              <ToggleGroup
+                type="single"
+                value={form?.is_paid ? 'paid' : 'free'}
+                onValueChange={(v) => {
+                  if (v) setForm((f) => ({ ...f!, is_paid: v === 'paid' }));
+                }}
+                className="justify-start"
+              >
+                <ToggleGroupItem value="free" className="flex-1">
+                  Free
+                </ToggleGroupItem>
+                <ToggleGroupItem value="paid" className="flex-1">
+                  Paid
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
+            {form?.is_paid && (
+              <div>
+                <Label>Registration Fee (GHS)</Label>
+                <Input
+                  type="number"
+                  value={form?.registration_fee || 0}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f!, registration_fee: parseFloat(e.target.value) }))
+                  }
+                  placeholder="0.00"
+                />
+              </div>
+            )}
             <div className="col-span-1 sm:col-span-2">
               <Label>Description</Label>
               <Textarea
@@ -802,10 +995,34 @@ export const EventsModule: React.FC = () => {
                     {activeEvent.status}
                   </span>
                 </div>
+                <div>
+                  <strong>Registration:</strong>{' '}
+                  <Badge variant="outline" className="ml-1">
+                    {activeEvent.requires_registration ? 'Required' : 'Not Required'}
+                  </Badge>
+                </div>
+                <div>
+                  <strong>Payment:</strong>{' '}
+                  {activeEvent.is_paid ? (
+                    <Badge
+                      variant="outline"
+                      className="ml-1 border-amber-200 bg-amber-50 text-amber-700"
+                    >
+                      Paid (GHS {activeEvent.registration_fee?.toFixed(2)})
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="ml-1 border-green-200 bg-green-50 text-green-700"
+                    >
+                      Free
+                    </Badge>
+                  )}
+                </div>
                 <div className="col-span-2 md:col-span-3">
                   <strong>Date & Time Range:</strong>
                   <div className="mt-1 p-2 bg-muted/50 rounded flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
+                    <CalendarIcon className="h-4 w-4" />
                     <span>
                       {activeEvent.date} {activeEvent.time}
                     </span>
@@ -823,6 +1040,9 @@ export const EventsModule: React.FC = () => {
                 </div>
                 <div>
                   <strong>Capacity:</strong> {activeEvent.capacity || 'Unlimited'}
+                  {regCount !== null && (
+                    <span className="ml-2 text-muted-foreground">({regCount} registered)</span>
+                  )}
                 </div>
               </div>
               <div>
@@ -830,6 +1050,34 @@ export const EventsModule: React.FC = () => {
                 <p className="p-4 bg-muted rounded text-sm mt-1">
                   {activeEvent.description || 'No description provided.'}
                 </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-4 border-t">
+                {activeEvent.requires_registration && (
+                  <Button className="flex-1 sm:flex-none" onClick={() => setDialog('register')}>
+                    Register Now
+                  </Button>
+                )}
+                {canEditEvent(activeEvent) && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="flex-1 sm:flex-none"
+                      onClick={() => setDialog('manage')}
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Manage Registrations
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 sm:flex-none"
+                      onClick={() => setDialog('quotas')}
+                    >
+                      <Banknote className="mr-2 h-4 w-4" />
+                      Manage Quotas
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -855,6 +1103,43 @@ export const EventsModule: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Registration Dialog */}
+      <Dialog open={dialog === 'register'} onOpenChange={() => setDialog('view')}>
+        <DialogContent className="max-w-md">
+          {activeEvent && (
+            <EventRegistrationForm
+              eventId={String(activeEvent.id)}
+              eventTitle={activeEvent.title}
+              capacity={activeEvent.capacity}
+              onSuccess={() => {
+                setTimeout(() => setDialog('view'), 2000);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Management Dialog */}
+      {activeEvent && dialog === 'manage' && (
+        <RegistrationsManagementDialog
+          eventId={String(activeEvent.id)}
+          eventTitle={activeEvent.title}
+          isOpen={dialog === 'manage'}
+          onClose={() => setDialog('view')}
+          capacity={activeEvent.capacity}
+        />
+      )}
+
+      {/* Quotas Dialog */}
+      {activeEvent && dialog === 'quotas' && (
+        <EventQuotasDialog
+          eventId={String(activeEvent.id)}
+          eventTitle={activeEvent.title}
+          isOpen={dialog === 'quotas'}
+          onClose={() => setDialog('view')}
+        />
+      )}
     </div>
   );
 };
