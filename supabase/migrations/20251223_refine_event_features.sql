@@ -18,12 +18,12 @@ END $do$;
 DO $do$ 
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='registration_fee') THEN
-    -- If an event has a registration_fee > 0, it should probably be marked as is_paid
+    /* If an event has a registration_fee > 0, it should probably be marked as is_paid */
     UPDATE public.events 
     SET is_paid = TRUE 
     WHERE registration_fee > 0;
 
-    -- If an event has a capacity > 0 or has a registration_fee, it likely requires registration
+    /* If an event has a capacity > 0 or has a registration_fee, it likely requires registration */
     UPDATE public.events 
     SET requires_registration = TRUE 
     WHERE registration_fee > 0 OR capacity IS NOT NULL;

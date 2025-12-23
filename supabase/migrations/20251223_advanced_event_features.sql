@@ -35,7 +35,7 @@ ALTER TABLE public.event_registrations
 ADD COLUMN IF NOT EXISTS amount_paid DECIMAL(10, 2) DEFAULT 0,
 ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'not_required';
 
--- Add check constraint for payment_status
+/* Add check constraint for payment_status */
 DO $do$ 
 BEGIN
   ALTER TABLE public.event_registrations ADD CONSTRAINT event_registrations_payment_status_check 
@@ -65,7 +65,6 @@ FOR ALL USING (
 );
 
 -- 5. Updated_at trigger for event_quotas
--- Using the existing update_timestamp function if available
 DO $do$ 
 BEGIN
   BEGIN
@@ -75,7 +74,7 @@ BEGIN
       EXECUTE FUNCTION public.update_timestamp();
   EXCEPTION 
     WHEN undefined_function THEN
-      -- Fallback if update_timestamp doesn't exist (though it should from previous migrations)
+      /* Fallback if update_timestamp doesn't exist */
       EXECUTE 'CREATE TRIGGER trg_event_quotas_updated_at BEFORE UPDATE ON public.event_quotas FOR EACH ROW EXECUTE FUNCTION public.update_registration_updated_at();';
     WHEN others THEN 
       NULL; 
