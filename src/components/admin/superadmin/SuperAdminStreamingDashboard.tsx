@@ -19,6 +19,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -86,12 +87,14 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('streams')
-        .select(`
+        .select(
+          `
           *,
           branch:church_branches(name)
-        `)
+        `
+        )
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return data as Stream[];
     },
@@ -110,10 +113,7 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<Stream>) => {
       if (editingStream) {
-        const { error } = await supabase
-          .from('streams')
-          .update(data)
-          .eq('id', editingStream.id);
+        const { error } = await supabase.from('streams').update(data).eq('id', editingStream.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('streams').insert(data as any);
@@ -151,7 +151,7 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
       const updates: Partial<Stream> = { status: status as any };
       if (status === 'live') updates.start_time = new Date().toISOString();
       if (status === 'ended') updates.end_time = new Date().toISOString();
-      
+
       const { error } = await supabase.from('streams').update(updates).eq('id', id);
       if (error) throw error;
     },
@@ -163,9 +163,9 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
 
   const stats = {
     total: streams.length,
-    live: streams.filter(s => s.status === 'live').length,
-    scheduled: streams.filter(s => s.status === 'scheduled').length,
-    archived: streams.filter(s => s.status === 'archived' || s.status === 'ended').length,
+    live: streams.filter((s) => s.status === 'live').length,
+    scheduled: streams.filter((s) => s.status === 'scheduled').length,
+    archived: streams.filter((s) => s.status === 'archived' || s.status === 'ended').length,
     totalViews: streams.reduce((sum, s) => sum + (s.view_count || 0), 0),
   };
 
@@ -329,33 +329,48 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {streams.filter(s => s.status === 'live').map((stream) => (
-                <div key={stream.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded bg-red-100 flex items-center justify-center">
-                      <Radio className="h-5 w-5 text-red-600 animate-pulse" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{stream.title}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Building2 className="h-3 w-3" />
-                        {stream.branch?.name || 'All Branches'}
-                        <span>•</span>
-                        <Eye className="h-3 w-3" />
-                        {stream.view_count || 0} viewers
+              {streams
+                .filter((s) => s.status === 'live')
+                .map((stream) => (
+                  <div
+                    key={stream.id}
+                    className="flex items-center justify-between p-3 bg-white rounded-lg border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded bg-red-100 flex items-center justify-center">
+                        <Radio className="h-5 w-5 text-red-600 animate-pulse" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{stream.title}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Building2 className="h-3 w-3" />
+                          {stream.branch?.name || 'All Branches'}
+                          <span>•</span>
+                          <Eye className="h-3 w-3" />
+                          {stream.view_count || 0} viewers
+                        </div>
                       </div>
                     </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(`/portal/streaming/${stream.id}`, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" /> Watch
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          updateStatusMutation.mutate({ id: stream.id, status: 'ended' })
+                        }
+                      >
+                        <Pause className="h-4 w-4 mr-1" /> End
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => window.open(`/portal/streaming/${stream.id}`, '_blank')}>
-                      <ExternalLink className="h-4 w-4 mr-1" /> Watch
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => updateStatusMutation.mutate({ id: stream.id, status: 'ended' })}>
-                      <Pause className="h-4 w-4 mr-1" /> End
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           </CardContent>
         </Card>
@@ -411,7 +426,9 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => updateStatusMutation.mutate({ id: stream.id, status: 'live' })}
+                              onClick={() =>
+                                updateStatusMutation.mutate({ id: stream.id, status: 'live' })
+                              }
                               title="Go Live"
                             >
                               <Play className="h-4 w-4 text-green-600" />
@@ -421,13 +438,19 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => updateStatusMutation.mutate({ id: stream.id, status: 'ended' })}
+                              onClick={() =>
+                                updateStatusMutation.mutate({ id: stream.id, status: 'ended' })
+                              }
                               title="End Stream"
                             >
                               <Pause className="h-4 w-4 text-red-600" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(stream)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(stream)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
@@ -457,6 +480,11 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingStream ? 'Edit Stream' : 'Create New Stream'}</DialogTitle>
+            <DialogDescription>
+              {editingStream
+                ? 'Update stream details and settings.'
+                : 'Fill in the details to create a new live or recorded stream.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -538,16 +566,20 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
               <div className="space-y-2">
                 <Label>Branch</Label>
                 <Select
-                  value={formData.branch_id}
-                  onValueChange={(value) => setFormData({ ...formData, branch_id: value })}
+                  value={formData.branch_id || 'all'}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, branch_id: value === 'all' ? '' : value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Branches" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Branches</SelectItem>
+                    <SelectItem value="all">All Branches</SelectItem>
                     {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -564,7 +596,9 @@ export const SuperAdminStreamingDashboard: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {editingStream ? 'Update' : 'Create'}

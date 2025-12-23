@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -134,6 +135,9 @@ export const AddMemberToMinistryDialog: React.FC<Props> = ({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Add Members to Ministry</DialogTitle>
+          <DialogDescription>
+            Search and select baptized members to add to this ministry.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

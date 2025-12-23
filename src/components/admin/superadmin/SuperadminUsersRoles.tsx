@@ -92,10 +92,7 @@ export const SuperadminUsersRoles: React.FC = () => {
     try {
       const [rolesRes, profilesRes, branchesRes] = await Promise.all([
         supabase.from('user_roles').select('*').order('created_at', { ascending: false }),
-        supabase
-          .from('profiles')
-          .select('id, first_name, last_name, role, email')
-          .order('first_name'),
+        supabase.from('profiles').select('id, first_name, last_name, role').order('first_name'),
         supabase.from('church_branches').select('id, name').order('name'),
       ]);
 

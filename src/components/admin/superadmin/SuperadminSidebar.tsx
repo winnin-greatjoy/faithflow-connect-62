@@ -13,6 +13,7 @@ import {
   DollarSign,
   FileText,
   Video,
+  Calendar,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -47,6 +48,7 @@ const menuItems: MenuItem[] = [
   { id: 'cms', label: 'Content', icon: FileText, description: 'Content management' },
   { id: 'streaming', label: 'Streaming', icon: Video, description: 'Live streams' },
   { id: 'reports', label: 'Reports', icon: FileBarChart, description: 'System reports' },
+  { id: 'events', label: 'Events', icon: Calendar, description: 'Hierarchical events' },
   { id: 'settings', label: 'System Settings', icon: Settings, description: 'Configuration' },
   { id: 'audit', label: 'Audit Logs', icon: Shield, description: 'Activity history' },
 ];

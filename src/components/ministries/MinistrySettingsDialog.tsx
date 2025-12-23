@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -196,6 +197,9 @@ export const MinistrySettingsDialog: React.FC<Props> = ({
       <DialogContent className="max-w-2xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Ministry Settings</DialogTitle>
+          <DialogDescription>
+            Manage settings, members, and advanced options for this ministry.
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
@@ -224,12 +228,15 @@ export const MinistrySettingsDialog: React.FC<Props> = ({
 
             <div className="space-y-2">
               <Label htmlFor="ministry-leader">Ministry Leader</Label>
-              <Select value={leaderId} onValueChange={setLeaderId}>
+              <Select
+                value={leaderId || 'none'}
+                onValueChange={(v) => setLeaderId(v === 'none' ? '' : v)}
+              >
                 <SelectTrigger id="ministry-leader">
                   <SelectValue placeholder="Select a leader" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Leader</SelectItem>
+                  <SelectItem value="none">No Leader</SelectItem>
                   {availableLeaders.map((leader) => (
                     <SelectItem key={leader.id} value={leader.id}>
                       {leader.full_name}

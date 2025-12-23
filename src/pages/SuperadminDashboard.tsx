@@ -11,9 +11,11 @@ import { SuperadminUsersRoles } from '@/components/admin/superadmin/SuperadminUs
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { AuditLogsModule } from '@/components/admin/superadmin/AuditLogsModule';
+import { EventsModule } from '@/components/admin/EventsModule';
 import { SuperAdminFinanceDashboard } from '@/components/admin/superadmin/SuperAdminFinanceDashboard';
 import { SuperAdminCMSDashboard } from '@/components/admin/superadmin/SuperAdminCMSDashboard';
 import { SuperAdminStreamingDashboard } from '@/components/admin/superadmin/SuperAdminStreamingDashboard';
+import { AdminProvider } from '@/context/AdminContext';
 import { Loader2 } from 'lucide-react';
 
 const SuperadminDashboard: React.FC = () => {
@@ -81,6 +83,8 @@ const SuperadminDashboard: React.FC = () => {
         return <SuperAdminStreamingDashboard />;
       case 'reports':
         return <SystemReportsModule />;
+      case 'events':
+        return <EventsModule />;
       case 'settings':
         return <SystemConfiguration />;
       case 'audit':
@@ -91,24 +95,26 @@ const SuperadminDashboard: React.FC = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen bg-muted/30 flex w-full">
-        <SuperadminSidebar
-          activeModule={activeModule}
-          onModuleChange={handleModuleChange}
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
+    <AdminProvider>
+      <SidebarProvider>
+        <div className="min-h-screen bg-muted/30 flex w-full">
+          <SuperadminSidebar
+            activeModule={activeModule}
+            onModuleChange={handleModuleChange}
+            isOpen={sidebarOpen}
+            onToggle={() => setSidebarOpen(!sidebarOpen)}
+          />
 
-        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
-          <SuperadminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+          <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+            <SuperadminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-            <div className="max-w-7xl mx-auto">{renderActiveModule()}</div>
-          </main>
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+              <div className="max-w-7xl mx-auto">{renderActiveModule()}</div>
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </AdminProvider>
   );
 };
 

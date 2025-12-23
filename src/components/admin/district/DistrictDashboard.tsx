@@ -18,16 +18,19 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DistrictOverview } from './DistrictOverview';
 import { DistrictBranches } from './DistrictBranches';
+import { EventsModule } from '@/components/admin/EventsModule';
 import { DistrictStaff } from './DistrictStaff';
 import { DistrictReports } from './DistrictReports';
 import { DistrictSettings } from './DistrictSettings';
 import { FinanceDashboard } from '@/components/finance/FinanceDashboard';
+import { AdminProvider } from '@/context/AdminContext';
 
 interface District {
   id: string;
@@ -92,7 +95,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
   });
   const [loading, setLoading] = useState(true);
   const [activeModule, setActiveModule] = useState<
-    'overview' | 'branches' | 'staff' | 'finance' | 'reports' | 'settings'
+    'overview' | 'branches' | 'staff' | 'events' | 'finance' | 'reports' | 'settings'
   >('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For mobile
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -117,6 +120,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
       | 'overview'
       | 'branches'
       | 'staff'
+      | 'events'
       | 'finance'
       | 'reports'
       | 'settings'
@@ -283,197 +287,204 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
     { id: 'branches' as const, label: 'Branches', icon: Building },
     { id: 'staff' as const, label: 'Staff', icon: Users },
+    { id: 'events' as const, label: 'Events', icon: Calendar },
     { id: 'finance' as const, label: 'Finance', icon: DollarSign },
     { id: 'reports' as const, label: 'Reports', icon: FileBarChart },
     { id: 'settings' as const, label: 'Settings', icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-      {/* Mobile Header */}
-      <div className="md:hidden bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10">
-        <div className="flex items-center gap-2 font-bold text-primary">
-          <Shield className="h-6 w-6" />
-          {district.name}
-        </div>
-        <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-          <Menu className="h-6 w-6" />
-        </Button>
-      </div>
-
-      {/* Sidebar */}
-      <div
-        className={cn(
-          'fixed inset-y-0 left-0 bg-white border-r transform transition-all duration-300 ease-in-out z-20',
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
-          'md:relative md:translate-x-0',
-          isCollapsed ? 'md:w-20' : 'md:w-64',
-          isCollapsed ? 'md:hover:w-64' : ''
-        )}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="p-6 border-b whitespace-nowrap overflow-hidden">
-            {isSuperadmin && (
-              <Button
-                variant="ghost"
-                className={cn(
-                  'justify-start mb-4 text-muted-foreground hover:text-foreground',
-                  !showFullSidebar ? 'px-0 justify-center' : '-ml-2 w-full'
-                )}
-                onClick={() => navigate('/admin/districts')}
-                title={!showFullSidebar ? 'Back to Admin' : undefined}
-              >
-                <ArrowLeft className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
-                <span
-                  className={cn(
-                    'transition-all duration-300 overflow-hidden',
-                    !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
-                  )}
-                >
-                  Back to Admin
-                </span>
-              </Button>
-            )}
-            <div className="flex items-center gap-2 font-bold text-xl text-primary">
-              <Shield className="h-8 w-8 shrink-0" />
-              <span
-                className={cn(
-                  'transition-all duration-300 overflow-hidden',
-                  !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
-                )}
-              >
-                District Portal
-              </span>
-            </div>
-            <div
-              className={cn(
-                'transition-all duration-300 overflow-hidden',
-                !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
-              )}
-            >
-              <p className="text-xs text-muted-foreground mt-1 truncate">{district.name}</p>
-            </div>
+    <AdminProvider>
+      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+        {/* Mobile Header */}
+        <div className="md:hidden bg-white border-b p-4 flex justify-between items-center sticky top-0 z-10">
+          <div className="flex items-center gap-2 font-bold text-primary">
+            <Shield className="h-6 w-6" />
+            {district.name}
           </div>
+          <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+            <Menu className="h-6 w-6" />
+          </Button>
+        </div>
 
-          <ScrollArea className="flex-1 py-4">
-            <nav className="space-y-1 px-2">
-              {menuItems.map((item) => (
+        {/* Sidebar */}
+        <div
+          className={cn(
+            'fixed inset-y-0 left-0 bg-white border-r transform transition-all duration-300 ease-in-out z-20',
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+            'md:relative md:translate-x-0',
+            isCollapsed ? 'md:w-20' : 'md:w-64',
+            isCollapsed ? 'md:hover:w-64' : ''
+          )}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="p-6 border-b whitespace-nowrap overflow-hidden">
+              {isSuperadmin && (
                 <Button
-                  key={item.id}
-                  variant={activeModule === item.id ? 'secondary' : 'ghost'}
-                  className={cn('w-full justify-start', !showFullSidebar && 'justify-center px-2')}
-                  onClick={() => {
-                    setActiveModule(item.id);
-                    setIsSidebarOpen(false);
-                  }}
-                  title={!showFullSidebar ? item.label : undefined}
+                  variant="ghost"
+                  className={cn(
+                    'justify-start mb-4 text-muted-foreground hover:text-foreground',
+                    !showFullSidebar ? 'px-0 justify-center' : '-ml-2 w-full'
+                  )}
+                  onClick={() => navigate('/admin/districts')}
+                  title={!showFullSidebar ? 'Back to Admin' : undefined}
                 >
-                  <item.icon className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
+                  <ArrowLeft className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
                   <span
                     className={cn(
                       'transition-all duration-300 overflow-hidden',
                       !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
                     )}
                   >
-                    {item.label}
+                    Back to Admin
                   </span>
                 </Button>
-              ))}
-            </nav>
-          </ScrollArea>
-
-          <div className="p-4 border-t mt-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full mb-2 hidden md:flex hover:bg-black/5"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronLeft className="h-4 w-4" />
               )}
-            </Button>
-
-            <Button
-              variant="ghost"
-              className={cn(
-                'w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive',
-                !showFullSidebar && 'justify-center px-2'
-              )}
-              onClick={() => signOut()}
-              title={!showFullSidebar ? 'Log Out' : undefined}
-            >
-              <LogOut className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
-              <span
+              <div className="flex items-center gap-2 font-bold text-xl text-primary">
+                <Shield className="h-8 w-8 shrink-0" />
+                <span
+                  className={cn(
+                    'transition-all duration-300 overflow-hidden',
+                    !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
+                  )}
+                >
+                  District Portal
+                </span>
+              </div>
+              <div
                 className={cn(
                   'transition-all duration-300 overflow-hidden',
                   !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
                 )}
               >
-                Log Out
-              </span>
-            </Button>
+                <p className="text-xs text-muted-foreground mt-1 truncate">{district.name}</p>
+              </div>
+            </div>
+
+            <ScrollArea className="flex-1 py-4">
+              <nav className="space-y-1 px-2">
+                {menuItems.map((item) => (
+                  <Button
+                    key={item.id}
+                    variant={activeModule === item.id ? 'secondary' : 'ghost'}
+                    className={cn(
+                      'w-full justify-start',
+                      !showFullSidebar && 'justify-center px-2'
+                    )}
+                    onClick={() => {
+                      setActiveModule(item.id);
+                      setIsSidebarOpen(false);
+                    }}
+                    title={!showFullSidebar ? item.label : undefined}
+                  >
+                    <item.icon className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
+                    <span
+                      className={cn(
+                        'transition-all duration-300 overflow-hidden',
+                        !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </Button>
+                ))}
+              </nav>
+            </ScrollArea>
+
+            <div className="p-4 border-t mt-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mb-2 hidden md:flex hover:bg-black/5"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </Button>
+
+              <Button
+                variant="ghost"
+                className={cn(
+                  'w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive',
+                  !showFullSidebar && 'justify-center px-2'
+                )}
+                onClick={() => signOut()}
+                title={!showFullSidebar ? 'Log Out' : undefined}
+              >
+                <LogOut className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
+                <span
+                  className={cn(
+                    'transition-all duration-300 overflow-hidden',
+                    !showFullSidebar ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'
+                  )}
+                >
+                  Log Out
+                </span>
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* Overlay for mobile sidebar */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-10 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+          <header className="bg-white border-b px-6 py-4 flex justify-between items-center shrink-0">
+            <div>
+              <h1 className="text-2xl font-bold">
+                {menuItems.find((m) => m.id === activeModule)?.label}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {district.location || 'District Administration'}
+              </p>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-6xl mx-auto">
+              {activeModule === 'overview' && <DistrictOverview stats={stats} />}
+              {activeModule === 'branches' && (
+                <DistrictBranches
+                  district={district}
+                  branches={branches}
+                  onRefresh={fetchDistrictData}
+                />
+              )}
+              {activeModule === 'staff' && (
+                <DistrictStaff
+                  branches={branches}
+                  staffAssignments={staffAssignments}
+                  availableProfiles={availableProfiles}
+                  onRefresh={fetchDistrictData}
+                />
+              )}
+              {activeModule === 'events' && <EventsModule />}
+              {activeModule === 'finance' && (
+                <FinanceDashboard mode="district" districtId={district.id} />
+              )}
+              {activeModule === 'reports' && <DistrictReports branches={branches} />}
+              {activeModule === 'settings' && (
+                <DistrictSettings
+                  district={district}
+                  branches={branches}
+                  onRefresh={fetchDistrictData}
+                />
+              )}
+            </div>
+          </main>
+        </div>
       </div>
-
-      {/* Overlay for mobile sidebar */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-10 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <header className="bg-white border-b px-6 py-4 flex justify-between items-center shrink-0">
-          <div>
-            <h1 className="text-2xl font-bold">
-              {menuItems.find((m) => m.id === activeModule)?.label}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {district.location || 'District Administration'}
-            </p>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-6xl mx-auto">
-            {activeModule === 'overview' && <DistrictOverview stats={stats} />}
-            {activeModule === 'branches' && (
-              <DistrictBranches
-                district={district}
-                branches={branches}
-                onRefresh={fetchDistrictData}
-              />
-            )}
-            {activeModule === 'staff' && (
-              <DistrictStaff
-                branches={branches}
-                staffAssignments={staffAssignments}
-                availableProfiles={availableProfiles}
-                onRefresh={fetchDistrictData}
-              />
-            )}
-            {activeModule === 'finance' && (
-              <FinanceDashboard mode="district" districtId={district.id} />
-            )}
-            {activeModule === 'reports' && <DistrictReports branches={branches} />}
-            {activeModule === 'settings' && (
-              <DistrictSettings
-                district={district}
-                branches={branches}
-                onRefresh={fetchDistrictData}
-              />
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
+    </AdminProvider>
   );
 };
