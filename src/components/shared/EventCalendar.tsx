@@ -11,12 +11,14 @@ interface EventCalendarProps {
   events: any[];
   onEventClick?: (ev: any) => void;
   title?: string;
+  showCard?: boolean;
 }
 
 export const EventCalendar: React.FC<EventCalendarProps> = ({
   events,
   onEventClick,
   title = 'Event Calendar',
+  showCard = true,
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -38,7 +40,51 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
     }));
   }, [events]);
 
+  const calendarContent = (
+    <div className="calendar-container">
+      <FullCalendar
+        plugins={[dayGridPlugin, interactionPlugin]}
+        initialView="dayGridMonth"
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,dayGridWeek',
+        }}
+        events={formattedEvents}
+        eventClick={(info) => {
+          if (onEventClick) onEventClick(info.event.extendedProps);
+        }}
+        height="auto"
+        aspectRatio={1.5}
+        eventTimeFormat={{
+          hour: '2-digit',
+          minute: '2-digit',
+          meridiem: 'short',
+        }}
+      />
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+          .fc { font-family: inherit; font-size: 0.85rem; }
+          .fc .fc-button-primary { background-color: #3b82f6; border-color: #2563eb; }
+          .fc .fc-button-primary:hover { background-color: #2563eb; }
+          .fc .fc-toolbar-title { font-size: 1.1rem; font-weight: 600; }
+          .fc-event { cursor: pointer; border-radius: 4px; padding: 1px 4px; }
+          .fc-daygrid-event-dot { border-color: #3b82f6; }
+        `,
+        }}
+      />
+    </div>
+  );
+
   if (!isLoaded) {
+    if (!showCard) {
+      return (
+        <div className="h-[500px] flex items-center justify-center">
+          <Skeleton className="w-full h-full rounded-md" />
+        </div>
+      );
+    }
     return (
       <Card>
         <CardHeader>
@@ -51,47 +97,16 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
     );
   }
 
+  if (!showCard) {
+    return <>{calendarContent}</>;
+  }
+
   return (
     <Card className="shadow-md">
       <CardHeader className="pb-2">
         <CardTitle className="text-xl font-bold">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="calendar-container">
-          <FullCalendar
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,dayGridWeek',
-            }}
-            events={formattedEvents}
-            eventClick={(info) => {
-              if (onEventClick) onEventClick(info.event.extendedProps);
-            }}
-            height="auto"
-            aspectRatio={1.5}
-            eventTimeFormat={{
-              hour: '2-digit',
-              minute: '2-digit',
-              meridiem: 'short',
-            }}
-          />
-        </div>
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-          .fc { font-family: inherit; font-size: 0.85rem; }
-          .fc .fc-button-primary { background-color: #3b82f6; border-color: #2563eb; }
-          .fc .fc-button-primary:hover { background-color: #2563eb; }
-          .fc .fc-toolbar-title { font-size: 1.1rem; font-weight: 600; }
-          .fc-event { cursor: pointer; border-radius: 4px; padding: 1px 4px; }
-          .fc-daygrid-event-dot { border-color: #3b82f6; }
-        `,
-          }}
-        />
-      </CardContent>
+      <CardContent>{calendarContent}</CardContent>
     </Card>
   );
 };

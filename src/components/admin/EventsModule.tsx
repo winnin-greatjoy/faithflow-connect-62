@@ -827,16 +827,22 @@ export const EventsModule: React.FC = () => {
       </Dialog>
 
       <Dialog open={dialog === 'calendar'} onOpenChange={() => setDialog(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <EventCalendar
-            events={
-              filteredEvents.map((e) => ({
-                ...e,
-                start_at: `${e.date}T${e.time.split(' ')[0]}`,
-              })) as any
-            }
-            onEventClick={(ev) => openView(ev as any)}
-          />
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-6">
+          <DialogHeader>
+            <DialogTitle>Event Calendar</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto">
+            <EventCalendar
+              showCard={false}
+              events={
+                filteredEvents.map((e) => ({
+                  ...e,
+                  start_at: `${e.date}T${e.time.split(' ')[0]}`,
+                })) as any
+              }
+              onEventClick={(ev) => openView(ev as any)}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
