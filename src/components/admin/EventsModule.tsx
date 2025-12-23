@@ -273,25 +273,41 @@ export const EventsModule: React.FC = () => {
       return 'published';
     };
 
+    // Ensure time is in HH:MM:SS format
+    const formatTime = (time: string | undefined): string => {
+      if (!time) return '10:00:00';
+      // If already in HH:MM:SS format, return as is
+      if (time.split(':').length === 3) return time;
+      // If in HH:MM format, add :00
+      return `${time}:00`;
+    };
+
     try {
       const payload = {
         title: form.title,
         description: form.description,
         event_level: form.event_level,
         owner_scope_id: form.owner_scope_id,
-        start_at: `${form.date}T${form.time || '10:00:00'}`,
-        end_at: `${form.end_date || form.date}T${form.end_time || '12:00:00'}`,
+        start_at: `${form.date}T${formatTime(form.time)}`,
+        end_at: `${form.end_date || form.date}T${formatTime(form.end_time)}`,
         location: form.location,
         capacity: form.capacity,
         status: mapStatus(form.status || 'Open'),
         metadata: { type: form.type, frequency: form.frequency },
       };
+
+      console.log('Creating event with payload:', payload);
+
       const { error } = await eventsApi.createEvent(payload as any);
-      if (error) throw error;
+      if (error) {
+        console.error('Event creation error:', error);
+        throw error;
+      }
       toast({ title: 'Created', description: 'Event created successfully' });
       fetchEvents();
       setDialog(null);
     } catch (err: any) {
+      console.error('Caught error:', err);
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
   };
@@ -304,14 +320,21 @@ export const EventsModule: React.FC = () => {
       return 'published';
     };
 
+    // Ensure time is in HH:MM:SS format
+    const formatTime = (time: string | undefined): string => {
+      if (!time) return '10:00:00';
+      if (time.split(':').length === 3) return time;
+      return `${time}:00`;
+    };
+
     try {
       const { error } = await eventsApi.updateEvent(String(form.id), {
         title: form.title,
         description: form.description,
         location: form.location,
         capacity: form.capacity,
-        start_at: `${form.date}T${form.time || '10:00:00'}`,
-        end_at: `${form.end_date || form.date}T${form.end_time || '12:00:00'}`,
+        start_at: `${form.date}T${formatTime(form.time)}`,
+        end_at: `${form.end_date || form.date}T${formatTime(form.end_time)}`,
         status: mapStatus(form.status || 'Open'),
         metadata: { type: form.type, frequency: form.frequency },
       });
