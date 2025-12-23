@@ -100,6 +100,12 @@ export const eventsApi = {
       branch_id = null;
     }
 
+    // Extract date from start_at for the event_date column (legacy column requirement)
+    let event_date = null;
+    if (payload.start_at) {
+      event_date = payload.start_at.split('T')[0]; // Extract YYYY-MM-DD from ISO timestamp
+    }
+
     const record: any = {
       title: payload.title,
       description: payload.description ?? null,
@@ -107,6 +113,7 @@ export const eventsApi = {
       owner_scope_id,
       district_id,
       branch_id,
+      event_date, // Legacy column
       start_at: payload.start_at ?? null,
       end_at: payload.end_at ?? null,
       location: payload.location ?? null,
