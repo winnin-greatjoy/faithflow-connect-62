@@ -68,7 +68,9 @@ CREATE TRIGGER trg_event_quotas_updated_at
   BEFORE UPDATE ON public.event_quotas
   FOR EACH ROW
   EXECUTE FUNCTION public.update_timestamp();
-EXCEPTION WHEN undefined_function THEN
-  -- Fallback if update_timestamp doesn't exist (though it should from previous migrations)
-  EXECUTE 'CREATE TRIGGER trg_event_quotas_updated_at BEFORE UPDATE ON public.event_quotas FOR EACH ROW EXECUTE FUNCTION public.update_registration_updated_at();';
-EXCEPTION WHEN others THEN NULL; END $$;
+EXCEPTION 
+  WHEN undefined_function THEN
+    -- Fallback if update_timestamp doesn't exist (though it should from previous migrations)
+    EXECUTE 'CREATE TRIGGER trg_event_quotas_updated_at BEFORE UPDATE ON public.event_quotas FOR EACH ROW EXECUTE FUNCTION public.update_registration_updated_at();';
+  WHEN others THEN NULL; 
+END $$;
