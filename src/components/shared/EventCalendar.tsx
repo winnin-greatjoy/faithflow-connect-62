@@ -54,8 +54,9 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
         eventClick={(info) => {
           if (onEventClick) onEventClick(info.event.extendedProps);
         }}
-        height="auto"
-        aspectRatio={1.5}
+        height="650px"
+        contentHeight="auto"
+        handleWindowResize={true}
         eventTimeFormat={{
           hour: '2-digit',
           minute: '2-digit',
@@ -65,12 +66,17 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
       <style
         dangerouslySetInnerHTML={{
           __html: `
-          .fc { font-family: inherit; font-size: 0.85rem; }
+          .fc { font-family: inherit; font-size: 0.85rem; background: white; }
           .fc .fc-button-primary { background-color: #3b82f6; border-color: #2563eb; }
           .fc .fc-button-primary:hover { background-color: #2563eb; }
           .fc .fc-toolbar-title { font-size: 1.1rem; font-weight: 600; }
-          .fc-event { cursor: pointer; border-radius: 4px; padding: 1px 4px; }
+          .fc-event { cursor: pointer; border-radius: 4px; padding: 2px 4px; border: none !important; }
+          .fc-daygrid-event { white-space: normal !important; align-items: center; }
           .fc-daygrid-event-dot { border-color: #3b82f6; }
+          .fc-theme-standard td, .fc-theme-standard th { border-color: #e5e7eb; }
+          .fc-col-header-cell { background: #f9fafb; padding: 8px 0 !important; }
+          .fc-daygrid-day-number { padding: 8px !important; font-weight: 500; }
+          .calendar-container { width: 100%; height: 100%; }
         `,
         }}
       />

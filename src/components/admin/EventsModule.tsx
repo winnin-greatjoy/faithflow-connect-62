@@ -1085,11 +1085,11 @@ export const EventsModule: React.FC = () => {
       </Dialog>
 
       <Dialog open={dialog === 'calendar'} onOpenChange={() => setDialog(null)}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-6">
-          <DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden p-0">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>Event Calendar</DialogTitle>
           </DialogHeader>
-          <div className="overflow-y-auto">
+          <div className="p-6 pt-0 flex-1">
             <EventCalendar
               showCard={false}
               events={
