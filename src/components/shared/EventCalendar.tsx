@@ -78,11 +78,18 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
         }}
         displayEventTime={true}
         eventContent={(eventInfo) => (
-          <div className="flex flex-col gap-0.5 overflow-hidden p-1 w-full leading-tight">
-            <div className="font-bold truncate text-[11px] sm:text-xs text-white">
+          <div
+            className="flex flex-col gap-0.5 overflow-hidden p-1 w-full h-full leading-tight border-l-2 shadow-sm"
+            style={{
+              backgroundColor: eventInfo.backgroundColor,
+              borderLeftColor: eventInfo.borderColor,
+              borderRadius: '4px',
+            }}
+          >
+            <div className="font-bold truncate text-[10px] sm:text-[11px] text-white">
               {eventInfo.event.title}
             </div>
-            <div className="text-[9px] sm:text-[10px] opacity-90 text-white flex items-center gap-1 font-medium italic">
+            <div className="text-[9px] sm:text-[10px] opacity-90 text-white flex items-center gap-1 font-medium">
               {eventInfo.timeText}
             </div>
           </div>
@@ -95,13 +102,14 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
           .fc .fc-button-primary { background-color: #3b82f6; border-color: #2563eb; }
           .fc .fc-button-primary:hover { background-color: #2563eb; }
           .fc .fc-toolbar-title { font-size: 1.1rem; font-weight: 600; }
-          .fc-event { cursor: pointer; border-radius: 4px; padding: 0 !important; border: none !important; margin-bottom: 2px !important; }
-          .fc-daygrid-event { white-space: normal !important; display: flex !important; }
+          .fc-event { cursor: pointer; border-radius: 4px; padding: 0 !important; border: none !important; margin-bottom: 2px !important; background: transparent !important; }
+          .fc-daygrid-event { white-space: normal !important; display: flex !important; background: transparent !important; }
           .fc-daygrid-event-dot { display: none; }
-          .fc-event-time { display: none; } /* Hide the default time display if not using custom content */
+          .fc-event-time { display: none; }
+          .fc-event-title { display: none; }
           .fc-theme-standard td, .fc-theme-standard th { border-color: #e5e7eb; }
           .fc-col-header-cell { background: #f9fafb; padding: 8px 0 !important; }
-          .fc-daygrid-day-number { padding: 8px !important; font-weight: 500; }
+          .fc-daygrid-day-number { padding: 8px !important; font-weight: 500; text-decoration: none !important; color: #374151; }
           .calendar-container { width: 100%; height: 100%; }
         `,
         }}
