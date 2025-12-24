@@ -1,0 +1,225 @@
+/* FullCalendar styling overrides for Google Calendar UI */
+.fc {
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 0.875rem;
+  background: transparent;
+  border-radius: 0;
+  overflow: hidden;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 768px) {
+  .fc {
+    font-size: 0.75rem;
+  }
+}
+
+/* Header & Toolbar */
+.fc .fc-toolbar {
+  margin-bottom: 0 !important;
+  padding: 0 !important;
+  display: none;
+  /* We use a custom header */
+}
+
+/* Day Headers */
+.fc .fc-col-header {
+  background: white;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border: none !important;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border: 1px solid #f1f5f9 !important;
+  /* Slate 100 */
+}
+
+.dark .fc-theme-standard td,
+.dark .fc-theme-standard th {
+  border: 1px solid #1e293b !important;
+  /* Slate 800 */
+}
+
+.fc-col-header-cell {
+  padding: 12px 0 !important;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  /* Slate 500 */
+  border: none !important;
+}
+
+/* Day Numbers */
+.fc-daygrid-day-number {
+  padding: 8px !important;
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none !important;
+  color: #334155;
+  /* Slate 700 */
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.dark .fc-daygrid-day-number {
+  color: #94a3b8;
+  /* Slate 400 */
+}
+
+/* Today highlight */
+.fc-day-today {
+  background-color: transparent !important;
+}
+
+.fc-day-today .fc-daygrid-day-number {
+  color: white !important;
+  background-color: #2563eb !important;
+  /* Blue 600 */
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  margin: 4px auto !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* Grid Cells */
+.fc-daygrid-day-frame {
+  height: 100% !important;
+}
+
+.fc-day-other {
+  background-color: transparent !important;
+  opacity: 0.5;
+}
+
+/* Events */
+.fc-event {
+  cursor: pointer;
+  border: none !important;
+  margin-bottom: 2px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.fc-daygrid-event {
+  border-radius: 4px !important;
+  margin-left: 4px !important;
+  margin-right: 4px !important;
+}
+
+/* Custom Event Pill */
+.calendar-event-pill {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 22px;
+  padding: 0 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 4px;
+  transition: filter 0.2s;
+}
+
+.calendar-event-pill:hover {
+  filter: brightness(0.95);
+}
+
+/* Multi-day events (spans) */
+.fc-daygrid-event-h-long {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  border-radius: 0 !important;
+}
+
+.fc-event-start {
+  margin-left: 4px !important;
+  border-top-left-radius: 4px !important;
+  border-bottom-left-radius: 4px !important;
+}
+
+.fc-event-end {
+  margin-right: 4px !important;
+  border-top-right-radius: 4px !important;
+  border-bottom-right-radius: 4px !important;
+}
+
+/* "More" link */
+.fc-more-link {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3b82f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  transition: background 0.2s;
+}
+
+.fc-more-link:hover {
+  background: #eff6ff;
+}
+
+.dark .fc-more-link:hover {
+  background: #1e293b;
+}
+
+/* Background events (holidays) */
+.fc-bg-event {
+  opacity: 1 !important;
+}
+
+/* Hide dots and original titles */
+.fc-daygrid-event-dot {
+  display: none;
+}
+
+.fc-event-time,
+.fc-event-title {
+  display: none;
+}
+
+/* Viewport adjustments */
+.calendar-container {
+  width: 100%;
+  height: 100%;
+  background: white;
+}
+
+.dark .calendar-container {
+  background: #020617;
+}
+
+/* Custom Scrollbar for Sidebar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 10px;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: #e2e8f0;
+}
+
+.dark .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: #1e293b;
+}

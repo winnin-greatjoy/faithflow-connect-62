@@ -1,153 +1,214 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import FullCalendar from '@fullcalendar/react';
+import React, { Suspense, lazy, useState, useRef, useCallback } from 'react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
+import { Plus } from 'lucide-react';
 
-interface EventCalendarProps {
-  events: any[];
-  onEventClick?: (ev: any) => void;
+// Inner Imports
+import { useCalendarEvents } from './calendar/useCalendarEvents';
+import { RawEvent, CalendarType } from './calendar/calendar.types';
+import { CalendarLayout } from './calendar/CalendarLayout';
+import { CalendarHeader } from './calendar/CalendarHeader';
+import { CalendarSidebar } from './calendar/CalendarSidebar';
+import './calendar/calendar.css';
+
+// Lazy load FullCalendar
+const FullCalendar = lazy(() => import('@fullcalendar/react'));
+
+export const EventCalendar: React.FC<{
+  events: RawEvent[];
+  onEventClick?: (ev: RawEvent) => void;
   title?: string;
   showCard?: boolean;
-}
+}> = ({ events, onEventClick, showCard = true }) => {
+  // State
+  const [view, setView] = useState('dayGridMonth');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [selectedCalendars, setSelectedCalendars] = useState<CalendarType[]>([
+    'national',
+    'district',
+    'branch',
+    'holiday',
+  ]);
+  const [title, setTitle] = useState(format(new Date(), 'MMMM yyyy'));
 
-export const EventCalendar: React.FC<EventCalendarProps> = ({
-  events,
-  onEventClick,
-  title = 'Event Calendar',
-  showCard = true,
-}) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Refs
+  const calendarRef = useRef<any>(null);
 
-  useEffect(() => {
-    // Small delay to ensure styles are loaded
-    const timer = setTimeout(() => setIsLoaded(true), 500);
-    return () => clearTimeout(timer);
+  // Responsive: auto-hide sidebar on mobile
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setShowSidebar(false);
+      } else {
+        setShowSidebar(true);
+      }
+    };
+
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const formattedEvents = useMemo(() => {
-    return events.map((ev) => {
-      const level = ev.event_level || 'BRANCH';
-      let bgColor = '#10b981'; // Branch
-      let borderColor = '#059669';
+  // Force calendar size update when sidebar toggles
+  React.useEffect(() => {
+    const api = calendarRef.current?.getApi();
+    if (api) {
+      // Small delay to allow CSS transitions to finish
+      const timer = setTimeout(() => {
+        api.updateSize();
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [showSidebar]);
 
-      if (level === 'NATIONAL') {
-        bgColor = '#ef4444';
-        borderColor = '#dc2626';
-      } else if (level === 'DISTRICT') {
-        bgColor = '#3b82f6';
-        borderColor = '#2563eb';
-      }
+  // Hooks
+  const calendarEvents = useCalendarEvents(events, selectedCalendars);
 
-      return {
-        id: ev.id,
-        title: ev.title,
-        start: ev.start_at || ev.event_date || ev.date,
-        end: ev.end_at,
-        backgroundColor: bgColor,
-        borderColor: borderColor,
-        extendedProps: { ...ev },
-      };
-    });
-  }, [events]);
+  // Handlers
+  const handlePrev = useCallback(() => {
+    const api = calendarRef.current?.getApi();
+    if (api) {
+      api.prev();
+      setTitle(api.view.title);
+      setCurrentDate(api.getDate());
+    }
+  }, []);
 
-  const calendarContent = (
-    <div className="calendar-container">
-      <FullCalendar
-        plugins={[dayGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,dayGridWeek',
-        }}
-        events={formattedEvents}
-        eventClick={(info) => {
-          if (onEventClick) onEventClick(info.event.extendedProps);
-        }}
-        height="650px"
-        contentHeight="auto"
-        handleWindowResize={true}
-        eventTimeFormat={{
-          hour: '2-digit',
-          minute: '2-digit',
-          meridiem: 'short',
-        }}
-        displayEventTime={true}
-        eventContent={(eventInfo) => (
-          <div
-            className="flex flex-col gap-0.5 overflow-hidden p-1 w-full h-full leading-tight border-l-2 shadow-sm"
-            style={{
-              backgroundColor: eventInfo.backgroundColor,
-              borderLeftColor: eventInfo.borderColor,
-              borderRadius: '4px',
-            }}
-          >
-            <div className="font-bold truncate text-[10px] sm:text-[11px] text-white">
-              {eventInfo.event.title}
-            </div>
-            <div className="text-[9px] sm:text-[10px] opacity-90 text-white flex items-center gap-1 font-medium">
-              {eventInfo.timeText}
-            </div>
-          </div>
-        )}
-      />
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-          .fc { font-family: inherit; font-size: 0.85rem; background: white; }
-          .fc .fc-button-primary { background-color: #3b82f6; border-color: #2563eb; }
-          .fc .fc-button-primary:hover { background-color: #2563eb; }
-          .fc .fc-toolbar-title { font-size: 1.1rem; font-weight: 600; }
-          .fc-event { cursor: pointer; border-radius: 4px; padding: 0 !important; border: none !important; margin-bottom: 2px !important; background: transparent !important; }
-          .fc-daygrid-event { white-space: normal !important; display: flex !important; background: transparent !important; }
-          .fc-daygrid-event-dot { display: none; }
-          .fc-event-time { display: none; }
-          .fc-event-title { display: none; }
-          .fc-theme-standard td, .fc-theme-standard th { border-color: #e5e7eb; }
-          .fc-col-header-cell { background: #f9fafb; padding: 8px 0 !important; }
-          .fc-daygrid-day-number { padding: 8px !important; font-weight: 500; text-decoration: none !important; color: #374151; }
-          .calendar-container { width: 100%; height: 100%; }
-        `,
-        }}
-      />
+  const handleNext = useCallback(() => {
+    const api = calendarRef.current?.getApi();
+    if (api) {
+      api.next();
+      setTitle(api.view.title);
+      setCurrentDate(api.getDate());
+    }
+  }, []);
+
+  const handleToday = useCallback(() => {
+    const api = calendarRef.current?.getApi();
+    if (api) {
+      api.today();
+      setTitle(api.view.title);
+      setCurrentDate(new Date());
+    }
+  }, []);
+
+  const handleViewChange = useCallback((newView: string) => {
+    const api = calendarRef.current?.getApi();
+    if (api) {
+      api.changeView(newView);
+      setView(newView);
+      setTitle(api.view.title);
+    }
+  }, []);
+
+  const handleDateSelect = useCallback((date: Date) => {
+    const api = calendarRef.current?.getApi();
+    if (api) {
+      api.gotoDate(date);
+      setCurrentDate(date);
+      setTitle(api.view.title);
+    }
+  }, []);
+
+  const handleToggleCalendar = useCallback((type: CalendarType) => {
+    setSelectedCalendars((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  }, []);
+
+  const handleMenuToggle = () => setShowSidebar((prev) => !prev);
+
+  const calendarMain = (
+    <div className="h-full w-full relative bg-white dark:bg-slate-950">
+      <Suspense fallback={<Skeleton className="w-full h-full" />}>
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, interactionPlugin]}
+          initialView={view}
+          headerToolbar={false} // Custom header
+          events={calendarEvents}
+          eventClick={(info) => {
+            if (onEventClick) onEventClick(info.event.extendedProps as RawEvent);
+          }}
+          height="100%"
+          dayMaxEvents={4}
+          handleWindowResize={true}
+          eventContent={(eventInfo) => {
+            const isHoliday = eventInfo.event.extendedProps?.isHoliday;
+            return (
+              <div
+                className="calendar-event-pill"
+                style={{
+                  backgroundColor: eventInfo.backgroundColor,
+                  border: isHoliday ? 'none' : `1px solid ${eventInfo.borderColor}`,
+                }}
+              >
+                {isHoliday && <span className="mr-1">✨</span>}
+                {eventInfo.event.title}
+              </div>
+            );
+          }}
+          datesSet={(arg) => {
+            // Sync mini calendar when month changes via prev/next
+            setCurrentDate(arg.view.currentStart);
+            setTitle(arg.view.title);
+          }}
+        />
+      </Suspense>
     </div>
   );
 
-  if (!isLoaded) {
-    if (!showCard) {
-      return (
-        <div className="h-[500px] flex items-center justify-center">
-          <Skeleton className="w-full h-full rounded-md" />
-        </div>
-      );
-    }
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[500px] flex items-center justify-center">
-          <Skeleton className="w-full h-full rounded-md" />
-        </CardContent>
-      </Card>
-    );
-  }
+  const layout = (
+    <CalendarLayout
+      showSidebar={showSidebar}
+      header={
+        <CalendarHeader
+          title={title}
+          onPrev={handlePrev}
+          onNext={handleNext}
+          onToday={handleToday}
+          view={view}
+          onViewChange={handleViewChange}
+          onMenuClick={handleMenuToggle}
+        />
+      }
+      sidebar={
+        <CalendarSidebar
+          currentDate={currentDate}
+          onDateSelect={handleDateSelect}
+          selectedCalendars={selectedCalendars}
+          onToggleCalendar={handleToggleCalendar}
+          onCreateEvent={() => {}} // Placeholder
+        />
+      }
+    >
+      {calendarMain}
 
-  if (!showCard) {
-    return <>{calendarContent}</>;
-  }
+      {/* Floating Create Button for Collapsed Sidebar */}
+      {!showSidebar && (
+        <div className="absolute bottom-8 right-8 z-30 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
+          <Button
+            onClick={() => {}} // Placeholder
+            className="h-14 w-14 md:w-auto md:px-6 rounded-full shadow-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold flex gap-3 items-center group dark:bg-slate-900 dark:text-slate-200 dark:border-slate-800"
+          >
+            <Plus className="w-6 h-6 text-blue-600 stroke-[3px]" />
+            <span className="text-sm hidden md:inline uppercase tracking-wide">Create</span>
+          </Button>
+        </div>
+      )}
+    </CalendarLayout>
+  );
+
+  if (!showCard) return <div className="h-full w-full min-h-[600px]">{layout}</div>;
 
   return (
-    <Card className="shadow-md">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-xl font-bold">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>{calendarContent}</CardContent>
-    </Card>
+    <div className="h-[850px] w-full overflow-hidden rounded-xl border shadow-sm">{layout}</div>
   );
 };
 

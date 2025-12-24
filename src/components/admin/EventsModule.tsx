@@ -122,6 +122,7 @@ interface EventItem {
   requires_registration?: boolean;
   target_audience?: string;
   visibility?: 'public' | 'private';
+  daysOfWeek?: number[];
 }
 
 // -----------------------------
@@ -207,6 +208,7 @@ export const EventsModule: React.FC = () => {
           attendeesList: [],
           recurrencePattern: r.metadata?.recurrencePattern || {},
           end_date: r.end_at ? r.end_at.split('T')[0] : r.start_at ? r.start_at.split('T')[0] : '',
+          daysOfWeek: r.metadata?.daysOfWeek || [],
         };
       });
       setEvents(mapped);
@@ -317,7 +319,11 @@ export const EventsModule: React.FC = () => {
     const daysDiff =
       Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-    setForm({ ...ev, numberOfDays: daysDiff });
+    setForm({
+      ...ev,
+      numberOfDays: daysDiff,
+      daysOfWeek: ev.daysOfWeek || [],
+    });
     setNumberOfDays(daysDiff);
     setDialog('edit');
   };
@@ -372,7 +378,11 @@ export const EventsModule: React.FC = () => {
         visibility: form.visibility || 'public',
         registration_fee: form.registration_fee || 0,
         target_audience: form.target_audience || 'everyone',
-        metadata: { type: form.type, frequency: form.frequency },
+        metadata: {
+          type: form.type,
+          frequency: form.frequency,
+          daysOfWeek: form.frequency === 'Weekly' ? form.daysOfWeek : [],
+        },
       };
 
       console.log('Creating event with payload:', payload);
@@ -425,7 +435,11 @@ export const EventsModule: React.FC = () => {
         visibility: form.visibility || 'public',
         registration_fee: form.registration_fee || 0,
         target_audience: form.target_audience || 'everyone',
-        metadata: { type: form.type, frequency: form.frequency },
+        metadata: {
+          type: form.type,
+          frequency: form.frequency,
+          daysOfWeek: form.frequency === 'Weekly' ? form.daysOfWeek : [],
+        },
       });
       if (error) throw error;
       toast({ title: 'Updated', description: 'Event updated' });
@@ -840,6 +854,39 @@ export const EventsModule: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {form?.frequency === 'Weekly' && (
+              <div className="space-y-3 pt-2 border-t mt-2 col-span-full">
+                <Label className="text-sm font-semibold">Repeat on these days</Label>
+                <ToggleGroup
+                  type="multiple"
+                  variant="outline"
+                  className="justify-start flex-wrap gap-2"
+                  value={form?.daysOfWeek?.map(String) || []}
+                  onValueChange={(vals) =>
+                    setForm((f) => ({ ...f!, daysOfWeek: vals.map(Number).sort() }))
+                  }
+                >
+                  {[
+                    { label: 'Sun', value: 0 },
+                    { label: 'Mon', value: 1 },
+                    { label: 'Tue', value: 2 },
+                    { label: 'Wed', value: 3 },
+                    { label: 'Thu', value: 4 },
+                    { label: 'Fri', value: 5 },
+                    { label: 'Sat', value: 6 },
+                  ].map((d) => (
+                    <ToggleGroupItem
+                      key={d.value}
+                      value={String(d.value)}
+                      className="w-12 h-10 px-2 text-xs font-bold data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      {d.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+            )}
             <div>
               <Label>Capacity (Optional)</Label>
               <Input
@@ -1085,11 +1132,11 @@ export const EventsModule: React.FC = () => {
       </Dialog>
 
       <Dialog open={dialog === 'calendar'} onOpenChange={() => setDialog(null)}>
-        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden p-0">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
           <DialogHeader className="p-6 pb-2">
             <DialogTitle>Event Calendar</DialogTitle>
           </DialogHeader>
-          <div className="p-6 pt-0 flex-1">
+          <div className="p-0 flex-1 overflow-hidden h-[85vh]">
             <EventCalendar
               showCard={false}
               events={
