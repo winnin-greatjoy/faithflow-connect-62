@@ -6,25 +6,42 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { Plus } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 
 // Inner Imports
 import { useCalendarEvents } from './calendar/useCalendarEvents';
-import { RawEvent, CalendarType } from './calendar/calendar.types';
 import { CalendarLayout } from './calendar/CalendarLayout';
 import { CalendarHeader } from './calendar/CalendarHeader';
 import { CalendarSidebar } from './calendar/CalendarSidebar';
+import { CalendarType, RawEvent, CalendarEventProps as BaseCalendarEventProps } from './calendar/calendar.types';
+import { CalendarCreateButton } from './calendar/CalendarCreateButton';
 import './calendar/calendar.css';
 
 // Lazy load FullCalendar
 const FullCalendar = lazy(() => import('@fullcalendar/react'));
 
-export const EventCalendar: React.FC<{
+interface CalendarEventProps {
   events: RawEvent[];
   onEventClick?: (ev: RawEvent) => void;
   title?: string;
   showCard?: boolean;
-}> = ({ events, onEventClick, showCard = true }) => {
+  onCreateEvent?: () => void; // Assuming this is part of CalendarEventProps based on instruction
+}
+
+export interface EventCalendarProps extends CalendarEventProps {
+  onCreateTask?: () => void;
+  onCreateAppointment?: () => void;
+}
+
+export const EventCalendar: React.FC<EventCalendarProps> = ({
+  events,
+  onEventClick,
+  title: initialTitle,
+  showCard = true,
+  onCreateEvent,
+  onCreateTask,
+  onCreateAppointment,
+}) => {
   // State
   const [view, setView] = useState('dayGridMonth');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -134,22 +151,61 @@ export const EventCalendar: React.FC<{
           headerToolbar={false} // Custom header
           events={calendarEvents}
           eventClick={(info) => {
-            if (onEventClick) onEventClick(info.event.extendedProps as RawEvent);
+            const props = info.event.extendedProps;
+            if (props.type === 'task') {
+              // TODO: Handle Task Click (Edit/Toggle)
+              console.log('Task clicked', props);
+            } else if (props.type === 'appointment') {
+              // TODO: Handle Appointment Click
+              console.log('Appointment clicked', props);
+            } else {
+              // Standard Event Click
+              if (onEventClick) onEventClick(props as RawEvent);
+            }
           }}
           height="100%"
           dayMaxEvents={4}
           handleWindowResize={true}
           eventContent={(eventInfo) => {
-            const isHoliday = eventInfo.event.extendedProps?.isHoliday;
+            const props = eventInfo.event.extendedProps;
+            const isHoliday = props?.isHoliday;
+            const isTask = props?.type === 'task';
+            const isAppt = props?.type === 'appointment';
+
+            if (isTask) {
+              return (
+                <div
+                  className={`flex items-center gap-1.5 px-1.5 py-0.5 w-full overflow-hidden text-xs rounded-sm border-l-2 ${props.is_completed ? 'opacity-60 line-through' : ''
+                    }`}
+                  style={{
+                    backgroundColor: eventInfo.backgroundColor,
+                    borderColor: eventInfo.borderColor,
+                    color: eventInfo.textColor,
+                  }}
+                >
+                  <div
+                    className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${props.is_completed ? 'bg-slate-400 border-slate-400' : 'bg-white border-blue-500'
+                      }`}
+                  >
+                    {props.is_completed && <Check className="w-2 h-2 text-white" />}
+                  </div>
+                  <span className="truncate">{eventInfo.event.title}</span>
+                </div>
+              );
+            }
+
+            // Default Event / Holiday / Appointment Pill
             return (
               <div
                 className="calendar-event-pill"
                 style={{
                   backgroundColor: eventInfo.backgroundColor,
                   border: isHoliday ? 'none' : `1px solid ${eventInfo.borderColor}`,
+                  color: eventInfo.textColor,
                 }}
               >
                 {isHoliday && <span className="mr-1">✨</span>}
+                {isAppt && <span className="mr-1">🤝</span>}
                 {eventInfo.event.title}
               </div>
             );
@@ -184,7 +240,9 @@ export const EventCalendar: React.FC<{
           onDateSelect={handleDateSelect}
           selectedCalendars={selectedCalendars}
           onToggleCalendar={handleToggleCalendar}
-          onCreateEvent={() => {}} // Placeholder
+          onCreateEvent={onCreateEvent || (() => { })}
+          onCreateTask={onCreateTask}
+          onCreateAppointment={onCreateAppointment}
         />
       }
     >
@@ -193,13 +251,12 @@ export const EventCalendar: React.FC<{
       {/* Floating Create Button for Collapsed Sidebar */}
       {!showSidebar && (
         <div className="absolute bottom-8 right-8 z-30 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
-          <Button
-            onClick={() => {}} // Placeholder
-            className="h-14 w-14 md:w-auto md:px-6 rounded-full shadow-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold flex gap-3 items-center group dark:bg-slate-900 dark:text-slate-200 dark:border-slate-800"
-          >
-            <Plus className="w-6 h-6 text-blue-600 stroke-[3px]" />
-            <span className="text-sm hidden md:inline uppercase tracking-wide">Create</span>
-          </Button>
+          <CalendarCreateButton
+            onCreateEvent={onCreateEvent || (() => { })}
+            onCreateTask={onCreateTask || (() => { })}
+            onCreateAppointment={onCreateAppointment || (() => { })}
+            showLabel={false}
+          />
         </div>
       )}
     </CalendarLayout>

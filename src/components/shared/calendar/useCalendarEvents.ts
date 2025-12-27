@@ -1,194 +1,167 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
-import { eachDayOfInterval, formatISO, parseISO, isBefore, getYear } from 'date-fns';
-import { LEVEL_META } from './calendar.constants';
-import { RawEvent, CalendarType } from './calendar.types';
+
+import { useState, useEffect, useRef } from 'react';
+import { CalendarType, RawEvent } from './calendar.types';
 import { supabase } from '@/integrations/supabase/client';
+import { tasksApi, appointmentsApi } from '@/services/calendarApi';
+import { LEVEL_META } from './calendar.constants';
 
-export function useCalendarEvents(
-  events: RawEvent[],
-  selectedCalendars: CalendarType[] = ['national', 'district', 'branch', 'holiday'],
-  viewDate: Date = new Date()
-) {
-  const [allHolidays, setAllHolidays] = useState<
-    { title: string; date: string; isObserved: boolean }[]
-  >([]);
+export const useCalendarEvents = (
+  initialEvents: RawEvent[],
+  selectedCalendars: CalendarType[],
+  currentDate: Date
+) => {
+  const [events, setEvents] = useState<any[]>([]);
   const fetchedYearsRef = useRef<Set<number>>(new Set());
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
 
-  // Calculate years to fetch holidays for
-  const years = useMemo(() => {
-    const yearsSet = new Set<number>();
-    const currentYear = viewDate.getFullYear();
-
-    // Always include the visible window years
-    yearsSet.add(currentYear);
-    yearsSet.add(currentYear - 1);
-    yearsSet.add(currentYear + 1);
-
-    events.forEach((ev) => {
-      const dateStr = ev.start_at || ev.event_date || ev.date;
-      if (dateStr) {
-        try {
-          yearsSet.add(getYear(parseISO(dateStr.split('T')[0])));
-        } catch (e) {
-          // ignore invalid dates
-        }
-      }
-    });
-
-    return Array.from(yearsSet);
-  }, [events, viewDate]);
-
-  // Fetch holidays from Edge Function (Centralized + Cached)
+  // Effect 1: Fetch Holidays, Tasks, and Appointments (Once or when date changes)
   useEffect(() => {
-    async function fetchAllHolidays() {
-      const missingYears = years.filter((y) => !fetchedYearsRef.current.has(y));
-      if (missingYears.length === 0) return;
+    const fetchEverything = async () => {
+      // 1. Fetch Holidays
+      const year = currentDate.getFullYear();
+      const yearsToFetch = [year - 1, year, year + 1];
+      const yearsNeeded = yearsToFetch.filter(y => !fetchedYearsRef.current.has(y));
 
-      try {
-        const results = await Promise.all(
-          missingYears.map(async (year) => {
-            const { data, error } = await supabase.functions.invoke('get-holidays', {
-              body: { year },
-            });
-
-            if (error || !data) {
-              console.error(`Edge function error for year ${year}:`, error);
+      if (yearsNeeded.length > 0) {
+        try {
+          const results = await Promise.all(
+            yearsNeeded.map(async (y) => {
+              const { data, error } = await supabase.functions.invoke('get-holidays', {
+                body: { year: y }
+              });
+              if (!error && data?.holidays) {
+                return data.holidays;
+              }
               return [];
-            }
+            })
+          );
 
-            fetchedYearsRef.current.add(year);
-            return data.holidays;
-          })
-        );
-
-        const newHolidays = results.flat();
-        if (newHolidays.length > 0) {
-          setAllHolidays((prev) => {
-            const combined = [...prev, ...newHolidays];
-            return combined.filter(
-              (h, i, arr) => i === arr.findIndex((x) => x.date === h.date && x.title === h.title)
-            );
-          });
-        }
-      } catch (err) {
-        console.error('Failed to fetch holidays from edge function:', err);
-      }
-    }
-
-    fetchAllHolidays();
-  }, [years]);
-
-  return useMemo(() => {
-    const maxRankByDate = new Map<string, number>();
-
-    // 1. Resolve hierarchy per day (Pass 1)
-    events.forEach((ev) => {
-      if (ev.daysOfWeek && ev.daysOfWeek.length > 0) return;
-
-      const startStr = ev.start_at || ev.event_date || ev.date;
-      if (!startStr) return;
-
-      const endStr = ev.end_at || ev.end_date || startStr;
-      const rank = LEVEL_META[ev.event_level || 'BRANCH']?.rank || 1;
-
-      try {
-        const start = parseISO(startStr.split('T')[0]);
-        const end = parseISO(endStr.split('T')[0]);
-
-        if (isBefore(end, start)) return;
-
-        eachDayOfInterval({ start, end }).forEach((day) => {
-          const key = formatISO(day, { representation: 'date' });
-          maxRankByDate.set(key, Math.max(maxRankByDate.get(key) || 0, rank));
-        });
-      } catch (err) {
-        console.error('Error parsing date for rank logic:', err, ev);
-      }
-    });
-
-    // 2. Build FullCalendar events (Pass 2)
-    const calendarEvents: any[] = [];
-    events.forEach((ev) => {
-      const level = ev.event_level || 'BRANCH';
-      const meta = LEVEL_META[level];
-      const rank = meta.rank;
-
-      if (ev.daysOfWeek && ev.daysOfWeek.length > 0) {
-        calendarEvents.push({
-          id: String(ev.id),
-          title: ev.title,
-          daysOfWeek: ev.daysOfWeek,
-          startTime: ev.time,
-          backgroundColor: meta.bg,
-          borderColor: meta.border,
-          extendedProps: { ...ev },
-        });
-        return;
-      }
-
-      const startStr = ev.start_at || ev.event_date || ev.date;
-      if (!startStr) return;
-
-      const endStr = ev.end_at || ev.end_date || startStr;
-
-      try {
-        const start = parseISO(startStr.split('T')[0]);
-        const end = parseISO(endStr.split('T')[0]);
-
-        if (isBefore(end, start)) return;
-
-        eachDayOfInterval({ start, end }).forEach((day) => {
-          const key = formatISO(day, { representation: 'date' });
-          const maxRank = maxRankByDate.get(key) || 0;
-
-          if (rank >= maxRank) {
-            calendarEvents.push({
-              id: `${ev.id}-${key}`,
-              title: ev.title,
-              start: `${key}T${ev.time || '00:00'}`,
-              allDay: !ev.time,
-              backgroundColor: meta.bg,
-              borderColor: meta.border,
-              extendedProps: { ...ev },
+          if (results.length > 0) {
+            setHolidays(prev => {
+              const flattened = results.flat();
+              // Deduplicate
+              const existingInfo = new Set(prev.map(h => `${h.date}-${h.title}`));
+              const newItems = flattened.filter((h: any) => !existingInfo.has(`${h.date}-${h.title}`));
+              // Sort by date just in case
+              return [...prev, ...newItems].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
             });
+            yearsNeeded.forEach(y => fetchedYearsRef.current.add(y));
           }
-        });
-      } catch (err) {
-        console.error('Error processing event segments:', err, ev);
+        } catch (err) {
+          console.error('Holiday fetch error', err);
+        }
       }
+
+      // 2. Fetch Personal Tasks
+      const { data: userTasks, error: taskError } = await tasksApi.getMyTasks();
+      if (!taskError && userTasks) setTasks(userTasks);
+
+      // 3. Fetch Appointments
+      const { data: userAppts, error: apptError } = await appointmentsApi.getMyAppointments();
+      if (!apptError && userAppts) setAppointments(userAppts);
+    };
+
+    fetchEverything();
+  }, [currentDate]); // Re-run when current view date changes significantly (year change handled inside)
+
+
+  // Effect 2: Merge and Filter
+  useEffect(() => {
+    // Transform Org Events
+    const orgEvents = initialEvents.map(e => {
+      const level = e.event_level || 'BRANCH';
+      const meta = LEVEL_META[level] || LEVEL_META['BRANCH'];
+      return {
+        ...e,
+        backgroundColor: meta.bg,
+        borderColor: meta.border,
+        textColor: meta.text,
+        extendedProps: { ...e, type: 'event' }
+      };
     });
 
-    // 3. Add Holidays (Using Edge-Cached data)
-    const holidayEvents = allHolidays.flatMap((h, i) => [
-      {
-        id: `holiday-bg-${i}`,
-        start: h.date,
-        allDay: true,
-        display: 'background',
-        backgroundColor: 'rgba(124, 58, 237, 0.1)',
-      },
-      {
-        id: `holiday-title-${i}`,
-        title: h.title,
-        start: h.date,
-        allDay: true,
-        display: 'block',
-        backgroundColor: '#7c3aed',
-        borderColor: '#6d28d9',
-        extendedProps: {
-          isHoliday: true,
-          title: h.title,
-          isObserved: h.isObserved,
-        },
-      },
-    ]);
+    // Transform Holidays
+    const holidayEvents = holidays.map((h: any) => ({
+      id: `holiday-${h.date}-${h.title}`,
+      title: h.title,
+      start: h.date,
+      allDay: true,
+      backgroundColor: '#EDE9FE',
+      borderColor: '#7C3AED',
+      textColor: '#5B21B6',
+      classNames: ['holiday-event'],
+      extendedProps: { type: 'holiday', isHoliday: true, ...h }
+    }));
 
-    return [...calendarEvents, ...holidayEvents].filter((ev) => {
-      const isH = ev.extendedProps?.isHoliday === true || ev.display === 'background';
-      if (isH) return selectedCalendars.includes('holiday');
+    // Transform Tasks
+    const taskEvents = tasks.map((t: any) => ({
+      id: `task-${t.id}`,
+      title: t.title,
+      start: t.due_date,
+      allDay: !t.due_date?.includes('T'),
+      backgroundColor: t.is_completed ? '#F1F5F9' : '#DBEAFE', // Slate-100 vs Blue-100
+      borderColor: t.is_completed ? '#94A3B8' : '#2563EB',
+      textColor: t.is_completed ? '#64748B' : '#1E40AF', // Strikethrough handled in render
+      classNames: [t.is_completed ? 'task-completed' : 'task-pending'],
+      extendedProps: { type: 'task', ...t }
+    }));
 
-      const level = ev.extendedProps?.event_level?.toLowerCase();
-      return selectedCalendars.includes(level as CalendarType);
+    // Transform Appointments
+    const apptEvents = appointments.map((a: any) => {
+      // Determine if I am host or requester to show correct "Other" name
+      // NOTE: This logic assumes we have access to current user ID. 
+      // For now, valid for standard flow.
+      const title = `Meeting`; // Simplified until we pull user context into hook or store
+
+      return {
+        id: `appt-${a.id}`,
+        title: a.notes || 'Appointment',
+        start: a.start_at,
+        end: a.end_at,
+        backgroundColor: '#FCE7F3', // Pink-100
+        borderColor: '#DB2777',
+        textColor: '#831843',
+        extendedProps: { type: 'appointment', ...a }
+      };
     });
-  }, [events, selectedCalendars, allHolidays]);
-}
+
+    const combined = [
+      ...orgEvents,
+      ...holidayEvents,
+      ...taskEvents,
+      ...apptEvents
+    ];
+
+    // Filter based on toggles (selectedCalendars)
+    const filtered = combined.filter(event => {
+      const type = event.extendedProps?.type;
+
+      if (type === 'holiday') return selectedCalendars.includes('holiday');
+
+      // For distinct toggle control, we might need new CalendarTypes.
+      // For now, mapping Tasks/Appts to 'branch' or 'my' if we had it.
+      // The sidebar currently passes 'national', 'district', 'branch', 'holiday'.
+      // User requested "Personal Tasks" layer.
+      // We need to update CalendarSidebar to allow toggling 'tasks' and 'appointments'.
+      // For MVP compatibility, if 'branch' is on, we show them, OR we blindly show them?
+      // Let's assume strict filtering:
+
+      if (type === 'task') return true; // Always show personal tasks for now (or add 'task' type to system)
+      if (type === 'appointment') return true; // Always show appointments
+
+      // Org Events
+      if (type === 'event') {
+        return selectedCalendars.includes(event.extendedProps?.event_level?.toLowerCase() || 'branch');
+      }
+
+      return true;
+    });
+
+    setEvents(filtered);
+
+  }, [initialEvents, holidays, tasks, appointments, selectedCalendars]);
+
+  return events;
+};

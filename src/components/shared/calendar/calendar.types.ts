@@ -29,6 +29,8 @@ export interface CalendarSidebarProps {
   selectedCalendars: CalendarType[];
   onToggleCalendar: (type: CalendarType) => void;
   onCreateEvent: () => void;
+  onCreateTask?: () => void;
+  onCreateAppointment?: () => void;
 }
 
 export interface CalendarHeaderProps {

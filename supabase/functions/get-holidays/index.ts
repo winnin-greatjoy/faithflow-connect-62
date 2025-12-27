@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -55,7 +55,7 @@ serve(async (req) => {
       .eq('country', country);
 
     const islamicMapped =
-      islamic?.flatMap((h) => {
+      islamic?.flatMap((h: { title: string; holiday_date: string }) => {
         const baseDate = parseISO(h.holiday_date);
         const observedResult = applyObservedRule(baseDate, SIERRA_LEONE_POLICY.defaultRule);
 
@@ -95,7 +95,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

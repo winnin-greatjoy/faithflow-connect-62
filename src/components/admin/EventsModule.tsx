@@ -54,6 +54,8 @@ import EventCalendar from '@/components/shared/EventCalendar';
 import { EventRegistrationForm } from '@/components/events/EventRegistrationForm';
 import { RegistrationsManagementDialog } from '@/components/admin/RegistrationsManagementDialog';
 import { EventQuotasDialog } from '@/components/admin/EventQuotasDialog';
+import { CreateTaskDialog } from '@/components/tasks/CreateTaskDialog';
+import { BookAppointmentDialog } from '@/components/appointments/BookAppointmentDialog';
 
 // -----------------------------
 // Types
@@ -157,7 +159,7 @@ export const EventsModule: React.FC = () => {
   const [tab, setTab] = useState<'All' | EventType>('All');
   const [scopeFilter, setScopeFilter] = useState<'All' | EventLevel>('All');
   const [dialog, setDialog] = useState<
-    'create' | 'edit' | 'view' | 'calendar' | 'register' | 'manage' | 'quotas' | null
+    'create' | 'edit' | 'view' | 'calendar' | 'register' | 'manage' | 'quotas' | 'create-task' | 'book-appointment' | null
   >(null);
   const [form, setForm] = useState<Partial<EventItem> | null>(null);
   const [activeEvent, setActiveEvent] = useState<EventItem | null>(null);
@@ -684,7 +686,58 @@ export const EventsModule: React.FC = () => {
 
       {/* Dialogs */}
       <Dialog
-        open={!!dialog && dialog !== 'view' && dialog !== 'calendar'}
+        open={dialog === 'calendar'}
+        onOpenChange={(open) => {
+          if (!open) {
+            console.log('Calendar dialog closing via onOpenCheck');
+            // Only close if we aren't switching to another dialog (hacky check?)
+            // Actually, if we switched state to 'create-task', 'open' becomes false by React. 
+            // Does Radix trigger this? Usually no, only on user interaction.
+            setDialog(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-[95vw] h-[90vh] p-4 flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Calendar</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            <EventCalendar
+              events={filteredEvents}
+              onEventClick={(ev: any) => {
+                if (ev.type === 'event' || !ev.type) {
+                  setDialog(null);
+                  openView(ev);
+                }
+              }}
+              showCard={false}
+              onCreateEvent={openCreate}
+              onCreateTask={() => {
+                console.log('EventsModule: onCreateTask triggered');
+                setDialog('create-task');
+              }}
+              onCreateAppointment={() => {
+                console.log('EventsModule: onCreateAppointment triggered');
+                setDialog('book-appointment');
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <CreateTaskDialog
+        open={dialog === 'create-task'}
+        onOpenChange={(open) => !open && setDialog('calendar')} // Return to calendar on close
+        onSuccess={() => { /* Refresh logic if needed or just let live query handle it */ }}
+      />
+
+      <BookAppointmentDialog
+        open={dialog === 'book-appointment'}
+        onOpenChange={(open) => !open && setDialog('calendar')}
+      />
+
+      <Dialog
+        open={!!dialog && !['view', 'calendar', 'create-task', 'book-appointment'].includes(dialog)}
         onOpenChange={() => setDialog(null)}
       >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

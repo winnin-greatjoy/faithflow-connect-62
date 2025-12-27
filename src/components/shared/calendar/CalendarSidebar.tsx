@@ -7,6 +7,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CalendarSidebarProps, CalendarType } from './calendar.types';
 import { LEVEL_META } from './calendar.constants';
+import { CalendarCreateButton } from './CalendarCreateButton';
 
 export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({
   currentDate,
@@ -14,6 +15,8 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({
   selectedCalendars,
   onToggleCalendar,
   onCreateEvent,
+  onCreateTask,
+  onCreateAppointment
 }) => {
   const [openSections, setOpenSections] = React.useState({
     my: true,
@@ -60,13 +63,11 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({
     <aside className="w-64 flex-shrink-0 border-r bg-white dark:bg-slate-950 h-full flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="p-4">
-          <Button
-            onClick={onCreateEvent}
-            className="h-12 px-6 rounded-full shadow-md bg-white hover:bg-slate-50 border text-slate-700 font-medium flex gap-3 items-center group mb-6 dark:bg-slate-900 dark:text-slate-200 dark:border-slate-800"
-          >
-            <Plus className="w-6 h-6 text-blue-600" />
-            <span className="text-sm">Create</span>
-          </Button>
+          <CalendarCreateButton
+            onCreateEvent={onCreateEvent}
+            onCreateTask={onCreateTask || (() => { })}
+            onCreateAppointment={onCreateAppointment || (() => { })}
+          />
 
           <div className="mb-6 px-3">
             <Calendar
