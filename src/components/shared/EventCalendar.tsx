@@ -68,7 +68,7 @@ export const EventCalendar: React.FC<{
   }, [showSidebar]);
 
   // Hooks
-  const calendarEvents = useCalendarEvents(events, selectedCalendars);
+  const calendarEvents = useCalendarEvents(events, selectedCalendars, currentDate);
 
   // Handlers
   const handlePrev = useCallback(() => {
