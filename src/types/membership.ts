@@ -16,7 +16,7 @@ export interface Child {
 }
 
 export interface Member {
-  id: number;
+  id: string; // UUID from database
   // Personal Info
   fullName: string;
   profilePhoto?: string;
@@ -36,7 +36,7 @@ export interface Member {
   publicLandmark: string;
 
   // Church Info
-  branchId: number;
+  branchId: string; // UUID from database
   dateJoined: string;
   membershipLevel: MembershipLevel;
   baptizedSubLevel?: BaptizedSubLevel;
@@ -79,7 +79,7 @@ export interface FirstTimerFormProps {
 }
 
 export interface FirstTimer {
-  id: number;
+  id: string; // UUID from database
   fullName: string;
   community: string;
   area: string;
@@ -90,7 +90,7 @@ export interface FirstTimer {
   serviceDate: string;
   invitedBy?: string;
   followUpStatus: FollowUpStatus;
-  branchId: number;
+  branchId: string; // UUID from database
   firstVisit: string;
   visitDate: string;
   status: 'new' | 'contacted' | 'followed_up' | 'converted';
@@ -119,12 +119,12 @@ export interface Branch {
 }
 
 export interface DepartmentAssignment {
-  id: number;
-  memberId: number;
+  id: string;
+  memberId: string;
   departmentName: string;
-  assignedBy: number;
+  assignedBy: string;
   assignedDate: string;
-  approvedBy?: number;
+  approvedBy?: string;
   approvedDate?: string;
   status: 'pending' | 'approved' | 'rejected';
   type: 'assignment' | 'transfer' | 'suspension';

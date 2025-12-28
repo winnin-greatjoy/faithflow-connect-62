@@ -29,6 +29,7 @@ import { EventsModule } from '@/components/admin/EventsModule';
 import { DistrictStaff } from './DistrictStaff';
 import { DistrictReports } from './DistrictReports';
 import { DistrictSettings } from './DistrictSettings';
+import { DistrictConvertReview } from './DistrictConvertReview';
 import { FinanceDashboard } from '@/components/finance/FinanceDashboard';
 import { AdminProvider } from '@/context/AdminContext';
 
@@ -95,7 +96,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
   });
   const [loading, setLoading] = useState(true);
   const [activeModule, setActiveModule] = useState<
-    'overview' | 'branches' | 'staff' | 'events' | 'finance' | 'reports' | 'settings'
+    'overview' | 'branches' | 'staff' | 'events' | 'finance' | 'reports' | 'settings' | 'converts'
   >('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For mobile
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -124,6 +125,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
       | 'finance'
       | 'reports'
       | 'settings'
+      | 'converts'
       | undefined;
     if (requested) setActiveModule(requested);
   }, [location.state]);
@@ -287,6 +289,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
     { id: 'branches' as const, label: 'Branches', icon: Building },
     { id: 'staff' as const, label: 'Staff', icon: Users },
+    { id: 'converts' as const, label: 'Converts', icon: Users },
     { id: 'events' as const, label: 'Events', icon: Calendar },
     { id: 'finance' as const, label: 'Finance', icon: DollarSign },
     { id: 'reports' as const, label: 'Reports', icon: FileBarChart },
@@ -469,6 +472,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
                   onRefresh={fetchDistrictData}
                 />
               )}
+              {activeModule === 'converts' && <DistrictConvertReview districtId={district.id} />}
               {activeModule === 'events' && <EventsModule />}
               {activeModule === 'finance' && (
                 <FinanceDashboard mode="district" districtId={district.id} />

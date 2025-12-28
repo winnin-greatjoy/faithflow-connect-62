@@ -7,7 +7,7 @@ import { SuperadminHeader } from '@/components/admin/superadmin/SuperadminHeader
 import { SuperadminOverview } from '@/components/admin/superadmin/SuperadminOverview';
 import { DistrictManagement } from '@/components/admin/superadmin/DistrictManagement';
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
-import { SuperadminUsersRoles } from '@/components/admin/superadmin/SuperadminUsersRoles';
+import { UsersRolesModule } from '@/components/admin/superadmin/users-roles/UsersRolesModule';
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { AuditLogsModule } from '@/components/admin/superadmin/AuditLogsModule';
@@ -74,7 +74,7 @@ const SuperadminDashboard: React.FC = () => {
       case 'transfers':
         return <SuperadminTransferManagement />;
       case 'users':
-        return <SuperadminUsersRoles />;
+        return <UsersRolesModule />;
       case 'finance':
         return <SuperAdminFinanceDashboard />;
       case 'cms':

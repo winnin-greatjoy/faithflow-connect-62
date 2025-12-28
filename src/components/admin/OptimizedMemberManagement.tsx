@@ -45,7 +45,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Member, FirstTimer, type MembershipLevel } from '@/types/membership';
 import { supabase } from '@/integrations/supabase/client';
 import { getMembershipLevelDisplay } from '@/utils/membershipUtils';
+import { filterMembers, filterFirstTimers, type TabType } from '@/utils/memberFilters';
 import { MemberForm } from './MemberForm';
+import { ConvertForm, ConvertFormData } from './ConvertForm';
 import { FirstTimerForm } from './FirstTimerForm';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,7 +75,7 @@ import { cn } from '@/lib/utils';
 import { useAdminContext } from '@/context/AdminContext';
 import { useAuthz } from '@/hooks/useAuthz';
 
-type TabType = 'workers' | 'converts' | 'visitors';
+// TabType is imported from @/utils/memberFilters
 
 interface MemberStats {
   total: number;
@@ -101,16 +103,14 @@ export const OptimizedMemberManagement: React.FC = () => {
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [membershipFilter, setMembershipFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState(effectiveBranchId || 'all');
-  const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
-  const [selectedFirstTimers, setSelectedFirstTimers] = useState<number[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]); // UUID strings
+  const [selectedFirstTimers, setSelectedFirstTimers] = useState<string[]>([]); // UUID strings
   const [showMemberForm, setShowMemberForm] = useState(false);
   const [showFirstTimerForm, setShowFirstTimerForm] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [editingFirstTimer, setEditingFirstTimer] = useState<FirstTimer | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [addedMembers, setAddedMembers] = useState<Member[]>([]);
-  const [addedFirstTimers, setAddedFirstTimers] = useState<FirstTimer[]>([]);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isBatchTransferDialogOpen, setIsBatchTransferDialogOpen] = useState(false);
   const [isSendNotificationDialogOpen, setIsSendNotificationDialogOpen] = useState(false);
@@ -129,20 +129,6 @@ export const OptimizedMemberManagement: React.FC = () => {
   const [dbFirstTimers, setDbFirstTimers] = useState<FirstTimer[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
 
-  // Map local numeric IDs to DB UUIDs and branch IDs for actions/display
-  const memberMetaRef = useRef(new Map<number, { dbId: string; branchId: string }>());
-  const firstTimerMetaRef = useRef(new Map<number, { dbId: string; branchId: string }>());
-
-  // Stable numeric ID from UUID for local selection keys
-  const toLocalId = useCallback((s: string) => {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) {
-      h = (h << 5) - h + s.charCodeAt(i);
-      h |= 0;
-    }
-    return Math.abs(h) + 1;
-  }, []);
-
   // Load branches, members, and first timers from Supabase
   useEffect(() => {
     (async () => {
@@ -153,13 +139,13 @@ export const OptimizedMemberManagement: React.FC = () => {
           supabase
             .from('members')
             .select(
-              'id, full_name, email, phone, branch_id, membership_level, baptized_sub_level, status, date_joined, updated_at, last_attendance, created_at'
+              'id, full_name, phone, email, branch_id, membership_level, baptized_sub_level, status, last_attendance, date_joined'
             )
             .order('full_name'),
           supabase
             .from('first_timers')
             .select(
-              'id, full_name, email, phone, branch_id, service_date, community, area, street, public_landmark, invited_by, follow_up_status, status, created_at, first_visit, updated_at, notes, follow_up_notes'
+              'id, full_name, phone, email, branch_id, service_date, follow_up_status, status, created_at'
             )
             .order('service_date', { ascending: false }),
         ]);
@@ -172,10 +158,8 @@ export const OptimizedMemberManagement: React.FC = () => {
           const baptizedSubLevel = row.baptized_sub_level
             ? (row.baptized_sub_level.toLowerCase() as Member['baptizedSubLevel'])
             : undefined;
-          const lid = toLocalId(row.id);
-          memberMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
           const m: Member = {
-            id: lid,
+            id: row.id, // Use UUID directly
             fullName: row.full_name,
             profilePhoto: '',
             dateOfBirth: '2000-01-01',
@@ -190,7 +174,7 @@ export const OptimizedMemberManagement: React.FC = () => {
             area: '',
             street: '',
             publicLandmark: '',
-            branchId: 0,
+            branchId: row.branch_id, // Use UUID directly
             dateJoined: row.date_joined || '',
             membershipLevel,
             baptizedSubLevel,
@@ -218,10 +202,8 @@ export const OptimizedMemberManagement: React.FC = () => {
         setDbMembers(mappedMembers);
 
         const mappedFirstTimers: FirstTimer[] = (fr.data || []).map((row: any) => {
-          const lid = toLocalId(row.id);
-          firstTimerMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
           const ft: FirstTimer = {
-            id: lid,
+            id: row.id, // Use UUID directly
             fullName: row.full_name,
             community: row.community || '',
             area: row.area || '',
@@ -232,7 +214,7 @@ export const OptimizedMemberManagement: React.FC = () => {
             serviceDate: row.service_date || new Date().toISOString(),
             invitedBy: row.invited_by || '',
             followUpStatus: (row.follow_up_status as any) || 'pending',
-            branchId: 0,
+            branchId: row.branch_id, // Use UUID directly
             firstVisit: row.first_visit || row.service_date || new Date().toISOString(),
             visitDate: row.service_date || new Date().toISOString(),
             status: (row.status as any) || 'new',
@@ -247,22 +229,20 @@ export const OptimizedMemberManagement: React.FC = () => {
         setIsLoading(false);
       }
     })();
-  }, [toLocalId]);
+  }, []);
 
   // Reload helpers
   const reloadMembers = useCallback(async () => {
     const { data: mr } = await supabase
       .from('members')
       .select(
-        'id, full_name, email, phone, branch_id, membership_level, baptized_sub_level, status, date_joined, updated_at, last_attendance, created_at'
+        'id, full_name, phone, email, branch_id, membership_level, baptized_sub_level, status, last_attendance, date_joined'
       )
       .order('full_name');
 
     const mappedMembers: Member[] = (mr || []).map((row: any) => {
-      const lid = toLocalId(row.id);
-      memberMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
       const m: Member = {
-        id: lid,
+        id: row.id, // Use UUID directly
         fullName: row.full_name,
         profilePhoto: '',
         dateOfBirth: '2000-01-01',
@@ -277,14 +257,14 @@ export const OptimizedMemberManagement: React.FC = () => {
         area: '',
         street: '',
         publicLandmark: '',
-        branchId: 0,
+        branchId: row.branch_id, // Use UUID directly
         dateJoined: row.date_joined || '',
         membershipLevel: row.membership_level as any,
         baptizedSubLevel: row.baptized_sub_level || undefined,
         leaderRole: undefined,
         baptismDate: '',
         joinDate: row.date_joined || '',
-        lastVisit: row.updated_at || row.last_attendance || '',
+        lastVisit: row.date_joined || '',
         progress: 0,
         baptismOfficiator: '',
         spiritualMentor: '',
@@ -297,49 +277,47 @@ export const OptimizedMemberManagement: React.FC = () => {
         prayerNeeds: '',
         pastoralNotes: '',
         lastAttendance: row.last_attendance || '',
-        createdAt: row.created_at || '',
-        updatedAt: row.updated_at || '',
+        createdAt: row.date_joined || '',
+        updatedAt: row.date_joined || '',
       } as Member;
       return m;
     });
     setDbMembers(mappedMembers);
-  }, [toLocalId]);
+  }, []);
 
   const reloadFirstTimers = useCallback(async () => {
     const { data: fr } = await supabase
       .from('first_timers')
       .select(
-        'id, full_name, email, phone, branch_id, service_date, community, area, street, public_landmark, invited_by, follow_up_status, status, created_at, first_visit, updated_at, notes, follow_up_notes'
+        'id, full_name, phone, email, branch_id, service_date, follow_up_status, status, created_at'
       )
       .order('service_date', { ascending: false });
 
     const mappedFirstTimers: FirstTimer[] = (fr || []).map((row: any) => {
-      const lid = toLocalId(row.id);
-      firstTimerMetaRef.current.set(lid, { dbId: row.id, branchId: row.branch_id });
       const ft: FirstTimer = {
-        id: lid,
+        id: row.id, // Use UUID directly
         fullName: row.full_name,
-        community: row.community || '',
-        area: row.area || '',
-        street: row.street || '',
-        publicLandmark: row.public_landmark || '',
+        community: '',
+        area: '',
+        street: '',
+        publicLandmark: '',
         phone: row.phone || '',
         email: row.email || '',
         serviceDate: row.service_date || new Date().toISOString(),
-        invitedBy: row.invited_by || '',
+        invitedBy: '',
         followUpStatus: (row.follow_up_status as any) || 'pending',
-        branchId: 0,
-        firstVisit: row.first_visit || row.service_date || new Date().toISOString(),
+        branchId: row.branch_id, // Use UUID directly
+        firstVisit: row.service_date || new Date().toISOString(),
         visitDate: row.service_date || new Date().toISOString(),
         status: (row.status as any) || 'new',
-        followUpNotes: row.follow_up_notes || '',
-        notes: row.notes || '',
+        followUpNotes: '',
+        notes: '',
         createdAt: row.created_at || new Date().toISOString(),
       } as FirstTimer;
       return ft;
     });
     setDbFirstTimers(mappedFirstTimers);
-  }, [toLocalId]);
+  }, []);
 
   const { toast } = useToast();
 
@@ -348,18 +326,22 @@ export const OptimizedMemberManagement: React.FC = () => {
     [activeTab, debouncedSearchTerm, membershipFilter, branchFilter]
   );
 
-  const allMembers = useMemo(() => {
-    const map = new Map<number, Member>();
-    dbMembers.forEach((m) => map.set(m.id, m));
-    addedMembers.forEach((m) => map.set(m.id, m));
-    return Array.from(map.values());
-  }, [addedMembers, dbMembers]);
-  const allFirstTimers = useMemo(() => {
-    const map = new Map<number, FirstTimer>();
-    dbFirstTimers.forEach((f) => map.set(f.id, f));
-    addedFirstTimers.forEach((f) => map.set(f.id, f));
-    return Array.from(map.values());
-  }, [addedFirstTimers, dbFirstTimers]);
+  // All members from database
+  const allMembers = useMemo(() => dbMembers, [dbMembers]);
+
+  // All first timers from database  
+  const allFirstTimers = useMemo(() => dbFirstTimers, [dbFirstTimers]);
+
+  // Memoized branch lookup map for O(1) access
+  const branchMap = useMemo(
+    () => Object.fromEntries(branches.map(b => [b.id, b])),
+    [branches]
+  );
+
+  const getBranchName = useCallback(
+    (id?: string) => branchMap[id || '']?.name || 'N/A',
+    [branchMap]
+  );
 
   const memberStats: MemberStats = useMemo(
     () => ({
@@ -375,29 +357,11 @@ export const OptimizedMemberManagement: React.FC = () => {
 
   // Filtered members (paginated)
   const { filteredMembers, totalPages } = useMemo(() => {
-    const q = debouncedSearchTerm.toLowerCase();
-    const filtered = allMembers.filter((member) => {
-      // Tab: workers includes both workers and disciples
-      const matchesTab =
-        activeTab === 'workers'
-          ? member.baptizedSubLevel === 'worker' || member.baptizedSubLevel === 'disciple'
-          : activeTab === 'converts'
-            ? member.membershipLevel === 'convert'
-            : activeTab === 'visitors'
-              ? member.membershipLevel === 'visitor'
-              : true;
-
-      const matchesSearch =
-        member.fullName.toLowerCase().includes(q) ||
-        (member.email && member.email.toLowerCase().includes(q)) ||
-        (member.phone && member.phone.includes(debouncedSearchTerm));
-
-      const matchesMembership =
-        membershipFilter === 'all' || member.membershipLevel === membershipFilter;
-      const matchesBranch =
-        branchFilter === 'all' || memberMetaRef.current.get(member.id)?.branchId === branchFilter;
-
-      return matchesTab && matchesSearch && matchesMembership && matchesBranch;
+    const filtered = filterMembers(allMembers, {
+      tab: activeTab,
+      searchTerm: debouncedSearchTerm,
+      membershipLevel: membershipFilter,
+      branchId: branchFilter,
     });
 
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -409,14 +373,10 @@ export const OptimizedMemberManagement: React.FC = () => {
   // Filtered first timers (only used when activeTab === 'visitors')
   const { filteredFirstTimers, firstTimerTotalPages } = useMemo(() => {
     if (activeTab !== 'visitors') return { filteredFirstTimers: [], firstTimerTotalPages: 0 };
-    const q = debouncedSearchTerm.toLowerCase();
-    const filtered = allFirstTimers.filter((ft) => {
-      const matchesSearch =
-        ft.fullName.toLowerCase().includes(q) ||
-        (ft.phone && ft.phone.includes(debouncedSearchTerm));
-      const matchesBranch =
-        branchFilter === 'all' || firstTimerMetaRef.current.get(ft.id)?.branchId === branchFilter;
-      return matchesSearch && matchesBranch;
+
+    const filtered = filterFirstTimers(allFirstTimers, {
+      searchTerm: debouncedSearchTerm,
+      branchId: branchFilter,
     });
 
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -440,109 +400,11 @@ export const OptimizedMemberManagement: React.FC = () => {
     setShowMemberForm(true);
   };
   const handleAddConvert = () => {
-    setEditingMember({
-      id: 0,
-      fullName: '',
-      email: '',
-      phone: '',
-      membershipLevel: 'convert',
-      baptizedSubLevel: 'disciple',
-      branchId: 1,
-      joinDate: new Date().toISOString(),
-      lastVisit: new Date().toISOString(),
-      status: 'active',
-      progress: 0,
-    } as Member);
+    setEditingMember(null); // Use null for new converts, form will set defaults
     setShowMemberForm(true);
   };
 
-  // Listen for newly created members from session storage
-  useEffect(() => {
-    const handleIncoming = () => {
-      try {
-        const stored = sessionStorage.getItem('mm:newMember');
-        if (!stored) return;
-        const detail = JSON.parse(stored);
-        sessionStorage.removeItem('mm:newMember');
-        if (!detail) return;
-        const now = new Date().toISOString();
-        if (detail.membershipLevel === 'visitor') {
-          const ft: FirstTimer = {
-            id: Date.now(),
-            fullName: detail.fullName,
-            community: '',
-            area: '',
-            street: '',
-            publicLandmark: '',
-            phone: detail.phone || '',
-            email: detail.email || '',
-            serviceDate: now,
-            invitedBy: '',
-            followUpStatus: 'pending',
-            branchId: detail.branchId || 1,
-            firstVisit: now,
-            visitDate: now,
-            status: 'new',
-            followUpNotes: '',
-            notes: '',
-            createdAt: now,
-          };
-          setAddedFirstTimers((prev) => [ft, ...prev]);
-        } else {
-          const m: Member = {
-            id: Date.now(),
-            fullName: detail.fullName,
-            profilePhoto: '',
-            dateOfBirth: '2000-01-01',
-            gender: 'male',
-            maritalStatus: 'single',
-            spouseName: '',
-            numberOfChildren: 0,
-            children: [],
-            email: detail.email || '',
-            phone: detail.phone || '',
-            community: '',
-            area: '',
-            street: '',
-            publicLandmark: '',
-            branchId: detail.branchId || 1,
-            dateJoined: now,
-            membershipLevel: detail.membershipLevel,
-            baptizedSubLevel:
-              detail.baptizedSubLevel && detail.baptizedSubLevel !== 'none'
-                ? detail.baptizedSubLevel
-                : undefined,
-            leaderRole: undefined,
-            baptismDate: '',
-            joinDate: now,
-            lastVisit: now,
-            progress: 0,
-            baptismOfficiator: '',
-            spiritualMentor: '',
-            discipleshipClass1: false,
-            discipleshipClass2: false,
-            discipleshipClass3: false,
-            assignedDepartment: '',
-            status: 'active',
-            ministry: '',
-            prayerNeeds: '',
-            pastoralNotes: '',
-            lastAttendance: '',
-            createdAt: now,
-            updatedAt: now,
-          } as Member;
-          setAddedMembers((prev) => [m, ...prev]);
-        }
-      } catch (error) {
-        console.error('Error handling incoming member:', error);
-      }
-    };
-    const listener = () => handleIncoming();
-    window.addEventListener('member:created', listener);
-    // Also check once on mount
-    handleIncoming();
-    return () => window.removeEventListener('member:created', listener);
-  }, []);
+
   const handleAddFirstTimer = () => {
     setEditingFirstTimer(null);
     setShowFirstTimerForm(true);
@@ -557,24 +419,14 @@ export const OptimizedMemberManagement: React.FC = () => {
   };
 
   const handleViewMember = (m: Member) => {
-    const dbId = memberMetaRef.current.get(m.id)?.dbId;
-    if (dbId) {
-      navigate(`/admin/member/${dbId}`);
+    if (m.id) {  // Use ID directly
+      navigate(`/admin/member/${m.id}`);
     }
   };
 
-  const handleDeleteMember = async (id: number) => {
-    const dbId = memberMetaRef.current.get(id)?.dbId;
-    if (!dbId) {
-      toast({
-        title: 'Delete failed',
-        description: 'Unable to resolve member id.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const handleDeleteMember = async (id: string) => {
     const { data, error } = await supabase.functions.invoke('admin-create-member', {
-      body: { action: 'delete', id: dbId },
+      body: { action: 'delete', id: id },
     } as any);
     if (error) {
       toast({
@@ -584,24 +436,13 @@ export const OptimizedMemberManagement: React.FC = () => {
       });
       return;
     }
-    setAddedMembers((prev) => prev.filter((m) => m.id !== id));
     setDbMembers((prev) => prev.filter((m) => m.id !== id));
     setSelectedMembers((prev) => prev.filter((x) => x !== id));
-    memberMetaRef.current.delete(id);
     toast({ title: 'Member deleted', description: 'The member has been removed.' });
   };
-  const handleDeleteFirstTimer = async (id: number) => {
-    const dbId = firstTimerMetaRef.current.get(id)?.dbId;
-    if (!dbId) {
-      toast({
-        title: 'Delete failed',
-        description: 'Unable to resolve visitor id.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const handleDeleteFirstTimer = async (id: string) => {
     const { data, error } = await supabase.functions.invoke('admin-create-member', {
-      body: { action: 'delete', id: dbId, target: 'first_timers' },
+      body: { action: 'delete', id: id, target: 'first_timers' },
     } as any);
     if (error) {
       toast({
@@ -611,10 +452,8 @@ export const OptimizedMemberManagement: React.FC = () => {
       });
       return;
     }
-    setAddedFirstTimers((prev) => prev.filter((f) => f.id !== id));
     setDbFirstTimers((prev) => prev.filter((f) => f.id !== id));
     setSelectedFirstTimers((prev) => prev.filter((x) => x !== id));
-    firstTimerMetaRef.current.delete(id);
     toast({ title: 'First timer deleted', description: 'Removed.' });
   };
 
@@ -635,12 +474,12 @@ export const OptimizedMemberManagement: React.FC = () => {
   };
 
   // Selection helpers
-  const handleSelectMember = (id: number, checked: boolean) => {
+  const handleSelectMember = (id: string, checked: boolean) => {
     setSelectedMembers((prev) =>
       checked ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id)
     );
   };
-  const handleSelectFirstTimer = (id: number, checked: boolean) => {
+  const handleSelectFirstTimer = (id: string, checked: boolean) => {
     setSelectedFirstTimers((prev) =>
       checked ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id)
     );
@@ -720,12 +559,6 @@ export const OptimizedMemberManagement: React.FC = () => {
     setIsSendNotificationDialogOpen(true);
   };
 
-  // Loading simulation
-  useEffect(() => {
-    setIsLoading(true);
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, [activeTab, debouncedSearchTerm, membershipFilter, branchFilter, currentPage]);
 
   // Pagination UI component (inline)
   const PaginationControls = ({
@@ -922,9 +755,9 @@ export const OptimizedMemberManagement: React.FC = () => {
                         checked={
                           activeTab === 'visitors'
                             ? filteredFirstTimers.length > 0 &&
-                              selectedFirstTimers.length === filteredFirstTimers.length
+                            selectedFirstTimers.length === filteredFirstTimers.length
                             : filteredMembers.length > 0 &&
-                              selectedMembers.length === filteredMembers.length
+                            selectedMembers.length === filteredMembers.length
                         }
                       />
                     </TableHead>
@@ -1065,7 +898,7 @@ export const OptimizedMemberManagement: React.FC = () => {
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
                             {(() => {
-                              const bid = memberMetaRef.current.get(member.id)?.branchId;
+                              const bid = member.branchId; // Use branchId directly
                               const found = branches.find((b) => b.id === bid);
                               return found?.name || 'N/A';
                             })()}
@@ -1135,112 +968,181 @@ export const OptimizedMemberManagement: React.FC = () => {
         <Dialog open={showMemberForm} onOpenChange={setShowMemberForm}>
           <DialogContent className="max-w-4xl">
             <DialogHeader>
-              <DialogTitle>{editingMember ? 'Edit Member' : 'Add New Member'}</DialogTitle>
+              <DialogTitle>
+                {editingMember?.membershipLevel === 'convert'
+                  ? editingMember?.fullName
+                    ? 'Edit Convert'
+                    : 'Add Convert'
+                  : editingMember
+                    ? 'Edit Member'
+                    : 'Add New Member'}
+              </DialogTitle>
             </DialogHeader>
-            <MemberForm
-              member={editingMember ?? undefined}
-              onCancel={() => setShowMemberForm(false)}
-              onSubmit={async (data) => {
-                try {
-                  const { createAccount, username, password, ...memberData } = data;
-                  const payload: any = {
-                    full_name: memberData.fullName,
-                    email: memberData.email,
-                    phone: memberData.phone,
-                    community: memberData.community,
-                    area: memberData.area,
-                    street: memberData.street,
-                    public_landmark: memberData.publicLandmark || null,
-                    branch_id: memberData.branchId,
-                    date_joined: memberData.joinDate,
-                    date_of_birth: memberData.dateOfBirth,
-                    gender: memberData.gender as any,
-                    marital_status: memberData.maritalStatus as any,
-                    membership_level: memberData.membershipLevel as any,
-                    baptized_sub_level:
-                      memberData.membershipLevel === 'baptized'
-                        ? (memberData.baptizedSubLevel as any)
-                        : null,
-                    leader_role: (memberData.leaderRole as any) || null,
-                    status: 'active',
-                  };
 
-                  if (editingMember) {
-                    const dbId = memberMetaRef.current.get(editingMember.id)?.dbId;
-                    if (!dbId) throw new Error('Unable to resolve member id');
-                    const { error } = await supabase.from('members').update(payload).eq('id', dbId);
-                    if (error) throw error;
-                  } else {
-                    // Use edge function for account creation if requested
-                    if (createAccount && username && password) {
-                      const {
-                        data: { session },
-                      } = await supabase.auth.getSession();
-                      const { data: result, error } = await supabase.functions.invoke(
-                        'admin-create-member',
-                        {
-                          headers: {
-                            Authorization: `Bearer ${session?.access_token}`,
-                          },
-                          body: {
-                            action: 'insert',
-                            data: { ...payload, createAccount, username, password },
-                          },
-                        }
-                      );
+            {editingMember?.membershipLevel === 'convert' ? (
+              <ConvertForm
+                convert={{
+                  id: editingMember.id,
+                  fullName: editingMember.fullName || '',
+                  email: editingMember.email || '',
+                  phone: editingMember.phone || '',
+                  community: '',
+                  area: '',
+                  branchId: branches[0]?.id || '',
+                }}
+                branches={branches}
+                onSubmit={async (data: ConvertFormData) => {
+                  try {
+                    const payload = {
+                      full_name: data.fullName,
+                      email: data.email || null,
+                      phone: data.phone,
+                      community: data.community,
+                      area: data.area,
+                      branch_id: data.branchId,
+                      membership_level: 'convert' as const,
+                      baptized_sub_level: 'disciple' as const,
+                      date_joined: new Date().toISOString(),
+                      date_of_birth: new Date().toISOString(),
+                      gender: 'male' as const,
+                      marital_status: 'single' as const,
+                      street: '',
+                      status: 'active' as const,
+                      profile_photo: data.profilePhoto || null,
+                    };
+
+                    if (editingMember && editingMember.id) {
+                      const { error } = await supabase.from('members').update(payload).eq('id', editingMember.id);
                       if (error) throw error;
-                      if (result?.error) throw new Error(result.error);
-
-                      const memberId = result?.data?.id;
-                      const children = (memberData.children ?? []) as any[];
-                      if (memberId && children.length) {
-                        const childRows = children.map((c) => ({
-                          member_id: memberId,
-                          name: c.name,
-                          date_of_birth: c.dateOfBirth,
-                          gender: c.gender as any,
-                          notes: c.notes || null,
-                        }));
-                        await supabase.from('children').insert(childRows);
-                      }
                     } else {
-                      // Regular member creation without account
                       const { data: inserted, error } = await supabase
                         .from('members')
-                        .insert(payload)
+                        .insert([payload])
                         .select('id')
                         .single();
                       if (error) throw error;
-                      const memberId = inserted?.id as string;
-                      const children = (memberData.children ?? []) as any[];
-                      if (memberId && children.length) {
-                        const childRows = children.map((c) => ({
-                          member_id: memberId,
-                          name: c.name,
-                          date_of_birth: c.dateOfBirth,
-                          gender: c.gender as any,
-                          notes: c.notes || null,
-                        }));
-                        await supabase.from('children').insert(childRows);
+                    }
+
+                    await reloadMembers();
+                    toast({
+                      title: editingMember && editingMember.id ? 'Convert updated' : 'Convert added',
+                      description: 'Saved successfully.',
+                    });
+                    setShowMemberForm(false);
+                  } catch (err: any) {
+                    toast({
+                      title: 'Save failed',
+                      description: err.message || 'Database error',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
+                onCancel={() => setShowMemberForm(false)}
+              />
+            ) : (
+              <MemberForm
+                member={editingMember ?? undefined}
+                onCancel={() => setShowMemberForm(false)}
+                onSubmit={async (data) => {
+                  try {
+                    const { createAccount, username, password, ...memberData } = data;
+                    const payload: any = {
+                      full_name: memberData.fullName,
+                      email: memberData.email,
+                      phone: memberData.phone,
+                      community: memberData.community,
+                      area: memberData.area,
+                      street: memberData.street,
+                      public_landmark: memberData.publicLandmark || null,
+                      branch_id: memberData.branchId,
+                      date_joined: memberData.joinDate,
+                      date_of_birth: memberData.dateOfBirth,
+                      gender: memberData.gender as any,
+                      marital_status: memberData.maritalStatus as any,
+                      membership_level: memberData.membershipLevel as any,
+                      baptized_sub_level:
+                        memberData.membershipLevel === 'baptized'
+                          ? (memberData.baptizedSubLevel as any)
+                          : null,
+                      leader_role: (memberData.leaderRole as any) || null,
+                      status: 'active',
+                    };
+
+                    if (editingMember) {
+                      const { error } = await supabase.from('members').update(payload).eq('id', editingMember.id);
+                      if (error) throw error;
+                    } else {
+                      // Use edge function for account creation if requested
+                      if (createAccount && username && password) {
+                        const {
+                          data: { session },
+                        } = await supabase.auth.getSession();
+                        const { data: result, error } = await supabase.functions.invoke(
+                          'admin-create-member',
+                          {
+                            headers: {
+                              Authorization: `Bearer ${session?.access_token}`,
+                            },
+                            body: {
+                              action: 'insert',
+                              data: { ...payload, createAccount, username, password },
+                            },
+                          }
+                        );
+                        if (error) throw error;
+                        if (result?.error) throw new Error(result.error);
+
+                        const memberId = result?.data?.id;
+                        const children = (memberData.children ?? []) as any[];
+                        if (memberId && children.length) {
+                          const childRows = children.map((c) => ({
+                            member_id: memberId,
+                            name: c.name,
+                            date_of_birth: c.dateOfBirth,
+                            gender: c.gender as any,
+                            notes: c.notes || null,
+                          }));
+                          await supabase.from('children').insert(childRows);
+                        }
+                      } else {
+                        // Regular member creation without account
+                        const { data: inserted, error } = await supabase
+                          .from('members')
+                          .insert(payload)
+                          .select('id')
+                          .single();
+                        if (error) throw error;
+                        const memberId = inserted?.id as string;
+                        const children = (memberData.children ?? []) as any[];
+                        if (memberId && children.length) {
+                          const childRows = children.map((c) => ({
+                            member_id: memberId,
+                            name: c.name,
+                            date_of_birth: c.dateOfBirth,
+                            gender: c.gender as any,
+                            notes: c.notes || null,
+                          }));
+                          await supabase.from('children').insert(childRows);
+                        }
                       }
                     }
-                  }
 
-                  await reloadMembers();
-                  toast({
-                    title: editingMember ? 'Member updated' : 'Member added',
-                    description: 'Saved successfully.',
-                  });
-                  setShowMemberForm(false);
-                } catch (err: any) {
-                  toast({
-                    title: 'Save failed',
-                    description: err.message || 'Database error',
-                    variant: 'destructive',
-                  });
-                }
-              }}
-            />
+                    await reloadMembers();
+                    toast({
+                      title: editingMember ? 'Member updated' : 'Member added',
+                      description: 'Saved successfully.',
+                    });
+                    setShowMemberForm(false);
+                  } catch (err: any) {
+                    toast({
+                      title: 'Save failed',
+                      description: err.message || 'Database error',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
+              />
+            )}
           </DialogContent>
         </Dialog>
 
@@ -1275,12 +1177,10 @@ export const OptimizedMemberManagement: React.FC = () => {
                   };
 
                   if (editingFirstTimer) {
-                    const dbId = firstTimerMetaRef.current.get(editingFirstTimer.id)?.dbId;
-                    if (!dbId) throw new Error('Unable to resolve visitor id');
                     const { error } = await supabase
                       .from('first_timers')
                       .update(payload)
-                      .eq('id', dbId);
+                      .eq('id', editingFirstTimer.id);
                     if (error) throw error;
                   } else {
                     const { error } = await supabase.from('first_timers').insert(payload);
@@ -1325,8 +1225,8 @@ export const OptimizedMemberManagement: React.FC = () => {
         open={isSendNotificationDialogOpen}
         onOpenChange={setIsSendNotificationDialogOpen}
         recipientIds={[
-          ...selectedMembers.map((id) => memberMetaRef.current.get(id)?.dbId || ''),
-          ...selectedFirstTimers.map((id) => firstTimerMetaRef.current.get(id)?.dbId || ''),
+          ...selectedMembers, // Already UUIDs
+          ...selectedFirstTimers, // Already UUIDs
         ].filter(Boolean)}
         recipientCount={totalRecipientsCount}
         onSuccess={() => {
@@ -1350,10 +1250,10 @@ export const OptimizedMemberManagement: React.FC = () => {
         onOpenChange={setIsBatchTransferDialogOpen}
         selectedMembers={selectedMembers
           .map((id) => {
-            const meta = memberMetaRef.current.get(id);
+            const member = allMembers.find(m => m.id === id);
             return {
-              memberId: meta?.dbId || '',
-              currentBranchId: meta?.branchId || '',
+              memberId: id,
+              currentBranchId: member?.branchId || '',
             };
           })
           .filter((m) => m.memberId && m.currentBranchId)}
