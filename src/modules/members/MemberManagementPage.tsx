@@ -1,6 +1,6 @@
 // src/modules/members/MemberManagementPage.tsx
 import React, { useState, useMemo } from 'react';
-import { useAuthContext } from '@/contexts/AuthContext';
+// Note: useAuthContext not needed - forms handle their own branch scoping
 import { useBranches } from '@/hooks/useBranches';
 import { useMembers } from './hooks/useMembers';
 import { useFirstTimers } from './hooks/useFirstTimers';
@@ -18,11 +18,10 @@ import type { Member, FirstTimer } from '@/types/membership';
 import type { ConvertFormData } from '@/components/admin/ConvertForm';
 
 export const MemberManagementPage: React.FC = () => {
-    const { user } = useAuthContext();
-    const { branches, effectiveBranchId } = useBranches();
+    const { branches } = useBranches();
 
     // Initialize filters
-    const filters = useMemberFilters(effectiveBranchId);
+    const filters = useMemberFilters();
 
     // Fetch data using hooks
     const { members, loading: membersLoading, reload: reloadMembers } = useMembers({
@@ -198,7 +197,6 @@ export const MemberManagementPage: React.FC = () => {
                 open={showMemberForm}
                 onOpenChange={setShowMemberForm}
                 member={editingMember}
-                branches={branches}
                 onSubmit={handleMemberSubmit}
             />
 
@@ -206,7 +204,6 @@ export const MemberManagementPage: React.FC = () => {
                 open={showConvertForm}
                 onOpenChange={setShowConvertForm}
                 convert={editingMember}
-                branches={branches}
                 onSubmit={handleConvertSubmit}
             />
 
@@ -214,7 +211,6 @@ export const MemberManagementPage: React.FC = () => {
                 open={showFirstTimerForm}
                 onOpenChange={setShowFirstTimerForm}
                 firstTimer={editingFirstTimer}
-                branches={branches}
                 onSubmit={handleFirstTimerSubmit}
             />
         </div>
