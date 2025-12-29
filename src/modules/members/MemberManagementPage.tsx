@@ -232,17 +232,11 @@ export const MemberManagementPage: React.FC = () => {
             <MemberImportDialog
                 open={showImportDialog}
                 onOpenChange={setShowImportDialog}
-                onImportComplete={() => {
-                    setShowImportDialog(false);
-                    reloadMembers();
-                }}
             />
 
             <SendNotificationDialog
                 open={showSendMessage}
                 onOpenChange={setShowSendMessage}
-                selectedMemberIds={selectedMemberIds}
-                selectedFirstTimerIds={selectedFirstTimerIds}
             />
         </div>
     );
