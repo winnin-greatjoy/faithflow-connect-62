@@ -401,7 +401,7 @@ export const OptimizedMemberManagement: React.FC = () => {
     setShowMemberForm(true);
   };
   const handleAddConvert = () => {
-    setEditingMember(null); // Use null for new converts, form will set defaults
+    setEditingMember({ membershipLevel: 'convert' } as Member); // Set type to show ConvertForm
     setShowMemberForm(true);
   };
 
