@@ -38,7 +38,7 @@ export function filterMembers(
         branchId?: string;
     }
 ): Member[] {
-    const q = filters.searchTerm.toLowerCase();
+    const q = (filters.searchTerm || '').toLowerCase();
 
     return members.filter((member) => {
         // Tab filtering
@@ -77,7 +77,7 @@ export function filterFirstTimers(
         branchId?: string;
     }
 ): FirstTimer[] {
-    const q = filters.searchTerm.toLowerCase();
+    const q = (filters.searchTerm || '').toLowerCase();
 
     return firstTimers.filter((ft) => {
         // Search filtering
