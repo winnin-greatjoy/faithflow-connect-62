@@ -30,7 +30,7 @@ const convertSchema = z.object({
 export type ConvertFormData = z.infer<typeof convertSchema>;
 
 interface ConvertFormProps {
-    convert?: Partial<ConvertFormData & { id?: number }>;
+    convert?: Partial<ConvertFormData & { id?: string }>;
     branches: { id: string; name: string }[];
     onSubmit: (data: ConvertFormData) => void;
     onCancel: () => void;
