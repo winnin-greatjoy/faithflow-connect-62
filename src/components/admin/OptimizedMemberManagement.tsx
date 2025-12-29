@@ -46,6 +46,7 @@ import { Member, FirstTimer, type MembershipLevel } from '@/types/membership';
 import { supabase } from '@/integrations/supabase/client';
 import { getMembershipLevelDisplay } from '@/utils/membershipUtils';
 import { filterMembers, filterFirstTimers, type TabType } from '@/utils/memberFilters';
+import { deleteMember, deleteFirstTimer } from '@/utils/memberOperations';
 import { MemberForm } from './MemberForm';
 import { ConvertForm, ConvertFormData } from './ConvertForm';
 import { FirstTimerForm } from './FirstTimerForm';
@@ -425,13 +426,11 @@ export const OptimizedMemberManagement: React.FC = () => {
   };
 
   const handleDeleteMember = async (id: string) => {
-    const { data, error } = await supabase.functions.invoke('admin-create-member', {
-      body: { action: 'delete', id: id },
-    } as any);
-    if (error) {
+    const result = await deleteMember(id);
+    if (!result.success) {
       toast({
         title: 'Delete failed',
-        description: error.message || 'Edge function error',
+        description: result.error || 'Failed to delete member',
         variant: 'destructive',
       });
       return;
@@ -441,13 +440,11 @@ export const OptimizedMemberManagement: React.FC = () => {
     toast({ title: 'Member deleted', description: 'The member has been removed.' });
   };
   const handleDeleteFirstTimer = async (id: string) => {
-    const { data, error } = await supabase.functions.invoke('admin-create-member', {
-      body: { action: 'delete', id: id, target: 'first_timers' },
-    } as any);
-    if (error) {
+    const result = await deleteFirstTimer(id);
+    if (!result.success) {
       toast({
         title: 'Delete failed',
-        description: error.message || 'Edge function error',
+        description: result.error || 'Failed to delete visitor',
         variant: 'destructive',
       });
       return;
