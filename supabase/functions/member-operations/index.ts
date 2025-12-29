@@ -61,7 +61,7 @@ serve(async (req) => {
 
         // Get user profile and role
         const { data: profile, error: profileError } = await supabaseClient
-            .from('admin_users')
+            .from('profiles')
             .select('id, role, branch_id')
             .eq('id', user.id)
             .single();
@@ -97,19 +97,71 @@ serve(async (req) => {
                     throw new Error('Missing data for create operation');
                 }
 
+                // Extract account creation and children data
+                const { createAccount, username, password, children, ...memberData } = data;
+
                 // Ensure branch_id is set correctly
-                if (profile.role === 'branch_admin' && !data.branch_id) {
-                    data.branch_id = profile.branch_id;
+                if (profile.role === 'branch_admin' && !memberData.branch_id) {
+                    memberData.branch_id = profile.branch_id;
                 }
 
+                // Handle account creation if requested
+                let authUserId = null;
+                if (createAccount && username && password && target === 'members') {
+                    try {
+                        const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
+                            email: username,
+                            password: password,
+                            email_confirm: true,
+                            user_metadata: {
+                                full_name: memberData.full_name,
+                                branch_id: memberData.branch_id,
+                            }
+                        });
+
+                        if (authError) {
+                            console.error('Account creation error:', authError);
+                            // Continue without account if it fails
+                        } else {
+                            authUserId = authData.user.id;
+                            // Create profile for the new user
+                            await supabaseClient.from('profiles').insert({
+                                id: authUserId,
+                                first_name: memberData.full_name.split(' ')[0] || '',
+                                last_name: memberData.full_name.split(' ').slice(1).join(' ') || '',
+                                phone: memberData.phone,
+                                branch_id: memberData.branch_id,
+                                role: 'member',
+                            });
+                        }
+                    } catch (accountError) {
+                        console.error('Account creation failed:', accountError);
+                        // Continue creating member without account
+                    }
+                }
+
+                // Create member/first-timer record
                 const { data: created, error: createError } = await supabaseClient
                     .from(tableName)
-                    .insert(data)
+                    .insert(memberData)
                     .select()
                     .single();
 
                 if (createError) throw createError;
                 result = created;
+
+                // Handle children records if provided
+                if (children && Array.isArray(children) && children.length > 0 && target === 'members') {
+                    const childRows = children.map((c: any) => ({
+                        member_id: created.id,
+                        name: c.name,
+                        date_of_birth: c.dateOfBirth,
+                        gender: c.gender,
+                        notes: c.notes || null,
+                    }));
+
+                    await supabaseClient.from('children').insert(childRows);
+                }
 
                 // Log audit trail
                 await logAudit(supabaseClient, {
@@ -117,7 +169,7 @@ serve(async (req) => {
                     action: 'create',
                     table: tableName,
                     record_id: created.id,
-                    details: { data },
+                    details: { data: memberData, accountCreated: !!authUserId, childrenCount: children?.length || 0 },
                 });
                 break;
 
