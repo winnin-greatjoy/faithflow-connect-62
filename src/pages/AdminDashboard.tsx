@@ -4,7 +4,7 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
-import { OptimizedMemberManagement } from '@/components/admin/OptimizedMemberManagement';
+import { MemberManagementPage } from '@/modules/members';
 import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
 import { EventsModule } from '@/components/admin/EventsModule';
 import { FinanceModule } from '@/components/admin/FinanceModule';
