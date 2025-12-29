@@ -1,7 +1,7 @@
 // src/utils/memberFilters.ts
 import { Member, FirstTimer, MembershipLevel } from '@/types/membership';
 
-export type TabType = 'workers' | 'converts' | 'visitors';
+export type TabType = 'all' | 'workers' | 'disciples' | 'leaders' | 'pastors' | 'converts' | 'first_timers';
 
 /**
  * Check if a member matches the given tab filter
@@ -11,15 +11,23 @@ export function memberMatchesTab(
     tab: TabType
 ): boolean {
     switch (tab) {
+        case 'all':
+            return true;
         case 'workers':
             return (
                 member.membershipLevel === 'baptized' &&
                 ['worker', 'disciple'].includes(member.baptizedSubLevel ?? '')
             );
+        case 'disciples':
+            return member.membershipLevel === 'baptized' && member.baptizedSubLevel === 'disciple';
+        case 'leaders':
+            return member.membershipLevel === 'baptized' && member.baptizedSubLevel === 'leader';
+        case 'pastors':
+            return member.leaderRole === 'pastor' || member.leaderRole === 'assistant_pastor';
         case 'converts':
             return member.membershipLevel === 'convert';
-        case 'visitors':
-            // Visitors are handled separately as FirstTimers
+        case 'first_timers':
+            // First-timers are handled separately as FirstTimers
             return false;
         default:
             return false;

@@ -54,12 +54,20 @@ export function useMemberFilters(initialBranchId?: string): UseMemberFiltersResu
 
     // Filter members
     const getFilteredMembers = useMemo(() => (members: Member[]) => {
-        return filterMembers(members, activeTab, search, membershipFilter, branchFilter);
+        return filterMembers(members, {
+            tab: activeTab,
+            searchTerm: search,
+            membershipLevel: membershipFilter,
+            branchId: branchFilter,
+        });
     }, [activeTab, search, membershipFilter, branchFilter]);
 
     // Filter first-timers
     const getFilteredFirstTimers = useMemo(() => (firstTimers: FirstTimer[]) => {
-        return filterFirstTimers(firstTimers, search, branchFilter);
+        return filterFirstTimers(firstTimers, {
+            searchTerm: search,
+            branchId: branchFilter,
+        });
     }, [search, branchFilter]);
 
     // Calculate statistics
