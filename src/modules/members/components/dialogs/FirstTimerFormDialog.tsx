@@ -8,7 +8,6 @@ interface FirstTimerFormDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     firstTimer?: FirstTimer | null;
-    branches: { id: string; name: string }[];
     onSubmit: () => void;
 }
 
@@ -16,7 +15,6 @@ export const FirstTimerFormDialog: React.FC<FirstTimerFormDialogProps> = ({
     open,
     onOpenChange,
     firstTimer,
-    branches,
     onSubmit,
 }) => {
     return (
@@ -29,7 +27,6 @@ export const FirstTimerFormDialog: React.FC<FirstTimerFormDialogProps> = ({
                 </DialogHeader>
                 <FirstTimerForm
                     firstTimer={firstTimer}
-                    branches={branches}
                     onSubmit={onSubmit}
                     onCancel={() => onOpenChange(false)}
                 />

@@ -8,7 +8,6 @@ interface MemberFormDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     member?: Member | null;
-    branches: { id: string; name: string }[];
     onSubmit: () => void;
 }
 
@@ -16,7 +15,6 @@ export const MemberFormDialog: React.FC<MemberFormDialogProps> = ({
     open,
     onOpenChange,
     member,
-    branches,
     onSubmit,
 }) => {
     return (
@@ -29,7 +27,6 @@ export const MemberFormDialog: React.FC<MemberFormDialogProps> = ({
                 </DialogHeader>
                 <MemberForm
                     member={member}
-                    branches={branches}
                     onSubmit={onSubmit}
                     onCancel={() => onOpenChange(false)}
                 />
