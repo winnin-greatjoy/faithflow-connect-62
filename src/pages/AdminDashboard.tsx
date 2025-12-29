@@ -146,7 +146,7 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
         );
 
       case 'members':
-        return can('members', 'view') || isSuperadmin ? <OptimizedMemberManagement /> : denied;
+        return can('members', 'view') || isSuperadmin ? <MemberManagementPage /> : denied;
       case 'departments':
         return can('departments', 'view') || isSuperadmin ? <DepartmentsModule /> : denied;
       case 'events':
