@@ -1,7 +1,6 @@
 // src/utils/memberFilters.ts
 import { Member, FirstTimer, MembershipLevel } from '@/types/membership';
-
-export type TabType = 'all' | 'workers' | 'disciples' | 'leaders' | 'pastors' | 'converts' | 'first_timers';
+import type { TabType } from '@/modules/members/types';
 
 /**
  * Check if a member matches the given tab filter
