@@ -204,6 +204,7 @@ export const MemberManagementPage: React.FC = () => {
                 open={showConvertForm}
                 onOpenChange={setShowConvertForm}
                 convert={editingMember}
+                branches={branches}
                 onSubmit={handleConvertSubmit}
             />
 
