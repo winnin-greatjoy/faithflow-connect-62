@@ -47,7 +47,7 @@ export function filterMembers(
         // Search filtering
         const matchesSearch =
             !filters.searchTerm ||
-            member.fullName.toLowerCase().includes(q) ||
+            member.fullName?.toLowerCase().includes(q) ||
             (member.email && member.email.toLowerCase().includes(q)) ||
             (member.phone && member.phone.includes(filters.searchTerm));
 
@@ -83,7 +83,7 @@ export function filterFirstTimers(
         // Search filtering
         const matchesSearch =
             !filters.searchTerm ||
-            ft.fullName.toLowerCase().includes(q) ||
+            ft.fullName?.toLowerCase().includes(q) ||
             (ft.phone && ft.phone.includes(filters.searchTerm));
 
         // Branch filtering
