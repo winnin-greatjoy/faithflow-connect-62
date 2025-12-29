@@ -232,11 +232,23 @@ export const MemberManagementPage: React.FC = () => {
             <MemberImportDialog
                 open={showImportDialog}
                 onOpenChange={setShowImportDialog}
+                branchId={branches[0]?.id || ''}
+                onSuccess={() => {
+                    setShowImportDialog(false);
+                    reloadMembers();
+                }}
             />
 
             <SendNotificationDialog
                 open={showSendMessage}
                 onOpenChange={setShowSendMessage}
+                recipientIds={[...selectedMemberIds, ...selectedFirstTimerIds]}
+                recipientCount={selectedMemberIds.length + selectedFirstTimerIds.length}
+                onSuccess={() => {
+                    setShowSendMessage(false);
+                    setSelectedMemberIds([]);
+                    setSelectedFirstTimerIds([]);
+                }}
             />
         </div>
     );
