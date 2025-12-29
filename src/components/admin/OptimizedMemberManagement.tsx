@@ -46,7 +46,7 @@ import { Member, FirstTimer, type MembershipLevel } from '@/types/membership';
 import { supabase } from '@/integrations/supabase/client';
 import { getMembershipLevelDisplay } from '@/utils/membershipUtils';
 import { filterMembers, filterFirstTimers, type TabType } from '@/utils/memberFilters';
-import { deleteMember, deleteFirstTimer } from '@/utils/memberOperations';
+import { deleteMember, deleteFirstTimer, createMember, updateMember, createFirstTimer, updateFirstTimer } from '@/utils/memberOperations';
 import { MemberForm } from './MemberForm';
 import { ConvertForm, ConvertFormData } from './ConvertForm';
 import { FirstTimerForm } from './FirstTimerForm';
@@ -1008,16 +1008,19 @@ export const OptimizedMemberManagement: React.FC = () => {
                       profile_photo: data.profilePhoto || null,
                     };
 
+
                     if (editingMember && editingMember.id) {
-                      const { error } = await supabase.from('members').update(payload).eq('id', editingMember.id);
-                      if (error) throw error;
+                      // Update existing convert
+                      const result = await updateMember(editingMember.id, payload);
+                      if (!result.success) {
+                        throw new Error(result.error || 'Failed to update convert');
+                      }
                     } else {
-                      const { data: inserted, error } = await supabase
-                        .from('members')
-                        .insert([payload])
-                        .select('id')
-                        .single();
-                      if (error) throw error;
+                      // Create new convert
+                      const result = await createMember(payload);
+                      if (!result.success) {
+                        throw new Error(result.error || 'Failed to create convert');
+                      }
                     }
 
                     await reloadMembers();
@@ -1066,61 +1069,26 @@ export const OptimizedMemberManagement: React.FC = () => {
                     };
 
                     if (editingMember) {
-                      const { error } = await supabase.from('members').update(payload).eq('id', editingMember.id);
-                      if (error) throw error;
+                      // Update existing member
+                      const result = await updateMember(editingMember.id, payload);
+                      if (!result.success) {
+                        throw new Error(result.error || 'Failed to update member');
+                      }
                     } else {
-                      // Use edge function for account creation if requested
-                      if (createAccount && username && password) {
-                        const {
-                          data: { session },
-                        } = await supabase.auth.getSession();
-                        const { data: result, error } = await supabase.functions.invoke(
-                          'admin-create-member',
-                          {
-                            headers: {
-                              Authorization: `Bearer ${session?.access_token}`,
-                            },
-                            body: {
-                              action: 'insert',
-                              data: { ...payload, createAccount, username, password },
-                            },
-                          }
-                        );
-                        if (error) throw error;
-                        if (result?.error) throw new Error(result.error);
+                      // Create new member
+                      const result = await createMember(payload);
+                      if (!result.success) {
+                        throw new Error(result.error || 'Failed to create member');
+                      }
 
-                        const memberId = result?.data?.id;
-                        const children = (memberData.children ?? []) as any[];
-                        if (memberId && children.length) {
-                          const childRows = children.map((c) => ({
-                            member_id: memberId,
-                            name: c.name,
-                            date_of_birth: c.dateOfBirth,
-                            gender: c.gender as any,
-                            notes: c.notes || null,
-                          }));
-                          await supabase.from('children').insert(childRows);
-                        }
-                      } else {
-                        // Regular member creation without account
-                        const { data: inserted, error } = await supabase
-                          .from('members')
-                          .insert(payload)
-                          .select('id')
-                          .single();
-                        if (error) throw error;
-                        const memberId = inserted?.id as string;
-                        const children = (memberData.children ?? []) as any[];
-                        if (memberId && children.length) {
-                          const childRows = children.map((c) => ({
-                            member_id: memberId,
-                            name: c.name,
-                            date_of_birth: c.dateOfBirth,
-                            gender: c.gender as any,
-                            notes: c.notes || null,
-                          }));
-                          await supabase.from('children').insert(childRows);
-                        }
+                      // Note: Account creation and children records deferred
+                      // TODO: Add account creation to Edge Function
+                      // TODO: Add children records handling to Edge Function
+                      if (createAccount && username && password) {
+                        toast({
+                          title: 'Member created',
+                          description: 'Note: Account creation feature will be added to Edge Function',
+                        });
                       }
                     }
 
@@ -1174,14 +1142,17 @@ export const OptimizedMemberManagement: React.FC = () => {
                   };
 
                   if (editingFirstTimer) {
-                    const { error } = await supabase
-                      .from('first_timers')
-                      .update(payload)
-                      .eq('id', editingFirstTimer.id);
-                    if (error) throw error;
+                    // Update existing first-timer
+                    const result = await updateFirstTimer(editingFirstTimer.id, payload);
+                    if (!result.success) {
+                      throw new Error(result.error || 'Failed to update first timer');
+                    }
                   } else {
-                    const { error } = await supabase.from('first_timers').insert(payload);
-                    if (error) throw error;
+                    // Create new first-timer
+                    const result = await createFirstTimer(payload);
+                    if (!result.success) {
+                      throw new Error(result.error || 'Failed to create first timer');
+                    }
                   }
 
                   await reloadFirstTimers();
