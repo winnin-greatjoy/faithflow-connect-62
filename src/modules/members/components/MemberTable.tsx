@@ -3,7 +3,7 @@ import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Phone, Mail, Users } from 'lucide-react';
+import { Edit, Trash2, Phone, Mail, Users, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { Member } from '@/types/membership';
 
@@ -11,6 +11,7 @@ interface MemberTableProps {
     members: Member[];
     selectedIds: string[];
     onSelectionChange: (ids: string[]) => void;
+    onView: (member: Member) => void;
     onEdit: (member: Member) => void;
     onDelete: (id: string) => void;
     getBranchName: (branchId: string) => string;
@@ -20,6 +21,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
     members,
     selectedIds,
     onSelectionChange,
+    onView,
     onEdit,
     onDelete,
     getBranchName,
@@ -143,7 +145,16 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                                     <Button
                                         variant="ghost"
                                         size="sm"
+                                        onClick={() => onView(member)}
+                                        title="View Profile"
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
                                         onClick={() => onEdit(member)}
+                                        title="Edit Member"
                                     >
                                         <Edit className="h-4 w-4" />
                                     </Button>
@@ -152,6 +163,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                                         size="sm"
                                         onClick={() => onDelete(member.id)}
                                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        title="Delete Member"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </Button>

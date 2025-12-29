@@ -1,5 +1,5 @@
-// src/modules/members/MemberManagementPage.tsx
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 // Note: useAuthContext not needed - forms handle their own branch scoping
 import { useBranches } from '@/hooks/useBranches';
 import { useMembers } from './hooks/useMembers';
@@ -14,10 +14,13 @@ import { FirstTimerTable } from './components/FirstTimerTable';
 import { MemberFormDialog } from './components/dialogs/MemberFormDialog';
 import { ConvertFormDialog } from './components/dialogs/ConvertFormDialog';
 import { FirstTimerFormDialog } from './components/dialogs/FirstTimerFormDialog';
+import { MemberImportDialog } from '@/components/admin/MemberImportDialog';
+import { SendNotificationDialog } from '@/components/admin/SendNotificationDialog';
 import type { Member, FirstTimer } from '@/types/membership';
 import type { ConvertFormData } from '@/components/admin/ConvertForm';
 
 export const MemberManagementPage: React.FC = () => {
+    const navigate = useNavigate();
     const { branches } = useBranches();
 
     // Initialize filters
@@ -41,6 +44,8 @@ export const MemberManagementPage: React.FC = () => {
     const [showMemberForm, setShowMemberForm] = useState(false);
     const [showConvertForm, setShowConvertForm] = useState(false);
     const [showFirstTimerForm, setShowFirstTimerForm] = useState(false);
+    const [showImportDialog, setShowImportDialog] = useState(false);
+    const [showSendMessage, setShowSendMessage] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
     const [editingFirstTimer, setEditingFirstTimer] = useState<FirstTimer | null>(null);
 
@@ -84,6 +89,12 @@ export const MemberManagementPage: React.FC = () => {
     const handleAddFirstTimer = () => {
         setEditingFirstTimer(null);
         setShowFirstTimerForm(true);
+    };
+
+    const handleViewMember = (member: Member) => {
+        if (member.id) {
+            navigate(`/admin/member/${member.id}`);
+        }
     };
 
     const handleEditMember = (member: Member) => {
@@ -162,13 +173,15 @@ export const MemberManagementPage: React.FC = () => {
                 onAddMember={handleAddMember}
                 onAddConvert={handleAddConvert}
                 onAddFirstTimer={handleAddFirstTimer}
+                onSendMessage={() => setShowSendMessage(true)}
+                onImport={() => setShowImportDialog(true)}
                 activeTab={filters.activeTab}
                 selectedCount={
                     filters.activeTab === 'first_timers'
                         ? selectedFirstTimerIds.length
                         : selectedMemberIds.length
                 }
-                totalRecipients={0} // TODO: Implement recipient count
+                totalRecipients={selectedMemberIds.length + selectedFirstTimerIds.length}
             />
 
             {/* Table */}
@@ -186,6 +199,7 @@ export const MemberManagementPage: React.FC = () => {
                     members={filteredMembers}
                     selectedIds={selectedMemberIds}
                     onSelectionChange={setSelectedMemberIds}
+                    onView={handleViewMember}
                     onEdit={handleEditMember}
                     onDelete={handleDeleteMember}
                     getBranchName={getBranchName}
@@ -214,6 +228,23 @@ export const MemberManagementPage: React.FC = () => {
                 firstTimer={editingFirstTimer}
                 onSubmit={handleFirstTimerSubmit}
             />
+
+            <MemberImportDialog
+                open={showImportDialog}
+                onOpenChange={setShowImportDialog}
+                onImportComplete={() => {
+                    setShowImportDialog(false);
+                    reloadMembers();
+                }}
+            />
+
+            <SendNotificationDialog
+                open={showSendMessage}
+                onOpenChange={setShowSendMessage}
+                selectedMemberIds={selectedMemberIds}
+                selectedFirstTimerIds={selectedFirstTimerIds}
+            />
         </div>
     );
 };
+
