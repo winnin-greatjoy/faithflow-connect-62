@@ -1,6 +1,7 @@
 -- =====================================================
--- BIBLE SCHOOL COMPLETE MIGRATION
--- Combined file for manual execution in Supabase Dashboard
+-- BIBLE SCHOOL SIMPLIFIED MIGRATION
+-- For manual execution in Supabase Dashboard
+-- Simplified RLS policies (role-based only, no district scoping)
 -- =====================================================
 
 -- =====================================================
@@ -129,7 +130,7 @@ CREATE TABLE IF NOT EXISTS public.bible_exam_results (
     student_id UUID NOT NULL REFERENCES public.bible_students(id) ON DELETE CASCADE,
     cohort_id UUID NOT NULL REFERENCES public.bible_cohorts(id) ON DELETE CASCADE,
     score DECIMAL(5,2) NOT NULL,
-    status TEXT, -- Will be set by application logic: 'pass' or 'fail'
+    status TEXT,
     remarks TEXT,
     graded_by UUID REFERENCES public.profiles(id),
     submitted_at TIMESTAMPTZ DEFAULT now(),
@@ -178,347 +179,137 @@ CREATE INDEX IF NOT EXISTS idx_bible_exam_results_student ON public.bible_exam_r
 CREATE INDEX IF NOT EXISTS idx_bible_exam_results_exam ON public.bible_exam_results(exam_id);
 
 -- =====================================================
--- PART 2: ROW LEVEL SECURITY (RLS)
+-- PART 2: SIMPLIFIED RLS POLICIES
 -- =====================================================
 
--- BIBLE_PROGRAMS - Public read, admin write
+-- BIBLE_PROGRAMS
 ALTER TABLE public.bible_programs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Programs are viewable by everyone"
-    ON public.bible_programs FOR SELECT
-    USING (true);
+CREATE POLICY "Programs viewable by everyone" ON public.bible_programs FOR SELECT USING (true);
+CREATE POLICY "Admins manage programs" ON public.bible_programs FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
-CREATE POLICY "Only admins can manage programs"
-    ON public.bible_programs FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
-
--- BIBLE_COHORTS - Branch/District scoped
+-- BIBLE_COHORTS  
 ALTER TABLE public.bible_cohorts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Cohorts viewable by branch/district"
-    ON public.bible_cohorts FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND (
-                p.role = 'super_admin'
-                OR (p.role = 'district_admin' AND p.district_id IN (
-                    SELECT district_id FROM public.church_branches WHERE id = bible_cohorts.branch_id
-                ))
-                OR (p.role = 'branch_admin' AND p.branch_id = bible_cohorts.branch_id)
-            )
-        )
-    );
+CREATE POLICY "Cohorts viewable by admins" ON public.bible_cohorts FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
-CREATE POLICY "Admins can manage cohorts in their scope"
-    ON public.bible_cohorts FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND (
-                p.role = 'super_admin'
-                OR (p.role = 'district_admin' AND p.district_id IN (
-                    SELECT district_id FROM public.church_branches WHERE id = bible_cohorts.branch_id
-                ))
-                OR (p.role = 'branch_admin' AND p.branch_id = bible_cohorts.branch_id)
-            )
-        )
-    );
+CREATE POLICY "Admins manage cohorts" ON public.bible_cohorts FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_STUDENTS - Students see own, admins see scope
+-- BIBLE_STUDENTS
 ALTER TABLE public.bible_students ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Students can view their own record"
-    ON public.bible_students FOR SELECT
-    USING (
-        member_id IN (
-            SELECT id FROM public.members WHERE account_id = auth.uid()
-        )
-    );
+CREATE POLICY "Students view own record" ON public.bible_students FOR SELECT
+  USING (member_id IN (SELECT id FROM public.members WHERE account_id = auth.uid()));
 
-CREATE POLICY "Admins can view students in their scope"
-    ON public.bible_students FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND (
-                p.role = 'super_admin'
-                OR (p.role = 'district_admin' AND p.district_id IN (
-                    SELECT district_id FROM public.church_branches b
-                    JOIN public.bible_cohorts c ON c.branch_id = b.id
-                    WHERE c.id = bible_students.current_cohort_id
-                ))
-                OR (p.role = 'branch_admin' AND p.branch_id IN (
-                    SELECT branch_id FROM public.bible_cohorts 
-                    WHERE id = bible_students.current_cohort_id
-                ))
-            )
-        )
-    );
+CREATE POLICY "Admins view students" ON public.bible_students FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
-CREATE POLICY "Admins can manage students"
-    ON public.bible_students FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins manage students" ON public.bible_students FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_APPLICATIONS - Members apply, admins review
+-- BIBLE_APPLICATIONS
 ALTER TABLE public.bible_applications ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Members can view their own applications"
-    ON public.bible_applications FOR SELECT
-    USING (
-        member_id IN (
-            SELECT id FROM public.members WHERE account_id = auth.uid()
-        )
-    );
+CREATE POLICY "Members view own applications" ON public.bible_applications FOR SELECT
+  USING (member_id IN (SELECT id FROM public.members WHERE account_id = auth.uid()));
 
-CREATE POLICY "Members can create applications"
-    ON public.bible_applications FOR INSERT
-    WITH CHECK (
-        member_id IN (
-            SELECT id FROM public.members WHERE account_id = auth.uid()
-        )
-    );
+CREATE POLICY "Members create applications" ON public.bible_applications FOR INSERT
+  WITH CHECK (member_id IN (SELECT id FROM public.members WHERE account_id = auth.uid()));
 
-CREATE POLICY "Admins can view applications in their scope"
-    ON public.bible_applications FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND (
-                p.role = 'super_admin'
-                OR (p.role = 'district_admin' AND p.district_id IN (
-                    SELECT district_id FROM public.church_branches 
-                    WHERE id = bible_applications.branch_id
-                ))
-                OR (p.role = 'branch_admin' AND p.branch_id = bible_applications.branch_id)
-            )
-        )
-    );
+CREATE POLICY "Admins view applications" ON public.bible_applications FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
-CREATE POLICY "Admins can update applications"
-    ON public.bible_applications FOR UPDATE
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins manage applications" ON public.bible_applications FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_ENROLLMENTS - Scoped to cohort
+-- BIBLE_ENROLLMENTS
 ALTER TABLE public.bible_enrollments ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Enrollments viewable by relevant parties"
-    ON public.bible_enrollments FOR SELECT
-    USING (
-        student_id IN (
-            SELECT id FROM public.bible_students 
-            WHERE member_id IN (
-                SELECT id FROM public.members WHERE account_id = auth.uid()
-            )
-        )
-        OR EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Students view own enrollments" ON public.bible_enrollments FOR SELECT
+  USING (student_id IN (
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+  ));
 
-CREATE POLICY "Admins can manage enrollments"
-    ON public.bible_enrollments FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins view enrollments" ON public.bible_enrollments FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_LESSONS - Public read for students
+CREATE POLICY "Admins manage enrollments" ON public.bible_enrollments FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
+
+-- BIBLE_LESSONS
 ALTER TABLE public.bible_lessons ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Lessons viewable by everyone"
-    ON public.bible_lessons FOR SELECT
-    USING (true);
+CREATE POLICY "Lessons viewable by everyone" ON public.bible_lessons FOR SELECT USING (true);
 
-CREATE POLICY "Admins can manage lessons"
-    ON public.bible_lessons FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins manage lessons" ON public.bible_lessons FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_ATTENDANCE - Students see own, admins see all
+-- BIBLE_ATTENDANCE
 ALTER TABLE public.bible_attendance ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Students can view their own attendance"
-    ON public.bible_attendance FOR SELECT
-    USING (
-        student_id IN (
-            SELECT id FROM public.bible_students 
-            WHERE member_id IN (
-                SELECT id FROM public.members WHERE account_id = auth.uid()
-            )
-        )
-    );
+CREATE POLICY "Students view own attendance" ON public.bible_attendance FOR SELECT
+  USING (student_id IN (
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+  ));
 
-CREATE POLICY "Admins can view all attendance"
-    ON public.bible_attendance FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins view attendance" ON public.bible_attendance FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
-CREATE POLICY "Admins can manage attendance"
-    ON public.bible_attendance FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins manage attendance" ON public.bible_attendance FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_EXAMS - Public read
+-- BIBLE_EXAMS
 ALTER TABLE public.bible_exams ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Exams viewable by everyone"
-    ON public.bible_exams FOR SELECT
-    USING (true);
+CREATE POLICY "Exams viewable by everyone" ON public.bible_exams FOR SELECT USING (true);
 
-CREATE POLICY "Admins can manage exams"
-    ON public.bible_exams FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins manage exams" ON public.bible_exams FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_EXAM_RESULTS - Students see own, admins see all
+-- BIBLE_EXAM_RESULTS
 ALTER TABLE public.bible_exam_results ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Students can view their own results"
-    ON public.bible_exam_results FOR SELECT
-    USING (
-        student_id IN (
-            SELECT id FROM public.bible_students 
-            WHERE member_id IN (
-                SELECT id FROM public.members WHERE account_id = auth.uid()
-            )
-        )
-    );
+CREATE POLICY "Students view own results" ON public.bible_exam_results FOR SELECT
+  USING (student_id IN (
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+  ));
 
-CREATE POLICY "Admins can view all results"
-    ON public.bible_exam_results FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins view results" ON public.bible_exam_results FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
-CREATE POLICY "Admins can manage results"
-    ON public.bible_exam_results FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins manage results" ON public.bible_exam_results FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_PROMOTIONS - Read only for students
+-- BIBLE_PROMOTIONS
 ALTER TABLE public.bible_promotions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Students can view their own promotions"
-    ON public.bible_promotions FOR SELECT
-    USING (
-        student_id IN (
-            SELECT id FROM public.bible_students 
-            WHERE member_id IN (
-                SELECT id FROM public.members WHERE account_id = auth.uid()
-            )
-        )
-    );
+CREATE POLICY "Students view own promotions" ON public.bible_promotions FOR SELECT
+  USING (student_id IN (
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+  ));
 
-CREATE POLICY "Admins can view all promotions"
-    ON public.bible_promotions FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins view promotions" ON public.bible_promotions FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
-CREATE POLICY "Admins can create promotions"
-    ON public.bible_promotions FOR INSERT
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins create promotions" ON public.bible_promotions FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
--- BIBLE_GRADUATIONS - Read only for students
+-- BIBLE_GRADUATIONS
 ALTER TABLE public.bible_graduations ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Students can view their own graduations"
-    ON public.bible_graduations FOR SELECT
-    USING (
-        student_id IN (
-            SELECT id FROM public.bible_students 
-            WHERE member_id IN (
-                SELECT id FROM public.members WHERE account_id = auth.uid()
-            )
-        )
-    );
+CREATE POLICY "Students view own graduations" ON public.bible_graduations FOR SELECT
+  USING (student_id IN (
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+  ));
 
-CREATE POLICY "Admins can view all graduations"
-    ON public.bible_graduations FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins view graduations" ON public.bible_ex_graduations FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
-CREATE POLICY "Admins can create graduations"
-    ON public.bible_graduations FOR INSERT
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid()
-            AND role IN ('super_admin', 'district_admin', 'branch_admin')
-        )
-    );
+CREATE POLICY "Admins create graduations" ON public.bible_graduations FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
 -- =====================================================
 -- PART 3: FUNCTIONS AND VIEWS
@@ -638,18 +429,15 @@ DECLARE
     v_passed_finals BOOLEAN;
     v_result JSON;
 BEGIN
-    -- Check attendance
     SELECT percentage INTO v_attendance
     FROM public.get_student_attendance_percentage(p_student_id);
     
-    -- Check if all final exams are passed
     SELECT COALESCE(BOOL_AND(er.status = 'pass'), false) INTO v_passed_finals
     FROM public.bible_exam_results er
     JOIN public.bible_exams e ON e.id = er.exam_id
     WHERE er.student_id = p_student_id
     AND e.is_final = true;
     
-    -- Build result
     v_result := json_build_object(
         'eligible', (v_attendance >= p_min_attendance AND v_passed_finals),
         'attendance_percentage', v_attendance,
