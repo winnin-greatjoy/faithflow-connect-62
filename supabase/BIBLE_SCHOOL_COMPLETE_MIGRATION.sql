@@ -202,7 +202,7 @@ CREATE POLICY "Admins manage cohorts" ON public.bible_cohorts FOR ALL
 ALTER TABLE public.bible_students ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Students view own record" ON public.bible_students FOR SELECT
-  USING (member_id IN (SELECT id FROM public.members WHERE account_id = auth.uid()));
+  USING (member_id IN (SELECT id FROM public.members WHERE id = auth.uid()));
 
 CREATE POLICY "Admins view students" ON public.bible_students FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
@@ -214,10 +214,10 @@ CREATE POLICY "Admins manage students" ON public.bible_students FOR ALL
 ALTER TABLE public.bible_applications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Members view own applications" ON public.bible_applications FOR SELECT
-  USING (member_id IN (SELECT id FROM public.members WHERE account_id = auth.uid()));
+  USING (member_id IN (SELECT id FROM public.members WHERE id = auth.uid()));
 
 CREATE POLICY "Members create applications" ON public.bible_applications FOR INSERT
-  WITH CHECK (member_id IN (SELECT id FROM public.members WHERE account_id = auth.uid()));
+  WITH CHECK (member_id IN (SELECT id FROM public.members WHERE id = auth.uid()));
 
 CREATE POLICY "Admins view applications" ON public.bible_applications FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
