@@ -769,7 +769,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                           </td>
                         </tr>
                       ))
-                    )}}
+                    )}
                   </tbody>
                 </table>
               </div>
