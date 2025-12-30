@@ -1,6 +1,7 @@
 // src/modules/bible-school/BibleSchoolPage.tsx
 // Main orchestrator page for Bible School module
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, GraduationCap, BookOpen, FileText, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { BibleCohort } from './types';
 
 export const BibleSchoolPage: React.FC = () => {
+    const navigate = useNavigate();
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('overview');
 
@@ -181,8 +183,7 @@ export const BibleSchoolPage: React.FC = () => {
                         getProgramName={getProgramName}
                         getBranchName={getBranchName}
                         onView={(cohort) => {
-                            // TODO: Implement cohort detail view
-                            console.log('View cohort:', cohort);
+                            navigate(`/admin/bible-school/cohorts/${cohort.id}`);
                         }}
                         onEdit={(cohort) => {
                             // TODO: Implement cohort edit dialog

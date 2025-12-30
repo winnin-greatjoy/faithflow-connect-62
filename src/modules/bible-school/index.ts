@@ -1,8 +1,10 @@
 // src/modules/bible-school/index.ts
 // Barrel export for Bible School module
 
-// Main page
+// Main page and router
 export { BibleSchoolPage } from './BibleSchoolPage';
+export { BibleSchoolRouter } from './BibleSchoolRouter';
+export { CohortDetailPage } from './CohortDetailPage';
 
 // Types
 export type * from './types';

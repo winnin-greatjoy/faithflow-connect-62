@@ -14,6 +14,7 @@ import {
   FileText,
   Video,
   Calendar,
+  GraduationCap,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -44,6 +45,7 @@ const menuItems: MenuItem[] = [
   { id: 'districts', label: 'Districts', icon: Network, description: 'Manage districts' },
   { id: 'transfers', label: 'Transfers', icon: ArrowRightLeft, description: 'Member approvals' },
   { id: 'users', label: 'Users & Roles', icon: Users, description: 'Access control' },
+  { id: 'bible-school', label: 'Bible School', icon: GraduationCap, description: 'Training programs' },
   { id: 'finance', label: 'Finance', icon: DollarSign, description: 'Financial overview' },
   { id: 'cms', label: 'Content', icon: FileText, description: 'Content management' },
   { id: 'streaming', label: 'Streaming', icon: Video, description: 'Live streams' },

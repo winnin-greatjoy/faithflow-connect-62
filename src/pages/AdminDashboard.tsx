@@ -5,7 +5,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
 import { MemberManagementPage } from '@/modules/members';
-import { BibleSchoolPage } from '@/modules/bible-school';
+import { BibleSchoolRouter } from '@/modules/bible-school';
 import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
 import { EventsModule } from '@/components/admin/EventsModule';
 import { FinanceModule } from '@/components/admin/FinanceModule';
@@ -149,7 +149,7 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
       case 'members':
         return can('members', 'view') || isSuperadmin ? <MemberManagementPage /> : denied;
       case 'bible-school':
-        return can('bible_school', 'view') || isSuperadmin ? <BibleSchoolPage /> : denied;
+        return can('bible_school', 'view') || isSuperadmin ? <BibleSchoolRouter /> : denied;
       case 'departments':
         return can('departments', 'view') || isSuperadmin ? <DepartmentsModule /> : denied;
       case 'events':
