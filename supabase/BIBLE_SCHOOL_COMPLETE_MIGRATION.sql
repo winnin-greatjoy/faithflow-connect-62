@@ -230,7 +230,7 @@ ALTER TABLE public.bible_enrollments ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Students view own enrollments" ON public.bible_enrollments FOR SELECT
   USING (student_id IN (
-    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.id = auth.uid()
   ));
 
 CREATE POLICY "Admins view enrollments" ON public.bible_enrollments FOR SELECT
@@ -252,7 +252,7 @@ ALTER TABLE public.bible_attendance ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Students view own attendance" ON public.bible_attendance FOR SELECT
   USING (student_id IN (
-    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.id = auth.uid()
   ));
 
 CREATE POLICY "Admins view attendance" ON public.bible_attendance FOR SELECT
@@ -274,7 +274,7 @@ ALTER TABLE public.bible_exam_results ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Students view own results" ON public.bible_exam_results FOR SELECT
   USING (student_id IN (
-    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.id = auth.uid()
   ));
 
 CREATE POLICY "Admins view results" ON public.bible_exam_results FOR SELECT
@@ -288,7 +288,7 @@ ALTER TABLE public.bible_promotions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Students view own promotions" ON public.bible_promotions FOR SELECT
   USING (student_id IN (
-    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.id = auth.uid()
   ));
 
 CREATE POLICY "Admins view promotions" ON public.bible_promotions FOR SELECT
@@ -302,10 +302,10 @@ ALTER TABLE public.bible_graduations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Students view own graduations" ON public.bible_graduations FOR SELECT
   USING (student_id IN (
-    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.account_id = auth.uid()
+    SELECT id FROM public.bible_students s JOIN public.members m ON m.id = s.member_id WHERE m.id = auth.uid()
   ));
 
-CREATE POLICY "Admins view graduations" ON public.bible_ex_graduations FOR SELECT
+CREATE POLICY "Admins view graduations" ON public.bible_graduations FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin')));
 
 CREATE POLICY "Admins create graduations" ON public.bible_graduations FOR INSERT
