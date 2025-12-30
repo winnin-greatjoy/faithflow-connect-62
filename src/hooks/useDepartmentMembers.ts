@@ -73,6 +73,7 @@ export function useDepartmentMembers(departmentId?: string) {
 
     useEffect(() => {
         fetchMembers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [departmentId]);
 
     return {
