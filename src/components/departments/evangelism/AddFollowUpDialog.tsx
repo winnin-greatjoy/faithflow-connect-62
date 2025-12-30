@@ -70,9 +70,9 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
 
           // Using notification_logs table
           await supabase.from('notification_logs').insert({
-            user_id: formData.assignedToMemberId,
-            notification_type: 'assignment',
-            title: 'Follow-up Assignment',
+            recipient_id: formData.assignedToMemberId,
+            type: 'assignment',
+            subject: 'Follow-up Assignment',
             message: `You have been assigned to follow up with ${formData.contactName} (${formData.contactInfo})`,
             status: 'pending',
           });
@@ -164,7 +164,7 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
                   setFormData({
                     ...formData,
                     assignedToMemberId: v,
-                    assignedTo: selectedMember?.fullName || ''
+                    assignedTo: selectedMember?.name || ''
                   });
                 }}
               >
@@ -174,7 +174,7 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
                 <SelectContent>
                   {members.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
-                      {member.fullName}
+                      {member.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
