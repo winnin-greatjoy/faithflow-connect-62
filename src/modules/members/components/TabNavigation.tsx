@@ -18,7 +18,6 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabCh
                 <TabsTrigger value="leaders">Leaders</TabsTrigger>
                 <TabsTrigger value="pastors">Pastors</TabsTrigger>
                 <TabsTrigger value="converts">Converts</TabsTrigger>
-                <TabsTrigger value="first_timers">First Timers</TabsTrigger>
             </TabsList>
         </Tabs>
     );

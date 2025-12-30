@@ -32,13 +32,11 @@ export const MemberToolbar: React.FC<MemberToolbarProps> = ({
     totalRecipients,
 }) => {
     const getAddButtonText = () => {
-        if (activeTab === 'first_timers') return 'Add First Timer';
         if (activeTab === 'converts') return 'Add Convert';
         return 'Add Member';
     };
 
     const getAddHandler = () => {
-        if (activeTab === 'first_timers') return onAddFirstTimer;
         if (activeTab === 'converts') return onAddConvert;
         return onAddMember;
     };
@@ -70,7 +68,7 @@ export const MemberToolbar: React.FC<MemberToolbarProps> = ({
                     </Button>
                 )}
 
-                {onBatchTransfer && activeTab !== 'first_timers' && selectedCount > 0 && (
+                {onBatchTransfer && selectedCount > 0 && (
                     <Button
                         variant="outline"
                         onClick={onBatchTransfer}
