@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,67 +12,10 @@ import {
 } from '@/components/ui/select';
 import { Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { AddFollowUpDialog } from './AddFollowUpDialog';
-
-interface FollowUp {
-  id: number;
-  contactName: string;
-  contactInfo: string;
-  status: 'new' | 'contacted' | 'interested' | 'converted' | 'not-interested';
-  assignedTo: string;
-  lastContact: string;
-  notes: string;
-}
-
-const mockFollowUps: FollowUp[] = [
-  {
-    id: 1,
-    contactName: 'John Anderson',
-    contactInfo: '555-1001',
-    status: 'interested',
-    assignedTo: 'Paul Smith',
-    lastContact: '2024-01-24',
-    notes: 'Very receptive, wants to attend service this Sunday',
-  },
-  {
-    id: 2,
-    contactName: 'Mary Thompson',
-    contactInfo: '555-1002',
-    status: 'contacted',
-    assignedTo: 'Grace Johnson',
-    lastContact: '2024-01-23',
-    notes: 'Has questions about salvation, scheduled follow-up',
-  },
-  {
-    id: 3,
-    contactName: 'David Wilson',
-    contactInfo: '555-1003',
-    status: 'new',
-    assignedTo: 'Mark Wilson',
-    lastContact: '2024-01-22',
-    notes: 'Met at block party, expressed interest in Bible study',
-  },
-  {
-    id: 4,
-    contactName: 'Lisa Brown',
-    contactInfo: '555-1004',
-    status: 'converted',
-    assignedTo: 'Sarah Davis',
-    lastContact: '2024-01-20',
-    notes: 'Accepted Christ! Connected with discipleship program',
-  },
-  {
-    id: 5,
-    contactName: 'Robert Davis',
-    contactInfo: '555-1005',
-    status: 'not-interested',
-    assignedTo: 'Paul Smith',
-    lastContact: '2024-01-19',
-    notes: 'Not interested at this time, but respectful conversation',
-  },
-];
+import { useFirstTimers } from '@/modules/members/hooks/useFirstTimers';
 
 export const FollowUpManagement: React.FC = () => {
-  const [followUps, setFollowUps] = useState<FollowUp[]>(mockFollowUps);
+  const { firstTimers, loading, reload } = useFirstTimers();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -81,35 +24,40 @@ export const FollowUpManagement: React.FC = () => {
     switch (status) {
       case 'converted':
         return 'bg-green-100 text-green-800';
-      case 'interested':
+      case 'followed_up':
         return 'bg-blue-100 text-blue-800';
       case 'contacted':
         return 'bg-yellow-100 text-yellow-800';
       case 'new':
         return 'bg-gray-100 text-gray-800';
-      case 'not-interested':
-        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const filteredFollowUps = followUps.filter((contact) => {
-    const matchesSearch =
-      contact.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.contactInfo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.assignedTo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || contact.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Convert first-timers to follow-up contacts
+  const followUpContacts = useMemo(() => {
+    return firstTimers.map(ft => ({
+      id: ft.id,
+      contactName: ft.fullName,
+      contactInfo: ft.phone || ft.email || '-',
+      status: ft.status || 'new',
+      assignedTo: ft.invitedBy || '-',
+      lastContact: ft.serviceDate || ft.firstVisit,
+      notes: ft.followUpNotes || ft.notes || '-',
+    }));
+  }, [firstTimers]);
 
-  const handleAddContact = (newContact: any) => {
-    setFollowUps([newContact, ...followUps]);
-  };
-
-  const handleDelete = (id: number) => {
-    setFollowUps(followUps.filter((c) => c.id !== id));
-  };
+  const filteredFollowUps = useMemo(() => {
+    return followUpContacts.filter((contact) => {
+      const matchesSearch =
+        contact.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.contactInfo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.assignedTo.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || contact.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [followUpContacts, searchTerm, statusFilter]);
 
   return (
     <div className="space-y-4">
@@ -140,9 +88,8 @@ export const FollowUpManagement: React.FC = () => {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="new">New</SelectItem>
             <SelectItem value="contacted">Contacted</SelectItem>
-            <SelectItem value="interested">Interested</SelectItem>
+            <SelectItem value="followed_up">Followed Up</SelectItem>
             <SelectItem value="converted">Converted</SelectItem>
-            <SelectItem value="not-interested">Not Interested</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -175,42 +122,56 @@ export const FollowUpManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredFollowUps.map((contact) => (
-                  <tr key={contact.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {contact.contactName}
-                        </div>
-                        <div className="text-sm text-gray-500">{contact.contactInfo}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={getStatusColor(contact.status)}>
-                        {contact.status.replace('-', ' ')}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {contact.assignedTo}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {contact.lastContact}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                      {contact.notes}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(contact.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      Loading follow-up contacts...
                     </td>
                   </tr>
-                ))}
+                ) : filteredFollowUps.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      No follow-up contacts found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredFollowUps.map((contact) => (
+                    <tr key={contact.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {contact.contactName}
+                          </div>
+                          <div className="text-sm text-gray-500">{contact.contactInfo}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Badge className={getStatusColor(contact.status)}>
+                          {contact.status.replace('_', ' ')}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {contact.assignedTo}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {contact.lastContact}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                        {contact.notes}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -220,7 +181,10 @@ export const FollowUpManagement: React.FC = () => {
       <AddFollowUpDialog
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
-        onSuccess={handleAddContact}
+        onSuccess={() => {
+          reload();
+          setIsAddDialogOpen(false);
+        }}
       />
     </div>
   );

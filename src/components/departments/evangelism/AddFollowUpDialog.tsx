@@ -86,55 +86,57 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Add Follow-up Contact</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Contact Name *</Label>
-            <Input
-              placeholder="e.g., John Anderson"
-              value={formData.contactName}
-              onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-            />
-          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Contact Name *</Label>
+              <Input
+                placeholder="e.g., John Anderson"
+                value={formData.contactName}
+                onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label>Contact Info *</Label>
-            <Input
-              placeholder="Phone or Email"
-              value={formData.contactInfo}
-              onChange={(e) => setFormData({ ...formData, contactInfo: e.target.value })}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label>Contact Info *</Label>
+              <Input
+                placeholder="Phone or Email"
+                value={formData.contactInfo}
+                onChange={(e) => setFormData({ ...formData, contactInfo: e.target.value })}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(v: any) => setFormData({ ...formData, status: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="interested">Interested</SelectItem>
-                <SelectItem value="converted">Converted</SelectItem>
-                <SelectItem value="not-interested">Not Interested</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(v: any) => setFormData({ ...formData, status: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="contacted">Contacted</SelectItem>
+                  <SelectItem value="interested">Interested</SelectItem>
+                  <SelectItem value="converted">Converted</SelectItem>
+                  <SelectItem value="not-interested">Not Interested</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label>Assign To</Label>
-            <Input
-              placeholder="Team member name"
-              value={formData.assignedTo}
-              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-            />
+            <div className="space-y-2">
+              <Label>Assign To</Label>
+              <Input
+                placeholder="Team member name"
+                value={formData.assignedTo}
+                onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
