@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, GraduationCap, BookOpen, FileText, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { usePrograms } from './hooks/usePrograms';
 import { useCohorts } from './hooks/useCohorts';
 import { useStudents } from './hooks/useStudents';
@@ -163,8 +164,7 @@ export const BibleSchoolPage: React.FC = () => {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="programs">Programs</TabsTrigger>
-                    <TabsTrigger value="cohorts">Cohorts</TabsTrigger>
+                    <TabsTrigger value="training">Training</TabsTrigger>
                     <TabsTrigger value="students">Students</TabsTrigger>
                     <TabsTrigger value="applications">Applications</TabsTrigger>
                 </TabsList>
@@ -192,59 +192,64 @@ export const BibleSchoolPage: React.FC = () => {
                     </div>
                 </TabsContent>
 
-                {/* Programs Tab */}
-                <TabsContent value="programs" className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {programs.map((program) => (
-                            <ProgramCard key={program.id} program={program} />
-                        ))}
-                    </div>
-                </TabsContent>
+                {/* Training Tab (Merged Programs & Cohorts) */}
+                <TabsContent value="training" className="space-y-8">
+                    {programs.map((program) => {
+                        const programCohorts = cohorts.filter(c => c.program_id === program.id);
 
-                {/* Cohorts Tab */}
-                <TabsContent value="cohorts" className="space-y-4">
-                    <div className="flex justify-between items-center mb-4">
-                        <div>
-                            {access.isBranchAdmin && !access.isFullAdmin && (
-                                <p className="text-sm text-muted-foreground">
-                                    Showing cohorts for your branch. You can manage Foundation cohorts only.
-                                </p>
-                            )}
-                        </div>
-                        {/* Only show Create if full admin OR branch admin (Foundation only) */}
-                        {(access.isFullAdmin || access.isBranchAdmin) && (
-                            <Button onClick={() => setIsCreateCohortOpen(true)}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                {access.isBranchAdmin && !access.isFullAdmin ? 'Create Foundation Cohort' : 'Create Cohort'}
-                            </Button>
-                        )}
-                    </div>
-                    {cohorts.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500 border rounded-lg bg-gray-50">
-                            <p className="mb-2">No cohorts found.</p>
-                            {(access.isFullAdmin || access.isBranchAdmin) && (
-                                <Button variant="outline" onClick={() => setIsCreateCohortOpen(true)}>
-                                    Create Your First Cohort
-                                </Button>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {cohorts.map((cohort) => (
-                                <CohortCard
-                                    key={cohort.id}
-                                    cohort={cohort}
-                                    programName={getProgramName(cohort.program_id)}
-                                    branchName={getBranchName(cohort.branch_id)}
-                                    onClick={(c) => setSelectedCohortId(c.id)}
-                                    onActivate={(c) => updateCohortStatus(c as any, 'active')}
-                                    onComplete={(c) => updateCohortStatus(c as any, 'completed')}
-                                    onCancel={(c) => updateCohortStatus(c as any, 'cancelled')}
-                                    showActions={access.isFullAdmin || access.isBranchAdmin}
-                                />
-                            ))}
-                        </div>
-                    )}
+                        return (
+                            <div key={program.id} className="space-y-4">
+                                <div className="flex items-center justify-between border-b pb-2">
+                                    <div>
+                                        <h2 className="text-2xl font-bold flex items-center gap-2">
+                                            {program.name}
+                                            <Badge variant={program.is_centralized ? "secondary" : "outline"}>
+                                                {program.is_centralized ? "Central" : "Branch"}
+                                            </Badge>
+                                        </h2>
+                                        <p className="text-muted-foreground text-sm mt-1">
+                                            {program.description} • Level {program.level_order}
+                                        </p>
+                                    </div>
+                                    {(access.isFullAdmin || access.canCreateCohort(program.level_order)) && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                // Pre-select program? Dialog doesn't support it yet but we could add it
+                                                setIsCreateCohortOpen(true);
+                                            }}
+                                        >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            New Cohort
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {programCohorts.length > 0 ? (
+                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                        {programCohorts.map((cohort) => (
+                                            <CohortCard
+                                                key={cohort.id}
+                                                cohort={cohort}
+                                                programName={program.name}
+                                                branchName={getBranchName(cohort.branch_id)}
+                                                onClick={(c) => setSelectedCohortId(c.id)}
+                                                onActivate={(c) => updateCohortStatus(c as any, 'active')}
+                                                onComplete={(c) => updateCohortStatus(c as any, 'completed')}
+                                                onCancel={(c) => updateCohortStatus(c as any, 'cancelled')}
+                                                showActions={access.isFullAdmin || access.canEditCohort(cohort.branch_id, program.level_order)}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 bg-muted/30 rounded-lg border border-dashed">
+                                        <p className="text-muted-foreground text-sm">No active cohorts for this program.</p>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </TabsContent>
 
                 {/* Students Tab */}
@@ -259,7 +264,7 @@ export const BibleSchoolPage: React.FC = () => {
                         getMemberName={getMemberName}
                         getProgramName={getProgramName}
                         getBranchName={getBranchName}
-                        onEnroll={(app) => {
+                        onView={(app) => {
                             setSelectedApplication(app);
                             setIsEnrollOpen(true);
                         }}
