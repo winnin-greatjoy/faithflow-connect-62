@@ -37,7 +37,7 @@ export const CreateCohortDialog: React.FC<CreateCohortDialogProps> = ({
     const { toast } = useToast();
     const { branches } = useBranches();
     const [loading, setLoading] = useState(false);
-    const [formData, set FormData] = useState({
+    const [formData, setFormData] = useState({
         programId: '',
         branchId: '',
         cohortName: '',

@@ -3,13 +3,23 @@ import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, Edit, Users } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Eye, Edit, Users, MoreHorizontal, Play, CheckCircle, XCircle } from 'lucide-react';
 import type { BibleCohort } from '../types';
 
 interface CohortTableProps {
     cohorts: BibleCohort[];
     onView?: (cohort: BibleCohort) => void;
     onEdit?: (cohort: BibleCohort) => void;
+    onActivate?: (cohort: BibleCohort) => void;
+    onComplete?: (cohort: BibleCohort) => void;
+    onCancel?: (cohort: BibleCohort) => void;
     getBranchName?: (branchId: string | null) => string;
     getProgramName?: (programId: string) => string;
 }
@@ -18,6 +28,9 @@ export const CohortTable: React.FC<CohortTableProps> = ({
     cohorts,
     onView,
     onEdit,
+    onActivate,
+    onComplete,
+    onCancel,
     getBranchName = () => 'N/A',
     getProgramName = () => 'Unknown',
 }) => {
@@ -71,7 +84,7 @@ export const CohortTable: React.FC<CohortTableProps> = ({
                             </TableCell>
                             <TableCell>{getStatusBadge(cohort.status)}</TableCell>
                             <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-1">
                                     {onView && (
                                         <Button
                                             variant="ghost"
@@ -92,6 +105,39 @@ export const CohortTable: React.FC<CohortTableProps> = ({
                                             <Edit className="h-4 w-4" />
                                         </Button>
                                     )}
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            {cohort.status === 'planned' && onActivate && (
+                                                <DropdownMenuItem onClick={() => onActivate(cohort)}>
+                                                    <Play className="mr-2 h-4 w-4" />
+                                                    Activate Cohort
+                                                </DropdownMenuItem>
+                                            )}
+                                            {cohort.status === 'active' && onComplete && (
+                                                <DropdownMenuItem onClick={() => onComplete(cohort)}>
+                                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                                    Mark Complete
+                                                </DropdownMenuItem>
+                                            )}
+                                            {(cohort.status === 'planned' || cohort.status === 'active') && onCancel && (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        onClick={() => onCancel(cohort)}
+                                                        className="text-red-600"
+                                                    >
+                                                        <XCircle className="mr-2 h-4 w-4" />
+                                                        Cancel Cohort
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </TableCell>
                         </TableRow>

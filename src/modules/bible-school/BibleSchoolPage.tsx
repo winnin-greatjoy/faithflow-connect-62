@@ -22,13 +22,17 @@ import {
     PromoteDialog,
     GraduateDialog,
 } from './components/dialogs';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import type { BibleCohort } from './types';
 
 export const BibleSchoolPage: React.FC = () => {
+    const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('overview');
 
     // Fetch data
     const { programs, reload: reloadPrograms } = usePrograms();
-    const { cohorts, reload: reloadCohorts } = useCohorts({ status: 'active' });
+    const { cohorts, reload: reloadCohorts } = useCohorts();
     const { students, reload: reloadStudents } = useStudents({ status: 'enrolled' });
     const { applications, reload: reloadApplications } = useApplications({ status: 'pending' });
 
@@ -37,6 +41,31 @@ export const BibleSchoolPage: React.FC = () => {
     const [isCreateCohortOpen, setIsCreateCohortOpen] = useState(false);
     const [isEnrollOpen, setIsEnrollOpen] = useState(false);
     const [selectedApplication, setSelectedApplication] = useState<any>(null);
+
+    // Cohort status update handler
+    const updateCohortStatus = async (cohort: BibleCohort, newStatus: string) => {
+        try {
+            const { error } = await supabase
+                .from('bible_cohorts')
+                .update({ status: newStatus, updated_at: new Date().toISOString() })
+                .eq('id', cohort.id);
+
+            if (error) throw error;
+
+            toast({
+                title: 'Cohort Updated',
+                description: `${cohort.cohort_name} status changed to ${newStatus}`,
+            });
+
+            reloadCohorts();
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message || 'Failed to update cohort status',
+                variant: 'destructive',
+            });
+        }
+    };
 
     // Helper functions
     const getProgramName = (programId: string) => {
@@ -52,7 +81,6 @@ export const BibleSchoolPage: React.FC = () => {
         return 'Member'; // TODO: Implement actual member lookup
     };
 
-    // Stats
     const stats = {
         totalStudents: students.length,
         activeStudents: students.filter(s => s.status === 'enrolled').length,
@@ -152,6 +180,17 @@ export const BibleSchoolPage: React.FC = () => {
                         cohorts={cohorts}
                         getProgramName={getProgramName}
                         getBranchName={getBranchName}
+                        onView={(cohort) => {
+                            // TODO: Implement cohort detail view
+                            console.log('View cohort:', cohort);
+                        }}
+                        onEdit={(cohort) => {
+                            // TODO: Implement cohort edit dialog
+                            console.log('Edit cohort:', cohort);
+                        }}
+                        onActivate={(cohort) => updateCohortStatus(cohort, 'active')}
+                        onComplete={(cohort) => updateCohortStatus(cohort, 'completed')}
+                        onCancel={(cohort) => updateCohortStatus(cohort, 'cancelled')}
                     />
                 </TabsContent>
 
