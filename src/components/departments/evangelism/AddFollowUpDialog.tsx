@@ -12,22 +12,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useMembers } from '@/modules/members/hooks/useMembers';
+import { useDepartmentMembers } from '@/hooks/useDepartmentMembers';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AddFollowUpDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  departmentId?: string;
   onSuccess?: (contact: any) => void;
 }
 
 export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
   isOpen,
   onClose,
+  departmentId,
   onSuccess,
 }) => {
   const { toast } = useToast();
-  const { members } = useMembers();
+  const { members } = useDepartmentMembers(departmentId);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     contactName: '',
@@ -63,15 +65,21 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
 
       // Send notification to assigned member if selected
       if (formData.assignedToMemberId) {
-        const { data: { user } } = await supabase.auth.getUser();
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
 
-        await supabase.from('notifications').insert({
-          user_id: formData.assignedToMemberId,
-          title: 'Follow-up Assignment',
-          message: `You have been assigned to follow up with ${formData.contactName} (${formData.contactInfo})`,
-          type: 'assignment',
-          created_by: user?.id,
-        });
+          // Using notification_logs table
+          await supabase.from('notification_logs').insert({
+            user_id: formData.assignedToMemberId,
+            notification_type: 'assignment',
+            title: 'Follow-up Assignment',
+            message: `You have been assigned to follow up with ${formData.contactName} (${formData.contactInfo})`,
+            status: 'pending',
+          });
+        } catch (notifError) {
+          console.error('Failed to send notification:', notifError);
+          // Don't fail the whole operation if notification fails
+        }
       }
 
       toast({

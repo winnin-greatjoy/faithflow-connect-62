@@ -851,7 +851,14 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
         departmentId={departmentId}
       />
 
-      <AddFollowUpDialog isOpen={isAddFollowUpOpen} onClose={() => setIsAddFollowUpOpen(false)} />
+      <AddFollowUpDialog
+        isOpen={isAddFollowUpOpen}
+        onClose={() => setIsAddFollowUpOpen(false)}
+        departmentId={departmentId}
+        onSuccess={() => {
+          toast({ title: 'Success', description: 'Follow-up contact added successfully' });
+        }}
+      />
 
       <PlanOutreachDialog
         open={isPlanOutreachOpen}
