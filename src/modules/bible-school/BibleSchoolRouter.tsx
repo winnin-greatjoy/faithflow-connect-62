@@ -8,8 +8,8 @@ import { CohortDetailPage } from './CohortDetailPage';
 export const BibleSchoolRouter: React.FC = () => {
     return (
         <Routes>
-            <Route path="/" element={<BibleSchoolPage />} />
-            <Route path="/cohorts/:cohortId" element={<CohortDetailPage />} />
+            <Route index element={<BibleSchoolPage />} />
+            <Route path="cohorts/:cohortId" element={<CohortDetailPage />} />
         </Routes>
     );
 };

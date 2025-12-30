@@ -15,7 +15,7 @@ import { EventsModule } from '@/components/admin/EventsModule';
 import { SuperAdminFinanceDashboard } from '@/components/admin/superadmin/SuperAdminFinanceDashboard';
 import { SuperAdminCMSDashboard } from '@/components/admin/superadmin/SuperAdminCMSDashboard';
 import { SuperAdminStreamingDashboard } from '@/components/admin/superadmin/SuperAdminStreamingDashboard';
-import { BibleSchoolRouter } from '@/modules/bible-school';
+import { BibleSchoolPage } from '@/modules/bible-school';
 import { AdminProvider } from '@/context/AdminContext';
 import { Loader2 } from 'lucide-react';
 
@@ -77,7 +77,7 @@ const SuperadminDashboard: React.FC = () => {
       case 'users':
         return <UsersRolesModule />;
       case 'bible-school':
-        return <BibleSchoolRouter />;
+        return <BibleSchoolPage />;
       case 'finance':
         return <SuperAdminFinanceDashboard />;
       case 'cms':
