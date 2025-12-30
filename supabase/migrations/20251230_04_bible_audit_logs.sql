@@ -24,13 +24,13 @@ CREATE POLICY "Authenticated users can insert bible audit logs"
     ON public.bible_audit_logs FOR INSERT 
     WITH CHECK (auth.role() = 'authenticated');
 
--- Viewable by admins
+-- Viewable by admins (super_admin and admin roles)
 CREATE POLICY "Admins can view bible audit logs" 
     ON public.bible_audit_logs FOR SELECT 
     USING (
         EXISTS (
             SELECT 1 FROM public.user_roles 
             WHERE user_roles.user_id = auth.uid() 
-            AND user_roles.role IN ('super_admin', 'district_admin', 'branch_admin')
+            AND user_roles.role IN ('super_admin', 'admin', 'pastor')
         )
     );
