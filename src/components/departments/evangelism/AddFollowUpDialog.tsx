@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useMembers } from '@/modules/members/hooks/useMembers';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AddFollowUpDialogProps {
   isOpen: boolean;
@@ -25,12 +27,14 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
   onSuccess,
 }) => {
   const { toast } = useToast();
+  const { members } = useMembers();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     contactName: '',
     contactInfo: '',
     status: 'new' as 'new' | 'contacted' | 'interested' | 'converted' | 'not-interested',
     assignedTo: '',
+    assignedToMemberId: '',
     notes: '',
   });
 
@@ -57,9 +61,22 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
         notes: formData.notes,
       };
 
+      // Send notification to assigned member if selected
+      if (formData.assignedToMemberId) {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        await supabase.from('notifications').insert({
+          user_id: formData.assignedToMemberId,
+          title: 'Follow-up Assignment',
+          message: `You have been assigned to follow up with ${formData.contactName} (${formData.contactInfo})`,
+          type: 'assignment',
+          created_by: user?.id,
+        });
+      }
+
       toast({
         title: 'Contact Added',
-        description: `${formData.contactName} added to follow-up list`,
+        description: `${formData.contactName} added to follow-up list${formData.assignedTo ? ` and assigned to ${formData.assignedTo}` : ''}`,
       });
 
       // Reset form
@@ -68,6 +85,7 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
         contactInfo: '',
         status: 'new',
         assignedTo: '',
+        assignedToMemberId: '',
         notes: '',
       });
 
@@ -131,11 +149,28 @@ export const AddFollowUpDialog: React.FC<AddFollowUpDialogProps> = ({
 
             <div className="space-y-2">
               <Label>Assign To</Label>
-              <Input
-                placeholder="Team member name"
-                value={formData.assignedTo}
-                onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-              />
+              <Select
+                value={formData.assignedToMemberId}
+                onValueChange={(v) => {
+                  const selectedMember = members.find(m => m.id === v);
+                  setFormData({
+                    ...formData,
+                    assignedToMemberId: v,
+                    assignedTo: selectedMember?.fullName || ''
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
