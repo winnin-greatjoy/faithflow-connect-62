@@ -73,6 +73,7 @@ const primaryTabs: MenuItem[] = [
 
 // Secondary items shown in the more menu
 const secondaryItems: MenuItem[] = [
+  { id: 'bible-school', label: 'Bible School', icon: GraduationCap },
   { id: 'communication', label: 'Communication', icon: MessageCircle },
   { id: 'finance', label: 'Finance', icon: CreditCard },
   { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
