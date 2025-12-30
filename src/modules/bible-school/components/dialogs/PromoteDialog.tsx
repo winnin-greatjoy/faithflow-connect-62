@@ -51,7 +51,7 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
     const [checking, setChecking] = useState(false);
     const [eligibility, setEligibility] = useState<EligibilityCheck | null>(null);
     const [formData, setFormData] = useState({
-        toProgram Id: '',
+        toProgramId: '',
         effectiveDate: new Date().toISOString().split('T')[0],
         remarks: '',
     });

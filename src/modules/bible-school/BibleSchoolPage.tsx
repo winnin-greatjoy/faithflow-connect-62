@@ -1,8 +1,9 @@
 // src/modules/bible-school/BibleSchoolPage.tsx
 // Main orchestrator page for Bible School module
 import React, { useState } from 'react';
-import { Users, GraduationCap, BookOpen, FileText } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, FileText, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { usePrograms } from './hooks/usePrograms';
 import { useCohorts } from './hooks/useCohorts';
 import { useStudents } from './hooks/useStudents';
@@ -12,15 +13,30 @@ import { CohortTable } from './components/CohortTable';
 import { StudentTable } from './components/StudentTable';
 import { ApplicationTable } from './components/ApplicationTable';
 import { StatsCard } from './components/StatsCard';
+import {
+    ApplyDialog,
+    CreateCohortDialog,
+    EnrollStudentDialog,
+    RecordAttendanceDialog,
+    GradeExamDialog,
+    PromoteDialog,
+    GraduateDialog,
+} from './components/dialogs';
 
 export const BibleSchoolPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('overview');
 
     // Fetch data
-    const { programs } = usePrograms();
-    const { cohorts } = useCohorts({ status: 'active' });
-    const { students } = useStudents({ status: 'enrolled' });
-    const { applications } = useApplications({ status: 'pending' });
+    const { programs, reload: reloadPrograms } = usePrograms();
+    const { cohorts, reload: reloadCohorts } = useCohorts({ status: 'active' });
+    const { students, reload: reloadStudents } = useStudents({ status: 'enrolled' });
+    const { applications, reload: reloadApplications } = useApplications({ status: 'pending' });
+
+    // Dialog states
+    const [isApplyOpen, setIsApplyOpen] = useState(false);
+    const [isCreateCohortOpen, setIsCreateCohortOpen] = useState(false);
+    const [isEnrollOpen, setIsEnrollOpen] = useState(false);
+    const [selectedApplication, setSelectedApplication] = useState<any>(null);
 
     // Helper functions
     const getProgramName = (programId: string) => {
@@ -126,6 +142,12 @@ export const BibleSchoolPage: React.FC = () => {
 
                 {/* Cohorts Tab */}
                 <TabsContent value="cohorts" className="space-y-4">
+                    <div className="flex justify-end mb-4">
+                        <Button onClick={() => setIsCreateCohortOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Cohort
+                        </Button>
+                    </div>
                     <CohortTable
                         cohorts={cohorts}
                         getProgramName={getProgramName}
@@ -145,9 +167,50 @@ export const BibleSchoolPage: React.FC = () => {
                         getMemberName={getMemberName}
                         getProgramName={getProgramName}
                         getBranchName={getBranchName}
+                        onEnroll={(app) => {
+                            setSelectedApplication(app);
+                            setIsEnrollOpen(true);
+                        }}
                     />
                 </TabsContent>
             </Tabs>
+
+            {/* Dialogs */}
+            <ApplyDialog
+                isOpen={isApplyOpen}
+                onClose={() => setIsApplyOpen(false)}
+                programs={programs}
+                onSuccess={() => {
+                    reloadApplications();
+                    setIsApplyOpen(false);
+                }}
+            />
+
+            <CreateCohortDialog
+                isOpen={isCreateCohortOpen}
+                onClose={() => setIsCreateCohortOpen(false)}
+                programs={programs}
+                onSuccess={() => {
+                    reloadCohorts();
+                    setIsCreateCohortOpen(false);
+                }}
+            />
+
+            <EnrollStudentDialog
+                isOpen={isEnrollOpen}
+                onClose={() => {
+                    setIsEnrollOpen(false);
+                    setSelectedApplication(null);
+                }}
+                application={selectedApplication}
+                cohorts={cohorts}
+                onSuccess={() => {
+                    reloadStudents();
+                    reloadApplications();
+                    setIsEnrollOpen(false);
+                    setSelectedApplication(null);
+                }}
+            />
         </div>
     );
 };
