@@ -45,6 +45,8 @@ import { PlanOutreachDialog } from './evangelism/PlanOutreachDialog';
 import { FirstTimerTable } from './FirstTimerTable';
 import { FirstTimerFormDialog } from './FirstTimerFormDialog';
 import { useFirstTimers } from '@/modules/members/hooks/useFirstTimers';
+import { useDepartmentMembers } from '@/hooks/useDepartmentMembers';
+import { useBranches } from '@/hooks/useBranches';
 
 interface EvangelismMember {
   id: number;
@@ -285,17 +287,28 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
   // Fetch first-timers
   const { firstTimers, loading: firstTimersLoading, reload: reloadFirstTimers } = useFirstTimers();
 
+  // Fetch department members
+  const { members: departmentMembers, loading: membersLoading } = useDepartmentMembers(departmentId);
+  const { branches } = useBranches();
+
   // Filter members
   const filteredMembers = useMemo(() => {
-    return mockEvangelismMembers.filter((member) => {
+    return departmentMembers.filter((member) => {
       const matchesSearch =
         member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         member.email?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesArea = areaFilter === 'all' || member.outreachArea === areaFilter;
-      const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
-      return matchesSearch && matchesArea && matchesStatus;
+      return matchesSearch;
     });
-  }, [searchTerm, areaFilter, statusFilter]);
+  }, [departmentMembers, searchTerm]);
+
+  // Filter first-timers for follow-up (those who need follow-up)
+  const followUpContacts = useMemo(() => {
+    return firstTimers.filter(ft =>
+      ft.followUpStatus !== 'completed' ||
+      ft.status === 'contacted' ||
+      ft.status === 'followed_up'
+    );
+  }, [firstTimers]);
 
   // Quick actions
   const quickActions = [
@@ -706,43 +719,57 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredMembers.map((member) => (
-                      <tr key={member.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                            <div className="text-sm text-gray-500">{member.phone}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant="outline">{member.outreachArea}</Badge>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {member.role}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {member.eventsLed}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {member.conversions}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant={member.status === 'active' ? 'default' : 'secondary'}>
-                            {member.status}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end space-x-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    {membersLoading ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                          Loading members...
                         </td>
                       </tr>
-                    ))}
+                    ) : filteredMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                          No members found
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredMembers.map((member) => (
+                        <tr key={member.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                              <div className="text-sm text-gray-500">{member.phone || member.email || '-'}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge variant="outline">-</Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {member.role}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            -
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            -
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge variant={'default'}>
+                              {member.status}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              <Button variant="ghost" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}}
                   </tbody>
                 </table>
               </div>
