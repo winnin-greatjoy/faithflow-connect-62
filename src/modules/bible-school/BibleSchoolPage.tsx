@@ -11,6 +11,7 @@ import { useStudents } from './hooks/useStudents';
 import { useApplications } from './hooks/useApplications';
 import { ProgramCard } from './components/ProgramCard';
 import { CohortCard } from './components/CohortCard';
+import { CohortDetailPage } from './CohortDetailPage';
 import { StudentTable } from './components/StudentTable';
 import { ApplicationTable } from './components/ApplicationTable';
 import { StatsCard } from './components/StatsCard';
@@ -40,16 +41,27 @@ export const BibleSchoolPage: React.FC = () => {
     const { students, reload: reloadStudents } = useStudents({ status: 'enrolled' });
     const { applications, reload: reloadApplications } = useApplications({ status: 'pending' });
 
-    // Filter cohorts by branch for branch admins
-    const cohorts = access.isBranchAdmin && !access.isFullAdmin
+    // Filter cohorts by branch for branch admins (only if branch is known)
+    // TODO: Get actual user's assigned branch instead of selectedBranchId
+    const cohorts = (access.isBranchAdmin && !access.isFullAdmin && access.userBranchId)
         ? allCohorts.filter(c => c.branch_id === access.userBranchId)
         : allCohorts;
+
+    // Debug logging
+    console.log('Bible School Access:', {
+        isBranchAdmin: access.isBranchAdmin,
+        isFullAdmin: access.isFullAdmin,
+        userBranchId: access.userBranchId,
+        allCohortsCount: allCohorts.length,
+        filteredCohortsCount: cohorts.length,
+    });
 
     // Dialog states
     const [isApplyOpen, setIsApplyOpen] = useState(false);
     const [isCreateCohortOpen, setIsCreateCohortOpen] = useState(false);
     const [isEnrollOpen, setIsEnrollOpen] = useState(false);
     const [selectedApplication, setSelectedApplication] = useState<any>(null);
+    const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
 
     // Cohort status update handler
     const updateCohortStatus = async (cohort: BibleCohort, newStatus: string) => {
@@ -96,6 +108,22 @@ export const BibleSchoolPage: React.FC = () => {
         activeCohorts: cohorts.length,
         pendingApplications: applications.length,
     };
+
+    // If a cohort is selected, show its detail page
+    if (selectedCohortId) {
+        return (
+            <div className="space-y-4 p-6">
+                <Button
+                    variant="ghost"
+                    onClick={() => setSelectedCohortId(null)}
+                    className="mb-4"
+                >
+                    ← Back to Bible School
+                </Button>
+                <CohortDetailPage cohortId={selectedCohortId} />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 p-6">
@@ -212,6 +240,7 @@ export const BibleSchoolPage: React.FC = () => {
                                     cohort={cohort}
                                     programName={getProgramName(cohort.program_id)}
                                     branchName={getBranchName(cohort.branch_id)}
+                                    onClick={(c) => setSelectedCohortId(c.id)}
                                     onActivate={(c) => updateCohortStatus(c as any, 'active')}
                                     onComplete={(c) => updateCohortStatus(c as any, 'completed')}
                                     onCancel={(c) => updateCohortStatus(c as any, 'cancelled')}

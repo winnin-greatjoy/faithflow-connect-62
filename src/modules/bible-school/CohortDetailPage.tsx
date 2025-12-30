@@ -1,7 +1,7 @@
 // src/modules/bible-school/CohortDetailPage.tsx
 // Dedicated page for managing a single cohort
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { ArrowLeft, Users, ClipboardCheck, GraduationCap, BarChart3 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -14,9 +14,13 @@ import type { BibleCohort } from './types';
 // Tab components
 import { CohortStudentList, AttendanceGrid, CohortExamList, CohortProgress } from './components/cohort-detail';
 
-export const CohortDetailPage: React.FC = () => {
-    const { cohortId } = useParams<{ cohortId: string }>();
-    const navigate = useNavigate();
+interface CohortDetailPageProps {
+    cohortId?: string;
+}
+
+export const CohortDetailPage: React.FC<CohortDetailPageProps> = ({ cohortId: propCohortId }) => {
+    const params = useParams<{ cohortId: string }>();
+    const cohortId = propCohortId || params.cohortId;
     const { toast } = useToast();
     const [cohort, setCohort] = useState<any>(null);
     const [program, setProgram] = useState<{ name: string; level_order: number } | null>(null);

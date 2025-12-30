@@ -1,7 +1,6 @@
 // src/modules/bible-school/components/CohortCard.tsx
 // Clickable card for cohort display (replaces CohortTable)
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +28,7 @@ interface CohortCardProps {
     cohort: Cohort;
     programName: string;
     branchName: string;
+    onClick?: (cohort: Cohort) => void;
     onActivate?: (cohort: Cohort) => void;
     onComplete?: (cohort: Cohort) => void;
     onCancel?: (cohort: Cohort) => void;
@@ -39,12 +39,17 @@ export const CohortCard: React.FC<CohortCardProps> = ({
     cohort,
     programName,
     branchName,
+    onClick,
     onActivate,
     onComplete,
     onCancel,
     showActions = true,
 }) => {
-    const navigate = useNavigate();
+    const handleClick = () => {
+        if (onClick) {
+            onClick(cohort);
+        }
+    };
 
     const getStatusBadge = (status: string) => {
         const variants: Record<string, string> = {
@@ -58,11 +63,6 @@ export const CohortCard: React.FC<CohortCardProps> = ({
                 {status.charAt(0).toUpperCase() + status.slice(1)}
             </Badge>
         );
-    };
-
-    const handleClick = () => {
-        // Navigate to cohort detail - we'll use state-based approach
-        navigate(`/admin/bible-school`, { state: { viewCohort: cohort.id } });
     };
 
     const formatDate = (dateStr: string) => {
