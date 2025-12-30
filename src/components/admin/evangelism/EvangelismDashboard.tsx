@@ -54,7 +54,6 @@ export const EvangelismDashboard = () => {
 
     return (
         <div className="space-y-6 p-6">
-            {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Evangelism Department</h1>
                 <p className="text-muted-foreground">
@@ -62,7 +61,6 @@ export const EvangelismDashboard = () => {
                 </p>
             </div>
 
-            {/* Stats */}
             <div className="grid gap-4 md:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -98,7 +96,6 @@ export const EvangelismDashboard = () => {
                 </Card>
             </div>
 
-            {/* Tabs */}
             <Tabs defaultValue="first-timers">
                 <TabsList>
                     <TabsTrigger value="first-timers">First-Timers</TabsTrigger>
@@ -131,10 +128,10 @@ export const EvangelismDashboard = () => {
                                     selectedIds={selectedFirstTimerIds}
                                     onSelectionChange={setSelectedFirstTimerIds}
                                     onEdit={handleEditFirstTimer}
-                                    onDelete={handleDelete FirstTimer}
-                            getBranchName={getBranchName}
-                />
-              )}
+                                    onDelete={handleDeleteFirstTimer}
+                                    getBranchName={getBranchName}
+                                />
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -168,7 +165,6 @@ export const EvangelismDashboard = () => {
                 </TabsContent>
             </Tabs>
 
-            {/* Form Dialog */}
             <FirstTimerFormDialog
                 open={showFirstTimerForm}
                 onOpenChange={setShowFirstTimerForm}

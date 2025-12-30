@@ -12,7 +12,7 @@ interface FirstTimerTableProps {
     firstTimers: FirstTimer[];
     selectedIds: string[];
     onSelectionChange: (ids: string[]) => void;
-    onEdit: (first Timer: FirstTimer) => void;
+    onEdit: (firstTimer: FirstTimer) => void;
     onDelete: (id: string) => void;
     getBranchName: (branchId: string) => string;
 }

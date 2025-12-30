@@ -367,6 +367,11 @@ export const DepartmentsModule = () => {
 
   // ✅ Department click handler
   const handleDepartmentClick = (dept: Department & { slug: string }) => {
+    // Special routing for Evangelism department
+    if (dept.slug.toLowerCase().includes('evangelism') || dept.name.toLowerCase().includes('evangelism')) {
+      navigate('/admin/evangelism');
+      return;
+    }
     navigate(`/departments/${dept.slug}`);
   };
 

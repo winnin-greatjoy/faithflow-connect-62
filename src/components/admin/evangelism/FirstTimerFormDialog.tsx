@@ -1,5 +1,4 @@
 // src/components/admin/evangelism/FirstTimerFormDialog.tsx
-// Moved from src/modules/members/components/dialogs/FirstTimerFormDialog.tsx
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FirstTimerForm } from '@/components/admin/FirstTimerForm';
@@ -18,6 +17,11 @@ export const FirstTimerFormDialog: React.FC<FirstTimerFormDialogProps> = ({
     firstTimer,
     onSubmit,
 }) => {
+    const handleSubmit = () => {
+        onSubmit();
+        onOpenChange(false);
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl max-h-[90vh]">
@@ -28,10 +32,7 @@ export const FirstTimerFormDialog: React.FC<FirstTimerFormDialogProps> = ({
                 </DialogHeader>
                 <FirstTimerForm
                     firstTimer={firstTimer}
-                    onSuccess={() => {
-                        onSubmit();
-                        onOpenChange(false);
-                    }}
+                    onSubmit={handleSubmit}
                     onCancel={() => onOpenChange(false)}
                 />
             </DialogContent>
