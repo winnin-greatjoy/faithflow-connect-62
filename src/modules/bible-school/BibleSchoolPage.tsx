@@ -10,7 +10,7 @@ import { useCohorts } from './hooks/useCohorts';
 import { useStudents } from './hooks/useStudents';
 import { useApplications } from './hooks/useApplications';
 import { ProgramCard } from './components/ProgramCard';
-import { CohortTable } from './components/CohortTable';
+import { CohortCard } from './components/CohortCard';
 import { StudentTable } from './components/StudentTable';
 import { ApplicationTable } from './components/ApplicationTable';
 import { StatsCard } from './components/StatsCard';
@@ -195,21 +195,31 @@ export const BibleSchoolPage: React.FC = () => {
                             </Button>
                         )}
                     </div>
-                    <CohortTable
-                        cohorts={cohorts}
-                        getProgramName={getProgramName}
-                        getBranchName={getBranchName}
-                        onView={(cohort) => {
-                            navigate(`/admin/bible-school/cohorts/${cohort.id}`);
-                        }}
-                        onEdit={(cohort) => {
-                            // TODO: Implement cohort edit dialog
-                            console.log('Edit cohort:', cohort);
-                        }}
-                        onActivate={(cohort) => updateCohortStatus(cohort, 'active')}
-                        onComplete={(cohort) => updateCohortStatus(cohort, 'completed')}
-                        onCancel={(cohort) => updateCohortStatus(cohort, 'cancelled')}
-                    />
+                    {cohorts.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500 border rounded-lg bg-gray-50">
+                            <p className="mb-2">No cohorts found.</p>
+                            {(access.isFullAdmin || access.isBranchAdmin) && (
+                                <Button variant="outline" onClick={() => setIsCreateCohortOpen(true)}>
+                                    Create Your First Cohort
+                                </Button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {cohorts.map((cohort) => (
+                                <CohortCard
+                                    key={cohort.id}
+                                    cohort={cohort}
+                                    programName={getProgramName(cohort.program_id)}
+                                    branchName={getBranchName(cohort.branch_id)}
+                                    onActivate={(c) => updateCohortStatus(c as any, 'active')}
+                                    onComplete={(c) => updateCohortStatus(c as any, 'completed')}
+                                    onCancel={(c) => updateCohortStatus(c as any, 'cancelled')}
+                                    showActions={access.isFullAdmin || access.isBranchAdmin}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </TabsContent>
 
                 {/* Students Tab */}

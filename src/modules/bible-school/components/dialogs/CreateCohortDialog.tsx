@@ -169,21 +169,31 @@ export const CreateCohortDialog: React.FC<CreateCohortDialogProps> = ({
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="branch">Branch *</Label>
-                            <Select value={formData.branchId} onValueChange={(v) => setFormData({ ...formData, branchId: v })}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select branch" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableBranches.map((branch) => (
-                                        <SelectItem key={branch.id} value={branch.id}>
-                                            {branch.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        {/* Branch selector - hidden for branch admins */}
+                        {!isBranchAdminOnly ? (
+                            <div className="space-y-2">
+                                <Label htmlFor="branch">Branch *</Label>
+                                <Select value={formData.branchId} onValueChange={(v) => setFormData({ ...formData, branchId: v })}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select branch" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableBranches.map((branch) => (
+                                            <SelectItem key={branch.id} value={branch.id}>
+                                                {branch.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Label>Branch</Label>
+                                <div className="p-2 bg-muted rounded-md text-sm">
+                                    {availableBranches[0]?.name || 'Your Branch'}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="col-span-2 space-y-2">
                             <Label htmlFor="cohortName">Cohort Name</Label>
