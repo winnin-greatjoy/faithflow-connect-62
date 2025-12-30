@@ -16,9 +16,10 @@ import { CohortStudentList, AttendanceGrid, CohortExamList, CohortProgress } fro
 
 interface CohortDetailPageProps {
     cohortId?: string;
+    onBack?: () => void;
 }
 
-export const CohortDetailPage: React.FC<CohortDetailPageProps> = ({ cohortId: propCohortId }) => {
+export const CohortDetailPage: React.FC<CohortDetailPageProps> = ({ cohortId: propCohortId, onBack }) => {
     const params = useParams<{ cohortId: string }>();
     const cohortId = propCohortId || params.cohortId;
     const { toast } = useToast();
@@ -57,7 +58,8 @@ export const CohortDetailPage: React.FC<CohortDetailPageProps> = ({ cohortId: pr
                 description: error.message || 'Failed to load cohort',
                 variant: 'destructive',
             });
-            navigate('/admin/bible-school');
+            // Let parent handle navigation back on error
+            if (onBack) onBack();
         } finally {
             setLoading(false);
         }
@@ -89,20 +91,24 @@ export const CohortDetailPage: React.FC<CohortDetailPageProps> = ({ cohortId: pr
         return (
             <div className="text-center py-12">
                 <p className="text-gray-500">Cohort not found</p>
-                <Button variant="link" onClick={() => navigate(-1)}>
-                    Go Back
-                </Button>
+                {onBack && (
+                    <Button variant="link" onClick={onBack}>
+                        Go Back
+                    </Button>
+                )}
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
+                {onBack && (
+                    <Button variant="ghost" size="icon" onClick={onBack}>
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                )}
                 <div className="flex-1">
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-bold">{cohort.cohort_name}</h1>

@@ -112,15 +112,11 @@ export const BibleSchoolPage: React.FC = () => {
     // If a cohort is selected, show its detail page
     if (selectedCohortId) {
         return (
-            <div className="space-y-4 p-6">
-                <Button
-                    variant="ghost"
-                    onClick={() => setSelectedCohortId(null)}
-                    className="mb-4"
-                >
-                    ← Back to Bible School
-                </Button>
-                <CohortDetailPage cohortId={selectedCohortId} />
+            <div className="p-6">
+                <CohortDetailPage
+                    cohortId={selectedCohortId}
+                    onBack={() => setSelectedCohortId(null)}
+                />
             </div>
         );
     }
