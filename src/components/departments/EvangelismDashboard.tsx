@@ -42,6 +42,9 @@ import { AddFollowUpDialog } from './evangelism/AddFollowUpDialog';
 import { FollowUpManagement } from './evangelism/FollowUpManagement';
 import { EvangelismSettings } from './evangelism/EvangelismSettings';
 import { PlanOutreachDialog } from './evangelism/PlanOutreachDialog';
+import { FirstTimerTable } from './FirstTimerTable';
+import { FirstTimerFormDialog } from './FirstTimerFormDialog';
+import { useFirstTimers } from '@/modules/members/hooks/useFirstTimers';
 
 interface EvangelismMember {
   id: number;
@@ -275,6 +278,12 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
   const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
   const [isPlanOutreachOpen, setIsPlanOutreachOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAddFirstTimerOpen, setIsAddFirstTimerOpen] = useState(false);
+  const [editingFirstTimer, setEditingFirstTimer] = useState<any>(null);
+  const [selectedFirstTimerIds, setSelectedFirstTimerIds] = useState<string[]>([]);
+
+  // Fetch first-timers
+  const { firstTimers, loading: firstTimersLoading, reload: reloadFirstTimers } = useFirstTimers();
 
   // Filter members
   const filteredMembers = useMemo(() => {
@@ -482,11 +491,12 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="outreach">Outreach</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="first-timers">First-Timers</TabsTrigger>
           <TabsTrigger value="followup">Follow-up</TabsTrigger>
         </TabsList>
 
@@ -617,7 +627,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h3 className="text-lg font-medium">Evangelism Team</h3>
             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-              <Button size="sm">
+              <Button size="sm" onClick={() => setIsAddMemberOpen(true)}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add Member
               </Button>
@@ -750,6 +760,48 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
           <DepartmentTaskBoard departmentId={departmentId} canEdit={true} />
         </TabsContent>
 
+        {/* First-Timers Tab */}
+        <TabsContent value="first-timers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>First-Timers Management</CardTitle>
+                  <CardDescription>
+                    Track and follow up with visitors to the church
+                  </CardDescription>
+                </div>
+                <Button onClick={() => setIsAddFirstTimerOpen(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add First-Timer
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {firstTimersLoading ? (
+                <div className="text-center py-12">Loading first-timers...</div>
+              ) : (
+                <FirstTimerTable
+                  firstTimers={firstTimers}
+                  selectedIds={selectedFirstTimerIds}
+                  onSelectionChange={setSelectedFirstTimerIds}
+                  onEdit={(ft) => {
+                    setEditingFirstTimer(ft);
+                    setIsAddFirstTimerOpen(true);
+                  }}
+                  onDelete={async (id) => {
+                    if (confirm('Are you sure you want to delete this first-timer?')) {
+                      // TODO: Implement delete
+                      console.log('Delete:', id);
+                    }
+                  }}
+                  getBranchName={(id) => 'Branch'}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Follow-up Tab */}
         <TabsContent value="followup" className="space-y-4">
           <FollowUpManagement />
@@ -783,6 +835,17 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
       />
 
       <EvangelismSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+      <FirstTimerFormDialog
+        open={isAddFirstTimerOpen}
+        onOpenChange={setIsAddFirstTimerOpen}
+        firstTimer={editingFirstTimer}
+        onSubmit={() => {
+          reloadFirstTimers();
+          setIsAddFirstTimerOpen(false);
+          setEditingFirstTimer(null);
+        }}
+      />
     </div>
   );
 };
