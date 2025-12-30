@@ -99,11 +99,15 @@ export const GradeExamDialog: React.FC<GradeExamDialogProps> = ({
         try {
             const { data: { user } } = await supabase.auth.getUser();
 
+            // Calculate pass/fail status
+            const passStatus = score >= selectedExam.pass_mark ? 'pass' : 'fail';
+
             const { error } = await supabase.from('bible_exam_results').upsert({
                 exam_id: formData.examId,
                 student_id: formData.studentId,
                 cohort_id: cohortId,
                 score: parseFloat(formData.score),
+                status: passStatus,
                 remarks: formData.remarks || null,
                 graded_by: user?.id,
                 graded_at: new Date().toISOString(),

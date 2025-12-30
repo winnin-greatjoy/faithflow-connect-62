@@ -141,10 +141,7 @@ CREATE TABLE IF NOT EXISTS public.bible_exam_results (
     student_id UUID NOT NULL REFERENCES public.bible_students(id) ON DELETE CASCADE,
     cohort_id UUID NOT NULL REFERENCES public.bible_cohorts(id) ON DELETE CASCADE,
     score DECIMAL(5,2) NOT NULL,
-    status TEXT GENERATED ALWAYS AS (
-        CASE WHEN score >= (SELECT pass_mark FROM public.bible_exams WHERE id = exam_id) 
-        THEN 'pass' ELSE 'fail' END
-    ) STORED,
+    status TEXT, -- Will be set by application logic: 'pass' or 'fail'
     remarks TEXT,
     graded_by UUID REFERENCES public.profiles(id),
     submitted_at TIMESTAMPTZ DEFAULT now(),
