@@ -26,6 +26,9 @@ interface CreateCohortDialogProps {
     onClose: () => void;
     programs: Program[];
     onSuccess?: () => void;
+    // Access control - if branch admin, only show Foundation
+    isBranchAdminOnly?: boolean;
+    userBranchId?: string | null;
 }
 
 export const CreateCohortDialog: React.FC<CreateCohortDialogProps> = ({
@@ -33,13 +36,26 @@ export const CreateCohortDialog: React.FC<CreateCohortDialogProps> = ({
     onClose,
     programs,
     onSuccess,
+    isBranchAdminOnly = false,
+    userBranchId = null,
 }) => {
     const { toast } = useToast();
     const { branches } = useBranches();
     const [loading, setLoading] = useState(false);
+
+    // Filter programs - branch admins only see Foundation (level_order = 1)
+    const availablePrograms = isBranchAdminOnly
+        ? programs.filter(p => (p as any).level_order === 1)
+        : programs;
+
+    // Filter branches - branch admins only see their own branch
+    const availableBranches = isBranchAdminOnly && userBranchId
+        ? branches.filter(b => b.id === userBranchId)
+        : branches;
+
     const [formData, setFormData] = useState({
         programId: '',
-        branchId: '',
+        branchId: userBranchId || '',
         cohortName: '',
         startDate: '',
         endDate: '',
@@ -144,7 +160,7 @@ export const CreateCohortDialog: React.FC<CreateCohortDialogProps> = ({
                                     <SelectValue placeholder="Select program" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {programs.map((program) => (
+                                    {availablePrograms.map((program) => (
                                         <SelectItem key={program.id} value={program.id}>
                                             {program.name}
                                         </SelectItem>
@@ -160,7 +176,7 @@ export const CreateCohortDialog: React.FC<CreateCohortDialogProps> = ({
                                     <SelectValue placeholder="Select branch" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {branches.map((branch) => (
+                                    {availableBranches.map((branch) => (
                                         <SelectItem key={branch.id} value={branch.id}>
                                             {branch.name}
                                         </SelectItem>
@@ -223,6 +239,6 @@ export const CreateCohortDialog: React.FC<CreateCohortDialogProps> = ({
                     </div>
                 </form>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 };

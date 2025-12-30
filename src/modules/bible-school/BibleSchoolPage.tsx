@@ -25,18 +25,25 @@ import {
 } from './components/dialogs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useBibleSchoolAccess } from './hooks/useBibleSchoolAccess';
 import type { BibleCohort } from './types';
 
 export const BibleSchoolPage: React.FC = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const access = useBibleSchoolAccess();
     const [activeTab, setActiveTab] = useState('overview');
 
     // Fetch data
     const { programs, reload: reloadPrograms } = usePrograms();
-    const { cohorts, reload: reloadCohorts } = useCohorts();
+    const { cohorts: allCohorts, reload: reloadCohorts } = useCohorts();
     const { students, reload: reloadStudents } = useStudents({ status: 'enrolled' });
     const { applications, reload: reloadApplications } = useApplications({ status: 'pending' });
+
+    // Filter cohorts by branch for branch admins
+    const cohorts = access.isBranchAdmin && !access.isFullAdmin
+        ? allCohorts.filter(c => c.branch_id === access.userBranchId)
+        : allCohorts;
 
     // Dialog states
     const [isApplyOpen, setIsApplyOpen] = useState(false);
@@ -172,11 +179,21 @@ export const BibleSchoolPage: React.FC = () => {
 
                 {/* Cohorts Tab */}
                 <TabsContent value="cohorts" className="space-y-4">
-                    <div className="flex justify-end mb-4">
-                        <Button onClick={() => setIsCreateCohortOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Create Cohort
-                        </Button>
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            {access.isBranchAdmin && !access.isFullAdmin && (
+                                <p className="text-sm text-muted-foreground">
+                                    Showing cohorts for your branch. You can manage Foundation cohorts only.
+                                </p>
+                            )}
+                        </div>
+                        {/* Only show Create if full admin OR branch admin (Foundation only) */}
+                        {(access.isFullAdmin || access.isBranchAdmin) && (
+                            <Button onClick={() => setIsCreateCohortOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {access.isBranchAdmin && !access.isFullAdmin ? 'Create Foundation Cohort' : 'Create Cohort'}
+                            </Button>
+                        )}
                     </div>
                     <CohortTable
                         cohorts={cohorts}
@@ -234,6 +251,8 @@ export const BibleSchoolPage: React.FC = () => {
                     reloadCohorts();
                     setIsCreateCohortOpen(false);
                 }}
+                isBranchAdminOnly={access.isBranchAdmin && !access.isFullAdmin}
+                userBranchId={access.userBranchId}
             />
 
             <EnrollStudentDialog
