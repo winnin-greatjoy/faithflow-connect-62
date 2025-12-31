@@ -759,17 +759,18 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                   <FormItem>
                     <FormLabel>Membership Level *</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || 'baptized'}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="visitor">Visitor</SelectItem>
-                          <SelectItem value="convert">Convert</SelectItem>
                           <SelectItem value="baptized">Baptized</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>
+                    <FormDescription>
+                      Visitors and Converts are added through their dedicated forms
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
