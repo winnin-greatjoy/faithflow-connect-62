@@ -163,77 +163,77 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
     resolver: zodResolver(memberSchema),
     defaultValues: member
       ? {
-          fullName: member.fullName,
-          profilePhoto: member.profilePhoto ?? '',
-          dateOfBirth: member.dateOfBirth ?? '',
-          gender: (member.gender ?? 'male') as Gender,
-          maritalStatus: (member.maritalStatus ?? 'single') as MaritalStatus,
-          spouseName: member.spouseName ?? '',
-          numberOfChildren: member.numberOfChildren ?? 0,
-          children: member.children ?? [],
-          email: member.email ?? '',
-          phone: member.phone ?? '',
-          community: member.community ?? '',
-          area: member.area ?? '',
-          street: member.street ?? '',
-          publicLandmark: member.publicLandmark ?? '',
-          branchId: String(member.branchId ?? effectiveBranchId ?? ''),
-          membershipLevel: member.membershipLevel ?? 'visitor',
-          baptizedSubLevel: member.baptizedSubLevel ?? undefined,
-          leaderRole: member.leaderRole ?? undefined,
-          baptismDate: member.baptismDate ?? '',
-          joinDate: member.joinDate
-            ? member.joinDate.split('T')[0]
-            : new Date().toISOString().split('T')[0],
-          baptismOfficiator: member.baptismOfficiator ?? '',
-          spiritualMentor: member.spiritualMentor ?? '',
-          assignedDepartment: member.assignedDepartment ?? '',
-          discipleshipClass1: member.discipleshipClass1 ?? false,
-          discipleshipClass2: member.discipleshipClass2 ?? false,
-          discipleshipClass3: member.discipleshipClass3 ?? false,
-          status: member.status ?? 'active',
-          lastAttendance: member.lastAttendance ?? '',
-          prayerNeeds: member.prayerNeeds ?? '',
-          pastoralNotes: member.pastoralNotes ?? '',
-          createAccount: false,
-          username: '',
-          password: '',
-        }
+        fullName: member.fullName,
+        profilePhoto: member.profilePhoto ?? '',
+        dateOfBirth: member.dateOfBirth ?? '',
+        gender: (member.gender ?? 'male') as Gender,
+        maritalStatus: (member.maritalStatus ?? 'single') as MaritalStatus,
+        spouseName: member.spouseName ?? '',
+        numberOfChildren: member.numberOfChildren ?? 0,
+        children: member.children ?? [],
+        email: member.email ?? '',
+        phone: member.phone ?? '',
+        community: member.community ?? '',
+        area: member.area ?? '',
+        street: member.street ?? '',
+        publicLandmark: member.publicLandmark ?? '',
+        branchId: String(member.branchId ?? effectiveBranchId ?? ''),
+        membershipLevel: member.membershipLevel ?? 'visitor',
+        baptizedSubLevel: member.baptizedSubLevel ?? undefined,
+        leaderRole: member.leaderRole ?? undefined,
+        baptismDate: member.baptismDate ?? '',
+        joinDate: member.joinDate
+          ? member.joinDate.split('T')[0]
+          : new Date().toISOString().split('T')[0],
+        baptismOfficiator: member.baptismOfficiator ?? '',
+        spiritualMentor: member.spiritualMentor ?? '',
+        assignedDepartment: member.assignedDepartment ?? '',
+        discipleshipClass1: member.discipleshipClass1 ?? false,
+        discipleshipClass2: member.discipleshipClass2 ?? false,
+        discipleshipClass3: member.discipleshipClass3 ?? false,
+        status: member.status ?? 'active',
+        lastAttendance: member.lastAttendance ?? '',
+        prayerNeeds: member.prayerNeeds ?? '',
+        pastoralNotes: member.pastoralNotes ?? '',
+        createAccount: false,
+        username: '',
+        password: '',
+      }
       : {
-          fullName: '',
-          profilePhoto: '',
-          dateOfBirth: '',
-          gender: 'male',
-          maritalStatus: 'single',
-          spouseName: '',
-          numberOfChildren: 0,
-          children: [],
-          email: '',
-          phone: '',
-          community: '',
-          area: '',
-          street: '',
-          publicLandmark: '',
-          branchId: effectiveBranchId ?? '',
-          membershipLevel: 'visitor',
-          baptizedSubLevel: undefined,
-          leaderRole: undefined,
-          baptismDate: '',
-          joinDate: new Date().toISOString().split('T')[0],
-          baptismOfficiator: '',
-          spiritualMentor: '',
-          assignedDepartment: '',
-          discipleshipClass1: false,
-          discipleshipClass2: false,
-          discipleshipClass3: false,
-          status: 'active',
-          lastAttendance: '',
-          prayerNeeds: '',
-          pastoralNotes: '',
-          createAccount: false,
-          username: '',
-          password: '',
-        },
+        fullName: '',
+        profilePhoto: '',
+        dateOfBirth: '',
+        gender: 'male',
+        maritalStatus: 'single',
+        spouseName: '',
+        numberOfChildren: 0,
+        children: [],
+        email: '',
+        phone: '',
+        community: '',
+        area: '',
+        street: '',
+        publicLandmark: '',
+        branchId: effectiveBranchId ?? '',
+        membershipLevel: 'visitor',
+        baptizedSubLevel: undefined,
+        leaderRole: undefined,
+        baptismDate: '',
+        joinDate: new Date().toISOString().split('T')[0],
+        baptismOfficiator: '',
+        spiritualMentor: '',
+        assignedDepartment: '',
+        discipleshipClass1: false,
+        discipleshipClass2: false,
+        discipleshipClass3: false,
+        status: 'active',
+        lastAttendance: '',
+        prayerNeeds: '',
+        pastoralNotes: '',
+        createAccount: false,
+        username: '',
+        password: '',
+      },
   });
 
   // Auto-set branch for branch admins
@@ -844,69 +844,82 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
 
           {/* Account Creation Tab */}
           <TabsContent value="account" className="space-y-6 mt-4 h-[60vh] overflow-y-auto pr-1">
-            <div className="border rounded-lg p-6 bg-muted/30">
-              <FormField
-                control={form.control}
-                name="createAccount"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 mb-4">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-base font-medium">Create Portal Account</FormLabel>
-                      <FormDescription>
-                        Enable this to create a login account for this member to access the church
-                        portal
-                      </FormDescription>
-                    </div>
-                  </FormItem>
+            {watchedMembershipLevel !== 'baptized' ? (
+              <div className="border rounded-lg p-6 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+                <h4 className="font-medium mb-2 text-amber-900 dark:text-amber-100">
+                  Portal Access Not Available
+                </h4>
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Only <strong>baptized members</strong> can have portal accounts.
+                  Change the membership level to "Baptized" in the Church tab to enable account creation.
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
+                  Current level: <strong className="capitalize">{watchedMembershipLevel || 'Not set'}</strong>
+                </p>
+              </div>
+            ) : (
+              <div className="border rounded-lg p-6 bg-muted/30">
+                <FormField
+                  control={form.control}
+                  name="createAccount"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 mb-4">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-base font-medium">Create Portal Account</FormLabel>
+                        <FormDescription>
+                          Create a login account for this baptized member to access the church portal
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                {watchedCreateAccount && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                    <FormField
+                      control={form.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email (Username) *</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="member@example.com" {...field} />
+                          </FormControl>
+                          <FormDescription>Used for login</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password *</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Min 8 characters" {...field} />
+                          </FormControl>
+                          <FormDescription>Minimum 8 characters</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 )}
-              />
 
-              {watchedCreateAccount && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="johndoe" {...field} />
-                        </FormControl>
-                        <FormDescription>Used for login</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password *</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Min 8 characters" {...field} />
-                        </FormControl>
-                        <FormDescription>Minimum 8 characters</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
-
-              {!watchedCreateAccount && (
-                <div className="mt-4 p-4 bg-background rounded-md border">
-                  <p className="text-sm text-muted-foreground">
-                    Portal access is disabled for this member. Enable the checkbox above to create a
-                    login account.
-                  </p>
-                </div>
-              )}
-            </div>
+                {!watchedCreateAccount && (
+                  <div className="mt-4 p-4 bg-background rounded-md border">
+                    <p className="text-sm text-muted-foreground">
+                      Portal access is disabled. Enable the checkbox above to create a login account.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
               <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">
