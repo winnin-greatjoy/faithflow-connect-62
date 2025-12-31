@@ -100,7 +100,8 @@ export const MemberManagementPage: React.FC = () => {
 
     const handleMemberSubmit = async (formData: any) => {
         // Transform camelCase form data to snake_case for database
-        const dbData = {
+        // Note: Only include fields that exist in the 'members' table
+        const dbData: Record<string, any> = {
             full_name: formData.fullName,
             profile_photo: formData.profilePhoto || null,
             date_of_birth: formData.dateOfBirth || null,
@@ -119,7 +120,7 @@ export const MemberManagementPage: React.FC = () => {
             baptized_sub_level: formData.baptizedSubLevel || null,
             leader_role: formData.leaderRole || null,
             baptism_date: formData.baptismDate || null,
-            join_date: formData.joinDate || new Date().toISOString().split('T')[0],
+            date_joined: formData.joinDate || new Date().toISOString().split('T')[0],
             baptism_officiator: formData.baptismOfficiator || null,
             spiritual_mentor: formData.spiritualMentor || null,
             assigned_department: formData.assignedDepartment || null,
@@ -128,21 +129,26 @@ export const MemberManagementPage: React.FC = () => {
             discipleship_class_3: formData.discipleshipClass3 || false,
             status: formData.status || 'active',
             last_attendance: formData.lastAttendance || null,
-            notes: formData.notes || null,
+            prayer_needs: formData.prayerNeeds || null,
             pastoral_notes: formData.pastoralNotes || null,
-            // Account creation fields (passed through to Edge Function)
+        };
+
+        // For create operation, include account creation and children data
+        const createData = {
+            ...dbData,
             createAccount: formData.createAccount,
             username: formData.username,
             password: formData.password,
-            // Children data
             children: formData.children,
         };
 
         let result;
         if (editingMember?.id) {
+            // For update, only send DB-compatible fields
             result = await actions.updateMember(editingMember.id, dbData);
         } else {
-            result = await actions.createMember(dbData);
+            // For create, include account and children data
+            result = await actions.createMember(createData);
         }
 
         if (result.success) {
