@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baptized Member Registration Form</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0.5in;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.4;
+            color: #333;
+            background: white;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #4F46E5;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #4F46E5;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .form-section {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            background: #4F46E5;
+            color: white;
+            padding: 8px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+        }
+        
+        .form-group {
+            flex: 1;
+        }
+        
+        .form-group.half {
+            flex: 0.5;
+        }
+        
+        .form-group.third {
+            flex: 0.33;
+        }
+        
+        label {
+            display: block;
+            font-size: 11px;
+            color: #555;
+            margin-bottom: 3px;
+            font-weight: 600;
+        }
+        
+        .input-line {
+            border-bottom: 1px solid #999;
+            min-height: 22px;
+            background: #fafafa;
+            padding: 4px 8px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+        }
+        
+        .checkbox-box {
+            width: 14px;
+            height: 14px;
+            border: 1px solid #666;
+            display: inline-block;
+        }
+        
+        .photo-box {
+            width: 100px;
+            height: 120px;
+            border: 2px dashed #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            margin-left: 20px;
+        }
+        
+        .signature-area {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .signature-box {
+            flex: 1;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #333;
+            height: 40px;
+            margin-bottom: 5px;
+        }
+        
+        .signature-label {
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+        }
+        
+        .instructions {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+        
+        .instructions h4 {
+            color: #0369a1;
+            margin-bottom: 5px;
+        }
+        
+        .instructions ul {
+            margin-left: 15px;
+            color: #0c4a6e;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            
+            .no-print {
+                display: none;
+            }
+        }
+        
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .print-button:hover {
+            background: #4338ca;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button no-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    
+    <div class="header">
+        <h1>🕊️ CHURCH MEMBER REGISTRATION FORM</h1>
+        <p>For Baptized Members Only • Please complete all sections in BLOCK LETTERS</p>
+    </div>
+    
+    <div class="instructions no-print">
+        <h4>📋 Instructions:</h4>
+        <ul>
+            <li>Please fill this form completely and accurately</li>
+            <li>This form is for <strong>Baptized Members</strong> only</li>
+            <li>Attach a passport-size photograph where indicated</li>
+            <li>Submit to your Branch Administrator for data entry</li>
+        </ul>
+    </div>
+    
+    <!-- PERSONAL INFORMATION -->
+    <div class="form-section">
+        <div class="section-title">1. PERSONAL INFORMATION</div>
+        
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label>Full Name (as on official documents) *</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="photo-box">
+                Passport<br>Photo<br>(2x2)
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group third">
+                <label>Date of Birth *</label>
+                <div class="input-line">DD / MM / YYYY</div>
+            </div>
+            <div class="form-group third">
+                <label>Gender *</label>
+                <div class="checkbox-group">
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Male</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Female</span>
+                </div>
+            </div>
+            <div class="form-group third">
+                <label>Blood Group</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Email Address</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group">
+                <label>Phone Number *</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Residential Address *</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group half">
+                <label>City/Town *</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group half">
+                <label>State/Region</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Occupation / Profession</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group">
+                <label>Place of Work / Business</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FAMILY INFORMATION -->
+    <div class="form-section">
+        <div class="section-title">2. FAMILY INFORMATION</div>
+        
+        <div class="form-row">
+            <div class="form-group half">
+                <label>Marital Status *</label>
+                <div class="checkbox-group">
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Single</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Married</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Widowed</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Divorced</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Spouse's Full Name (if married)</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group third">
+                <label>Number of Children</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Children's Names and Ages (if any)</label>
+                <div class="input-line" style="min-height: 40px;"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Emergency Contact Name *</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group">
+                <label>Emergency Contact Phone *</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CHURCH INFORMATION -->
+    <div class="form-section">
+        <div class="section-title">3. CHURCH INFORMATION</div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Branch Name *</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group half">
+                <label>District</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group third">
+                <label>Date Joined Church *</label>
+                <div class="input-line">DD / MM / YYYY</div>
+            </div>
+            <div class="form-group third">
+                <label>Date of Baptism *</label>
+                <div class="input-line">DD / MM / YYYY</div>
+            </div>
+            <div class="form-group third">
+                <label>Baptized By</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>How did you hear about the church?</label>
+                <div class="checkbox-group">
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Crusade/Outreach</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Friend/Family</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Social Media</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Invitation</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Other: ____________</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Previous Church (if applicable)</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MINISTRY INVOLVEMENT -->
+    <div class="form-section">
+        <div class="section-title">4. MINISTRY INVOLVEMENT / SPIRITUAL GIFTS</div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Departments / Ministries of Interest (check all that apply)</label>
+                <div class="checkbox-group" style="margin-top: 8px;">
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Choir/Music</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Ushering</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Prayer Team</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Evangelism</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Children's Ministry</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Youth Ministry</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Technical/Media</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Finance/Admin</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Hospitality</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Protocol</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Welfare</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Other: ____________</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Skills / Talents / Professional Expertise you can offer</label>
+                <div class="input-line" style="min-height: 30px;"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Current Role in Church (if any)</label>
+                <div class="checkbox-group">
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Member</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Worker</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Leader</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Deacon/Deaconess</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Pastor</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- BIBLE SCHOOL / TRAINING -->
+    <div class="form-section">
+        <div class="section-title">5. BIBLE SCHOOL / TRAINING</div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Have you completed any training courses?</label>
+                <div class="checkbox-group">
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Foundation Class</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Workers Training</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Leadership Training</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Bible School</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> None Yet</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Interested in Upcoming Training Programs? (check all that apply)</label>
+                <div class="checkbox-group">
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Discipleship Course</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Leadership Development</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Bible School Program</span>
+                    <span class="checkbox-item"><span class="checkbox-box"></span> Evangelism Training</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SPECIAL NOTES -->
+    <div class="form-section">
+        <div class="section-title">6. PRAYER REQUESTS / SPECIAL NOTES</div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Prayer Needs (optional - will be shared with pastoral care team)</label>
+                <div class="input-line" style="min-height: 50px;"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Any Medical Conditions we should be aware of? (optional)</label>
+                <div class="input-line" style="min-height: 25px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- DECLARATION -->
+    <div class="form-section">
+        <div class="section-title">7. DECLARATION & CONSENT</div>
+        
+        <p style="font-size: 11px; margin-bottom: 10px;">
+            I hereby declare that the information provided above is true and accurate to the best of my knowledge. 
+            I consent to the church storing and using this information for administrative and pastoral purposes.
+        </p>
+        
+        <div class="signature-area">
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Applicant's Signature</div>
+            </div>
+            <div class="signature-box" style="flex: 0.5;">
+                <div class="signature-line"></div>
+                <div class="signature-label">Date</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- OFFICE USE ONLY -->
+    <div class="form-section" style="background: #f5f5f5; padding: 15px; border-radius: 4px;">
+        <div style="font-weight: bold; font-size: 12px; margin-bottom: 10px;">📋 FOR OFFICE USE ONLY</div>
+        
+        <div class="form-row">
+            <div class="form-group third">
+                <label>Member ID</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group third">
+                <label>Date Received</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group third">
+                <label>Entered By</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Verified By (Signature)</label>
+                <div class="input-line"></div>
+            </div>
+            <div class="form-group half">
+                <label>Date Entered in System</label>
+                <div class="input-line"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Thank you for joining our church family! May God bless you abundantly. 🙏</p>
+        <p style="margin-top: 5px;">Form Version 1.0 • Generated by FaithFlow Church Management System</p>
+    </div>
+</body>
+</html>
