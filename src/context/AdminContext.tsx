@@ -185,8 +185,14 @@ export const AdminProvider = ({
 
 export const useAdminContext = () => {
   const context = useContext(AdminContext);
+  // Return safe defaults when used outside AdminProvider (e.g., in portal)
   if (context === undefined) {
-    throw new Error('useAdminContext must be used within an AdminProvider');
+    return {
+      selectedBranchId: null,
+      setSelectedBranchId: () => { },
+      branchName: null,
+      loading: false,
+    } as AdminContextType;
   }
   return context;
 };
