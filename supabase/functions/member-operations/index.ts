@@ -17,7 +17,7 @@ interface MemberOperationRequest {
 
 interface UserProfile {
     id: string;
-    role: 'superadmin' | 'branch_admin' | 'member';
+    role: 'super_admin' | 'admin' | 'pastor' | 'leader' | 'worker' | 'member';
     branch_id: string | null;
 }
 
@@ -274,19 +274,19 @@ function validatePermissions(
     targetBranchId?: string
 ): { allowed: boolean; reason?: string } {
     // Superadmins can do anything
-    if (profile.role === 'superadmin') {
+    if (profile.role === 'super_admin') {
         return { allowed: true };
     }
 
-    // Branch admins have restrictions
-    if (profile.role === 'branch_admin') {
+    // Branch admins (admin role) have restrictions
+    if (profile.role === 'admin' || profile.role === 'pastor') {
         // Can only work with their own branch
         if (data && data.branch_id && data.branch_id !== profile.branch_id) {
-            return { allowed: false, reason: 'Branch admins can only modify records in their branch' };
+            return { allowed: false, reason: 'Admins can only modify records in their branch' };
         }
 
         if (targetBranchId && targetBranchId !== profile.branch_id) {
-            return { allowed: false, reason: 'Branch admins cannot transfer to other branches' };
+            return { allowed: false, reason: 'Admins cannot transfer to other branches' };
         }
 
         // Can perform all operations within their branch
