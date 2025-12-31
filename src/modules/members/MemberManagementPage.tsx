@@ -98,11 +98,59 @@ export const MemberManagementPage: React.FC = () => {
 
 
 
-    const handleMemberSubmit = async () => {
-        setShowMemberForm(false);
-        setShowConvertForm(false);
-        setEditingMember(null);
-        await reloadMembers();
+    const handleMemberSubmit = async (formData: any) => {
+        // Transform camelCase form data to snake_case for database
+        const dbData = {
+            full_name: formData.fullName,
+            profile_photo: formData.profilePhoto || null,
+            date_of_birth: formData.dateOfBirth || null,
+            gender: formData.gender || null,
+            marital_status: formData.maritalStatus || null,
+            spouse_name: formData.spouseName || null,
+            number_of_children: formData.numberOfChildren || 0,
+            email: formData.email || null,
+            phone: formData.phone || null,
+            community: formData.community || null,
+            area: formData.area || null,
+            street: formData.street || null,
+            public_landmark: formData.publicLandmark || null,
+            branch_id: formData.branchId || null,
+            membership_level: formData.membershipLevel || 'visitor',
+            baptized_sub_level: formData.baptizedSubLevel || null,
+            leader_role: formData.leaderRole || null,
+            baptism_date: formData.baptismDate || null,
+            join_date: formData.joinDate || new Date().toISOString().split('T')[0],
+            baptism_officiator: formData.baptismOfficiator || null,
+            spiritual_mentor: formData.spiritualMentor || null,
+            assigned_department: formData.assignedDepartment || null,
+            discipleship_class_1: formData.discipleshipClass1 || false,
+            discipleship_class_2: formData.discipleshipClass2 || false,
+            discipleship_class_3: formData.discipleshipClass3 || false,
+            status: formData.status || 'active',
+            last_attendance: formData.lastAttendance || null,
+            notes: formData.notes || null,
+            pastoral_notes: formData.pastoralNotes || null,
+            // Account creation fields (passed through to Edge Function)
+            createAccount: formData.createAccount,
+            username: formData.username,
+            password: formData.password,
+            // Children data
+            children: formData.children,
+        };
+
+        let result;
+        if (editingMember?.id) {
+            result = await actions.updateMember(editingMember.id, dbData);
+        } else {
+            result = await actions.createMember(dbData);
+        }
+
+        if (result.success) {
+            setShowMemberForm(false);
+            setShowConvertForm(false);
+            setEditingMember(null);
+            await reloadMembers();
+        }
     };
 
     const handleConvertSubmit = async (data: ConvertFormData) => {
