@@ -148,9 +148,9 @@ export const SuperadminUsersRoles: React.FC = () => {
 
       await supabase.from('audit_logs').insert({
         action: 'RESET_PASSWORD',
-        resource: 'auth',
-        details: `Sent password reset email to ${email}`,
-        severity: 'info',
+        table_name: 'auth',
+        user_id: (await supabase.auth.getUser()).data.user?.id || '',
+        details: { message: `Sent password reset email to ${email}` },
       });
 
       toast({ title: 'Success', description: 'Reset email sent successfully' });
@@ -179,9 +179,9 @@ export const SuperadminUsersRoles: React.FC = () => {
 
       await supabase.from('audit_logs').insert({
         action: 'ASSIGN_ROLE',
-        resource: 'user_roles',
-        details: `Assigned role ${assignForm.role} to user ${assignForm.userId}`,
-        severity: 'warning',
+        table_name: 'user_roles',
+        user_id: (await supabase.auth.getUser()).data.user?.id || '',
+        details: { message: `Assigned role ${assignForm.role} to user ${assignForm.userId}` },
       });
 
       toast({ title: 'Success', description: 'Role assigned successfully' });
@@ -206,9 +206,10 @@ export const SuperadminUsersRoles: React.FC = () => {
 
       await supabase.from('audit_logs').insert({
         action: 'REVOKE_ROLE',
-        resource: 'user_roles',
-        details: `Revoked role assignment ${roleId}`,
-        severity: 'warning',
+        table_name: 'user_roles',
+        user_id: (await supabase.auth.getUser()).data.user?.id || '',
+        record_id: roleId,
+        details: { message: `Revoked role assignment ${roleId}` },
       });
 
       toast({ title: 'Success', description: 'Role revoked successfully' });
@@ -428,172 +429,173 @@ export const SuperadminUsersRoles: React.FC = () => {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">Total Assignments</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-purple-600">{stats.superAdmins}</div>
-              <p className="text-xs text-muted-foreground">Super Admins</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-indigo-600">{stats.districtAdmins}</div>
-              <p className="text-xs text-muted-foreground">District Admins</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-blue-600">{stats.branchAdmins}</div>
-              <p className="text-xs text-muted-foreground">Branch Admins</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-600">{stats.pastors}</div>
-              <p className="text-xs text-muted-foreground">Pastors</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search by name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="All Roles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
-                  <SelectItem value="district_admin">District Admin</SelectItem>
-                  <SelectItem value="admin">Branch Admin</SelectItem>
-                  <SelectItem value="pastor">Pastor</SelectItem>
-                  <SelectItem value="leader">Leader</SelectItem>
-                  <SelectItem value="worker">Worker</SelectItem>
-                  <SelectItem value="member">Member</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">Total Assignments</p>
           </CardContent>
         </Card>
-
-        {/* Roles Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Role Assignments ({filteredRoles.length})</CardTitle>
-            <CardDescription>Manage user roles across all branches</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Branch Scope</TableHead>
-                    <TableHead>Assigned</TableHead>
-                    <TableHead className="w-[120px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRoles.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No role assignments found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredRoles.map((ur) => (
-                      <TableRow key={ur.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                              {ur.role === 'super_admin' ? (
-                                <Crown className="h-4 w-4 text-purple-600" />
-                              ) : (
-                                <UserCog className="h-4 w-4 text-primary" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium">
-                                {ur.profile
-                                  ? `${ur.profile.first_name} ${ur.profile.last_name}`
-                                  : 'Unknown User'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {ur.profile?.email || 'No email'}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getRoleBadgeClass(ur.role)}>
-                            {ur.role.replace('_', ' ').toUpperCase()}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {ur.branch ? (
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <Building className="h-3.5 w-3.5 text-muted-foreground" />
-                              {ur.branch.name}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground italic text-sm">Global</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(ur.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Reset Password"
-                              onClick={() =>
-                                ur.profile?.email && handleResetCredentials(ur.profile.email)
-                              }
-                              disabled={!ur.profile?.email}
-                            >
-                              <KeyRound className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRevokeRole(ur.id)}
-                              className="text-destructive hover:text-destructive"
-                              title="Revoke Role"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-purple-600">{stats.superAdmins}</div>
+            <p className="text-xs text-muted-foreground">Super Admins</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-indigo-600">{stats.districtAdmins}</div>
+            <p className="text-xs text-muted-foreground">District Admins</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-blue-600">{stats.branchAdmins}</div>
+            <p className="text-xs text-muted-foreground">Branch Admins</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">{stats.pastors}</div>
+            <p className="text-xs text-muted-foreground">Pastors</p>
           </CardContent>
         </Card>
       </div>
-      );
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="super_admin">Super Admin</SelectItem>
+                <SelectItem value="district_admin">District Admin</SelectItem>
+                <SelectItem value="admin">Branch Admin</SelectItem>
+                <SelectItem value="pastor">Pastor</SelectItem>
+                <SelectItem value="leader">Leader</SelectItem>
+                <SelectItem value="worker">Worker</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Roles Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Role Assignments ({filteredRoles.length})</CardTitle>
+          <CardDescription>Manage user roles across all branches</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Branch Scope</TableHead>
+                  <TableHead>Assigned</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRoles.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No role assignments found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRoles.map((ur) => (
+                    <TableRow key={ur.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                            {ur.role === 'super_admin' ? (
+                              <Crown className="h-4 w-4 text-purple-600" />
+                            ) : (
+                              <UserCog className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {ur.profile
+                                ? `${ur.profile.first_name} ${ur.profile.last_name}`
+                                : 'Unknown User'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {ur.profile?.email || 'No email'}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={getRoleBadgeClass(ur.role)}>
+                          {ur.role.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {ur.branch ? (
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <Building className="h-3.5 w-3.5 text-muted-foreground" />
+                            {ur.branch.name}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground italic text-sm">Global</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(ur.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Reset Password"
+                            onClick={() =>
+                              ur.profile?.email && handleResetCredentials(ur.profile.email)
+                            }
+                            disabled={!ur.profile?.email}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRevokeRole(ur.id)}
+                            className="text-destructive hover:text-destructive"
+                            title="Revoke Role"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
