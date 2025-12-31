@@ -118,18 +118,24 @@ const memberSchema = z
     pastoralNotes: z.string().optional(),
     // Account creation
     createAccount: z.boolean().optional(),
-    username: z.string().optional(),
-    password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+    username: z.string().optional().or(z.literal('')),
+    password: z.string().optional().or(z.literal('')),
   })
   .refine(
     (data) => {
+      // Only validate password if createAccount is true
       if (data.createAccount) {
-        return !!data.username && !!data.password;
+        if (!data.username || !data.password) {
+          return false;
+        }
+        if (data.password.length < 8) {
+          return false;
+        }
       }
       return true;
     },
     {
-      message: 'Username and password are required when creating an account',
+      message: 'Username and password (min 8 characters) are required when creating an account',
       path: ['createAccount'],
     }
   );
