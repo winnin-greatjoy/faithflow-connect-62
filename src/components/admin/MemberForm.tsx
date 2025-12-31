@@ -27,7 +27,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Plus, Trash2, Upload, FileDown } from 'lucide-react';
 import { Member, MembershipLevel, Gender, MaritalStatus } from '@/types/membership';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -1178,11 +1178,22 @@ export const MemberForm: React.FC<MemberFormProps> = ({
           )}
         </Tabs>
 
-        <div className="flex justify-end gap-3 pt-6 border-t">
-          <Button variant="outline" type="button" onClick={onCancel}>
-            Cancel
+        <div className="flex justify-between items-center gap-3 pt-6 border-t">
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={() => window.open('/member-registration-form.html', '_blank')}
+            className="text-primary"
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Print Registration Form
           </Button>
-          <Button type="submit">{member ? 'Update Member' : 'Add Member'}</Button>
+          <div className="flex gap-3">
+            <Button variant="outline" type="button" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit">{member ? 'Update Member' : 'Add Member'}</Button>
+          </div>
         </div>
       </form>
     </Form>

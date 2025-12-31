@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Mail, ArrowRightLeft, Upload, Search, FileDown } from 'lucide-react';
+import { Plus, Mail, ArrowRightLeft, Upload, Search } from 'lucide-react';
 
 interface MemberToolbarProps {
     search: string;
@@ -89,17 +89,6 @@ export const MemberToolbar: React.FC<MemberToolbarProps> = ({
                         Import
                     </Button>
                 )}
-
-                {/* Download Registration Form */}
-                <Button
-                    variant="outline"
-                    onClick={() => window.open('/member-registration-form.html', '_blank')}
-                    className="hidden sm:inline-flex"
-                    title="Download printable member registration form"
-                >
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Print Form
-                </Button>
 
                 <Button onClick={getAddHandler()}>
                     <Plus className="h-4 w-4 mr-2" />
