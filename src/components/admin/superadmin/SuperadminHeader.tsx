@@ -93,17 +93,13 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({ onMenuToggle
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/superadmin/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                System Settings
+              <DropdownMenuItem onClick={() => navigate('/portal/profile')}>
+                <User className="mr-2 h-4 w-4" />
+                Profile Settings
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/portal')}>
                 <Home className="mr-2 h-4 w-4" />
                 My Portal
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/admin')}>
-                <User className="mr-2 h-4 w-4" />
-                Branch Admin View
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
