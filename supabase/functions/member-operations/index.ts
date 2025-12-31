@@ -97,8 +97,12 @@ serve(async (req) => {
                     throw new Error('Missing data for create operation');
                 }
 
-                // Extract account creation and children data
-                const { createAccount, username, password, children, ...memberData } = data;
+                // Extract account creation, children data, and admin role data
+                const {
+                    createAccount, username, password, children,
+                    assignAdminRole, adminRole, adminBranchId, adminDistrictId,
+                    ...memberData
+                } = data;
 
                 // Ensure branch_id is set correctly
                 if (profile.role === 'branch_admin' && !memberData.branch_id) {
@@ -124,6 +128,9 @@ serve(async (req) => {
                             // Continue without account if it fails
                         } else {
                             authUserId = authData.user.id;
+                            // Determine role for profile based on admin assignment
+                            const profileRole = assignAdminRole && adminRole ? adminRole : 'member';
+
                             // Create profile for the new user
                             await supabaseClient.from('profiles').insert({
                                 id: authUserId,
@@ -131,8 +138,28 @@ serve(async (req) => {
                                 last_name: memberData.full_name.split(' ').slice(1).join(' ') || '',
                                 phone: memberData.phone,
                                 branch_id: memberData.branch_id,
-                                role: 'member',
+                                role: profileRole,
                             });
+
+                            // Create user_roles entry if admin role is assigned
+                            if (assignAdminRole && adminRole) {
+                                const userRoleData: any = {
+                                    user_id: authUserId,
+                                    role: adminRole,
+                                };
+
+                                // Set branch_id for branch-specific roles
+                                if (adminRole === 'admin' || adminRole === 'pastor') {
+                                    userRoleData.branch_id = adminBranchId || memberData.branch_id || null;
+                                }
+
+                                // Set district_id for district-specific roles (if column exists)
+                                if (adminRole === 'district_admin' || adminRole === 'district_overseer') {
+                                    userRoleData.district_id = adminDistrictId || null;
+                                }
+
+                                await supabaseClient.from('user_roles').insert(userRoleData);
+                            }
                         }
                     } catch (accountError) {
                         console.error('Account creation failed:', accountError);
