@@ -116,6 +116,11 @@ const memberSchema = z
     // Notes
     prayerNeeds: z.string().optional(),
     pastoralNotes: z.string().optional(),
+    // Admin role assignment (optional - only used when creating admin)
+    assignAdminRole: z.boolean().optional(),
+    adminRole: z.enum(['super_admin', 'district_admin', 'admin', 'pastor']).optional(),
+    adminBranchId: z.string().optional(),
+    adminDistrictId: z.string().optional(),
     // Account creation
     createAccount: z.boolean().optional(),
     username: z.string().optional().or(z.literal('')),
@@ -138,6 +143,19 @@ const memberSchema = z
       message: 'Username and password (min 8 characters) are required when creating an account',
       path: ['createAccount'],
     }
+  )
+  .refine(
+    (data: any) => {
+      // If assigning admin role, require the role to be selected
+      if (data.assignAdminRole && !data.adminRole) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Admin role is required when assigning admin access',
+      path: ['adminRole'],
+    }
   );
 
 export type MemberFormData = z.infer<typeof memberSchema>;
@@ -146,22 +164,34 @@ interface MemberFormProps {
   member?: Member;
   onSubmit: (data: MemberFormData) => void;
   onCancel: () => void;
+  /** Enable admin role assignment tab */
+  showAdminRoleSelector?: boolean;
+  /** Default admin role to select */
+  defaultAdminRole?: string;
 }
 
-export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCancel }) => {
+export const MemberForm: React.FC<MemberFormProps> = ({
+  member,
+  onSubmit,
+  onCancel,
+  showAdminRoleSelector = false,
+  defaultAdminRole,
+}) => {
   const { toast } = useToast();
   const { effectiveBranchId, canSwitchBranch } = useBranchScope();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [districts, setDistricts] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from('church_branches')
-        .select('id, name')
-        .order('name');
-      if (!error) setBranches(data || []);
+      const [branchesRes, districtsRes] = await Promise.all([
+        supabase.from('church_branches').select('id, name').order('name'),
+        supabase.from('districts').select('id, name').order('name'),
+      ]);
+      if (!branchesRes.error) setBranches(branchesRes.data || []);
+      if (!districtsRes.error) setDistricts(districtsRes.data || []);
     })();
   }, []);
 
@@ -345,11 +375,14 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
     <Form {...form}>
       <form onSubmit={form.handleSubmit(submit, onFormError)} className="space-y-6">
         <Tabs defaultValue="personal" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className={`grid w-full ${showAdminRoleSelector ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <TabsTrigger value="personal">Personal</TabsTrigger>
             <TabsTrigger value="church">Church</TabsTrigger>
             <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
+            {showAdminRoleSelector && (
+              <TabsTrigger value="admin-role" className="text-purple-700 font-medium">Admin Role</TabsTrigger>
+            )}
           </TabsList>
 
           {/* Personal Information Tab */}
@@ -1002,6 +1035,144 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
               )}
             />
           </TabsContent>
+
+          {/* Admin Role Tab - Only shown when showAdminRoleSelector is true */}
+          {showAdminRoleSelector && (
+            <TabsContent value="admin-role" className="space-y-6 mt-4 h-[60vh] overflow-y-auto pr-1">
+              <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-4 mb-4">
+                <h4 className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-2">
+                  ⚠️ Admin Role Assignment
+                </h4>
+                <p className="text-sm text-purple-800 dark:text-purple-200">
+                  Assigning an admin role will grant this member administrative privileges.
+                  Account credentials will be automatically created.
+                </p>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="assignAdminRole"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          // Auto-enable account creation when admin role is assigned
+                          if (checked) {
+                            form.setValue('createAccount', true);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Assign Admin Role</FormLabel>
+                      <FormDescription>
+                        Grant this member administrative privileges in the system
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {form.watch('assignAdminRole') && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="adminRole"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Admin Role *</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={defaultAdminRole || field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select admin role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="super_admin">Super Admin (System-wide access)</SelectItem>
+                            <SelectItem value="district_admin">District Admin</SelectItem>
+                            <SelectItem value="admin">Branch Admin</SelectItem>
+                            <SelectItem value="pastor">Pastor</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          The level of administrative access this member will have
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Show district selector for district_admin */}
+                  {form.watch('adminRole') === 'district_admin' && (
+                    <FormField
+                      control={form.control}
+                      name="adminDistrictId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assigned District *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select district" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {districts.map((district) => (
+                                <SelectItem key={district.id} value={district.id}>
+                                  {district.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            The district this admin will manage
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {/* Show branch selector for admin and pastor */}
+                  {(form.watch('adminRole') === 'admin' || form.watch('adminRole') === 'pastor') && (
+                    <FormField
+                      control={form.control}
+                      name="adminBranchId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assigned Branch *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || form.watch('branchId')}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select branch" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {branches.map((branch) => (
+                                <SelectItem key={branch.id} value={branch.id}>
+                                  {branch.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            The branch this admin will have access to
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </>
+              )}
+            </TabsContent>
+          )}
         </Tabs>
 
         <div className="flex justify-end gap-3 pt-6 border-t">
