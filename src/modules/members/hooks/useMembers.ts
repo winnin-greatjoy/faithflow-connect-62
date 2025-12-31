@@ -27,9 +27,7 @@ export function useMembers(filters?: Partial<MemberFilters>): UseMembersResult {
 
             let query = supabase
                 .from('members')
-                .select(
-                    'id, full_name, phone, email, branch_id, membership_level, baptized_sub_level, status, last_attendance, date_joined, created_at, updated_at'
-                );
+                .select('*');  // Fetch all fields
 
             // Apply branch filter if provided
             if (filters?.branchFilter && filters.branchFilter !== 'all') {
@@ -48,48 +46,43 @@ export function useMembers(filters?: Partial<MemberFilters>): UseMembersResult {
 
             if (fetchError) throw fetchError;
 
-            // Map database response to Member type
+            // Map database response to Member type (snake_case to camelCase)
             const mappedMembers: Member[] = (data || []).map((row: any) => {
-                const baptizedSubLevel = row.membership_level === 'baptized'
-                    ? (row.baptized_sub_level as any)
-                    : null;
-                const membershipLevel = row.membership_level as any;
-
                 return {
                     id: row.id,
                     fullName: row.full_name,
-                    profilePhoto: '',
-                    dateOfBirth: '2000-01-01', // Default value
-                    gender: 'male',
-                    maritalStatus: 'single',
-                    spouseName: '',
-                    numberOfChildren: 0,
-                    children: [],
+                    profilePhoto: row.profile_photo || '',
+                    dateOfBirth: row.date_of_birth || '',
+                    gender: row.gender || 'male',
+                    maritalStatus: row.marital_status || 'single',
+                    spouseName: row.spouse_name || '',
+                    numberOfChildren: row.number_of_children || 0,
+                    children: [],  // Children are fetched separately if needed
                     email: row.email || '',
-                    phone: row.phone,
-                    community: '',
-                    area: '',
-                    street: '',
-                    publicLandmark: '',
+                    phone: row.phone || '',
+                    community: row.community || '',
+                    area: row.area || '',
+                    street: row.street || '',
+                    publicLandmark: row.public_landmark || '',
                     branchId: row.branch_id,
                     dateJoined: row.date_joined || '',
-                    membershipLevel,
-                    baptizedSubLevel,
-                    leaderRole: undefined,
-                    baptismDate: '',
+                    membershipLevel: row.membership_level || 'visitor',
+                    baptizedSubLevel: row.baptized_sub_level || undefined,
+                    leaderRole: row.leader_role || undefined,
+                    baptismDate: row.baptism_date || '',
                     joinDate: row.date_joined || '',
                     lastVisit: row.updated_at || row.last_attendance || '',
                     progress: 0,
-                    baptismOfficiator: '',
-                    spiritualMentor: '',
-                    discipleshipClass1: false,
-                    discipleshipClass2: false,
-                    discipleshipClass3: false,
-                    assignedDepartment: '',
-                    status: (row.status as any) || 'active',
-                    ministry: '',
-                    prayerNeeds: '',
-                    pastoralNotes: '',
+                    baptismOfficiator: row.baptism_officiator || '',
+                    spiritualMentor: row.spiritual_mentor || '',
+                    discipleshipClass1: row.discipleship_class_1 || false,
+                    discipleshipClass2: row.discipleship_class_2 || false,
+                    discipleshipClass3: row.discipleship_class_3 || false,
+                    assignedDepartment: row.assigned_department || '',
+                    status: row.status || 'active',
+                    ministry: row.ministry || '',
+                    prayerNeeds: row.prayer_needs || '',
+                    pastoralNotes: row.pastoral_notes || '',
                     lastAttendance: row.last_attendance || '',
                     createdAt: row.created_at || '',
                     updatedAt: row.updated_at || '',
