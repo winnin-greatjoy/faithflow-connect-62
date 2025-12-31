@@ -479,12 +479,22 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
             <DropdownMenuContent align="end" className="w-48 sm:w-56 bg-white">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/portal')}>
-                <Home className="mr-2 h-4 w-4" />
-                My Portal
-              </DropdownMenuItem>
+              {/* Show Admin Dashboard when in portal mode and user is admin */}
+              {isPortalMode && (isSuperadmin || hasRole('admin') || hasRole('pastor')) && (
+                <DropdownMenuItem onClick={() => navigate('/admin')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Admin Dashboard
+                </DropdownMenuItem>
+              )}
+              {/* Show My Portal when NOT in portal mode */}
+              {!isPortalMode && (
+                <DropdownMenuItem onClick={() => navigate('/portal')}>
+                  <Home className="mr-2 h-4 w-4" />
+                  My Portal
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleSettings}>
-                <Settings className="mr-2 h-4 w-4" />
+                <User className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />

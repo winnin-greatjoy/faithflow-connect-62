@@ -106,7 +106,7 @@ const PortalDashboard: React.FC = () => {
         </div>
 
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+          <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} isPortalMode={true} />
 
           <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto">{renderActiveModule()}</main>
 
