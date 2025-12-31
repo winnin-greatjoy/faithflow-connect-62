@@ -8,7 +8,7 @@ interface MemberFormDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     member?: Member | null;
-    onSubmit: () => void;
+    onSubmit: (data: any) => void;
 }
 
 export const MemberFormDialog: React.FC<MemberFormDialogProps> = ({
