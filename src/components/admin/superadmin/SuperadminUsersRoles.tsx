@@ -389,6 +389,8 @@ export const SuperadminUsersRoles: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="super_admin">Super Admin</SelectItem>
+                      <SelectItem value="general_overseer">General Overseer</SelectItem>
+                      <SelectItem value="district_overseer">District Overseer</SelectItem>
                       <SelectItem value="district_admin">District Admin</SelectItem>
                       <SelectItem value="admin">Branch Admin</SelectItem>
                       <SelectItem value="pastor">Pastor</SelectItem>

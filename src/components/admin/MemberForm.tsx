@@ -118,7 +118,7 @@ const memberSchema = z
     pastoralNotes: z.string().optional(),
     // Admin role assignment (optional - only used when creating admin)
     assignAdminRole: z.boolean().optional(),
-    adminRole: z.enum(['super_admin', 'district_admin', 'admin', 'pastor']).optional(),
+    adminRole: z.enum(['super_admin', 'general_overseer', 'district_overseer', 'district_admin', 'admin', 'pastor']).optional(),
     adminBranchId: z.string().optional(),
     adminDistrictId: z.string().optional(),
     // Account creation
@@ -1095,6 +1095,8 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="super_admin">Super Admin (System-wide access)</SelectItem>
+                            <SelectItem value="general_overseer">General Overseer</SelectItem>
+                            <SelectItem value="district_overseer">District Overseer</SelectItem>
                             <SelectItem value="district_admin">District Admin</SelectItem>
                             <SelectItem value="admin">Branch Admin</SelectItem>
                             <SelectItem value="pastor">Pastor</SelectItem>
