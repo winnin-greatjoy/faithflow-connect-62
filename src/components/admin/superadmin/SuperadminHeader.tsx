@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Bell, User, LogOut, Settings, ChevronDown } from 'lucide-react';
+import { Menu, Bell, User, LogOut, Settings, ChevronDown, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -96,6 +96,10 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({ onMenuToggle
               <DropdownMenuItem onClick={() => navigate('/superadmin/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 System Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/portal')}>
+                <Home className="mr-2 h-4 w-4" />
+                My Portal
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/admin')}>
                 <User className="mr-2 h-4 w-4" />
