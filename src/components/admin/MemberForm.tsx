@@ -319,9 +319,25 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
   const watchedMaritalStatus = form.watch('maritalStatus');
   const watchedCreateAccount = form.watch('createAccount');
 
+  // Handle validation errors - show toast with first error
+  const onFormError = (errors: any) => {
+    console.error('Form validation errors:', errors);
+
+    // Get the first error message
+    const firstError = Object.entries(errors)[0];
+    if (firstError) {
+      const [field, error] = firstError as [string, any];
+      toast({
+        title: 'Validation Error',
+        description: `${field}: ${error?.message || 'Invalid value'}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(submit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(submit, onFormError)} className="space-y-6">
         <Tabs defaultValue="personal" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="personal">Personal</TabsTrigger>
