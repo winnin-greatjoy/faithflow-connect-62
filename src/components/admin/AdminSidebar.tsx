@@ -74,7 +74,6 @@ const primaryTabs: MenuItem[] = [
 
 // Secondary items shown in the more menu
 const secondaryItems: MenuItem[] = [
-  { id: 'my-portal', label: 'My Portal', icon: Home, className: 'text-blue-600 font-medium' },
   { id: 'bible-school', label: 'Bible School', icon: GraduationCap },
   { id: 'communication', label: 'Communication', icon: MessageCircle },
   { id: 'finance', label: 'Finance', icon: CreditCard },
@@ -154,12 +153,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const _navigate = useNavigate();
 
   const handleModuleChange = (moduleId: string) => {
-    // Handle special navigation cases first
-    if (moduleId === 'my-portal') {
-      _navigate('/portal');
-      return;
-    }
-
     onModuleChange(moduleId);
     // close mobile drawer after selection
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {

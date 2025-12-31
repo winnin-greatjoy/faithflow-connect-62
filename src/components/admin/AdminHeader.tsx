@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Search, Settings, User, LogOut, Menu, X, ChevronDown } from 'lucide-react';
+import { Bell, Search, Settings, User, LogOut, Menu, X, ChevronDown, Home } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -479,6 +479,10 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
             <DropdownMenuContent align="end" className="w-48 sm:w-56 bg-white">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/portal')}>
+                <Home className="mr-2 h-4 w-4" />
+                My Portal
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSettings}>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
