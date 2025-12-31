@@ -1,56 +1,20 @@
--- COMPLETE BOOTSTRAP: Create Branch + Superadmin
--- Run this ONCE in Supabase SQL Editor to bootstrap your system
--- This creates the first branch AND superadmin account
+-- SUPERADMIN BOOTSTRAP SCRIPT
+-- Run this ONCE in Supabase SQL Editor to create your first superadmin
+-- Superadmin has GLOBAL access and does NOT need to be linked to a branch
+-- After login, superadmin can create branches and other users
 
 -- ============================================================================
--- STEP 1: Configure your settings here
+-- Configure your superadmin settings here
 -- ============================================================================
 DO $$
 DECLARE
-  -- Superadmin settings
   v_email TEXT := 'superadmin@faithhealing.org';  -- CHANGE THIS to your email
   v_password TEXT := 'ChangeMe123!';              -- CHANGE THIS to secure password
-  v_full_name TEXT := 'Winnin GreatJoy';          -- CHANGE THIS to your name
-  
-  -- First branch settings
-  v_branch_name TEXT := 'Main Branch';            -- CHANGE THIS if needed
-  v_branch_address TEXT := 'Church Address';      -- CHANGE THIS
-  v_branch_phone TEXT := '+1234567890';           -- CHANGE THIS
-  v_pastor_name TEXT := 'Pastor Name';            -- CHANGE THIS
+  v_full_name TEXT := 'Super Admin';              -- CHANGE THIS to your name
   
   v_user_id UUID;
-  v_branch_id UUID;
   v_encrypted_password TEXT;
 BEGIN
-  -- ============================================
-  -- STEP 2: Create first branch if none exists
-  -- ============================================
-  SELECT id INTO v_branch_id
-  FROM public.church_branches
-  WHERE is_main = true
-  LIMIT 1;
-
-  IF v_branch_id IS NULL THEN
-    v_branch_id := gen_random_uuid();
-    
-    INSERT INTO public.church_branches (id, name, slug, address, phone, pastor_name, is_main, created_at, updated_at)
-    VALUES (
-      v_branch_id,
-      v_branch_name,
-      LOWER(REPLACE(v_branch_name, ' ', '-')),
-      v_branch_address,
-      v_branch_phone,
-      v_pastor_name,
-      true,
-      NOW(),
-      NOW()
-    );
-    
-    RAISE NOTICE 'Created main branch: % (ID: %)', v_branch_name, v_branch_id;
-  ELSE
-    RAISE NOTICE 'Using existing main branch (ID: %)', v_branch_id;
-  END IF;
-
   -- Check if user already exists
   SELECT id INTO v_user_id
   FROM auth.users
@@ -64,84 +28,61 @@ BEGIN
     v_encrypted_password := crypt(v_password, gen_salt('bf'));
 
     INSERT INTO auth.users (
-      instance_id,
-      id,
-      aud,
-      role,
-      email,
-      encrypted_password,
-      email_confirmed_at,
-      recovery_sent_at,
-      last_sign_in_at,
-      raw_app_meta_data,
-      raw_user_meta_data,
-      created_at,
-      updated_at,
-      confirmation_token,
-      email_change,
-      email_change_token_new,
-      recovery_token
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, recovery_sent_at, last_sign_in_at,
+      raw_app_meta_data, raw_user_meta_data,
+      created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token
     ) VALUES (
       '00000000-0000-0000-0000-000000000000',
-      v_user_id,
-      'authenticated',
-      'authenticated',
-      v_email,
-      v_encrypted_password,
-      NOW(),
-      NOW(),
-      NOW(),
+      v_user_id, 'authenticated', 'authenticated', v_email, v_encrypted_password,
+      NOW(), NOW(), NOW(),
       '{"provider":"email","providers":["email"]}',
       jsonb_build_object('full_name', v_full_name),
-      NOW(),
-      NOW(),
-      '',
-      '',
-      '',
-      ''
+      NOW(), NOW(), '', '', '', ''
     );
 
-    RAISE NOTICE 'Created user % with ID: %', v_email, v_user_id;
+    RAISE NOTICE 'Created auth user: % (ID: %)', v_email, v_user_id;
   END IF;
 
-  -- Create or update profile
+  -- Create or update profile (NO branch_id for superadmin - global access)
   INSERT INTO public.profiles (
     id,
-    full_name,
-    email,
+    first_name,
+    last_name,
     role,
-    branch_id,
+    branch_id,  -- NULL for superadmin = global access
     created_at,
     updated_at
   ) VALUES (
     v_user_id,
-    v_full_name,
-    v_email,
+    SPLIT_PART(v_full_name, ' ', 1),
+    COALESCE(NULLIF(TRIM(SUBSTRING(v_full_name FROM POSITION(' ' IN v_full_name) + 1)), ''), ''),
     'super_admin',
-    v_branch_id,
+    NULL,  -- Superadmin is NOT linked to any specific branch
     NOW(),
     NOW()
   )
   ON CONFLICT (id) DO UPDATE
   SET role = 'super_admin',
-      full_name = v_full_name,
+      first_name = SPLIT_PART(v_full_name, ' ', 1),
       updated_at = NOW();
 
   RAISE NOTICE 'Created/updated profile for %', v_email;
 
-  -- Add super_admin role
+  -- Add super_admin role to user_roles (also without branch_id)
   INSERT INTO public.user_roles (
     user_id,
     role,
-    branch_id,
+    branch_id,  -- NULL for global role
     created_at
   ) VALUES (
     v_user_id,
     'super_admin',
-    v_branch_id,
+    NULL,  -- No branch restriction
     NOW()
   )
-  ON CONFLICT (user_id, role, branch_id) DO NOTHING;
+  ON CONFLICT (user_id, role) DO NOTHING;
 
   RAISE NOTICE 'Added super_admin role';
 
@@ -152,29 +93,25 @@ BEGIN
   RAISE NOTICE 'Email: %', v_email;
   RAISE NOTICE 'Password: %', v_password;
   RAISE NOTICE 'User ID: %', v_user_id;
-  RAISE NOTICE 'Branch: %', (SELECT name FROM public.church_branches WHERE id = v_branch_id);
   RAISE NOTICE '';
   RAISE NOTICE 'IMPORTANT: Change your password after first login!';
+  RAISE NOTICE 'You can now login and create branches.';
   RAISE NOTICE '========================================';
 END $$;
 
 -- ============================================================================
--- STEP 2: Verify the superadmin was created
+-- Verify the superadmin was created
 -- ============================================================================
 SELECT 
   au.email,
   au.email_confirmed_at,
-  p.full_name,
+  p.first_name || ' ' || COALESCE(p.last_name, '') as full_name,
   p.role as profile_role,
   ur.role as user_role,
-  cb.name as branch_name,
-  cb.is_main as is_main_branch
+  COALESCE(cb.name, '(Global - No Branch)') as branch_name
 FROM auth.users au
 JOIN public.profiles p ON p.id = au.id
 LEFT JOIN public.user_roles ur ON ur.user_id = au.id
 LEFT JOIN public.church_branches cb ON cb.id = ur.branch_id
 WHERE p.role = 'super_admin'
 ORDER BY au.created_at DESC;
-
--- You should see your superadmin account listed above
--- Now you can login with the email and password you configured!
