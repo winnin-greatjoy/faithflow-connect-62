@@ -1,27 +1,54 @@
--- SIMPLE SUPERADMIN ACCOUNT CREATION
--- Run this ONCE in Supabase SQL Editor to create your first superadmin account
--- After running this, you can login with the credentials below
+-- COMPLETE BOOTSTRAP: Create Branch + Superadmin
+-- Run this ONCE in Supabase SQL Editor to bootstrap your system
+-- This creates the first branch AND superadmin account
 
 -- ============================================================================
--- STEP 1: Configure your superadmin email here
+-- STEP 1: Configure your settings here
 -- ============================================================================
 DO $$
 DECLARE
+  -- Superadmin settings
   v_email TEXT := 'superadmin@faithhealing.org';  -- CHANGE THIS to your email
-  v_password TEXT := 'ChangeMe123!';          -- CHANGE THIS to secure password
-  v_full_name TEXT := 'Winnin GreatJoy'; -- CHANGE THIS to your name
+  v_password TEXT := 'ChangeMe123!';              -- CHANGE THIS to secure password
+  v_full_name TEXT := 'Winnin GreatJoy';          -- CHANGE THIS to your name
+  
+  -- First branch settings
+  v_branch_name TEXT := 'Main Branch';            -- CHANGE THIS if needed
+  v_branch_address TEXT := 'Church Address';      -- CHANGE THIS
+  v_branch_phone TEXT := '+1234567890';           -- CHANGE THIS
+  v_pastor_name TEXT := 'Pastor Name';            -- CHANGE THIS
+  
   v_user_id UUID;
   v_branch_id UUID;
   v_encrypted_password TEXT;
 BEGIN
-  -- Get the main branch ID
+  -- ============================================
+  -- STEP 2: Create first branch if none exists
+  -- ============================================
   SELECT id INTO v_branch_id
   FROM public.church_branches
   WHERE is_main = true
   LIMIT 1;
 
   IF v_branch_id IS NULL THEN
-    RAISE EXCEPTION 'No main branch found. Create a church branch first.';
+    v_branch_id := gen_random_uuid();
+    
+    INSERT INTO public.church_branches (id, name, slug, address, phone, pastor_name, is_main, created_at, updated_at)
+    VALUES (
+      v_branch_id,
+      v_branch_name,
+      LOWER(REPLACE(v_branch_name, ' ', '-')),
+      v_branch_address,
+      v_branch_phone,
+      v_pastor_name,
+      true,
+      NOW(),
+      NOW()
+    );
+    
+    RAISE NOTICE 'Created main branch: % (ID: %)', v_branch_name, v_branch_id;
+  ELSE
+    RAISE NOTICE 'Using existing main branch (ID: %)', v_branch_id;
   END IF;
 
   -- Check if user already exists
