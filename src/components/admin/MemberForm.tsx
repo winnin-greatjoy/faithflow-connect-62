@@ -371,6 +371,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({ member, onSubmit, onCanc
                     className="hidden"
                   />
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
