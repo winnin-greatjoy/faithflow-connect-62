@@ -1,156 +1,160 @@
-// src/utils/memberOperations.ts
 import { supabase } from '@/integrations/supabase/client';
 import { Member, FirstTimer } from '@/types/membership';
 
-export type OperationType = 'create' | 'update' | 'delete' | 'bulk_transfer';
-export type TargetType = 'members' | 'first_timers';
+/* ========================================================================
+   1. TYPES & COMMANDS (Client V2)
+   ======================================================================== */
 
-interface MemberOperationRequest {
-    operation: OperationType;
-    target: TargetType;
-    data?: any;
-    id?: string;
-    ids?: string[];
-    targetBranchId?: string;
+export type MemberCommand =
+  | 'MEMBER_CREATE'
+  | 'MEMBER_UPDATE'
+  | 'MEMBER_DELETE'
+  | 'MEMBER_BULK_TRANSFER'
+  | 'ADMIN_CREATE'
+  | 'FIRST_TIMER_CREATE'
+  | 'FIRST_TIMER_UPDATE'
+  | 'FIRST_TIMER_DELETE'
+  | 'FIRST_TIMER_BULK_TRANSFER';
+
+interface CommandRequest<T = any> {
+  command: MemberCommand;
+  payload: T;
 }
 
-interface MemberOperationResponse {
-    success: boolean;
-    data?: any;
-    error?: string;
+interface CommandResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  details?: string;
 }
 
-/**
- * Call the member-operations Edge Function with proper error handling
- */
-export async function callMemberOperation(
-    request: MemberOperationRequest
-): Promise<MemberOperationResponse> {
-    try {
-        const { data, error } = await supabase.functions.invoke('member-operations', {
-            body: request,
-        });
+interface ScopePayload {
+  district_id?: string;
+  branch_id?: string;
+}
 
-        if (error) {
-            console.error('Edge Function error:', error);
-            return {
-                success: false,
-                error: error.message || 'Unknown error occurred',
-            };
-        }
+/* ========================================================================
+   2. INVOKER (Centralized Error Handling)
+   ======================================================================== */
 
-        return data;
-    } catch (error: any) {
-        console.error('Failed to call member-operations:', error);
-        return {
-            success: false,
-            error: error.message || 'Failed to connect to server',
-        };
+async function invokeMemberCommand<TPayload, TResult>(
+  request: CommandRequest<TPayload>
+): Promise<CommandResponse<TResult>> {
+  try {
+    console.log(`[MemberOps] Invoking ${request.command}...`);
+
+    const { data, error } = await supabase.functions.invoke(
+      'member-operations', // Re-using existing function name
+      { body: request }
+    );
+
+    if (error) {
+      console.error('[MemberOps] Edge Function Error:', error);
+      // Handle edge case where error object is returned differently
+      const msg =
+        error.message || (error.context ? JSON.stringify(error.context) : 'Unknown edge error');
+      return { success: false, error: msg };
     }
+
+    // Check if the function itself returned an error envelope
+    if (data && data.success === false) {
+      console.error('[MemberOps] Logic Error:', data.error);
+      return { success: false, error: data.error, details: data.details };
+    }
+
+    return data as CommandResponse<TResult>;
+  } catch (err: any) {
+    console.error('[MemberOps] Network/Client Error:', err);
+    return {
+      success: false,
+      error: err.message || 'Unable to connect to server',
+    };
+  }
 }
 
-/**
- * Create a new member
- */
-export async function createMember(data: Partial<Member>): Promise<MemberOperationResponse> {
-    return callMemberOperation({
-        operation: 'create',
-        target: 'members',
-        data,
-    });
+/* ========================================================================
+   3. MEMBER COMMANDS
+   ======================================================================== */
+
+export function createMember(data: Partial<Member> & ScopePayload) {
+  return invokeMemberCommand({
+    command: 'MEMBER_CREATE',
+    payload: data,
+  });
 }
 
-/**
- * Update an existing member
- */
-export async function updateMember(
-    id: string,
-    data: Partial<Member>
-): Promise<MemberOperationResponse> {
-    return callMemberOperation({
-        operation: 'update',
-        target: 'members',
-        id,
-        data,
-    });
+export function updateMember(id: string, data: Partial<Member>) {
+  return invokeMemberCommand({
+    command: 'MEMBER_UPDATE',
+    payload: { id, data },
+  });
 }
 
-/**
- * Delete a member
- */
-export async function deleteMember(id: string): Promise<MemberOperationResponse> {
-    return callMemberOperation({
-        operation: 'delete',
-        target: 'members',
-        id,
-    });
+export function deleteMember(id: string) {
+  return invokeMemberCommand({
+    command: 'MEMBER_DELETE',
+    payload: { id },
+  });
 }
 
-/**
- * Create a new first-timer
- */
-export async function createFirstTimer(
-    data: Partial<FirstTimer>
-): Promise<MemberOperationResponse> {
-    return callMemberOperation({
-        operation: 'create',
-        target: 'first_timers',
-        data,
-    });
+export function bulkTransferMembers(ids: string[], target_branch_id: string, district_id?: string) {
+  return invokeMemberCommand({
+    command: 'MEMBER_BULK_TRANSFER',
+    payload: { ids, target_branch_id, district_id },
+  });
 }
 
-/**
- * Update an existing first-timer
- */
-export async function updateFirstTimer(
-    id: string,
-    data: Partial<FirstTimer>
-): Promise<MemberOperationResponse> {
-    return callMemberOperation({
-        operation: 'update',
-        target: 'first_timers',
-        id,
-        data,
-    });
+/* ========================================================================
+   4. ADMIN COMMANDS (New!)
+   ======================================================================== */
+
+export interface CreateAdminPayload extends ScopePayload {
+  email: string;
+  password?: string;
+  full_name: string;
+  phone: string;
+  role: string;
 }
 
-/**
- * Delete a first-timer
- */
-export async function deleteFirstTimer(id: string): Promise<MemberOperationResponse> {
-    return callMemberOperation({
-        operation: 'delete',
-        target: 'first_timers',
-        id,
-    });
+export function createAdmin(payload: CreateAdminPayload) {
+  return invokeMemberCommand({
+    command: 'ADMIN_CREATE',
+    payload: payload,
+  });
 }
 
-/**
- * Bulk transfer members to a different branch
- */
-export async function bulkTransferMembers(
-    ids: string[],
-    targetBranchId: string
-): Promise<MemberOperationResponse> {
-    return callMemberOperation({
-        operation: 'bulk_transfer',
-        target: 'members',
-        ids,
-        targetBranchId,
-    });
+/* ========================================================================
+   5. FIRST TIMER COMMANDS
+   ======================================================================== */
+
+export function createFirstTimer(data: Partial<FirstTimer> & ScopePayload) {
+  return invokeMemberCommand({
+    command: 'FIRST_TIMER_CREATE',
+    payload: data,
+  });
 }
 
-/**
- * Bulk transfer first-timers to a different branch
- */
-export async function bulkTransferFirstTimers(
-    ids: string[],
-    targetBranchId: string
-): Promise<MemberOperationResponse> {
-    return callMemberOperation({
-        operation: 'bulk_transfer',
-        target: 'first_timers',
-        ids,
-        targetBranchId,
-    });
+export function updateFirstTimer(id: string, data: Partial<FirstTimer>) {
+  return invokeMemberCommand({
+    command: 'FIRST_TIMER_UPDATE',
+    payload: { id, data },
+  });
+}
+
+export function deleteFirstTimer(id: string) {
+  return invokeMemberCommand({
+    command: 'FIRST_TIMER_DELETE',
+    payload: { id },
+  });
+}
+
+export function bulkTransferFirstTimers(
+  ids: string[],
+  target_branch_id: string,
+  district_id?: string
+) {
+  return invokeMemberCommand({
+    command: 'FIRST_TIMER_BULK_TRANSFER',
+    payload: { ids, target_branch_id, district_id },
+  });
 }

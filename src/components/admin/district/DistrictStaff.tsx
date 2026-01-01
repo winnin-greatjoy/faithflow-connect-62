@@ -105,13 +105,16 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
     e.preventDefault();
 
     try {
-      const { error } = await supabase.from('user_roles').insert([
-        {
-          user_id: assignmentData.userId,
-          role: assignmentData.role,
-          branch_id: assignmentData.branchId,
+      const { error } = await supabase.functions.invoke('admin-roles', {
+        body: {
+          action: 'ASSIGN_ROLE',
+          payload: {
+            userId: assignmentData.userId,
+            role: assignmentData.role,
+            branchId: assignmentData.branchId,
+          },
         },
-      ]);
+      });
 
       if (error) throw error;
 
@@ -151,10 +154,16 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
     }
 
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .update({ branch_id: editData.branchId, role: editData.role })
-        .eq('id', editData.assignmentId);
+      const { error } = await supabase.functions.invoke('admin-roles', {
+        body: {
+          action: 'UPDATE_ROLE',
+          payload: {
+            roleId: editData.assignmentId,
+            role: editData.role,
+            branchId: editData.branchId,
+          },
+        },
+      });
 
       if (error) throw error;
 
@@ -173,7 +182,12 @@ export const DistrictStaff: React.FC<DistrictStaffProps> = ({
 
   const handleRemoveRole = async (assignmentId: string) => {
     try {
-      const { error } = await supabase.from('user_roles').delete().eq('id', assignmentId);
+      const { error } = await supabase.functions.invoke('admin-roles', {
+        body: {
+          action: 'REVOKE_ROLE',
+          payload: { roleId: assignmentId },
+        },
+      });
 
       if (error) throw error;
 

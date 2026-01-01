@@ -111,10 +111,10 @@ export const SuperadminUsersRoles: React.FC = () => {
           ...role,
           profile: profile
             ? {
-              first_name: profile.first_name,
-              last_name: profile.last_name,
-              email: profile.email,
-            }
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                email: profile.email,
+              }
             : undefined,
           branch: branch ? { name: branch.name } : undefined,
         };
@@ -141,9 +141,13 @@ export const SuperadminUsersRoles: React.FC = () => {
   const handleResetCredentials = async (email: string) => {
     if (!confirm(`Are you sure you want to send a password reset email to ${email}?`)) return;
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/auth/reset-password',
+      const { error } = await supabase.functions.invoke('manage-auth', {
+        body: {
+          action: 'send_password_reset',
+          email,
+        },
       });
+
       if (error) throw error;
 
       await supabase.from('audit_logs').insert({
@@ -157,7 +161,7 @@ export const SuperadminUsersRoles: React.FC = () => {
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.message || 'Failed to send reset email',
         variant: 'destructive',
       });
     }
@@ -166,23 +170,19 @@ export const SuperadminUsersRoles: React.FC = () => {
   const handleAssignRole = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { error } = await supabase.from('user_roles').insert([
-        {
-          user_id: assignForm.userId,
-          role: assignForm.role as any,
-          branch_id:
-            assignForm.branchId === 'global' || !assignForm.branchId ? null : assignForm.branchId,
+      const { error } = await supabase.functions.invoke('admin-roles', {
+        body: {
+          action: 'ASSIGN_ROLE',
+          payload: {
+            userId: assignForm.userId,
+            role: assignForm.role,
+            branchId:
+              assignForm.branchId === 'global' || !assignForm.branchId ? null : assignForm.branchId,
+          },
         },
-      ]);
+      });
 
       if (error) throw error;
-
-      await supabase.from('audit_logs').insert({
-        action: 'ASSIGN_ROLE',
-        table_name: 'user_roles',
-        user_id: (await supabase.auth.getUser()).data.user?.id || '',
-        details: { message: `Assigned role ${assignForm.role} to user ${assignForm.userId}` },
-      });
 
       toast({ title: 'Success', description: 'Role assigned successfully' });
       setIsAssignOpen(false);
@@ -201,16 +201,14 @@ export const SuperadminUsersRoles: React.FC = () => {
     if (!confirm('Are you sure you want to revoke this role assignment?')) return;
 
     try {
-      const { error } = await supabase.from('user_roles').delete().eq('id', roleId);
-      if (error) throw error;
-
-      await supabase.from('audit_logs').insert({
-        action: 'REVOKE_ROLE',
-        table_name: 'user_roles',
-        user_id: (await supabase.auth.getUser()).data.user?.id || '',
-        record_id: roleId,
-        details: { message: `Revoked role assignment ${roleId}` },
+      const { error } = await supabase.functions.invoke('admin-roles', {
+        body: {
+          action: 'REVOKE_ROLE',
+          payload: { roleId },
+        },
       });
+
+      if (error) throw error;
 
       toast({ title: 'Success', description: 'Role revoked successfully' });
       fetchData();
@@ -228,42 +226,28 @@ export const SuperadminUsersRoles: React.FC = () => {
     try {
       console.log('Creating admin with data:', formData);
 
-      // Call the member-operations Edge Function to create member with admin role
-      const { data, error } = await supabase.functions.invoke('member-operations', {
-        body: {
-          operation: 'create',
-          target: 'members',
-          data: {
-            full_name: formData.fullName,
-            email: formData.email,
-            phone: formData.phone,
-            date_of_birth: formData.dateOfBirth || null,
-            gender: formData.gender,
-            marital_status: formData.maritalStatus,
-            branch_id: formData.branchId || null,
-            membership_level: 'baptized',
-            join_date: formData.joinDate || new Date().toISOString().split('T')[0],
-            createAccount: true,
-            username: formData.email,
-            password: formData.password || 'TempPass123!',
-            assignAdminRole: formData.assignAdminRole,
-            adminRole: formData.adminRole,
-            adminBranchId: formData.adminBranchId,
-            adminDistrictId: formData.adminDistrictId,
-          },
-        },
+      const { createAdmin } = await import('@/utils/memberOperations');
+
+      // Call the V2 member-operations client
+      const response = await createAdmin({
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password || undefined, // Pass if provided
+        role: formData.adminRole!, // Validated by form
+
+        // Scope
+        branch_id: formData.adminBranchId, // For branch admins
+        district_id: formData.adminDistrictId, // For district admins
       });
 
-      console.log('Edge Function response:', { data, error });
-
-      if (error) {
-        console.error('Edge Function error details:', error);
-        throw error;
+      if (!response.success) {
+        throw new Error(response.error);
       }
 
       toast({
         title: 'Success',
-        description: `Admin "${formData.fullName}" created successfully.${formData.assignAdminRole ? ' Admin role assigned.' : ''}`,
+        description: `Admin "${formData.fullName}" created successfully with role ${formData.adminRole}.`,
       });
 
       setIsCreateAdminOpen(false);

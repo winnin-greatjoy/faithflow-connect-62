@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UserRole {
+  id: string;
   user_id: string;
   role: string;
   branch_id: string;
@@ -135,19 +136,18 @@ export const GlobalRoleManagement: React.FC = () => {
         throw new Error('User not found with that email');
       }
 
-      // Insert role
-      const { error: roleError } = await supabase.from('user_roles').insert({
-        user_id: profile.id,
-        role: assignForm.role,
-        branch_id: assignForm.branchId,
-      } as any);
+      const { error } = await supabase.functions.invoke('admin-roles', {
+        body: {
+          action: 'ASSIGN_ROLE',
+          payload: {
+            userId: profile.id,
+            role: assignForm.role,
+            branchId: assignForm.branchId,
+          },
+        },
+      });
 
-      if (roleError) throw roleError;
-
-      // Update profile role if higher privilege
-      if (['super_admin', 'admin', 'pastor'].includes(assignForm.role)) {
-        await supabase.from('profiles').update({ role: assignForm.role }).eq('id', profile.id);
-      }
+      if (error) throw error;
 
       toast({
         title: 'Success',
@@ -167,16 +167,16 @@ export const GlobalRoleManagement: React.FC = () => {
     }
   };
 
-  const handleRevokeRole = async (userId: string, role: string, branchId: string) => {
+  const handleRevokeRole = async (roleId: string) => {
     if (!confirm('Are you sure you want to revoke this role?')) return;
 
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId)
-        .eq('role', role as any)
-        .eq('branch_id', branchId);
+      const { error } = await supabase.functions.invoke('admin-roles', {
+        body: {
+          action: 'REVOKE_ROLE',
+          payload: { roleId },
+        },
+      });
 
       if (error) throw error;
 
@@ -209,7 +209,7 @@ export const GlobalRoleManagement: React.FC = () => {
   };
 
   const filteredRoles = userRoles.filter((userRole) => {
-    const fullName = userRole.profiles 
+    const fullName = userRole.profiles
       ? `${userRole.profiles.first_name} ${userRole.profiles.last_name}`.toLowerCase()
       : '';
     const matchesSearch = searchTerm === '' || fullName.includes(searchTerm.toLowerCase());
@@ -398,8 +398,8 @@ export const GlobalRoleManagement: React.FC = () => {
                     </div>
                     <div>
                       <p className="font-medium">
-                        {userRole.profiles 
-                          ? `${userRole.profiles.first_name} ${userRole.profiles.last_name}` 
+                        {userRole.profiles
+                          ? `${userRole.profiles.first_name} ${userRole.profiles.last_name}`
                           : 'Unknown User'}
                       </p>
                       <p className="text-sm text-gray-500">
@@ -420,13 +420,7 @@ export const GlobalRoleManagement: React.FC = () => {
                     </div>
                   </div>
 
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      handleRevokeRole(userRole.user_id, userRole.role, userRole.branch_id)
-                    }
-                  >
+                  <Button size="sm" variant="ghost" onClick={() => handleRevokeRole(userRole.id)}>
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
                 </div>

@@ -472,13 +472,16 @@ export const MultiBranchView: React.FC<MultiBranchViewProps> = ({
     e.preventDefault();
 
     try {
-      const { error } = await supabase.from('user_roles').insert([
-        {
-          user_id: assignmentData.memberId,
-          role: assignmentData.role,
-          branch_id: assignmentData.branchId,
+      const { error } = await supabase.functions.invoke('admin-roles', {
+        body: {
+          action: 'ASSIGN_ROLE',
+          payload: {
+            userId: assignmentData.memberId,
+            role: assignmentData.role,
+            branchId: assignmentData.branchId,
+          },
         },
-      ]);
+      });
 
       if (error) throw error;
 
