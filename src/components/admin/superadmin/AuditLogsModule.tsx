@@ -148,26 +148,24 @@ export const AuditLogsModule: React.FC = () => {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-blue-600">
-              {logs.filter((l) => l.severity === 'info' || !l.severity).length}
-            </div>
-            <p className="text-xs text-muted-foreground">Info Events</p>
+            <div className="text-2xl font-bold text-blue-600">{uniqueActions.length}</div>
+            <p className="text-xs text-muted-foreground">Unique Actions</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-yellow-600">
-              {logs.filter((l) => l.severity === 'warning').length}
+            <div className="text-2xl font-bold text-green-600">
+              {logs.filter((l) => l.action.toLowerCase().includes('create')).length}
             </div>
-            <p className="text-xs text-muted-foreground">Warnings</p>
+            <p className="text-xs text-muted-foreground">Create Events</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-600">
-              {logs.filter((l) => l.severity === 'critical').length}
+            <div className="text-2xl font-bold text-orange-600">
+              {logs.filter((l) => l.action.toLowerCase().includes('update') || l.action.toLowerCase().includes('edit')).length}
             </div>
-            <p className="text-xs text-muted-foreground">Critical Events</p>
+            <p className="text-xs text-muted-foreground">Update Events</p>
           </CardContent>
         </Card>
       </div>
@@ -186,18 +184,6 @@ export const AuditLogsModule: React.FC = () => {
               />
             </div>
             <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="All Actions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Actions</SelectItem>
-                {uniqueActions.map((action) => (
-                  <SelectItem key={action} value={action}>
-                    {action.replace('_', ' ')}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="All Actions" />
               </SelectTrigger>

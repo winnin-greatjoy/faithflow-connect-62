@@ -33,6 +33,8 @@ export type {
     TabType,
 } from '@/types/bible-school';
 
+import type { TabType } from '@/types/bible-school';
+
 // Module-specific filter types
 export interface BibleSchoolFilters {
     search: string;
