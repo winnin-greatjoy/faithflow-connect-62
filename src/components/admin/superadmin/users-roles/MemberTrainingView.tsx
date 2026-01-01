@@ -42,7 +42,7 @@ export const MemberTrainingView = () => {
                 .order("updated_at", { ascending: false });
 
             if (filterType !== "all") {
-                query = query.eq("training_type", filterType);
+                query = query.eq("training_type", filterType as any);
             }
 
             const { data, error } = await query;

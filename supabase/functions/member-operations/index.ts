@@ -281,10 +281,11 @@ serve(async (req) => {
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
 
-    } catch (error) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
         console.error('Error in member-operations:', error);
         return new Response(
-            JSON.stringify({ error: error.message || 'Internal server error' }),
+            JSON.stringify({ error: message || 'Internal server error' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }

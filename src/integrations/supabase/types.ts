@@ -394,6 +394,69 @@ export type Database = {
           },
         ]
       }
+      bible_audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          performed_by: string | null
+          student_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          performed_by?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          performed_by?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bible_audit_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bible_audit_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "bible_attendance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "bible_audit_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "bible_exam_results_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "bible_audit_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "bible_student_progress"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "bible_audit_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "bible_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bible_cohorts: {
         Row: {
           branch_id: string
@@ -2515,6 +2578,7 @@ export type Database = {
           pastoral_notes: string | null
           phone: string
           prayer_needs: string | null
+          profile_id: string | null
           profile_photo: string | null
           public_landmark: string | null
           spiritual_mentor: string | null
@@ -2553,6 +2617,7 @@ export type Database = {
           pastoral_notes?: string | null
           phone: string
           prayer_needs?: string | null
+          profile_id?: string | null
           profile_photo?: string | null
           public_landmark?: string | null
           spiritual_mentor?: string | null
@@ -2591,6 +2656,7 @@ export type Database = {
           pastoral_notes?: string | null
           phone?: string
           prayer_needs?: string | null
+          profile_id?: string | null
           profile_photo?: string | null
           public_landmark?: string | null
           spiritual_mentor?: string | null
@@ -2605,6 +2671,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2913,6 +2986,7 @@ export type Database = {
         Row: {
           branch_id: string | null
           created_at: string | null
+          district_id: string | null
           first_name: string
           id: string
           is_baptized: boolean | null
@@ -2925,6 +2999,7 @@ export type Database = {
         Insert: {
           branch_id?: string | null
           created_at?: string | null
+          district_id?: string | null
           first_name: string
           id: string
           is_baptized?: boolean | null
@@ -2937,6 +3012,7 @@ export type Database = {
         Update: {
           branch_id?: string | null
           created_at?: string | null
+          district_id?: string | null
           first_name?: string
           id?: string
           is_baptized?: boolean | null
@@ -2952,6 +3028,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
             referencedColumns: ["id"]
           },
         ]
@@ -3226,6 +3309,7 @@ export type Database = {
           branch_id: string | null
           created_at: string | null
           department_id: string | null
+          district_id: string | null
           id: string
           ministry_id: string | null
           role: Database["public"]["Enums"]["app_role"] | null
@@ -3236,6 +3320,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string | null
           department_id?: string | null
+          district_id?: string | null
           id?: string
           ministry_id?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
@@ -3246,6 +3331,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string | null
           department_id?: string | null
+          district_id?: string | null
           id?: string
           ministry_id?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
@@ -3258,6 +3344,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "church_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
             referencedColumns: ["id"]
           },
           {
@@ -3473,6 +3566,10 @@ export type Database = {
       submit_transfer_request: {
         Args: { notes: string; target_branch_id: string }
         Returns: string
+      }
+      upgrade_member_to_baptized: {
+        Args: { p_email: string; p_member_id: string; p_password?: string }
+        Returns: Json
       }
     }
     Enums: {

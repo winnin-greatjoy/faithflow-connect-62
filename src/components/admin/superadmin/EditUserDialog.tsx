@@ -59,12 +59,24 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
       if (error) throw error;
 
-      await supabase.from('audit_logs').insert({
-        action: 'UPDATE_ROLE',
-        resource: 'profiles',
-        details: `Updated role for user ${user.id} to ${role}`,
-        severity: 'info',
-      });
+      // Audit log (best-effort)
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        if (userId) {
+          await supabase.from('audit_logs').insert({
+            user_id: userId,
+            action: 'UPDATE_ROLE',
+            table_name: 'profiles',
+            record_id: user.id,
+            details: { target_user_id: user.id, new_role: role },
+          });
+        }
+      } catch (e) {
+        console.warn('Audit log insert failed:', e);
+      }
 
       toast({
         title: 'Success',

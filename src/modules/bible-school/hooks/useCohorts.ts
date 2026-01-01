@@ -32,7 +32,7 @@ export function useCohorts(options: UseCohortsOptions = {}) {
             const { data, error: fetchError } = await query.order('start_date', { ascending: false });
 
             if (fetchError) throw fetchError;
-            setCohorts(data || []);
+            setCohorts(((data || []) as unknown) as BibleCohort[]);
             setError(null);
         } catch (err: any) {
             console.error('Error fetching cohorts:', err);

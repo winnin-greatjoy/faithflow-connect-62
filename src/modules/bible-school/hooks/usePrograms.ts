@@ -18,7 +18,7 @@ export function usePrograms() {
                 .order('level_order');
 
             if (fetchError) throw fetchError;
-            setPrograms(data || []);
+            setPrograms(((data || []) as unknown) as BibleProgram[]);
             setError(null);
         } catch (err: any) {
             console.error('Error fetching programs:', err);

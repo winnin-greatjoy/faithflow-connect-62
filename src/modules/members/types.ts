@@ -21,7 +21,8 @@ export type TabType =
     | 'disciples'
     | 'leaders'
     | 'pastors'
-    | 'converts';
+    | 'converts'
+    | 'visitors';
 
 // Filter configuration
 export interface MemberFilters {
