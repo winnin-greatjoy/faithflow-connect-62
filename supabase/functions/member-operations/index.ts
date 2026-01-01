@@ -114,7 +114,6 @@ serve(async (req) => {
                     marital_status: data.marital_status || null,
                     branch_id: data.branch_id || null,
                     membership_level: data.membership_level || 'baptized',
-                    join_date: data.join_date || new Date().toISOString().split('T')[0],
                 };
 
                 // Ensure branch_id is set correctly for branch admins
