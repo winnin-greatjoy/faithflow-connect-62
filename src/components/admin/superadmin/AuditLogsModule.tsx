@@ -25,23 +25,17 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AuditLogEntry {
   id: string;
-  timestamp: string;
-  user_id: string | null;
+  created_at: string | null;
+  user_id: string;
   action: string;
-  resource: string;
-  details: string | null;
-  severity: 'info' | 'warning' | 'critical' | null;
-  ip_address: string | null;
-  profile?: {
-    first_name: string;
-    last_name: string;
-  } | null;
+  table_name: string;
+  record_id: string | null;
+  details: any;
 }
 
 export const AuditLogsModule: React.FC = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [severityFilter, setSeverityFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
 
   const {
@@ -53,17 +47,8 @@ export const AuditLogsModule: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('audit_logs')
-        .select(`
-          id,
-          timestamp,
-          user_id,
-          action,
-          resource,
-          details,
-          severity,
-          ip_address
-        `)
-        .order('timestamp', { ascending: false })
+        .select('id, created_at, user_id, action, table_name, record_id, details')
+        .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) {
@@ -71,28 +56,7 @@ export const AuditLogsModule: React.FC = () => {
         throw error;
       }
 
-      // Fetch profile names separately for user_ids
-      const userIds = [...new Set((data || []).map(d => d.user_id).filter(Boolean))];
-      let profileMap: Record<string, { first_name: string; last_name: string }> = {};
-      
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
-          .in('id', userIds);
-        
-        if (profiles) {
-          profileMap = profiles.reduce((acc, p) => {
-            acc[p.id] = { first_name: p.first_name, last_name: p.last_name };
-            return acc;
-          }, {} as Record<string, { first_name: string; last_name: string }>);
-        }
-      }
-
-      return (data || []).map(log => ({
-        ...log,
-        profile: log.user_id ? profileMap[log.user_id] || null : null
-      })) as AuditLogEntry[];
+      return (data || []) as unknown as AuditLogEntry[];
     },
   });
 
@@ -115,20 +79,17 @@ export const AuditLogsModule: React.FC = () => {
   };
 
   const filteredLogs = logs.filter((log) => {
-    const userName = log.profile
-      ? `${log.profile.first_name} ${log.profile.last_name}`
-      : 'Unknown User';
+    const detailsText = log.details ? JSON.stringify(log.details) : '';
 
     const matchesSearch =
       searchTerm === '' ||
-      userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.user_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (log.details || '').toLowerCase().includes(searchTerm.toLowerCase());
+      detailsText.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesSeverity = severityFilter === 'all' || (log.severity || 'info') === severityFilter;
     const matchesAction = actionFilter === 'all' || log.action === actionFilter;
 
-    return matchesSearch && matchesSeverity && matchesAction;
+    return matchesSearch && matchesAction;
   });
 
   const uniqueActions = [...new Set(logs.map((l) => l.action))];
@@ -224,18 +185,19 @@ export const AuditLogsModule: React.FC = () => {
                 className="pl-10"
               />
             </div>
-            <Select value={severityFilter} onValueChange={setSeverityFilter}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="All Severities" />
+            <Select value={actionFilter} onValueChange={setActionFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="All Actions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Severities</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="all">All Actions</SelectItem>
+                {uniqueActions.map((action) => (
+                  <SelectItem key={action} value={action}>
+                    {action.replace('_', ' ')}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select value={actionFilter} onValueChange={setActionFilter}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="All Actions" />
               </SelectTrigger>
@@ -264,10 +226,10 @@ export const AuditLogsModule: React.FC = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[180px]">Timestamp</TableHead>
-                  <TableHead>User</TableHead>
+                  <TableHead>User ID</TableHead>
                   <TableHead>Action</TableHead>
+                  <TableHead>Table</TableHead>
                   <TableHead>Details</TableHead>
-                  <TableHead>Severity</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -284,22 +246,17 @@ export const AuditLogsModule: React.FC = () => {
                         <div className="flex items-center gap-2 text-sm">
                           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                           <div>
-                            <div>{new Date(log.timestamp).toLocaleDateString()}</div>
+                            <div>
+                              {(log.created_at ? new Date(log.created_at) : new Date()).toLocaleDateString()}
+                            </div>
                             <div className="text-xs text-muted-foreground">
-                              {new Date(log.timestamp).toLocaleTimeString()}
+                              {(log.created_at ? new Date(log.created_at) : new Date()).toLocaleTimeString()}
                             </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-sm">
-                            {log.profile
-                              ? `${log.profile.first_name} ${log.profile.last_name}`
-                              : 'System / Unknown'}
-                          </span>
-                        </div>
+                        <span className="text-sm font-mono text-muted-foreground">{log.user_id}</span>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="font-mono text-xs">
@@ -307,9 +264,13 @@ export const AuditLogsModule: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">{log.details}</span>
+                        <span className="text-sm text-muted-foreground">{log.table_name}</span>
                       </TableCell>
-                      <TableCell>{getSeverityBadge(log.severity)}</TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {log.details ? JSON.stringify(log.details) : ''}
+                        </span>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

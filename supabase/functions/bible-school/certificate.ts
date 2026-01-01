@@ -25,7 +25,7 @@ export async function generateCertificate({
 
         doc.on('data', (chunk: Uint8Array) => chunks.push(chunk));
         doc.on('end', () => {
-            resolve(new Blob(chunks, { type: 'application/pdf' }));
+            resolve(new Blob(chunks as unknown as BlobPart[], { type: 'application/pdf' }));
         });
         doc.on('error', (err: any) => reject(err));
 

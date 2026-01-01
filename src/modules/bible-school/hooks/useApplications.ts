@@ -28,7 +28,7 @@ export function useApplications(options: UseApplicationsOptions = {}) {
             const { data, error: fetchError } = await query.order('submitted_at', { ascending: false });
 
             if (fetchError) throw fetchError;
-            setApplications(data || []);
+            setApplications(((data || []) as unknown) as BibleApplication[]);
             setError(null);
         } catch (err: any) {
             console.error('Error fetching applications:', err);
