@@ -101,10 +101,23 @@ serve(async (req) => {
                 const {
                     createAccount, username, password, children,
                     assignAdminRole, adminRole, adminBranchId, adminDistrictId,
-                    ...memberData
                 } = data;
 
-                // Ensure branch_id is set correctly
+                // Build memberData with only valid columns for the members table
+                // This prevents errors from extra form fields that don't exist in the table
+                const memberData: any = {
+                    full_name: data.full_name,
+                    email: data.email || null,
+                    phone: data.phone || null,
+                    date_of_birth: data.date_of_birth || null,
+                    gender: data.gender || null,
+                    marital_status: data.marital_status || null,
+                    branch_id: data.branch_id || null,
+                    membership_level: data.membership_level || 'baptized',
+                    join_date: data.join_date || new Date().toISOString().split('T')[0],
+                };
+
+                // Ensure branch_id is set correctly for branch admins
                 if (profile.role === 'branch_admin' && !memberData.branch_id) {
                     memberData.branch_id = profile.branch_id;
                 }
