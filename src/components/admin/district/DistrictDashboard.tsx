@@ -160,6 +160,29 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
           .single();
         data = response.data;
         error = response.error;
+
+        // Fallback: if head_admin_id isn't set, resolve via user_roles.district_id
+        if (error?.code === 'PGRST116' || !data) {
+          const { data: districtRole, error: districtRoleError } = await supabase
+            .from('user_roles')
+            .select('district_id')
+            .eq('user_id', user?.id)
+            .eq('role', 'district_admin')
+            .maybeSingle();
+
+          if (districtRoleError) throw districtRoleError;
+
+          const fallbackDistrictId = (districtRole as any)?.district_id as string | undefined;
+          if (fallbackDistrictId) {
+            const resp2 = await supabase
+              .from('districts')
+              .select('*')
+              .eq('id', fallbackDistrictId)
+              .single();
+            data = resp2.data;
+            error = resp2.error;
+          }
+        }
       }
 
       if (error && error.code !== 'PGRST116') throw error;
