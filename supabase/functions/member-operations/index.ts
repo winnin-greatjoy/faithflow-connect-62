@@ -15,9 +15,11 @@ interface MemberOperationRequest {
     targetBranchId?: string;
 }
 
+type UserRole = 'super_admin' | 'district_admin' | 'branch_admin' | 'admin' | 'pastor' | 'leader' | 'worker' | 'member';
+
 interface UserProfile {
     id: string;
-    role: 'super_admin' | 'admin' | 'pastor' | 'leader' | 'worker' | 'member';
+    role: UserRole;
     branch_id: string | null;
 }
 
@@ -37,29 +39,34 @@ serve(async (req) => {
             );
         }
 
-        // Create Supabase client with user's token
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-        // Client for auth validation (using user token)
-        const token = authHeader.replace('Bearer ', '');
-        const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-            auth: {
-                persistSession: false,
-            },
+        // 1. Create separate clients
+        // Anon client for validating the user's JWT
+        const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false },
         });
 
-        // Verify user authentication
-        const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+        // Service client for privileged database operations
+        const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
+            auth: { persistSession: false },
+        });
+
+        // 2. Verify user authentication using ANON client
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
 
         if (authError || !user) {
+            console.error('Auth error:', authError);
             return new Response(
                 JSON.stringify({ error: 'Invalid authentication token' }),
                 { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
         }
 
-        // Get user profile and role
+        // Get user profile and role using SERVICE client
         const { data: profile, error: profileError } = await supabaseClient
             .from('profiles')
             .select('id, role, branch_id')
@@ -68,17 +75,19 @@ serve(async (req) => {
 
         if (profileError || !profile) {
             return new Response(
-                JSON.stringify({ error: 'User profile not found or not an admin' }),
+                JSON.stringify({ error: 'User profile not found' }),
                 { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
         }
+
+        const userProfile = profile as UserProfile;
 
         // Parse request body
         const body: MemberOperationRequest = await req.json();
         const { operation, target, data, id, ids, targetBranchId } = body;
 
         // Validate permissions
-        const canPerform = validatePermissions(profile as UserProfile, operation, target, data, targetBranchId);
+        const canPerform = validatePermissions(userProfile, operation, target, data, targetBranchId);
         if (!canPerform.allowed) {
             return new Response(
                 JSON.stringify({ error: canPerform.reason }),
@@ -103,8 +112,17 @@ serve(async (req) => {
                     assignAdminRole, adminRole, adminBranchId, adminDistrictId,
                 } = data;
 
+                // 3. Hierarchy Guard: Only super_admin can assign admin roles
+                if (assignAdminRole) {
+                    if (userProfile.role !== 'super_admin') {
+                        return new Response(
+                            JSON.stringify({ error: 'Only super admins can assign admin roles' }),
+                            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                        );
+                    }
+                }
+
                 // Build memberData with only valid columns for the members table
-                // This prevents errors from extra form fields that don't exist in the table
                 const memberData: any = {
                     full_name: data.full_name,
                     email: data.email || null,
@@ -112,13 +130,13 @@ serve(async (req) => {
                     date_of_birth: data.date_of_birth || null,
                     gender: data.gender || null,
                     marital_status: data.marital_status || null,
-                    branch_id: data.branch_id || null,
+                    branch_id: data.branch_id || null, // Will use provided branch_id
                     membership_level: data.membership_level || 'baptized',
                 };
 
-                // Ensure branch_id is set correctly for branch admins
-                if (profile.role === 'branch_admin' && !memberData.branch_id) {
-                    memberData.branch_id = profile.branch_id;
+                // For branch admins, enforce their branch ID
+                if ((userProfile.role === 'branch_admin' || userProfile.role === 'admin' || userProfile.role === 'pastor') && !memberData.branch_id) {
+                    memberData.branch_id = userProfile.branch_id;
                 }
 
                 console.log('Step 1: Built memberData:', JSON.stringify(memberData));
@@ -140,7 +158,6 @@ serve(async (req) => {
 
                         if (authError) {
                             console.error('Step 2a: Account creation error:', JSON.stringify(authError));
-                            // Continue without account if it fails
                         } else {
                             authUserId = authData.user.id;
                             console.log('Step 2b: Auth user created with ID:', authUserId);
@@ -174,11 +191,11 @@ serve(async (req) => {
                                 };
 
                                 // Set branch_id for branch-specific roles
-                                if (adminRole === 'admin' || adminRole === 'pastor') {
+                                if (adminRole === 'admin' || adminRole === 'pastor' || adminRole === 'branch_admin') {
                                     userRoleData.branch_id = adminBranchId || memberData.branch_id || null;
                                 }
 
-                                // Set district_id for district-specific roles (if column exists)
+                                // Set district_id for district-specific roles
                                 if (adminRole === 'district_admin' || adminRole === 'district_overseer') {
                                     userRoleData.district_id = adminDistrictId || null;
                                 }
@@ -193,7 +210,6 @@ serve(async (req) => {
                         }
                     } catch (accountError) {
                         console.error('Step 2-CATCH: Account creation failed:', accountError);
-                        // Continue creating member without account
                     }
                 }
 
@@ -227,7 +243,7 @@ serve(async (req) => {
 
                 // Log audit trail
                 await logAudit(supabaseClient, {
-                    user_id: user.id,
+                    user_id: userProfile.id,
                     action: 'create',
                     table: tableName,
                     record_id: created.id,
@@ -240,9 +256,17 @@ serve(async (req) => {
                     throw new Error('Missing id or data for update operation');
                 }
 
+                // Sanitize update data - remove invalid columns if present
+                const updateData = { ...data };
+                delete updateData.assignAdminRole;
+                delete updateData.adminRole;
+                delete updateData.adminBranchId;
+                delete updateData.adminDistrictId;
+                delete updateData.children;
+
                 const { data: updated, error: updateError } = await supabaseClient
                     .from(tableName)
-                    .update(data)
+                    .update(updateData)
                     .eq('id', id)
                     .select()
                     .single();
@@ -252,11 +276,11 @@ serve(async (req) => {
 
                 // Log audit trail
                 await logAudit(supabaseClient, {
-                    user_id: user.id,
+                    user_id: userProfile.id,
                     action: 'update',
                     table: tableName,
                     record_id: id,
-                    details: { data },
+                    details: { data: updateData },
                 });
                 break;
 
@@ -275,7 +299,7 @@ serve(async (req) => {
 
                 // Log audit trail
                 await logAudit(supabaseClient, {
-                    user_id: user.id,
+                    user_id: userProfile.id,
                     action: 'delete',
                     table: tableName,
                     record_id: id,
@@ -299,7 +323,7 @@ serve(async (req) => {
 
                 // Log audit trail
                 await logAudit(supabaseClient, {
-                    user_id: user.id,
+                    user_id: userProfile.id,
                     action: 'bulk_transfer',
                     table: tableName,
                     record_id: null,
@@ -341,8 +365,8 @@ function validatePermissions(
         return { allowed: true };
     }
 
-    // Branch admins (admin role) have restrictions
-    if (profile.role === 'admin' || profile.role === 'pastor') {
+    // Branch admins (admin, branch_admin, pastor) have restrictions
+    if (profile.role === 'admin' || profile.role === 'branch_admin' || profile.role === 'pastor') {
         // Can only work with their own branch
         if (data && data.branch_id && data.branch_id !== profile.branch_id) {
             return { allowed: false, reason: 'Admins can only modify records in their branch' };
