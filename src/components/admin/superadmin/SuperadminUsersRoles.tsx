@@ -230,6 +230,7 @@ export const SuperadminUsersRoles: React.FC = () => {
       const { data, error } = await supabase.functions.invoke('member-operations', {
         body: {
           operation: 'create',
+          target: 'members', // Required field for Edge Function
           data: {
             full_name: formData.fullName,
             email: formData.email,
@@ -239,6 +240,7 @@ export const SuperadminUsersRoles: React.FC = () => {
             marital_status: formData.maritalStatus,
             branch_id: formData.branchId || null,
             membership_level: 'baptized', // Admins should be baptized members
+            join_date: formData.joinDate || new Date().toISOString().split('T')[0],
             createAccount: true,
             username: formData.email, // Use email as username
             password: formData.password || 'TemporaryPassword123!', // Edge Function should handle this
