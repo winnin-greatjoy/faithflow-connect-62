@@ -36,17 +36,19 @@ serve(async (req: Request) => {
     } = await supabaseUserClient.auth.getUser();
     if (userError || !user) throw new Error('Unauthorized');
 
-    // Fetch caller's profile to verify they are a super_admin or district_admin
-    const { data: callerProfile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('role, id')
-      .eq('id', user.id)
-      .single();
+    // Verify caller is super_admin or district_admin via user_roles (roles are not sourced from profiles)
+    const { data: callerRoles, error: rolesError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
 
-    if (profileError || !callerProfile) throw new Error('Failed to fetch caller profile');
+    if (rolesError) throw new Error('Failed to fetch caller roles');
 
-    const allowedRoles = ['super_admin', 'district_admin'];
-    if (!allowedRoles.includes(callerProfile.role)) {
+    const roles = (callerRoles || []).map((r: any) => r?.role).filter(Boolean);
+    const isSuperAdmin = roles.includes('super_admin');
+    const isDistrictAdmin = roles.includes('district_admin');
+
+    if (!isSuperAdmin && !isDistrictAdmin) {
       throw new Error('Forbidden: Insufficient privileges');
     }
 
@@ -63,7 +65,7 @@ serve(async (req: Request) => {
       if (!userId || (!role && !roleId)) throw new Error('Missing userId or role/roleId');
 
       // Scope checks
-      if (callerProfile.role === 'district_admin') {
+      if (isDistrictAdmin && !isSuperAdmin) {
         if (role === 'super_admin' || role === 'district_admin' || role === 'district_overseer') {
           throw new Error('District Admins cannot assign system level roles');
         }
@@ -84,18 +86,8 @@ serve(async (req: Request) => {
 
       if (insertError) throw insertError;
 
-      // 2. If it's a system role (enum based), update profiles table too
-      if (role) {
-        const systemRoles = [
-          'super_admin',
-          'district_admin',
-          'district_overseer',
-          'general_overseer',
-        ];
-        if (systemRoles.includes(role)) {
-          await supabaseAdmin.from('profiles').update({ role: role }).eq('id', userId);
-        }
-      }
+      // 2. NOTE: Roles are stored in user_roles only (do not mirror into profiles)
+
 
       // 3. Audit Log
       await supabaseAdmin.from('audit_logs').insert({

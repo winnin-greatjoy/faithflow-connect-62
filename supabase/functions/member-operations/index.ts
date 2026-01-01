@@ -75,36 +75,66 @@ async function getAuthUser(req: Request) {
   return data?.user ?? null;
 }
 
-async function getUserProfile(user_id: string) {
-  const { data, error } = await adminClient
+type ActorContext = {
+  id: string;
+  branch_id: string | null;
+  district_id: string | null;
+  roles: string[];
+};
+
+async function getActorContext(user_id: string): Promise<ActorContext> {
+  const { data: profile, error: profileError } = await adminClient
     .from('profiles')
-    .select('*') // Be resilient to missing district_id
+    .select('id, branch_id, district_id')
     .eq('id', user_id)
     .single();
 
-  if (error) throw error;
-  return data;
+  if (profileError) throw profileError;
+
+  const { data: roleRows, error: rolesError } = await adminClient
+    .from('user_roles')
+    .select('role, branch_id, district_id')
+    .eq('user_id', user_id);
+
+  if (rolesError) throw rolesError;
+
+  const roles = (roleRows || [])
+    .map((r: any) => r?.role)
+    .filter((r: any): r is string => typeof r === 'string');
+
+  const scopedBranchId =
+    (roleRows || []).find((r: any) => r?.branch_id)?.branch_id ?? (profile as any).branch_id ?? null;
+
+  const scopedDistrictId =
+    (roleRows || []).find((r: any) => r?.district_id)?.district_id ??
+    (profile as any).district_id ??
+    null;
+
+  return { id: user_id, branch_id: scopedBranchId, district_id: scopedDistrictId, roles };
 }
 
-function assertScope(actor: any, payload: { branch_id?: string; district_id?: string }) {
-  if (actor.role === 'super_admin') return;
+function assertScope(
+  actor: ActorContext,
+  payload: { branch_id?: string | null; district_id?: string | null }
+) {
+  if (actor.roles.includes('super_admin')) return;
 
-  if (actor.role === 'district_admin') {
-    if (payload.district_id && payload.district_id !== actor.district_id) {
+  if (actor.roles.includes('district_admin')) {
+    if (payload.district_id && actor.district_id && payload.district_id !== actor.district_id) {
       throw new Error('District scope violation');
     }
     return;
   }
 
-  // Branch level actors
-  if (['branch_admin', 'admin', 'pastor', 'leader'].includes(actor.role)) {
-    if (payload.branch_id && payload.branch_id !== actor.branch_id) {
+  // Branch-level actors
+  if (actor.roles.some((r) => ['admin', 'pastor', 'leader'].includes(r))) {
+    if (payload.branch_id && actor.branch_id && payload.branch_id !== actor.branch_id) {
       throw new Error('Branch scope violation');
     }
     return;
   }
 
-  throw new Error(`Unauthorized role: ${actor.role}`);
+  throw new Error('Forbidden: Insufficient privileges');
 }
 
 /**
@@ -264,7 +294,7 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
     if (!ids?.length || !target_branch_id) throw new Error('Missing ids or target_branch_id');
 
     // Only super/district admins usually do this
-    if (!['super_admin', 'district_admin'].includes(actor.role)) {
+    if (!actor.roles.includes('super_admin') && !actor.roles.includes('district_admin')) {
       throw new Error('Only super/district admins can perform bulk transfers');
     }
 
@@ -286,7 +316,7 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
   /* ------------------ ADMINS ------------------ */
 
   async ADMIN_CREATE(actor: any, payload: any) {
-    if (actor.role !== 'super_admin') {
+    if (!actor.roles.includes('super_admin')) {
       throw new Error('Only super admin can create admins');
     }
 
@@ -315,20 +345,29 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
       id: user.user.id,
       first_name: full_name?.split(' ')[0] || '',
       last_name: full_name?.split(' ').slice(1).join(' ') || '',
-      role,
       phone,
       branch_id,
       district_id,
     });
     if (profileError) throw profileError;
 
-    // Roles
+    // Roles (source of truth)
     await adminClient.from('user_roles').insert({
       user_id: user.user.id,
       role,
       branch_id,
       district_id,
     });
+
+    // Link district admins to their district record (so District Dashboard can resolve)
+    if (role === 'district_admin' && district_id) {
+      const { error: districtErr } = await adminClient
+        .from('districts')
+        .update({ head_admin_id: user.user.id })
+        .eq('id', district_id);
+
+      if (districtErr) console.error('Failed to set district head_admin_id:', districtErr);
+    }
 
     await logAudit(actor.id, 'create_admin', 'users', user.user.id, { email, role });
     return user.user;
@@ -434,7 +473,7 @@ serve(async (req) => {
       });
     }
 
-    const actor = await getUserProfile(user.id);
+    const actor = await getActorContext(user.id);
 
     const handler = (handlers as any)[body.command];
     if (!handler) {
