@@ -122,9 +122,12 @@ serve(async (req) => {
                     memberData.branch_id = profile.branch_id;
                 }
 
+                console.log('Step 1: Built memberData:', JSON.stringify(memberData));
+
                 // Handle account creation if requested
                 let authUserId = null;
                 if (createAccount && username && password && target === 'members') {
+                    console.log('Step 2: Starting account creation for:', username);
                     try {
                         const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
                             email: username,
@@ -137,15 +140,18 @@ serve(async (req) => {
                         });
 
                         if (authError) {
-                            console.error('Account creation error:', authError);
+                            console.error('Step 2a: Account creation error:', JSON.stringify(authError));
                             // Continue without account if it fails
                         } else {
                             authUserId = authData.user.id;
+                            console.log('Step 2b: Auth user created with ID:', authUserId);
+
                             // Determine role for profile based on admin assignment
                             const profileRole = assignAdminRole && adminRole ? adminRole : 'member';
+                            console.log('Step 3: Creating profile with role:', profileRole);
 
                             // Create profile for the new user
-                            await supabaseClient.from('profiles').insert({
+                            const { error: profileError } = await supabaseClient.from('profiles').insert({
                                 id: authUserId,
                                 first_name: memberData.full_name.split(' ')[0] || '',
                                 last_name: memberData.full_name.split(' ').slice(1).join(' ') || '',
@@ -154,8 +160,15 @@ serve(async (req) => {
                                 role: profileRole,
                             });
 
+                            if (profileError) {
+                                console.error('Step 3a: Profile creation error:', JSON.stringify(profileError));
+                            } else {
+                                console.log('Step 3b: Profile created successfully');
+                            }
+
                             // Create user_roles entry if admin role is assigned
                             if (assignAdminRole && adminRole) {
+                                console.log('Step 4: Creating user_roles entry for role:', adminRole);
                                 const userRoleData: any = {
                                     user_id: authUserId,
                                     role: adminRole,
@@ -171,23 +184,33 @@ serve(async (req) => {
                                     userRoleData.district_id = adminDistrictId || null;
                                 }
 
-                                await supabaseClient.from('user_roles').insert(userRoleData);
+                                const { error: roleError } = await supabaseClient.from('user_roles').insert(userRoleData);
+                                if (roleError) {
+                                    console.error('Step 4a: user_roles insert error:', JSON.stringify(roleError));
+                                } else {
+                                    console.log('Step 4b: user_roles created successfully');
+                                }
                             }
                         }
                     } catch (accountError) {
-                        console.error('Account creation failed:', accountError);
+                        console.error('Step 2-CATCH: Account creation failed:', accountError);
                         // Continue creating member without account
                     }
                 }
 
                 // Create member/first-timer record
+                console.log('Step 5: Inserting into', tableName, 'with data:', JSON.stringify(memberData));
                 const { data: created, error: createError } = await supabaseClient
                     .from(tableName)
                     .insert(memberData)
                     .select()
                     .single();
 
-                if (createError) throw createError;
+                if (createError) {
+                    console.error('Step 5a: Member insert error:', JSON.stringify(createError));
+                    throw createError;
+                }
+                console.log('Step 5b: Member created successfully:', JSON.stringify(created));
                 result = created;
 
                 // Handle children records if provided
