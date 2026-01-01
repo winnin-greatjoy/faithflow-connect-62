@@ -122,13 +122,23 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      // Log to audit trial
-      await supabase.from('audit_logs').insert({
-        action: 'CREATE_USER',
-        resource: 'users',
-        details: `Created user ${newUserForm.email} with role ${newUserForm.role}`,
-        severity: 'info',
-      });
+      // Audit log (best-effort)
+      try {
+        const userId = session.user.id;
+        await supabase.from('audit_logs').insert({
+          user_id: userId,
+          action: 'CREATE_USER',
+          table_name: 'profiles',
+          record_id: null,
+          details: {
+            email: newUserForm.email,
+            role: newUserForm.role,
+            branch_id: newUserForm.branchId,
+          },
+        });
+      } catch (e) {
+        console.warn('Audit log insert failed:', e);
+      }
 
       toast({
         title: 'Success',
