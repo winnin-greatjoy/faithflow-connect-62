@@ -48,6 +48,9 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     branchId: '',
   });
 
+  const districtRoles = ['district_admin', 'district_overseer'];
+  const showDistrictSelector = districtRoles.includes(newUserForm.role);
+
   useEffect(() => {
     const fetchLocations = async () => {
       const { data: d } = await supabase.from('districts').select('id, name').order('name');
@@ -73,10 +76,22 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     e.preventDefault();
     setLoading(true);
 
-    if (!newUserForm.branchId) {
+    // Only require branch for non-district roles
+    if (!showDistrictSelector && !newUserForm.branchId) {
       toast({
         title: 'Validation Error',
         description: 'Please select a branch',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Require district for district roles
+    if (showDistrictSelector && !newUserForm.districtId) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select a district for this role',
         variant: 'destructive',
       });
       setLoading(false);
@@ -107,7 +122,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
             username: newUserForm.email,
             password: newUserForm.password,
             role: newUserForm.role,
-            branch_id: newUserForm.branchId,
+            branch_id: newUserForm.branchId || null,
+            district_id: showDistrictSelector ? newUserForm.districtId : null,
             // Defaults for required fields
             gender: 'Male',
             marital_status: 'Single',
@@ -231,7 +247,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>District</Label>
+              <Label>District {showDistrictSelector ? '*' : ''}</Label>
               <Select
                 value={newUserForm.districtId}
                 onValueChange={(val) =>
@@ -251,11 +267,11 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               </Select>
             </div>
             <div>
-              <Label>Branch *</Label>
+              <Label>Branch {showDistrictSelector ? '' : '*'}</Label>
               <Select
                 value={newUserForm.branchId}
                 onValueChange={(val) => setNewUserForm({ ...newUserForm, branchId: val })}
-                disabled={!newUserForm.districtId && branches.length > 50} // Optional optimization
+                disabled={showDistrictSelector && !newUserForm.districtId}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Branch" />
@@ -287,6 +303,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 <SelectItem value="pastor">Pastor</SelectItem>
                 <SelectItem value="admin">Branch Admin</SelectItem>
                 <SelectItem value="district_admin">District Admin</SelectItem>
+                <SelectItem value="district_overseer">District Overseer</SelectItem>
+                <SelectItem value="general_overseer">General Overseer</SelectItem>
                 <SelectItem value="super_admin">Super Admin</SelectItem>
               </SelectContent>
             </Select>

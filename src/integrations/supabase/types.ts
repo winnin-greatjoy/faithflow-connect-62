@@ -3581,6 +3581,8 @@ export type Database = {
         | "worker"
         | "member"
         | "district_admin"
+        | "district_overseer"
+        | "general_overseer"
       assignment_status: "pending" | "approved" | "rejected"
       assignment_type: "assignment" | "transfer" | "suspension"
       baptized_sub_level: "leader" | "worker" | "disciple"
@@ -3763,6 +3765,8 @@ export const Constants = {
         "worker",
         "member",
         "district_admin",
+        "district_overseer",
+        "general_overseer",
       ],
       assignment_status: ["pending", "approved", "rejected"],
       assignment_type: ["assignment", "transfer", "suspension"],
