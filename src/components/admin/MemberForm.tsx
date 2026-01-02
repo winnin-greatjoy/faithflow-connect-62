@@ -1111,8 +1111,8 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                     )}
                   />
 
-                  {/* Show district selector for district_admin */}
-                  {form.watch('adminRole') === 'district_admin' && (
+                  {/* Show district selector for district roles */}
+                  {(form.watch('adminRole') === 'district_admin' || form.watch('adminRole') === 'district_overseer') && (
                     <FormField
                       control={form.control}
                       name="adminDistrictId"
@@ -1134,7 +1134,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            The district this admin will manage
+                            The district this {form.watch('adminRole') === 'district_admin' ? 'admin' : 'overseer'} will manage
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

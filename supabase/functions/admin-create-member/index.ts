@@ -144,11 +144,15 @@ serve(async (req: Request) => {
         authUserId = authData.user.id;
       }
 
-      // Insert member
-      // Ensure memberData doesn't contain undefined fields that might break insert if not in schema
+      // Insert member with branch_id
+      const memberInsertData = {
+        ...memberData,
+        branch_id: branch_id || null,
+      };
+      
       const { data: row, error } = await supabase
         .from('members')
-        .insert(memberData)
+        .insert(memberInsertData)
         .select('id, full_name, email, phone, profile_photo, status, membership_level')
         .single();
 
@@ -163,22 +167,47 @@ serve(async (req: Request) => {
         });
       }
 
-      // 4. Update Profile Role if provided (and we have an auth user)
+      // Link member to profile if we have an auth user
+      if (authUserId && row?.id) {
+        await supabase
+          .from('members')
+          .update({ profile_id: authUserId })
+          .eq('id', row.id);
+      }
+
+      // Insert role into user_roles table (single source of truth)
       if (authUserId && role) {
-        // The profile trigger presumably creates the profile. We update it.
-        // We might need a small delay or retry if trigger is async? usually triggers are sync for same-tx but here auth -> profile is distinct.
-        // Actually, Supabase `auth.users` -> `public.profiles` trigger is usually standard.
+        const rolePayload: any = {
+          user_id: authUserId,
+          role: role,
+          branch_id: branch_id || null,
+        };
+        
+        // For district roles, also set district_id
+        if (district_id && (role === 'district_admin' || role === 'district_overseer')) {
+          rolePayload.district_id = district_id;
+        }
+        
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert(rolePayload);
 
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ role: role })
-          .eq('id', authUserId);
-
-        if (profileError) {
-          console.error('Failed to update profile role:', profileError);
-          // Don't fail the whole request, but log it.
+        if (roleError) {
+          console.error('Failed to insert user role:', roleError);
+        }
+        
+        // Link district admin to district record
+        if (role === 'district_admin' && district_id) {
+          await supabase
+            .from('districts')
+            .update({ head_admin_id: authUserId })
+            .eq('id', district_id);
         }
       }
+      
+      return new Response(JSON.stringify({ ok: true, data: row, authUserId }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     if (action === 'update') {
