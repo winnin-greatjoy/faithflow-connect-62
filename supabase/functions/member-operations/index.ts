@@ -57,6 +57,25 @@ function fail(error: string, details?: string): CommandResponse {
   return { success: false, error, details };
 }
 
+type PublicError = { message: string; details?: string };
+
+function toPublicError(err: any): PublicError {
+  // Auth admin API errors
+  if (err?.name === 'AuthApiError') {
+    if (err?.code === 'email_exists') {
+      return { message: 'A user with this email address has already been registered.' };
+    }
+    return { message: err?.message || 'Authentication operation failed' };
+  }
+
+  // PostgREST / DB errors
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return { message: err.message };
+  }
+
+  return { message: 'Operation failed' };
+}
+
 async function getAuthUser(req: Request) {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return null;
@@ -130,6 +149,30 @@ function assertScope(
 
   // Branch-level actors
   if (actor.roles.some((r) => ['admin', 'pastor', 'leader'].includes(r))) {
+    if (payload.branch_id && actor.branch_id && payload.branch_id !== actor.branch_id) {
+      throw new Error('Branch scope violation');
+    }
+    return;
+  }
+
+  throw new Error('Forbidden: Insufficient privileges');
+}
+
+function assertFirstTimerScope(
+  actor: ActorContext,
+  payload: { branch_id?: string | null; district_id?: string | null }
+) {
+  // Same as assertScope, but allows "worker" for first-timer operations.
+  if (actor.roles.includes('super_admin')) return;
+
+  if (actor.roles.includes('district_admin') || actor.roles.includes('district_overseer')) {
+    if (payload.district_id && actor.district_id && payload.district_id !== actor.district_id) {
+      throw new Error('District scope violation');
+    }
+    return;
+  }
+
+  if (actor.roles.some((r) => ['admin', 'pastor', 'leader', 'worker'].includes(r))) {
     if (payload.branch_id && actor.branch_id && payload.branch_id !== actor.branch_id) {
       throw new Error('Branch scope violation');
     }
@@ -261,6 +304,11 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
 
   async MEMBER_CREATE(actor, payload) {
     assertScope(actor, payload);
+
+    const createAccount = !!payload?.createAccount;
+    const password = payload?.password;
+    const username = payload?.username;
+
     const memberData = pickMemberColumns(payload);
 
     // Auto-fill branch if actor is branch level
@@ -268,11 +316,85 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
       memberData.branch_id = actor.branch_id;
     }
 
-    const { error, data } = await adminClient.from('members').insert(memberData).select().single();
+    // Normalize email
+    if (memberData.email) {
+      memberData.email = String(memberData.email).trim().toLowerCase();
+    }
 
-    if (error) throw error;
-    await logAudit(actor.id, 'create', 'members', data.id, { data: memberData });
-    return data;
+    let authUserId: string | null = null;
+
+    try {
+      if (createAccount) {
+        if (!memberData.email) throw new Error('Email is required to create an account');
+        if (!password) throw new Error('Password is required to create an account');
+
+        const { data: created, error: authError } = await adminClient.auth.admin.createUser({
+          email: memberData.email,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            username,
+            full_name: memberData.full_name,
+            branch_id: memberData.branch_id,
+          },
+        });
+
+        if (authError) throw authError;
+        authUserId = created.user.id;
+
+        const parts = String(memberData.full_name || '')
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean);
+
+        const { error: profileError } = await adminClient.from('profiles').insert({
+          id: authUserId,
+          first_name: parts[0] || '',
+          last_name: parts.slice(1).join(' ') || '',
+          phone: memberData.phone ?? null,
+          branch_id: memberData.branch_id,
+          profile_photo: memberData.profile_photo ?? null,
+        });
+
+        if (profileError) throw profileError;
+
+        const { error: roleError } = await adminClient.from('user_roles').insert({
+          user_id: authUserId,
+          role: 'member',
+          branch_id: memberData.branch_id,
+        });
+
+        if (roleError) throw roleError;
+      }
+
+      const { error, data } = await adminClient
+        .from('members')
+        .insert(memberData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (authUserId) {
+        const { error: linkErr } = await adminClient
+          .from('members')
+          .update({ profile_id: authUserId })
+          .eq('id', data.id);
+
+        if (linkErr) throw linkErr;
+      }
+
+      await logAudit(actor.id, 'create', 'members', data.id, { data: memberData, createAccount });
+      return data;
+    } catch (err) {
+      // Best-effort rollback if provisioning failed
+      if (authUserId) {
+        await adminClient.from('user_roles').delete().eq('user_id', authUserId);
+        await adminClient.from('profiles').delete().eq('id', authUserId);
+        await adminClient.auth.admin.deleteUser(authUserId);
+      }
+      throw err;
+    }
   },
 
   async MEMBER_UPDATE(actor, payload) {
@@ -359,7 +481,6 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
     // Generate random password if missing
     if (!password) {
       password = Math.random().toString(36).slice(-10) + 'A1!';
-      console.log(`[ADMIN_CREATE] Generated temporary password for ${email}: ${password}`);
     }
 
     const { data: user, error } = await adminClient.auth.admin.createUser({
@@ -408,7 +529,7 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
   /* ------------------ FIRST TIMERS ------------------ */
 
   async FIRST_TIMER_CREATE(actor, payload) {
-    assertScope(actor, payload);
+    assertFirstTimerScope(actor, payload);
     const firstTimerData = pickFirstTimerColumns(payload);
 
     // Auto-fill branch if actor is branch level
@@ -437,7 +558,7 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
       .eq('id', id)
       .single();
     if (!target) throw new Error('Record not found');
-    assertScope(actor, { branch_id: target.branch_id });
+    assertFirstTimerScope(actor, { branch_id: target.branch_id });
 
     const updateData = pickFirstTimerColumns(data);
     const { error, data: updated } = await adminClient
@@ -460,7 +581,7 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
       .eq('id', id)
       .single();
     if (!target) throw new Error('Record not found');
-    assertScope(actor, { branch_id: target.branch_id });
+    assertFirstTimerScope(actor, { branch_id: target.branch_id });
 
     const { error } = await adminClient.from('first_timers').delete().eq('id', id);
 
@@ -470,7 +591,7 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
 
   async FIRST_TIMER_BULK_TRANSFER(actor, payload) {
     const { ids, target_branch_id } = payload;
-    if (!['super_admin', 'district_admin'].includes(actor.role)) {
+    if (!actor.roles.includes('super_admin') && !actor.roles.includes('district_admin')) {
       throw new Error('Unauthorized for bulk transfer');
     }
 
@@ -529,7 +650,8 @@ serve(async (req) => {
     });
   } catch (err: any) {
     console.error('[MemberOps v2]', err);
-    return new Response(JSON.stringify(fail('Operation failed', err.message || String(err))), {
+    const pub = toPublicError(err);
+    return new Response(JSON.stringify(fail(pub.message, pub.details)), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
