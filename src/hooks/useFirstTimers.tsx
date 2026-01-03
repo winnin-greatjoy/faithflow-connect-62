@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import {
+  createFirstTimer as apiCreateFirstTimer,
+  updateFirstTimer as apiUpdateFirstTimer,
+  deleteFirstTimer as apiDeleteFirstTimer,
+} from '@/utils/memberOperations';
 
 export const useFirstTimers = (branchId?: string) => {
   const queryClient = useQueryClient();
@@ -49,25 +54,20 @@ export const useFirstTimers = (branchId?: string) => {
 
   const createFirstTimer = useMutation({
     mutationFn: async (firstTimerData: any) => {
-      const { data, error } = await supabase
-        .from('first_timers')
-        .insert([firstTimerData])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const result = await apiCreateFirstTimer(firstTimerData);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['first_timers'] });
       toast({
-        title: 'Success',
-        description: 'First timer added successfully',
+        title: 'Encounter Recorded',
+        description: 'The visitor has been captured in the orchestration matrix.',
       });
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
+        title: 'Orchestration Error',
         description: error.message,
         variant: 'destructive',
       });
@@ -76,26 +76,20 @@ export const useFirstTimers = (branchId?: string) => {
 
   const updateFirstTimer = useMutation({
     mutationFn: async ({ id, ...updates }: any) => {
-      const { data, error } = await supabase
-        .from('first_timers')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const result = await apiUpdateFirstTimer(id, updates);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['first_timers'] });
       toast({
-        title: 'Success',
-        description: 'First timer updated successfully',
+        title: 'Prospect Synchronized',
+        description: 'Visitor intelligence has been updated.',
       });
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
+        title: 'Sync Failure',
         description: error.message,
         variant: 'destructive',
       });
@@ -104,20 +98,19 @@ export const useFirstTimers = (branchId?: string) => {
 
   const deleteFirstTimer = useMutation({
     mutationFn: async ({ id }: { id: string }) => {
-      const { error } = await supabase.from('first_timers').delete().eq('id', id);
-
-      if (error) throw error;
+      const result = await apiDeleteFirstTimer(id);
+      if (!result.success) throw new Error(result.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['first_timers'] });
       toast({
-        title: 'Success',
-        description: 'First timer deleted successfully',
+        title: 'Record Purged',
+        description: 'The first-timer entry has been removed from the system.',
       });
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
+        title: 'Deletion Error',
         description: error.message,
         variant: 'destructive',
       });
@@ -129,8 +122,8 @@ export const useFirstTimers = (branchId?: string) => {
     isLoading,
     loading: isLoading,
     error,
-    createFirstTimer: createFirstTimer.mutate,
-    updateFirstTimer: updateFirstTimer.mutate,
-    deleteFirstTimer: deleteFirstTimer.mutate,
+    createFirstTimer: (data: any) => createFirstTimer.mutate(data),
+    updateFirstTimer: (data: any) => updateFirstTimer.mutate(data),
+    deleteFirstTimer: (data: { id: string }) => deleteFirstTimer.mutate(data),
   };
 };

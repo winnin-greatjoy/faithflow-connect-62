@@ -95,83 +95,231 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-10">
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-8"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="space-y-10"
         >
-          {/* Header/Photo Section */}
-          <div className="flex flex-col md:flex-row items-center gap-8 bg-primary/[0.02] border border-primary/5 p-6 rounded-[24px]">
-            <FormField
-              control={form.control}
-              name="profilePhoto"
-              render={({ field }) => (
-                <FormItem className="shrink-0">
-                  <div className="relative group">
-                    <div className="h-28 w-28 rounded-3xl overflow-hidden glass border-primary/10 shadow-xl group-hover:scale-105 transition-all duration-500">
-                      {field.value ? (
-                        <img
-                          src={field.value}
-                          alt="Convert Profile"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-vibrant-gradient opacity-20 flex items-center justify-center">
-                          <User className="h-12 w-12 text-primary" />
+          {/* Section 1: Core Identity */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 px-1">
+              <div className="h-8 w-1.5 rounded-full bg-vibrant-gradient" />
+              <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-foreground/80">
+                Core Identity
+              </h3>
+            </div>
+
+            <div className="glass border-primary/5 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[5rem] -mr-16 -mt-16 transition-all group-hover:bg-primary/10" />
+
+              <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
+                <FormField
+                  control={form.control}
+                  name="profilePhoto"
+                  render={({ field }) => (
+                    <FormItem className="shrink-0">
+                      <div className="relative group/photo p-1">
+                        <div className="h-32 w-32 rounded-[2rem] ring-4 ring-primary/5 group-hover/photo:ring-primary/20 transition-all duration-500 overflow-hidden shadow-xl glass bg-white/50">
+                          {field.value ? (
+                            <img
+                              src={field.value}
+                              alt="Convert"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-vibrant-gradient opacity-10 flex items-center justify-center">
+                              <User className="h-12 w-12 text-primary/40" />
+                            </div>
+                          )}
                         </div>
+
+                        <label
+                          htmlFor={uploadInputId}
+                          className="absolute -bottom-2 -right-2 h-11 w-11 rounded-2xl bg-vibrant-gradient text-white shadow-lg flex items-center justify-center border-4 border-white dark:border-zinc-950 z-10 transition-all hover:scale-110 active:scale-90 cursor-pointer shadow-primary/20 hover:shadow-primary/40"
+                        >
+                          <Camera className="h-5 w-5" />
+                        </label>
+
+                        <input
+                          id={uploadInputId}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const url = await uploadProfilePhoto(file);
+                              field.onChange(url);
+                              toast({
+                                title: 'Visual Data Secure',
+                                description: 'Identity biometric record updated.',
+                              });
+                            } catch (error: any) {
+                              toast({
+                                title: 'Link Failed',
+                                description: error.message,
+                                variant: 'destructive',
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex-1 w-full space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="fullName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                          Legal Designation / Full Name
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              placeholder="Enter full identity designation"
+                              {...field}
+                              className="glass h-14 rounded-2xl border-primary/5 focus:ring-primary/20 font-serif text-2xl font-bold bg-white/40 pl-5 transition-all focus:bg-white/60"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20">
+                              <Sparkles className="h-5 w-5 text-primary" />
+                            </div>
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500 mt-2" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                            <Phone className="h-3 w-3" /> Signal Line (Primary)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="+000 000 0000"
+                              {...field}
+                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-bold text-sm bg-white/30"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
+                        </FormItem>
                       )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById(uploadInputId)?.click()}
-                      className="absolute -bottom-2 -right-2 h-10 w-10 rounded-xl bg-vibrant-gradient text-white shadow-lg flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-10"
-                    >
-                      <Camera className="h-5 w-5" />
-                    </button>
-                    <input
-                      id={uploadInputId}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        try {
-                          const url = await uploadProfilePhoto(file);
-                          field.onChange(url);
-                          toast({
-                            title: 'Photo Encrypted',
-                            description: 'Identity visual data secured.',
-                          });
-                        } catch (error: any) {
-                          toast({
-                            title: 'Transfer Failed',
-                            description: error.message,
-                            variant: 'destructive',
-                          });
-                        }
-                      }}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                            <Mail className="h-3 w-3" /> Digital Node (Mail)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="identity@node.com"
+                              {...field}
+                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-bold text-sm bg-white/30"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                </FormItem>
-              )}
-            />
-            <div className="flex-1 space-y-4 text-center md:text-left">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Regional Deployment */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 px-1">
+              <div className="h-8 w-1.5 rounded-full bg-primary/20" />
+              <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-foreground/80">
+                Territory Deployment
+              </h3>
+            </div>
+
+            <div className="glass border-primary/5 p-8 rounded-[2.5rem] shadow-xl space-y-8 bg-white/20">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <FormField
+                  control={form.control}
+                  name="community"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                        <MapPin className="h-3 w-3" /> Primary Sector (Community)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Assigned community area"
+                          {...field}
+                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-bold text-sm bg-white/30"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="area"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                        <Building2 className="h-3 w-3" /> Operational Zone (Area)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Assigned regional zone"
+                          {...field}
+                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-bold text-sm bg-white/30"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="fullName"
+                name="branchId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
-                      Full Identity Name *
+                      Administrative Base (Branch Assignment)
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Enter core identity name"
-                        {...field}
-                        className="glass h-14 rounded-2xl border-primary/5 focus:ring-primary/20 font-serif text-xl font-bold bg-white/50"
-                      />
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className="glass h-14 rounded-2xl border-primary/5 focus:ring-primary/20 font-black text-xs uppercase tracking-widest bg-white/40">
+                          <SelectValue placeholder="Select Operational Center" />
+                        </SelectTrigger>
+                        <SelectContent className="glass border-primary/10 rounded-2xl shadow-3xl">
+                          {branches.map((branch) => (
+                            <SelectItem
+                              key={branch.id}
+                              value={branch.id}
+                              className="font-bold text-[10px] uppercase tracking-widest py-3 hover:bg-primary/5"
+                            >
+                              {branch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
                   </FormItem>
@@ -180,138 +328,26 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
             </div>
           </div>
 
-          {/* Contact Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
-                    <Mail className="h-3 w-3" /> Communication Node (Email)
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="node@protocol.com"
-                      {...field}
-                      className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
-                    <Phone className="h-3 w-3" /> Signal Line (Phone) *
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="+123 456 7890"
-                      {...field}
-                      className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Geolocation Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="community"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
-                    <MapPin className="h-3 w-3" /> Territory (Community) *
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter sector"
-                      {...field}
-                      className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="area"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
-                    <Building2 className="h-3 w-3" /> Zone (Area/District) *
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter regional zone"
-                      {...field}
-                      className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Deployment Select */}
-          <FormField
-            control={form.control}
-            name="branchId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
-                  Operational Base (Branch) *
-                </FormLabel>
-                <FormControl>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
-                      <SelectValue placeholder="Assign to operational unit" />
-                    </SelectTrigger>
-                    <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id} className="font-medium">
-                          {branch.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
-              </FormItem>
-            )}
-          />
-
-          {/* Footer Actions */}
-          <div className="flex justify-between items-center gap-4 pt-8 border-t border-primary/5">
+          {/* Action Hub */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-10 border-t border-primary/5">
             <Button
               type="button"
               variant="ghost"
               onClick={onCancel}
-              className="text-[10px] font-bold uppercase tracking-widest opacity-60 hover:opacity-100 hover:bg-rose-500/5 hover:text-rose-500 h-12 px-8 rounded-xl transition-all"
+              className="w-full sm:w-auto text-[10px] font-black uppercase tracking-[0.25em] opacity-40 hover:opacity-100 hover:bg-rose-500/5 hover:text-rose-500 h-14 px-10 rounded-2xl transition-all"
             >
-              Abort Signal
+              Terminate Session
             </Button>
-            <Button
-              type="submit"
-              className="bg-vibrant-gradient text-white border-none font-bold text-[10px] uppercase tracking-widest h-12 px-10 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/20 active:scale-95 flex items-center gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              {convert && convert.id ? 'Synchronize Identity' : 'Execute Registration'}
-            </Button>
+
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <Button
+                type="submit"
+                className="w-full sm:w-auto bg-vibrant-gradient text-white border-none font-black text-[10px] uppercase tracking-[0.25em] h-14 px-12 rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-3 group"
+              >
+                <Sparkles className="h-4 w-4 group-hover:rotate-12 transition-transform" />
+                {convert && convert.id ? 'Authorize Update' : 'Initialize Record'}
+              </Button>
+            </div>
           </div>
         </motion.div>
       </form>

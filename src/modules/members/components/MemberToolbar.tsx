@@ -10,7 +10,6 @@ interface MemberToolbarProps {
   onSearchChange: (value: string) => void;
   onAddMember: () => void;
   onAddConvert: () => void;
-  onAddFirstTimer: () => void;
   onSendMessage?: () => void;
   onBatchTransfer?: () => void;
   onImport?: () => void;
@@ -24,7 +23,6 @@ export const MemberToolbar: React.FC<MemberToolbarProps> = ({
   onSearchChange,
   onAddMember,
   onAddConvert,
-  onAddFirstTimer,
   onSendMessage,
   onBatchTransfer,
   onImport,
@@ -32,18 +30,6 @@ export const MemberToolbar: React.FC<MemberToolbarProps> = ({
   selectedCount,
   totalRecipients,
 }) => {
-  const getAddButtonText = () => {
-    if (activeTab === 'converts') return 'Enlist Convert';
-    if (activeTab === 'first_timers') return 'Add First Timer';
-    return 'Enlist Member';
-  };
-
-  const getAddHandler = () => {
-    if (activeTab === 'converts') return onAddConvert;
-    if (activeTab === 'first_timers') return onAddFirstTimer;
-    return onAddMember;
-  };
-
   return (
     <div className="flex flex-col lg:flex-row gap-4 mb-6">
       {/* Search */}

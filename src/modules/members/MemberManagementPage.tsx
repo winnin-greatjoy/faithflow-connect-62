@@ -196,11 +196,32 @@ export const MemberManagementPage: React.FC = () => {
     }
   };
 
-  const handleConvertSubmit = async (data: ConvertFormData) => {
-    // Handle convert submission logic here
-    setShowConvertForm(false);
-    setEditingMember(null);
-    await reloadMembers();
+  const handleConvertSubmit = async (formData: ConvertFormData) => {
+    // Transform to DB schema (similar to handleMemberSubmit but specific to converts)
+    const dbData = {
+      full_name: formData.fullName,
+      phone: formData.phone || null,
+      email: formData.email || null,
+      community: formData.community || null,
+      area: formData.area || null,
+      branch_id: formData.branchId,
+      membership_level: 'convert',
+      status: 'active',
+      date_joined: new Date().toISOString().split('T')[0],
+    };
+
+    let result;
+    if (editingMember?.id) {
+      result = await actions.updateMember(editingMember.id, dbData);
+    } else {
+      result = await actions.createMember(dbData);
+    }
+
+    if (result.success) {
+      setShowConvertForm(false);
+      setEditingMember(null);
+      await reloadMembers();
+    }
   };
 
   const handleStatClick = (type: string) => {
@@ -273,24 +294,22 @@ export const MemberManagementPage: React.FC = () => {
           >
             <ArrowDownToLine className="mr-2 h-4 w-4 text-primary" /> Import Matrix
           </Button>
-          <Button
-            onClick={handleAddMember}
-            className="bg-vibrant-gradient h-11 px-6 rounded-xl font-bold text-white shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
-          >
-            {filters.activeTab === 'converts' ? (
-              <>
-                <Plus className="mr-2 h-4 w-4" /> Add Convert
-              </>
-            ) : filters.activeTab === 'first_timers' ? (
-              <>
-                <Plus className="mr-2 h-4 w-4" /> Add First Timer
-              </>
-            ) : (
-              <>
-                <UserPlus className="mr-2 h-4 w-4" /> Enlist Member
-              </>
-            )}
-          </Button>
+          {filters.activeTab !== 'first_timers' && (
+            <Button
+              onClick={handleAddMember}
+              className="bg-vibrant-gradient h-11 px-6 rounded-xl font-bold text-white shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
+            >
+              {filters.activeTab === 'converts' ? (
+                <>
+                  <Plus className="mr-2 h-4 w-4" /> Add Convert
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-2 h-4 w-4" /> Enlist Member
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </motion.div>
 
@@ -316,10 +335,6 @@ export const MemberManagementPage: React.FC = () => {
               onSearchChange={filters.setSearch}
               onAddMember={handleAddMember}
               onAddConvert={handleAddConvert}
-              onAddFirstTimer={() => {
-                setEditingFirstTimer(null);
-                setShowFirstTimerForm(true);
-              }}
               onSendMessage={() => setShowSendMessage(true)}
               onImport={() => setShowImportDialog(true)}
               activeTab={filters.activeTab}
@@ -373,53 +388,56 @@ export const MemberManagementPage: React.FC = () => {
         </div>
       </motion.div>
 
-      <AnimatePresence>
-        {/* Dialogs */}
-        <MemberFormDialog
-          open={showMemberForm}
-          onOpenChange={setShowMemberForm}
-          member={editingMember}
-          onSubmit={handleMemberSubmit}
-        />
+      {/* Dialogs */}
+      <MemberFormDialog
+        key="member-form-dialog"
+        open={showMemberForm}
+        onOpenChange={setShowMemberForm}
+        member={editingMember}
+        onSubmit={handleMemberSubmit}
+      />
 
-        <ConvertFormDialog
-          open={showConvertForm}
-          onOpenChange={setShowConvertForm}
-          convert={editingMember}
-          branches={branches}
-          onSubmit={handleConvertSubmit}
-        />
+      <ConvertFormDialog
+        key="convert-form-dialog"
+        open={showConvertForm}
+        onOpenChange={setShowConvertForm}
+        convert={editingMember}
+        branches={branches}
+        onSubmit={handleConvertSubmit}
+      />
 
-        <FirstTimerFormDialog
-          open={showFirstTimerForm}
-          onOpenChange={setShowFirstTimerForm}
-          firstTimer={editingFirstTimer}
-          onSubmit={() => {
-            setShowFirstTimerForm(false);
-          }}
-        />
+      <FirstTimerFormDialog
+        key="first-timer-form-dialog"
+        open={showFirstTimerForm}
+        onOpenChange={setShowFirstTimerForm}
+        firstTimer={editingFirstTimer}
+        onSubmit={() => {
+          setShowFirstTimerForm(false);
+        }}
+      />
 
-        <MemberImportDialog
-          open={showImportDialog}
-          onOpenChange={setShowImportDialog}
-          branchId={branches[0]?.id || ''}
-          onSuccess={() => {
-            setShowImportDialog(false);
-            reloadMembers();
-          }}
-        />
+      <MemberImportDialog
+        key="member-import-dialog"
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        branchId={branches[0]?.id || ''}
+        onSuccess={() => {
+          setShowImportDialog(false);
+          reloadMembers();
+        }}
+      />
 
-        <SendNotificationDialog
-          open={showSendMessage}
-          onOpenChange={setShowSendMessage}
-          recipientIds={selectedMemberIds}
-          recipientCount={selectedMemberIds.length}
-          onSuccess={() => {
-            setShowSendMessage(false);
-            setSelectedMemberIds([]);
-          }}
-        />
-      </AnimatePresence>
+      <SendNotificationDialog
+        key="send-notification-dialog"
+        open={showSendMessage}
+        onOpenChange={setShowSendMessage}
+        recipientIds={selectedMemberIds}
+        recipientCount={selectedMemberIds.length}
+        onSuccess={() => {
+          setShowSendMessage(false);
+          setSelectedMemberIds([]);
+        }}
+      />
     </motion.div>
   );
 };

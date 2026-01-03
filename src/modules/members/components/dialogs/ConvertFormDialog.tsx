@@ -3,7 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ConvertForm, ConvertFormData } from '@/components/admin/ConvertForm';
 import type { Member } from '@/types/membership';
 
@@ -26,7 +32,10 @@ export const ConvertFormDialog: React.FC<ConvertFormDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AnimatePresence>
         {open && (
-          <DialogContent className="max-w-2xl bg-transparent border-none shadow-none p-0 overflow-visible max-h-[95vh] overflow-y-auto">
+          <DialogContent
+            key="convert-dialog-content"
+            className="max-w-2xl bg-transparent border-none shadow-none p-0 overflow-visible max-h-[95vh] overflow-y-auto"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -46,9 +55,9 @@ export const ConvertFormDialog: React.FC<ConvertFormDialogProps> = ({
                         <DialogTitle className="text-2xl font-serif font-black text-foreground">
                           {convert ? 'Refine Convert' : 'Initialize Conversion'}
                         </DialogTitle>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                        <DialogDescription className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-60">
                           Soul Winning Digital Protocol
-                        </p>
+                        </DialogDescription>
                       </div>
                     </div>
                     <Button

@@ -31,6 +31,7 @@ import {
   Plus,
   Trash2,
   Upload,
+  Camera,
   FileDown,
   Sparkles,
   User,
@@ -305,7 +306,20 @@ export const MemberForm: React.FC<MemberFormProps> = ({
     name: 'children',
   });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadProfilePhoto = async (file: File): Promise<string> => {
+    const fileName = `member-${Date.now()}.${file.name.split('.').pop()}`;
+    const { error } = await supabase.storage
+      .from('profile-photos')
+      .upload(fileName, file, { upsert: true });
+
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage.from('profile-photos').getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -322,12 +336,22 @@ export const MemberForm: React.FC<MemberFormProps> = ({
     }
 
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      form.setValue('profilePhoto', reader.result as string);
+    try {
+      const url = await uploadProfilePhoto(file);
+      form.setValue('profilePhoto', url);
+      toast({
+        title: 'Photo Uploaded',
+        description: 'Profile identity record updated.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Upload Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
       setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleAddChild = () => {

@@ -103,7 +103,9 @@ async function getActorContext(user_id: string): Promise<ActorContext> {
     .filter((r: any): r is string => typeof r === 'string');
 
   const scopedBranchId =
-    (roleRows || []).find((r: any) => r?.branch_id)?.branch_id ?? (profile as any).branch_id ?? null;
+    (roleRows || []).find((r: any) => r?.branch_id)?.branch_id ??
+    (profile as any).branch_id ??
+    null;
 
   const scopedDistrictId =
     (roleRows || []).find((r: any) => r?.district_id)?.district_id ??
@@ -146,6 +148,7 @@ function pickMemberColumns(data: any) {
 
   const result: any = {
     full_name: val('full_name', 'fullName') || 'Unknown',
+    profile_photo: val('profile_photo', 'profilePhoto') || null,
     email: val('email', 'email') || null,
     phone: val('phone', 'phone') || 'N/A',
     date_of_birth: val('date_of_birth', 'dateOfBirth') || new Date().toISOString().split('T')[0],
@@ -219,6 +222,34 @@ async function logAudit(
   } catch (e) {
     console.error('Audit log failed:', e);
   }
+}
+
+/**
+ * Maps camelCase keys to snake_case and filters out invalid columns for first_timers
+ */
+function pickFirstTimerColumns(data: any) {
+  const val = (key: string, camelKey: string) =>
+    data[key] !== undefined ? data[key] : data[camelKey];
+
+  const result: any = {
+    full_name: val('full_name', 'fullName'),
+    email: val('email', 'email') || null,
+    phone: val('phone', 'phone') || null,
+    community: val('community', 'community'),
+    area: val('area', 'area'),
+    street: val('street', 'street'),
+    public_landmark: val('public_landmark', 'publicLandmark') || null,
+    service_date: val('service_date', 'serviceDate') || new Date().toISOString().split('T')[0],
+    first_visit: val('first_visit', 'firstVisit') || new Date().toISOString().split('T')[0],
+    invited_by: val('invited_by', 'invitedBy') || null,
+    follow_up_status: val('follow_up_status', 'followUpStatus') || 'pending',
+    status: val('status', 'status') || 'new',
+    branch_id: val('branch_id', 'branchId') || null,
+    follow_up_notes: val('follow_up_notes', 'followUpNotes') || null,
+    notes: val('notes', 'notes') || null,
+  };
+
+  return result;
 }
 
 /* ============================================================================
@@ -345,6 +376,7 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
       id: user.user.id,
       first_name: full_name?.split(' ')[0] || '',
       last_name: full_name?.split(' ').slice(1).join(' ') || '',
+      profile_photo: payload.profile_photo || payload.profilePhoto || null,
       phone,
       branch_id,
       district_id,
@@ -377,23 +409,28 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
 
   async FIRST_TIMER_CREATE(actor, payload) {
     assertScope(actor, payload);
+    const firstTimerData = pickFirstTimerColumns(payload);
+
+    // Auto-fill branch if actor is branch level
+    if (!firstTimerData.branch_id && actor.branch_id) {
+      firstTimerData.branch_id = actor.branch_id;
+    }
 
     const { error, data } = await adminClient
       .from('first_timers')
-      .insert({
-        ...payload,
-        branch_id: payload.branch_id ?? actor.branch_id,
-      })
+      .insert(firstTimerData)
       .select()
       .single();
 
     if (error) throw error;
-    await logAudit(actor.id, 'create', 'first_timers', data.id, { data: payload });
+    await logAudit(actor.id, 'create', 'first_timers', data.id, { data: firstTimerData });
     return data;
   },
 
   async FIRST_TIMER_UPDATE(actor, payload) {
     const { id, data } = payload;
+    if (!id) throw new Error('Missing ID');
+
     const { data: target } = await adminClient
       .from('first_timers')
       .select('branch_id')
@@ -402,14 +439,16 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
     if (!target) throw new Error('Record not found');
     assertScope(actor, { branch_id: target.branch_id });
 
+    const updateData = pickFirstTimerColumns(data);
     const { error, data: updated } = await adminClient
       .from('first_timers')
-      .update(data)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
+    await logAudit(actor.id, 'update', 'first_timers', id, { data: updateData });
     return updated;
   },
 

@@ -23,7 +23,7 @@ export const MemberImportDialog: React.FC<MemberImportDialogProps> = ({
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px]">
+      <DialogContent key="member-import-content" className="sm:max-w-[800px]">
         <DialogHeader>
           <DialogTitle>Bulk Import Members</DialogTitle>
           <DialogDescription>

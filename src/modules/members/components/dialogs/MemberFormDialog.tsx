@@ -1,6 +1,12 @@
 // src/modules/members/components/dialogs/MemberFormDialog.tsx
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { MemberForm } from '@/components/admin/MemberForm';
 import type { Member } from '@/types/membership';
 
@@ -22,6 +28,9 @@ export const MemberFormDialog: React.FC<MemberFormDialogProps> = ({
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{member ? 'Edit Member' : 'Add New Member'}</DialogTitle>
+          <DialogDescription>
+            Update or record official membership intelligence within the global registry.
+          </DialogDescription>
         </DialogHeader>
         <MemberForm member={member} onSubmit={onSubmit} onCancel={() => onOpenChange(false)} />
       </DialogContent>

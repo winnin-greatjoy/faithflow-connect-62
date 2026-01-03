@@ -2,7 +2,13 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { FirstTimerForm } from '@/components/admin/FirstTimerForm';
 import type { FirstTimer } from '@/types/membership';
 
@@ -23,7 +29,10 @@ export const FirstTimerFormDialog: React.FC<FirstTimerFormDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AnimatePresence>
         {open && (
-          <DialogContent className="max-w-2xl bg-transparent border-none shadow-none p-0 overflow-visible">
+          <DialogContent
+            key="first-timer-dialog-content"
+            className="max-w-2xl bg-transparent border-none shadow-none p-0 overflow-visible"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -43,9 +52,9 @@ export const FirstTimerFormDialog: React.FC<FirstTimerFormDialogProps> = ({
                         <DialogTitle className="text-2xl font-serif font-black text-foreground">
                           {firstTimer ? 'Refine Prospect' : 'Initialize Encounter'}
                         </DialogTitle>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                        <DialogDescription className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-60">
                           First Encounter Digital Protocol
-                        </p>
+                        </DialogDescription>
                       </div>
                     </div>
                     <Button

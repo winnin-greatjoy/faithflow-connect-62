@@ -132,7 +132,7 @@ export const SendNotificationDialog: React.FC<SendNotificationDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent key="send-notification-content" className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Send Message</DialogTitle>
           <DialogDescription>Sending to {recipientCount} selected recipients</DialogDescription>
