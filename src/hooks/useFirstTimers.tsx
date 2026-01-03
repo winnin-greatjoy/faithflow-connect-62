@@ -122,8 +122,8 @@ export const useFirstTimers = (branchId?: string) => {
     isLoading,
     loading: isLoading,
     error,
-    createFirstTimer: (data: any) => createFirstTimer.mutate(data),
-    updateFirstTimer: (data: any) => updateFirstTimer.mutate(data),
-    deleteFirstTimer: (data: { id: string }) => deleteFirstTimer.mutate(data),
+    createFirstTimer: (data: any) => createFirstTimer.mutateAsync(data),
+    updateFirstTimer: (data: any) => updateFirstTimer.mutateAsync(data),
+    deleteFirstTimer: (data: { id: string }) => deleteFirstTimer.mutateAsync(data),
   };
 };
