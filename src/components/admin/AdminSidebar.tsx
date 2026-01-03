@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   Users,
@@ -333,18 +334,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       <div className="lg:hidden">{renderMobileTabs()}</div>
 
       {/* Sidebar */}
-      <div
+      <motion.div
+        initial={false}
+        animate={{
+          width: isCollapsed ? 80 : 256,
+          x: isOpen || (typeof window !== 'undefined' && window.innerWidth >= 1024) ? 0 : -256,
+        }}
         className={cn(
-          'h-screen bg-white border-r transform transition-all duration-300 ease-in-out flex flex-col overflow-hidden',
-          // mobile base: fixed and full height; we will translate it in/out
-          'fixed top-0 left-0 z-50 w-64',
-          isOpen ? 'translate-x-0 shadow-lg' : '-translate-x-full',
-          // desktop overrides
-          'lg:sticky lg:z-20 lg:translate-x-0 lg:transition-[width]',
-          // desktop width depends on collapse state
-          isCollapsed ? 'lg:w-20' : 'lg:w-64',
-          // allow hover to expand on desktop
-          isCollapsed ? 'lg:hover:w-64' : ''
+          'h-screen glass border-r border-primary/5 transition-[width,transform] duration-300 ease-in-out flex flex-col overflow-hidden',
+          'fixed top-0 left-0 z-50 lg:sticky lg:z-20',
+          isOpen ? 'shadow-xl ring-1 ring-black/5' : ''
         )}
         ref={sidebarRef}
         onMouseEnter={() => setIsHovered(true)}
@@ -353,49 +352,54 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         aria-label="Main navigation"
         tabIndex={-1}
       >
-        <Sidebar className="w-full h-full flex flex-col">
-          <SidebarContent>
+        <Sidebar className="w-full h-full flex flex-col bg-transparent border-none">
+          <SidebarContent className="bg-transparent">
             {/* Sidebar Header */}
-            <div className="pt-4 p-4 border-b sticky top-0 bg-white z-10">
+            <div className="pt-6 p-5 border-b border-primary/5 sticky top-0 bg-transparent z-10 backdrop-blur-xl">
               <div className="flex items-center gap-3">
                 {/* Logo */}
-                <div
+                <motion.div
+                  layout
                   className={cn(
-                    'flex-shrink-0 flex items-center justify-center transition-all duration-300',
-                    isCollapsed ? 'w-8 h-8' : 'w-12 h-12' // collapsed -> smaller, expanded -> larger
+                    'flex-shrink-0 flex items-center justify-center rounded-2xl bg-vibrant-gradient p-2 shadow-lg shadow-primary/20',
+                    isCollapsed ? 'w-10 h-10' : 'w-12 h-12'
                   )}
                 >
                   <img
                     src="/faithhealing.png"
-                    alt="Church Logo"
-                    className={cn(
-                      'object-contain transition-all duration-300',
-                      isCollapsed ? 'w-8 h-8' : 'w-12 h-12'
-                    )}
+                    alt="Logo"
+                    className="w-full h-full object-contain brightness-0 invert"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.onerror = null;
-                      target.src =
-                        'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzk5OSIgZD0iTTEyIDJDNi40NzcgMiAyIDYuNDc3IDIgMTJzNC40NzcgMTAgMTAgMTAgMTAtNC40NzcgMTAtMTBTMTcuNTIzIDIgMTIgMnptMCAyYzQuNDEzIDAgOCAzLjU4NyA4IDhzLTMuNTg3IDgtOCA4LTgtMy41ODctOC04IDMuNTg3LTggOC04eiIvPjwvc3ZnPg==';
+                      target.src = 'data:image/svg+xml;base64,...';
                     }}
                   />
-                </div>
+                </motion.div>
 
-                {/* Text - hidden when collapsed (desktop) */}
-                <div
-                  className={cn(
-                    'hidden lg:block overflow-hidden transition-all duration-300 whitespace-nowrap',
-                    !showFullSidebar ? 'w-0 opacity-0' : 'w-auto opacity-100'
+                {/* Text */}
+                <AnimatePresence>
+                  {showFullSidebar && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="hidden lg:block overflow-hidden whitespace-nowrap"
+                    >
+                      <div className="text-sm font-bold font-serif tracking-tight text-foreground">
+                        Faith Healing
+                      </div>
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-primary">
+                        Beccle St
+                      </div>
+                    </motion.div>
                   )}
-                >
-                  <div className="text-sm font-medium text-foreground">Faith Healing</div>
-                  <div className="text-xs text-muted-foreground">Beccle St Branch</div>
-                </div>
+                </AnimatePresence>
 
                 {/* Mobile close button */}
                 <button
                   onClick={onToggle}
-                  className="ml-auto lg:hidden p-1 rounded-md hover:bg-gray-100"
+                  className="ml-auto lg:hidden p-2 rounded-xl hover:bg-primary/10 text-primary transition-colors"
                   aria-label="Close menu"
                 >
                   <X className="h-5 w-5" />
@@ -405,11 +409,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
             {/* Back Button for Portal Mode */}
             {isPortalMode && (isSuperadmin || hasRole('district_admin')) && (
-              <div className="px-2 py-2 border-b">
+              <div className="px-3 py-3 border-b border-primary/5 bg-primary/5">
                 <Button
                   variant="ghost"
                   className={cn(
-                    'w-full justify-start text-muted-foreground hover:text-foreground',
+                    'w-full justify-start text-primary font-bold hover:bg-primary/10 rounded-xl transition-all',
                     !showFullSidebar && 'justify-center px-0'
                   )}
                   onClick={() => {
@@ -419,65 +423,52 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       _navigate(from, fromState ? { state: fromState } : undefined);
                       return;
                     }
-
                     if (location.pathname.startsWith('/superadmin/district-portal/branch/')) {
                       _navigate('/superadmin/districts');
                       return;
                     }
-
                     if (location.pathname.startsWith('/district-portal/branch/')) {
                       _navigate('/district-portal');
                       return;
                     }
-
                     _navigate('/admin');
                   }}
-                  title={!showFullSidebar ? 'Back to Global View' : undefined}
                 >
                   <ArrowLeft className={cn('h-4 w-4', showFullSidebar && 'mr-2')} />
-                  <span
-                    className={cn(
-                      'transition-all duration-300 overflow-hidden whitespace-nowrap',
-                      showFullSidebar ? 'w-auto opacity-100' : 'w-0 opacity-0 hidden'
-                    )}
-                  >
-                    Back to HQ
-                  </span>
+                  {showFullSidebar && <span>Back to HQ</span>}
                 </Button>
               </div>
             )}
 
             {/* Menu Items */}
-            <SidebarGroup className="flex-1 overflow-y-auto">
-              <SidebarMenu>
+            <SidebarGroup className="flex-1 overflow-y-auto py-6 px-3">
+              <SidebarMenu className="gap-2">
                 {(menuItems ?? (variant === 'portal' ? portalMenuItems : allMenuItems)).map(
                   ({ id, label, icon: Icon }) => (
                     <SidebarMenuItem key={id}>
                       <SidebarMenuButton
                         isActive={activeModule === id}
                         onClick={() => handleModuleChange(id)}
-                        className="group relative w-full justify-start px-4 py-3 text-sm font-medium"
+                        className={cn(
+                          'group relative w-full justify-start rounded-xl px-4 py-6 transition-all duration-300',
+                          activeModule === id
+                            ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
+                            : 'hover:bg-primary/5 text-muted-foreground hover:text-primary'
+                        )}
                       >
                         <Icon
                           className={cn(
-                            'h-5 w-5 flex-shrink-0 transition-all duration-300',
+                            'h-5 w-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110',
                             showFullSidebar ? 'mr-3' : 'mx-auto'
                           )}
                         />
-                        <span
-                          className={cn(
-                            'truncate transition-all duration-300',
-                            showFullSidebar ? 'opacity-100 w-auto' : 'opacity-0 w-0'
-                          )}
-                        >
-                          {label}
-                        </span>
+                        {showFullSidebar && (
+                          <span className="font-bold tracking-tight truncate">{label}</span>
+                        )}
 
-                        {/* Tooltip for collapsed state */}
+                        {/* Hover bar for collapsed state */}
                         {!showFullSidebar && (
-                          <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            {label}
-                          </span>
+                          <div className="absolute left-0 w-1 h-6 bg-primary rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
                         )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -486,28 +477,26 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* Legacy Superadmin Controls removed in favor of dedicated Superadmin Dashboard */}
-
             {/* Collapse Toggle - Desktop Only */}
-            <div className="hidden lg:block border-t p-2 mt-auto">
+            <div className="hidden lg:block border-t border-primary/5 p-4 bg-transparent backdrop-blur-xl">
               <button
                 onClick={() => handleCollapse(!isCollapsed)}
-                className="w-full flex items-center justify-center p-2 rounded-md hover:bg-gray-100 text-sm font-medium"
+                className="w-full h-10 flex items-center justify-center rounded-xl bg-primary/5 hover:bg-primary/10 text-primary transition-all group"
                 aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {isCollapsed ? (
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 ) : (
-                  <>
-                    <ChevronLeft className="h-5 w-5 mr-2" />
-                    <span>Collapse</span>
-                  </>
+                  <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest">
+                    <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                    <span>Minimize</span>
+                  </div>
                 )}
               </button>
             </div>
           </SidebarContent>
         </Sidebar>
-      </div>
+      </motion.div>
     </>
   );
 };

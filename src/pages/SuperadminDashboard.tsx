@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { SuperadminSidebar } from '@/components/admin/superadmin/SuperadminSidebar';
@@ -17,7 +18,7 @@ import { SuperAdminCMSDashboard } from '@/components/admin/superadmin/SuperAdmin
 import { SuperAdminStreamingDashboard } from '@/components/admin/superadmin/SuperAdminStreamingDashboard';
 import { BibleSchoolPage } from '@/modules/bible-school';
 import { AdminProvider } from '@/context/AdminContext';
-import { Loader2 } from 'lucide-react';
+import { Shield } from 'lucide-react';
 
 const SuperadminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +26,6 @@ const SuperadminDashboard: React.FC = () => {
   const { isSuperadmin, loading } = useSuperadmin();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Determine active module from URL
   const getActiveModule = () => {
     const path = location.pathname.split('/superadmin/')[1];
     if (!path) return 'overview';
@@ -42,26 +42,35 @@ const SuperadminDashboard: React.FC = () => {
     }
   };
 
-  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
+        <div className="w-16 h-16 rounded-3xl bg-primary/5 flex items-center justify-center animate-pulse mb-6 relative z-10">
+          <Shield className="h-8 w-8 text-primary" />
+        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary relative z-10" />
       </div>
     );
   }
 
-  // Access denied for non-superadmins
   if (!isSuperadmin) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
-        <p className="text-muted-foreground mb-4">
-          You do not have permission to access the Superadmin Dashboard.
-        </p>
-        <button onClick={() => navigate('/admin')} className="text-primary hover:underline">
-          Go to Admin Dashboard
-        </button>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center">
+        <div className="max-w-md glass p-10 rounded-3xl border-2 border-dashed border-destructive/20 scale-in-center">
+          <Shield className="h-16 w-16 text-destructive mx-auto mb-6 opacity-50" />
+          <h1 className="text-3xl font-bold font-serif text-foreground mb-3">Restricted Access</h1>
+          <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
+            This terminal is reserved for global system administrators. Unauthorized access attempts
+            are audited.
+          </p>
+          <button
+            onClick={() => navigate('/admin')}
+            className="w-full py-4 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
+          >
+            Return to Branch Admin
+          </button>
+        </div>
       </div>
     );
   }
@@ -100,7 +109,13 @@ const SuperadminDashboard: React.FC = () => {
   return (
     <AdminProvider>
       <SidebarProvider>
-        <div className="min-h-screen bg-muted/30 flex w-full">
+        <div className="min-h-screen bg-background flex w-full relative overflow-hidden">
+          {/* Background Accents */}
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <div className="absolute top-[-5%] right-[-5%] w-[35%] h-[35%] rounded-full bg-primary/5 blur-[100px]" />
+            <div className="absolute bottom-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full bg-secondary/5 blur-[120px]" />
+          </div>
+
           <SuperadminSidebar
             activeModule={activeModule}
             onModuleChange={handleModuleChange}
@@ -108,11 +123,18 @@ const SuperadminDashboard: React.FC = () => {
             onToggle={() => setSidebarOpen(!sidebarOpen)}
           />
 
-          <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+          <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 h-screen overflow-hidden">
             <SuperadminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
 
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto">{renderActiveModule()}</div>
+            <main className="flex-1 p-6 sm:p-8 lg:p-10 overflow-y-auto">
+              <motion.div
+                key={activeModule}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-7xl mx-auto pb-20"
+              >
+                {renderActiveModule()}
+              </motion.div>
             </main>
           </div>
         </div>

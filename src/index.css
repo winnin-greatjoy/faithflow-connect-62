@@ -1,64 +1,78 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
 @layer base {
   :root {
     /* Church Brand Colors - extracted from logo */
     --background: 0 0% 100%;
-    --foreground: 220 100% 20%; /* Deep blue from logo */
+    --foreground: 220 100% 20%;
+    /* Deep blue from logo */
     --card: 0 0% 100%;
     --card-foreground: 220 100% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 220 100% 20%;
-    --primary: 220 100% 40%; /* Blue from logo */
+    --primary: 220 100% 40%;
+    /* Blue from logo */
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 70% 50%; /* Red from logo */
+    --secondary: 0 70% 50%;
+    /* Red from logo */
     --secondary-foreground: 0 0% 100%;
     --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 0 70% 50%; /* Red accent */
+    --accent: 0 70% 50%;
+    /* Red accent */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 220 100% 40%;
-    --radius: 0.75rem;
+    --radius: 1rem;
     --chart-1: 220 100% 40%;
     --chart-2: 0 70% 50%;
     --chart-3: 220 100% 60%;
     --chart-4: 0 70% 70%;
     --chart-5: 220 100% 80%;
+
+    /* Modern UI Tokens */
+    --glass-background: 0 0% 100% / 0.7;
+    --glass-border: 0 0% 100% / 0.2;
+    --vibrant-blue: 220 100% 50%;
+    --vibrant-red: 0 80% 60%;
+    --premium-gold: 45 100% 50%;
   }
 
   .dark {
-    --background: 220 100% 4%;
+    --background: 220 40% 2%;
     --foreground: 0 0% 98%;
-    --card: 220 100% 4%;
+    --card: 220 40% 4%;
     --card-foreground: 0 0% 98%;
-    --popover: 220 100% 4%;
+    --popover: 220 40% 4%;
     --popover-foreground: 0 0% 98%;
     --primary: 220 100% 60%;
     --primary-foreground: 220 100% 4%;
     --secondary: 0 70% 60%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 220 40% 10%;
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 0 70% 60%;
     --accent-foreground: 220 100% 4%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 220 40% 12%;
+    --input: 220 40% 12%;
     --ring: 220 100% 60%;
     --chart-1: 220 70% 50%;
     --chart-2: 0 60% 45%;
     --chart-3: 220 80% 55%;
     --chart-4: 0 65% 60%;
     --chart-5: 220 75% 65%;
+
+    /* Modern UI Dark Tokens */
+    --glass-background: 220 40% 4% / 0.7;
+    --glass-border: 220 40% 20% / 0.4;
   }
 }
 
@@ -66,12 +80,71 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image:
+      radial-gradient(at 0% 0%, hsla(220, 100%, 50%, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(0, 70%, 50%, 0.05) 0px, transparent 50%);
   }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-serif;
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif tracking-tight font-semibold;
   }
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-md;
+}
+
+.dark .glass {
+  @apply bg-black/40 backdrop-blur-md border border-white/10 shadow-lg;
+}
+
+/* Premium Gradients */
+.bg-vibrant-gradient {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--vibrant-blue)) 100%);
+}
+
+.bg-accent-gradient {
+  background: linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--vibrant-red)) 100%);
+}
+
+.bg-glass-gradient {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+}
+
+/* Animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.hover-glow {
+  @apply transition-all duration-300;
+}
+
+.hover-glow:hover {
+  @apply ring-4 ring-primary/20 scale-[1.02] shadow-xl shadow-primary/10;
 }
 
 .font-serif {

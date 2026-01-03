@@ -5,32 +5,26 @@ import { MemberForm } from '@/components/admin/MemberForm';
 import type { Member } from '@/types/membership';
 
 interface MemberFormDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    member?: Member | null;
-    onSubmit: (data: any) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  member?: Member | null;
+  onSubmit: (data: any) => void;
 }
 
 export const MemberFormDialog: React.FC<MemberFormDialogProps> = ({
-    open,
-    onOpenChange,
-    member,
-    onSubmit,
+  open,
+  onOpenChange,
+  member,
+  onSubmit,
 }) => {
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[95vh]">
-                <DialogHeader>
-                    <DialogTitle>
-                        {member ? 'Edit Member' : 'Add New Member'}
-                    </DialogTitle>
-                </DialogHeader>
-                <MemberForm
-                    member={member}
-                    onSubmit={onSubmit}
-                    onCancel={() => onOpenChange(false)}
-                />
-            </DialogContent>
-        </Dialog>
-    );
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{member ? 'Edit Member' : 'Add New Member'}</DialogTitle>
+        </DialogHeader>
+        <MemberForm member={member} onSubmit={onSubmit} onCancel={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
 };

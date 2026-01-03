@@ -1,24 +1,52 @@
-// src/modules/members/components/TabNavigation.tsx
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import type { TabType } from '../types';
 
 interface TabNavigationProps {
-    activeTab: TabType;
-    onTabChange: (tab: TabType) => void;
+  activeTab: TabType;
+  onTabChange: (tab: TabType) => void;
 }
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => {
-    return (
-        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as TabType)}>
-            <TabsList className="mb-4">
-                <TabsTrigger value="all">All Members</TabsTrigger>
-                <TabsTrigger value="workers">Workers</TabsTrigger>
-                <TabsTrigger value="disciples">Disciples</TabsTrigger>
-                <TabsTrigger value="leaders">Leaders</TabsTrigger>
-                <TabsTrigger value="pastors">Pastors</TabsTrigger>
-                <TabsTrigger value="converts">Converts</TabsTrigger>
-            </TabsList>
-        </Tabs>
-    );
+  return (
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => onTabChange(value as TabType)}
+      className="w-full"
+    >
+      <TabsList className="glass p-1 h-12 rounded-xl border-primary/5 gap-1 mb-2 bg-white/40 dark:bg-black/20">
+        <TabsTrigger
+          value="all"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+        >
+          All Members
+        </TabsTrigger>
+        <TabsTrigger
+          value="workers"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+        >
+          Workers
+        </TabsTrigger>
+        <TabsTrigger
+          value="disciples"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+        >
+          Disciples
+        </TabsTrigger>
+        <TabsTrigger
+          value="leaders"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+        >
+          Leaders
+        </TabsTrigger>
+        <TabsTrigger
+          value="pastors"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+        >
+          Pastors
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
 };

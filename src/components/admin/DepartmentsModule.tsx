@@ -6,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Users, Activity, Settings } from 'lucide-react';
+import { Building, Users, Activity, Settings, Sparkles, Filter, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { AddDepartmentForm } from './AddDepartmentForm';
 import { supabase } from '@/integrations/supabase/client';
 import { AddMemberToDepartmentDialog } from '@/components/departments/AddMemberToDepartmentDialog';
@@ -62,58 +64,71 @@ const DepartmentCard: React.FC<{
   onMembersClick: (dept: Department) => void;
   onSettingsClick: (dept: Department) => void;
 }> = ({ dept, onOpen, onMembersClick, onSettingsClick }) => (
-  <Card
-    key={dept.id}
-    className="hover:shadow-md transition-shadow cursor-pointer"
-    onClick={() => onOpen(dept)}
-  >
-    <CardHeader className="p-4 pb-2">
-      <div className="flex justify-between items-start gap-2">
-        <div>
-          <CardTitle className="text-base sm:text-lg">{dept.name}</CardTitle>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Led by {dept.leader}</p>
+  <motion.div layout whileHover={{ y: -4 }} className="group">
+    <Card
+      key={dept.id}
+      className="glass border-primary/5 transition-all cursor-pointer overflow-hidden rounded-[2rem] hover:border-primary/20 hover:shadow-xl relative"
+      onClick={() => onOpen(dept)}
+    >
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-vibrant-gradient opacity-60" />
+      <CardHeader className="p-6 pb-2">
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <CardTitle className="text-xl font-serif font-bold group-hover:text-primary transition-colors">
+              {dept.name}
+            </CardTitle>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1 opacity-60">
+              Led by {dept.leader}
+            </p>
+          </div>
+          <Badge className="bg-emerald-500/10 text-emerald-600 border-none rounded-lg px-2 py-0.5 font-bold text-[10px] uppercase tracking-widest">
+            {dept.status}
+          </Badge>
         </div>
-        <Badge className="bg-green-50 text-green-700 text-xs sm:text-sm">{dept.status}</Badge>
-      </div>
-    </CardHeader>
-    <CardContent className="p-4 pt-0">
-      <div className="space-y-3">
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">Members:</span>
-          <span className="font-medium">{dept.members}</span>
+      </CardHeader>
+      <CardContent className="p-6 pt-0">
+        <div className="space-y-4">
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-muted-foreground uppercase tracking-widest opacity-40">
+              Members:
+            </span>
+            <span className="font-black text-foreground">{dept.members}</span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-muted-foreground uppercase tracking-widest opacity-40">
+              Activities:
+            </span>
+            <span className="font-black text-foreground">{dept.activities}</span>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="glass flex-1 text-[10px] font-black uppercase tracking-widest h-9 border-primary/10 hover:bg-primary/5 rounded-xl"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMembersClick(dept);
+              }}
+            >
+              <Users className="mr-1.5 h-3.5 w-3.5" />
+              Roster
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-xl hover:bg-primary/5 text-primary shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSettingsClick(dept);
+              }}
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">Activities:</span>
-          <span className="font-medium">{dept.activities}</span>
-        </div>
-        <div className="flex gap-2 mt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 text-xs sm:text-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMembersClick(dept);
-            }}
-          >
-            <Users className="mr-1.5 h-4 w-4" />
-            Members
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 sm:h-9 sm:w-9"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSettingsClick(dept);
-            }}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
+      </CardContent>
+    </Card>
+  </motion.div>
 );
 
 // ✅ Ministry Card Component
@@ -123,62 +138,74 @@ const MinistryCard: React.FC<{
   onMembersClick: (ministry: Ministry) => void;
   onSettingsClick: (ministry: Ministry) => void;
 }> = ({ ministry, onOpen, onMembersClick, onSettingsClick }) => (
-  <Card
-    key={ministry.id}
-    className="hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02]"
-    onClick={() => onOpen(ministry)}
-  >
-    <CardHeader className="p-4 pb-2">
-      <div className="flex justify-between items-start gap-2">
-        <div>
-          <CardTitle className="text-base sm:text-lg">{ministry.name}</CardTitle>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{ministry.description}</p>
+  <motion.div layout whileHover={{ y: -4 }} className="group">
+    <Card
+      key={ministry.id}
+      className="glass border-primary/5 transition-all cursor-pointer overflow-hidden rounded-[2rem] hover:border-primary/20 hover:shadow-xl relative"
+      onClick={() => onOpen(ministry)}
+    >
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-accent-gradient opacity-60" />
+      <CardHeader className="p-6 pb-2">
+        <div className="flex justify-between items-start gap-4">
+          <div className="space-y-1">
+            <CardTitle className="text-xl font-serif font-bold group-hover:text-primary transition-colors">
+              {ministry.name}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground line-clamp-1 opacity-70 leading-relaxed font-medium">
+              {ministry.description}
+            </p>
+          </div>
+          <Badge className="bg-blue-500/10 text-blue-600 border-none rounded-lg px-2 py-0.5 font-bold text-[10px] uppercase tracking-widest">
+            {ministry.status}
+          </Badge>
         </div>
-        <Badge className="bg-blue-50 text-blue-700 text-xs sm:text-sm">{ministry.status}</Badge>
-      </div>
-    </CardHeader>
-    <CardContent className="p-4 pt-0">
-      <div className="space-y-3">
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">Leader:</span>
-          <span className="font-medium">{ministry.leader}</span>
+      </CardHeader>
+      <CardContent className="p-6 pt-0">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-40">
+                Leader
+              </div>
+              <div className="text-xs font-black text-foreground">{ministry.leader}</div>
+            </div>
+            <div className="space-y-1 text-right">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-40">
+                Presence
+              </div>
+              <div className="text-xs font-black text-foreground">{ministry.members} Members</div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="glass flex-1 text-[10px] font-black uppercase tracking-widest h-9 border-primary/10 hover:bg-primary/5 rounded-xl"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMembersClick(ministry);
+              }}
+            >
+              <Users className="mr-1.5 h-3.5 w-3.5" />
+              Community
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-xl hover:bg-primary/5 text-primary shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSettingsClick(ministry);
+              }}
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">Members:</span>
-          <span className="font-medium">{ministry.members}</span>
-        </div>
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">Activities:</span>
-          <span className="font-medium">{ministry.activities}</span>
-        </div>
-        <div className="flex gap-2 mt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 text-xs sm:text-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMembersClick(ministry);
-            }}
-          >
-            <Users className="mr-1.5 h-4 w-4" />
-            Members
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 sm:h-9 sm:w-9"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSettingsClick(ministry);
-            }}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
+      </CardContent>
+    </Card>
+  </motion.div>
 );
 
 // ✅ Main Module Component
@@ -508,84 +535,126 @@ export const DepartmentsModule = () => {
     d.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring' as const, stiffness: 260, damping: 20 },
+    },
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="space-y-8 px-2 sm:px-0"
+    >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6"
+      >
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Departments & Ministries</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-            Organize and manage church departments and ministries.
+          <h1 className="text-3xl sm:text-4xl font-bold font-serif tracking-tight text-foreground">
+            Organization <span className="text-primary">Intelligence</span>
+          </h1>
+          <p className="text-muted-foreground mt-2 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary opacity-60" />
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest leading-none">
+              Departments • Ministries • Groups
+            </span>
           </p>
         </div>
-        {/* AddDepartment moved to Departments tab header */}
-      </div>
+      </motion.div>
 
-      {/* Search Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-        <input
-          type="text"
-          placeholder="Search departments..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-md p-2 w-full sm:w-64 text-sm"
-        />
-      </div>
+      {/* Search & Actions Bar */}
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-col sm:flex-row justify-between items-center gap-4"
+      >
+        <div className="relative group w-full sm:w-80">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <input
+            type="text"
+            placeholder="Search organizational matrix..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="glass pl-11 h-11 w-full rounded-xl border-primary/5 focus:ring-primary/20 focus:border-primary/20 transition-all font-medium text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* AddDepartment moved to tab header area or kept as button */}
+        </div>
+      </motion.div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
-        <Card>
-          <CardHeader className="p-3 sm:p-4 pb-0 sm:pb-0">
-            <div className="flex flex-row items-center justify-between">
-              <CardTitle className="text-xs sm:text-sm font-medium">Total Departments</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-2 sm:pt-2">
-            <div className="text-xl sm:text-2xl font-bold">{totalDepartmentsCount}</div>
-            <p className="text-xs text-muted-foreground mt-0.5">All active</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="p-3 sm:p-4 pb-0 sm:pb-0">
-            <div className="flex flex-row items-center justify-between">
-              <CardTitle className="text-xs sm:text-sm font-medium">Total Ministries</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-2 sm:pt-2">
-            <div className="text-xl sm:text-2xl font-bold">{ministries.length}</div>
-            <p className="text-xs text-muted-foreground mt-0.5">Growing strong</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="p-3 sm:p-4 pb-0 sm:pb-0">
-            <div className="flex flex-row items-center justify-between">
-              <CardTitle className="text-xs sm:text-sm font-medium">Total Participants</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-2 sm:pt-2">
-            <div className="text-xl sm:text-2xl font-bold">{totalMinistryMembersCount}</div>
-            <p className="text-xs text-muted-foreground mt-0.5">Across all departments</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="p-3 sm:p-4 pb-0 sm:pb-0">
-            <div className="flex flex-row items-center justify-between">
-              <CardTitle className="text-xs sm:text-sm font-medium">Monthly Activities</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-2 sm:pt-2">
-            <div className="text-xl sm:text-2xl font-bold">{recentMinistryActivitiesCount}</div>
-            <p className="text-xs text-muted-foreground mt-0.5">+15% from last month</p>
-          </CardContent>
-        </Card>
-      </div>
+      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            label: 'Total Departments',
+            value: totalDepartmentsCount,
+            icon: Building,
+            color: 'primary',
+            trend: 'All active',
+          },
+          {
+            label: 'Total Ministries',
+            value: ministries.length,
+            icon: Users,
+            color: 'blue',
+            trend: 'Growing strong',
+          },
+          {
+            label: 'Participants',
+            value: totalMinistryMembersCount,
+            icon: Users,
+            color: 'emerald',
+            trend: 'Across all units',
+          },
+          {
+            label: 'Activities',
+            value: recentMinistryActivitiesCount,
+            icon: Activity,
+            color: 'amber',
+            trend: '+15% this month',
+          },
+        ].map((stat, i) => (
+          <Card
+            key={i}
+            className="glass border-primary/5 rounded-[1.5rem] overflow-hidden group hover:border-primary/20 transition-all"
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div
+                  className={cn(
+                    'p-2.5 rounded-xl',
+                    `bg-${stat.color}-500/10 text-${stat.color}-500`
+                  )}
+                >
+                  <stat.icon className="h-5 w-5" />
+                </div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-40">
+                  {stat.trend}
+                </div>
+              </div>
+              <div className="text-2xl font-bold tracking-tight">{stat.value}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">
+                {stat.label}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </motion.div>
 
       {/* Tabs */}
       <Tabs defaultValue="departments" className="space-y-4 sm:space-y-6">
@@ -806,6 +875,6 @@ export const DepartmentsModule = () => {
           if (activeDepartment) await loadDepartmentMembers(activeDepartment.id);
         }}
       />
-    </div>
+    </motion.div>
   );
 };

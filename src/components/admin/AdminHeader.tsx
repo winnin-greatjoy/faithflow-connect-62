@@ -260,50 +260,66 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b px-3 sm:px-4 lg:px-6 py-3 sm:py-4 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        {/* Mobile menu toggle + Logo */}
-        <div className="flex items-center gap-2">
-          <button
+    <header className="sticky top-0 z-30 glass dark:bg-black/30 border-b border-primary/5 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 backdrop-blur-2xl">
+      <div className="flex items-center justify-between gap-6">
+        {/* Mobile menu toggle + Logo area */}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onMenuToggle}
-            className="lg:hidden p-2 rounded-md hover:bg-gray-100"
-            aria-label="Open menu"
+            className="lg:hidden p-2 rounded-xl hover:bg-primary/10 text-primary transition-colors"
           >
-            <Menu className="w-5 h-5" />
-          </button>
+            <Menu className="w-6 h-6" />
+          </Button>
 
           {isSuperadmin && !isPortalMode && (
-            <div className="hidden md:block mr-2">
+            <div className="hidden lg:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-[220px] h-9 bg-purple-50 border-purple-200 text-purple-900 justify-between"
+                    className="w-[240px] h-11 glass border-primary/20 text-foreground justify-between rounded-xl hover:bg-primary/5 transition-all px-4"
                   >
-                    <span className="truncate">
-                      {selectedBranchId ? branchName || 'Branch View' : 'System View'}
-                    </span>
-                    <ChevronDown className="h-4 w-4 ml-2 opacity-70" />
+                    <div className="flex items-center gap-3 truncate">
+                      <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                      <span className="truncate font-bold">
+                        {selectedBranchId ? branchName || 'Branch View' : 'Global Headquarters'}
+                      </span>
+                    </div>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[260px]">
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[280px] glass p-2 rounded-2xl shadow-xl"
+                >
                   <DropdownMenuItem
                     onClick={() => setSelectedBranchId(null)}
-                    className="font-semibold text-purple-700"
+                    className="font-bold text-primary p-3 rounded-xl focus:bg-primary/10"
                   >
-                    System View
+                    <Home className="w-4 h-4 mr-2" />
+                    Global Headquarters
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="my-2 opacity-50" />
 
                   {(districtTree?.districts || []).map((d) => (
                     <DropdownMenuSub key={d.id}>
-                      <DropdownMenuSubTrigger>{d.name}</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-[240px]">
+                      <DropdownMenuSubTrigger className="p-3 rounded-xl focus:bg-primary/5 font-semibold">
+                        {d.name}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-[260px] glass p-2 rounded-2xl border-primary/10">
                         {(branchesByDistrict.map.get(d.id) || []).length === 0 ? (
-                          <DropdownMenuItem disabled>No branches</DropdownMenuItem>
+                          <DropdownMenuItem disabled className="text-xs p-3">
+                            No branches found
+                          </DropdownMenuItem>
                         ) : (
                           (branchesByDistrict.map.get(d.id) || []).map((b) => (
-                            <DropdownMenuItem key={b.id} onClick={() => setSelectedBranchId(b.id)}>
+                            <DropdownMenuItem
+                              key={b.id}
+                              onClick={() => setSelectedBranchId(b.id)}
+                              className="p-3 rounded-xl"
+                            >
                               {b.name}
                             </DropdownMenuItem>
                           ))
@@ -311,22 +327,6 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   ))}
-
-                  {branchesByDistrict.unassigned.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>Unassigned</DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent className="w-[240px]">
-                          {branchesByDistrict.unassigned.map((b) => (
-                            <DropdownMenuItem key={b.id} onClick={() => setSelectedBranchId(b.id)}>
-                              {b.name}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                    </>
-                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -336,52 +336,46 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
             (isSuperadmin || isDistrictAdmin) &&
             (location.pathname.startsWith('/district-portal/branch/') ||
               location.pathname.startsWith('/superadmin/district-portal/branch/')) && (
-              <div className="hidden md:block mr-2">
+              <div className="hidden lg:block">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-9 justify-between w-[220px]">
+                    <Button
+                      variant="outline"
+                      className="h-11 glass border-primary/20 justify-between w-[240px] rounded-xl px-4 font-bold"
+                    >
                       <span className="truncate">{branchName || 'Select Branch'}</span>
-                      <ChevronDown className="h-4 w-4 ml-2 opacity-70" />
+                      <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[260px]">
-                    <DropdownMenuLabel>Branches in District</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                  <DropdownMenuContent align="start" className="w-[260px] glass p-2 rounded-2xl">
+                    <DropdownMenuLabel className="px-3 pb-2 text-xs uppercase tracking-widest text-muted-foreground">
+                      District Network
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="opacity-50" />
                     {(portalDistrictBranches?.branches || []).map((b) => (
-                      <DropdownMenuItem key={b.id} onClick={() => handlePortalBranchSwitch(b.id)}>
+                      <DropdownMenuItem
+                        key={b.id}
+                        onClick={() => handlePortalBranchSwitch(b.id)}
+                        className="p-3 rounded-xl"
+                      >
                         {b.name}
                       </DropdownMenuItem>
                     ))}
-                    {(portalDistrictBranches?.branches || []).length === 0 && (
-                      <DropdownMenuItem disabled>No branches</DropdownMenuItem>
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             )}
-
-          <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center lg:hidden">
-            <img
-              src="/faithhealing.png"
-              alt="Church Logo"
-              className="h-8 w-8 object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.onerror = null;
-                target.src =
-                  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0ZGRiIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgM3MtMy0xLjM0LTMtMyAxLjM0LTMgMy0zem0wIDE0LjJjLTIuNSAwLTQuNzEtMS4yOC02LTMuMjIuMDMtMS45OSA0LTMuMDggNi0zLjA4IDEuOTkgMCA1Ljk3IDEuMSA2IDMuMDgtMS4yOSAxLjk5LTMuNSAzLjIyLTYgMy4yMnoiLz48L3N2Zz4=';
-              }}
-            />
-          </div>
         </div>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-md mx-2 sm:mx-4 lg:mx-8 hidden md:block">
+        <div className="flex-1 max-w-xl hidden md:block group">
           <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            </div>
             <Input
-              placeholder="Search members, events, ministries..."
-              className="pl-10 text-sm"
+              placeholder="Search administration..."
+              className="pl-12 h-12 glass border-primary/5 focus:border-primary/30 rounded-2xl text-base shadow-inner transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -389,118 +383,108 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
-          {/* Superadmin Badge */}
-          {isSuperadmin && !superadminLoading && (
-            <div className="hidden sm:block">
-              <SuperadminBadge variant="compact" />
-            </div>
-          )}
-          {/* Mobile Search */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Search">
-                <Search className="w-5 h-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72 p-2">
-              <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search members, events, ministries..."
-                  className="pl-10 text-sm w-full"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  aria-label="Search"
-                />
-              </form>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
+        <div className="flex items-center gap-2 sm:gap-4 ml-auto">
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative w-10 h-10 rounded-xl hover:bg-primary/10 text-primary transition-all"
+                aria-label="Notifications"
+              >
+                <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 text-xs flex items-center justify-center bg-destructive text-destructive-foreground rounded-full">
+                  <span className="absolute top-1.5 right-1.5 w-5 h-5 text-[10px] font-bold flex items-center justify-center bg-destructive text-destructive-foreground rounded-lg border-2 border-white ring-2 ring-destructive/20 shadow-lg">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
-              <DropdownMenuLabel className="flex justify-between items-center">
-                <span>Notifications</span>
+            <DropdownMenuContent
+              align="end"
+              className="w-80 glass p-0 rounded-2xl shadow-2xl border-primary/10 overflow-hidden"
+            >
+              <div className="p-4 bg-primary/5 border-b border-primary/5 flex justify-between items-center">
+                <span className="font-bold text-sm">Notifications</span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setNotifications(notifications.map((n) => ({ ...n, read: true })));
-                  }}
+                  className="text-[10px] uppercase font-bold text-primary h-7 px-2"
+                  onClick={() => setNotifications([])}
                 >
-                  Mark all as read
+                  Clear all
                 </Button>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {notifications.length > 0 ? (
-                notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-2 hover:bg-gray-100 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
-                    onClick={() => markAsRead(notification.id)}
-                  >
-                    <p className="text-sm">{notification.text}</p>
-                    <p className="text-xs text-gray-500">2h ago</p>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {notifications.length > 0 ? (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className="p-4 hover:bg-primary/[0.02] border-b border-primary/5 last:border-0 cursor-pointer"
+                    >
+                      <p className="text-sm font-semibold">{n.text}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
+                        {n.timestamp}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-12 text-center opacity-50 flex flex-col items-center gap-3">
+                    <Bell className="w-8 h-8 text-muted-foreground" />
+                    <p className="text-sm font-medium">No new updates found</p>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500 p-2">No new notifications</p>
-              )}
+                )}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Profile Menu */}
+          {/* User Profile */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="flex items-center space-x-1 sm:space-x-2 p-1 sm:p-2"
-              >
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                  <User className="w-3 h-3 sm:w-4 sm:h-4" />
+              <button className="flex items-center gap-3 p-1 rounded-xl hover:bg-primary/5 transition-all border border-transparent hover:border-primary/10 group">
+                <div className="w-10 h-10 rounded-xl bg-vibrant-gradient flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+                  <User className="w-5 h-5" />
                 </div>
-                <span className="text-xs sm:text-sm hidden sm:inline">
-                  {user?.email?.split('@')[0] || 'Admin'}
-                </span>
-              </Button>
+                <div className="hidden lg:block text-left mr-2">
+                  <p className="text-sm font-bold truncate leading-none mb-1">
+                    {user?.user_metadata?.firstName || user?.email?.split('@')[0]}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-widest text-primary font-bold opacity-70">
+                    Administrator
+                  </p>
+                </div>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 sm:w-56 bg-white">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {/* Show Admin Dashboard when in portal mode and user is admin */}
-              {isPortalMode && (isSuperadmin || hasRole('admin') || hasRole('pastor')) && (
-                <DropdownMenuItem onClick={() => navigate('/admin')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Admin Dashboard
-                </DropdownMenuItem>
-              )}
-              {/* Show My Portal when NOT in portal mode */}
-              {!isPortalMode && (
-                <DropdownMenuItem onClick={() => navigate('/portal')}>
-                  <Home className="mr-2 h-4 w-4" />
-                  My Portal
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={handleSettings}>
-                <User className="mr-2 h-4 w-4" />
-                Settings
+            <DropdownMenuContent
+              align="end"
+              className="w-64 glass p-2 rounded-2xl shadow-2xl border-primary/10 mt-2"
+            >
+              <div className="px-4 py-4 mb-2">
+                <p className="font-serif font-bold text-lg leading-tight truncate">{user?.email}</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
+                  Personnel Account
+                </p>
+              </div>
+              <DropdownMenuSeparator className="opacity-50" />
+              <DropdownMenuItem
+                onClick={() => navigate('/portal')}
+                className="p-3 rounded-xl my-1 group"
+              >
+                <Home className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                <span className="font-bold">Member Portal</span>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
+              <DropdownMenuItem onClick={handleSettings} className="p-3 rounded-xl my-1 group">
+                <Settings className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                <span className="font-bold">Global Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="opacity-50" />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="p-3 rounded-xl text-destructive focus:bg-destructive/10 focus:text-destructive group mt-1"
+              >
+                <LogOut className="mr-3 h-4 w-4" />
+                <span className="font-bold">Disconnect Session</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -8,9 +8,9 @@
 -- ============================================================================
 DO $$
 DECLARE
-  v_email TEXT := 'superadmin@faithhealing.org';  -- CHANGE THIS to your email
+  v_email TEXT := 'sahrbsesay@gmail.com';  -- CHANGE THIS to your email
   v_password TEXT := 'ChangeMe123!';              -- CHANGE THIS to secure password
-  v_full_name TEXT := 'Super Admin';              -- CHANGE THIS to your name
+  v_full_name TEXT := 'Winnin GreatJoy';              -- CHANGE THIS to your name
   
   v_user_id UUID;
   v_encrypted_password TEXT;

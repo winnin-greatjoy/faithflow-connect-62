@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,12 +14,33 @@ import {
   TrendingUp,
   ArrowRight,
   Loader2,
-  DollarSign,
-  Calendar,
+  Zap,
+  ChevronRight,
+  Globe,
+  FileBarChart,
+  Shield,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: { type: 'spring' as const, stiffness: 100 },
+  },
+};
 
 interface DistrictHealth {
   id: string;
@@ -48,19 +70,22 @@ export const SuperadminOverview: React.FC = () => {
         { count: userCount },
         { count: attendanceThisMonth },
       ] = await Promise.all([
-        supabase.from('districts').select('id, name, head_admin_id, overseer_id', { count: 'exact' }),
-        supabase.from('church_branches').select('id, name, district_id, is_district_hq', { count: 'exact' }),
+        supabase
+          .from('districts')
+          .select('id, name, head_admin_id, overseer_id', { count: 'exact' }),
+        supabase
+          .from('church_branches')
+          .select('id, name, district_id, is_district_hq', { count: 'exact' }),
         supabase.from('members').select('*', { count: 'exact', head: true }),
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('attendance').select('*', { count: 'exact', head: true }),
       ]);
 
-      // Process district health
       const districtHealth: DistrictHealth[] = (districts || []).map((d) => {
         const districtBranches = (branches || []).filter((b) => b.district_id === d.id);
         const hasHQ = districtBranches.some((b) => b.is_district_hq);
         const hasHeadAdmin = !!d.head_admin_id;
-        
+
         let status: 'healthy' | 'warning' | 'critical' = 'healthy';
         if (!hasHeadAdmin && !hasHQ) status = 'critical';
         else if (!hasHeadAdmin || !hasHQ || districtBranches.length === 0) status = 'warning';
@@ -75,9 +100,7 @@ export const SuperadminOverview: React.FC = () => {
         };
       });
 
-      // Generate system alerts
       const alerts: SystemAlert[] = [];
-      
       const districtsWithoutAdmin = districtHealth.filter((d) => !d.hasHeadAdmin);
       if (districtsWithoutAdmin.length > 0) {
         alerts.push({
@@ -85,39 +108,6 @@ export const SuperadminOverview: React.FC = () => {
           type: 'error',
           message: `${districtsWithoutAdmin.length} district(s) without a Head Admin`,
           action: 'Assign Admin',
-          link: '/superadmin/districts',
-        });
-      }
-
-      const districtsWithoutHQ = districtHealth.filter((d) => !d.hasHQ);
-      if (districtsWithoutHQ.length > 0) {
-        alerts.push({
-          id: 'no-hq',
-          type: 'warning',
-          message: `${districtsWithoutHQ.length} district(s) without a designated HQ`,
-          action: 'Set HQ',
-          link: '/superadmin/districts',
-        });
-      }
-
-      const unassignedBranches = (branches || []).filter((b) => !b.district_id);
-      if (unassignedBranches.length > 0) {
-        alerts.push({
-          id: 'unassigned',
-          type: 'warning',
-          message: `${unassignedBranches.length} branch(es) not assigned to any district`,
-          action: 'Assign District',
-          link: '/superadmin/branches',
-        });
-      }
-
-      const emptyDistricts = districtHealth.filter((d) => d.branchCount === 0);
-      if (emptyDistricts.length > 0) {
-        alerts.push({
-          id: 'empty-districts',
-          type: 'info',
-          message: `${emptyDistricts.length} district(s) have no branches`,
-          action: 'View Districts',
           link: '/superadmin/districts',
         });
       }
@@ -132,309 +122,383 @@ export const SuperadminOverview: React.FC = () => {
         },
         districtHealth,
         alerts,
-        unassignedBranchCount: unassignedBranches.length,
       };
     },
   });
 
   if (isLoading || !data) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center py-20 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 blur-[100px] rounded-full" />
+        <Loader2 className="h-12 w-12 animate-spin text-primary opacity-50 relative z-10" />
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground animate-pulse relative z-10">
+          Aggregating Global Data...
+        </p>
       </div>
     );
   }
 
-  const healthyCounts = {
-    healthy: data.districtHealth.filter((d) => d.status === 'healthy').length,
-    warning: data.districtHealth.filter((d) => d.status === 'warning').length,
-    critical: data.districtHealth.filter((d) => d.status === 'critical').length,
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Global Overview</h1>
-          <p className="text-muted-foreground mt-1">
-            System health, compliance monitoring, and governance status
-          </p>
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="space-y-12"
+    >
+      {/* Page Header */}
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
+      >
+        <div className="flex items-center gap-5">
+          <div className="w-16 h-16 rounded-[2rem] bg-vibrant-gradient flex items-center justify-center relative shadow-xl shadow-primary/20 group hover:rotate-6 transition-transform">
+            <Globe className="h-8 w-8 text-white" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-4 border-background animate-pulse" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-bold font-serif tracking-tight">
+              System <span className="text-primary">Stewardship</span>
+            </h1>
+            <div className="flex items-center gap-3 mt-1">
+              <Badge
+                variant="outline"
+                className="bg-emerald-500/5 text-emerald-600 border-emerald-500/10 text-[10px] font-black uppercase tracking-widest px-2"
+              >
+                Live Nodes
+              </Badge>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest flex items-center gap-2">
+                <Activity className="w-3.5 h-3.5 text-emerald-500" /> Decentralized network sync
+                active
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/superadmin/reports">View Reports</Link>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            className="glass border-primary/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-12 px-8 hover:bg-primary/5"
+            asChild
+          >
+            <Link to="/superadmin/audit">Security Audit</Link>
           </Button>
-          <Button asChild>
-            <Link to="/superadmin/audit">Audit Logs</Link>
+          <Button
+            className="bg-primary hover:primary/90 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-12 px-8 shadow-xl shadow-primary/20"
+            asChild
+          >
+            <Link to="/superadmin/districts">Global Protocol</Link>
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Global KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <KPICard
-          title="Total Districts"
+          title="Districts"
           value={data.stats.districts}
           icon={Network}
-          color="purple"
-          subtitle="Governance Zones"
+          color="text-primary"
+          gradient="from-primary/10 to-indigo-500/10"
+          subtitle="Regional Zones"
           link="/superadmin/districts"
         />
         <KPICard
-          title="Total Branches"
+          title="Establishments"
           value={data.stats.branches}
           icon={Building}
-          color="blue"
-          subtitle={data.unassignedBranchCount > 0 ? `${data.unassignedBranchCount} unassigned` : 'All assigned'}
-          subtitleType={data.unassignedBranchCount > 0 ? 'warning' : 'normal'}
-          link="/superadmin/branches"
+          color="text-blue-600"
+          gradient="from-blue-500/10 to-cyan-500/10"
+          subtitle="Active Branches"
+          link="/superadmin/districts"
         />
         <KPICard
-          title="Total Members"
+          title="Total Reach"
           value={data.stats.members.toLocaleString()}
           icon={Users}
-          color="green"
-          subtitle="Registered Profiles"
+          color="text-emerald-600"
+          gradient="from-emerald-500/10 to-teal-500/10"
+          subtitle="Verified Profiles"
           link="/superadmin/users"
         />
         <KPICard
-          title="Active Users"
+          title="Admin Staff"
           value={data.stats.users.toLocaleString()}
-          icon={Activity}
-          color="amber"
-          subtitle="System Access"
+          icon={Shield}
+          color="text-amber-600"
+          gradient="from-amber-500/10 to-orange-500/10"
+          subtitle="Privileged Access"
           link="/superadmin/users"
         />
         <KPICard
-          title="Monthly Attendance"
+          title="Signals"
           value={data.stats.monthlyAttendance.toLocaleString()}
-          icon={Calendar}
-          color="teal"
-          subtitle="This Month"
+          icon={Zap}
+          color="text-rose-600"
+          gradient="from-rose-500/10 to-orange-500/10"
+          subtitle="Real-time Events"
           link="/superadmin/reports"
         />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* District Health Overview - 2 columns */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        {/* District Health Section */}
+        <motion.div variants={itemVariants} className="lg:col-span-2">
+          <Card className="glass dark:bg-black/20 border-primary/5 shadow-xl overflow-hidden rounded-[2rem]">
+            <CardHeader className="bg-primary/[0.02] border-b border-primary/5 p-8 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg">District Health Overview</CardTitle>
-                <CardDescription>Compliance and governance status by district</CardDescription>
+                <CardTitle className="text-2xl font-serif">Network Integrity</CardTitle>
+                <CardDescription className="text-[10px] font-black uppercase tracking-[0.2em] mt-1.5 text-primary opacity-60">
+                  Compliance & Governance Protocol
+                </CardDescription>
               </div>
               <div className="flex gap-2">
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                  {healthyCounts.healthy} Healthy
-                </Badge>
-                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                  {healthyCounts.warning} Warning
-                </Badge>
-                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                  {healthyCounts.critical} Critical
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data.districtHealth.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Network className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>No districts configured yet</p>
-                  <Button variant="link" asChild className="mt-2">
-                    <Link to="/superadmin/districts">Create First District</Link>
-                  </Button>
+                <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center border border-primary/10">
+                  <Activity className="w-6 h-6 text-primary" />
                 </div>
-              ) : (
-                data.districtHealth.map((district) => (
-                  <DistrictHealthRow key={district.id} district={district} />
-                ))
-              )}
-            </div>
-            {data.districtHealth.length > 0 && (
-              <div className="mt-4 pt-4 border-t">
-                <Button variant="ghost" className="w-full" asChild>
-                  <Link to="/superadmin/districts" className="flex items-center justify-center gap-2">
-                    View All Districts <ArrowRight className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-primary/5">
+                {data.districtHealth.length === 0 ? (
+                  <div className="p-20 text-center opacity-40">
+                    <p className="text-sm font-bold uppercase tracking-widest leading-loose">
+                      No active districts detected in the network.
+                    </p>
+                  </div>
+                ) : (
+                  data.districtHealth.map((district) => (
+                    <DistrictHealthRow key={district.id} district={district} />
+                  ))
+                )}
+              </div>
+              <div className="p-10 bg-black/[0.02] dark:bg-black/20">
+                <Button
+                  variant="ghost"
+                  className="w-full h-16 group font-black text-[10px] uppercase tracking-[0.3em] text-primary hover:bg-primary/5 rounded-2xl border-2 border-dashed border-primary/10"
+                  asChild
+                >
+                  <Link
+                    to="/superadmin/districts"
+                    className="flex items-center justify-center gap-3"
+                  >
+                    Initialize Management Layer{' '}
+                    <ChevronRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
                   </Link>
                 </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        {/* Right Column - Alerts & Quick Stats */}
-        <div className="space-y-6">
-          {/* System Alerts */}
-          <Card className={data.alerts.length > 0 ? 'border-yellow-200 bg-yellow-50/30' : ''}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <AlertTriangle className={`h-5 w-5 ${data.alerts.length > 0 ? 'text-yellow-600' : 'text-muted-foreground'}`} />
-                System Alerts
+        {/* Intelligence Side Column */}
+        <motion.div variants={itemVariants} className="space-y-10">
+          {/* Alerts Card */}
+          <Card
+            className={cn(
+              'glass transition-all shadow-xl overflow-hidden border-primary/5 rounded-[2rem]',
+              data.alerts.length > 0 ? 'ring-2 ring-amber-500/20' : ''
+            )}
+          >
+            <CardHeader className="p-8 border-b border-primary/5 bg-primary/[0.02]">
+              <CardTitle className="text-xl font-serif flex items-center gap-4">
+                <AlertTriangle
+                  className={cn(
+                    'h-7 w-7',
+                    data.alerts.length > 0 ? 'text-amber-500' : 'text-emerald-500'
+                  )}
+                />
+                Alert Center
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-8">
               {data.alerts.length === 0 ? (
-                <div className="flex items-center gap-3 text-green-700 bg-green-50 p-3 rounded-lg">
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="text-sm font-medium">All systems operational</span>
+                <div className="bg-emerald-500/5 p-8 rounded-3xl border border-emerald-500/10 text-center">
+                  <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="h-8 w-8 text-emerald-500" />
+                  </div>
+                  <p className="text-sm font-black uppercase tracking-tight text-emerald-700">
+                    Shield Initialized
+                  </p>
+                  <p className="text-[10px] uppercase font-bold text-emerald-600/60 mt-2">
+                    All protocols operational
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {data.alerts.map((alert) => (
-                    <AlertItem key={alert.id} alert={alert} />
+                    <div
+                      key={alert.id}
+                      className="p-6 rounded-3xl bg-amber-500/5 border border-amber-500/10 group hover:bg-amber-500/10 transition-all hover:scale-[1.02]"
+                    >
+                      <div className="flex items-start gap-5">
+                        <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600">
+                          <AlertTriangle className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold leading-relaxed">{alert.message}</p>
+                          {alert.action && (
+                            <Link
+                              to={alert.link || '#'}
+                              className="text-[10px] font-black uppercase tracking-widest text-primary mt-3 flex items-center hover:gap-3 transition-all"
+                            >
+                              {alert.action} <ArrowRight className="h-4 w-4 ml-1" />
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Global Financials Placeholder */}
-          <Card className="bg-muted/30">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg text-muted-foreground">Global Financials</CardTitle>
+          {/* Core Handlers */}
+          <Card className="glass border-primary/5 shadow-xl rounded-[2rem]">
+            <CardHeader className="p-8 border-b border-primary/5">
+              <CardTitle className="text-xl font-serif">Quick Protocols</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <DollarSign className="h-4 w-4" />
-                <span>Aggregated data coming soon</span>
-              </div>
+            <CardContent className="p-8 space-y-4">
+              {[
+                { label: 'Network Expansion', icon: Network, link: '/superadmin/districts' },
+                { label: 'Metric Aggregation', icon: FileBarChart, link: '/superadmin/reports' },
+                { label: 'Privilege Control', icon: Users, link: '/superadmin/users' },
+                { label: 'Governance Logs', icon: Shield, link: '/superadmin/audit' },
+              ].map((tool, i) => (
+                <Button
+                  key={i}
+                  variant="ghost"
+                  className="w-full justify-start h-16 rounded-2xl hover:bg-primary/5 group"
+                  asChild
+                >
+                  <Link to={tool.link}>
+                    <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center group-hover:bg-primary/20 group-hover:rotate-6 transition-all mr-4">
+                      <tool.icon className="w-6 h-6 text-primary" />
+                    </div>
+                    <span className="font-bold text-sm tracking-tight">{tool.label}</span>
+                  </Link>
+                </Button>
+              ))}
             </CardContent>
           </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/superadmin/districts">
-                  <Network className="mr-2 h-4 w-4" /> Create District
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/superadmin/branches">
-                  <Building className="mr-2 h-4 w-4" /> Manage Branches
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/superadmin/users">
-                  <Users className="mr-2 h-4 w-4" /> Assign Roles
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-// KPI Card Component
-interface KPICardProps {
-  title: string;
-  value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
-  color: 'purple' | 'blue' | 'green' | 'amber' | 'teal';
-  subtitle: string;
-  subtitleType?: 'normal' | 'warning';
-  link: string;
-}
-
-const colorClasses = {
-  purple: 'border-l-purple-500 text-purple-500',
-  blue: 'border-l-blue-500 text-blue-500',
-  green: 'border-l-green-500 text-green-500',
-  amber: 'border-l-amber-500 text-amber-500',
-  teal: 'border-l-teal-500 text-teal-500',
-};
-
-const KPICard: React.FC<KPICardProps> = ({ title, value, icon: Icon, color, subtitle, subtitleType = 'normal', link }) => (
-  <Link to={link}>
-    <Card className={`hover:shadow-md transition-shadow border-l-4 ${colorClasses[color]} cursor-pointer`}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <Icon className={`h-4 w-4 ${colorClasses[color].split(' ')[1]}`} />
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="text-2xl font-bold">{value}</div>
-        <p className={`text-xs ${subtitleType === 'warning' ? 'text-yellow-600 font-medium' : 'text-muted-foreground'}`}>
-          {subtitle}
-        </p>
-      </CardContent>
-    </Card>
-  </Link>
+const KPICard = ({ title, value, icon: Icon, color, gradient, subtitle, link }: any) => (
+  <motion.div variants={itemVariants} whileHover={{ y: -5 }}>
+    <Link to={link}>
+      <Card className="glass border-primary/5 hover-glow overflow-hidden relative group h-full cursor-pointer transition-all rounded-3xl">
+        <div
+          className={cn(
+            'absolute inset-0 bg-gradient-to-br opacity-50 group-hover:opacity-70 transition-opacity',
+            gradient
+          )}
+        />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-6 pb-2 relative z-10">
+          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60 leading-none">
+            {title}
+          </CardTitle>
+          <div
+            className={cn(
+              'p-2.5 rounded-xl bg-white/50 dark:bg-black/30 border border-white/20 shadow-sm',
+              color
+            )}
+          >
+            <Icon className="h-4 w-4" />
+          </div>
+        </CardHeader>
+        <CardContent className="p-6 pt-2 relative z-10">
+          <div className={cn('text-4xl font-bold font-serif mb-1.5 tracking-tighter', color)}>
+            {value}
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">
+            {subtitle}
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
+  </motion.div>
 );
 
-// District Health Row Component
-const DistrictHealthRow: React.FC<{ district: DistrictHealth }> = ({ district }) => {
+const DistrictHealthRow = ({ district }: { district: DistrictHealth }) => {
   const statusConfig = {
-    healthy: { color: 'bg-green-500', icon: CheckCircle, iconColor: 'text-green-600' },
-    warning: { color: 'bg-yellow-500', icon: AlertTriangle, iconColor: 'text-yellow-600' },
-    critical: { color: 'bg-red-500', icon: XCircle, iconColor: 'text-red-600' },
+    healthy: { badge: 'bg-emerald-500/5 text-emerald-600', dot: 'bg-emerald-500' },
+    warning: { badge: 'bg-amber-500/5 text-amber-600', dot: 'bg-amber-500' },
+    critical: { badge: 'bg-rose-500/5 text-rose-600', dot: 'bg-rose-500' },
   };
-
   const config = statusConfig[district.status];
-  const StatusIcon = config.icon;
 
   return (
     <Link
       to={`/superadmin/districts/${district.id}`}
-      className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors group"
+      className="flex flex-col sm:flex-row items-center justify-between p-8 hover:bg-primary/[0.02] transition-colors group"
     >
-      <div className="flex items-center gap-3">
-        <div className={`w-2 h-2 rounded-full ${config.color}`} />
+      <div className="flex items-center gap-6">
+        <div
+          className={cn(
+            'w-16 h-16 rounded-2xl flex items-center justify-center border-2 transition-all group-hover:scale-110 group-hover:rotate-3 shadow-xl shadow-black/5 bg-background',
+            district.status === 'healthy'
+              ? 'border-emerald-500/20 group-hover:border-emerald-500/40'
+              : district.status === 'warning'
+                ? 'border-amber-500/20 group-hover:border-amber-500/40'
+                : 'border-rose-500/20 group-hover:border-rose-500/40'
+          )}
+        >
+          <Network
+            className={cn(
+              'w-8 h-8',
+              district.status === 'healthy'
+                ? 'text-emerald-500'
+                : district.status === 'warning'
+                  ? 'text-amber-500'
+                  : 'text-rose-500'
+            )}
+          />
+        </div>
         <div>
-          <p className="font-medium text-sm group-hover:text-primary transition-colors">{district.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {district.branchCount} branch{district.branchCount !== 1 ? 'es' : ''}
-          </p>
+          <h4 className="font-bold font-serif text-xl group-hover:text-primary transition-colors leading-tight">
+            {district.name}
+          </h4>
+          <div className="flex items-center gap-4 mt-2">
+            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <Building className="w-3.5 h-3.5 text-primary opacity-50" /> {district.branchCount}{' '}
+              Neural Nodes
+            </span>
+            <div className={cn('w-2 h-2 rounded-full animate-pulse', config.dot)} />
+          </div>
         </div>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-5 mt-6 sm:mt-0">
         <div className="flex gap-2">
-          <Badge variant="outline" className={district.hasHeadAdmin ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}>
-            {district.hasHeadAdmin ? 'Admin ✓' : 'No Admin'}
+          <Badge
+            variant="outline"
+            className={cn(
+              'rounded-xl px-4 py-1.5 font-black text-[9px] uppercase border tracking-widest',
+              district.hasHeadAdmin
+                ? 'bg-emerald-500/5 text-emerald-600 border-emerald-500/10'
+                : 'bg-rose-500/5 text-rose-600 border-rose-500/10'
+            )}
+          >
+            {district.hasHeadAdmin ? 'Admin Sync ✓' : 'Admin Missing'}
           </Badge>
-          <Badge variant="outline" className={district.hasHQ ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}>
-            {district.hasHQ ? 'HQ ✓' : 'No HQ'}
+          <Badge
+            variant="outline"
+            className={cn(
+              'rounded-xl px-4 py-1.5 font-black text-[9px] uppercase border tracking-widest',
+              district.hasHQ
+                ? 'bg-emerald-500/5 text-emerald-600 border-emerald-500/10'
+                : 'bg-amber-500/5 text-amber-600 border-amber-500/10'
+            )}
+          >
+            {district.hasHQ ? 'Center Estab ✓' : 'Center Required'}
           </Badge>
         </div>
-        <StatusIcon className={`h-4 w-4 ${config.iconColor}`} />
+        <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <ChevronRight className="w-6 h-6 text-primary group-hover:translate-x-1 transition-transform" />
+        </div>
       </div>
     </Link>
-  );
-};
-
-// Alert Item Component
-const AlertItem: React.FC<{ alert: SystemAlert }> = ({ alert }) => {
-  const typeConfig = {
-    error: { bg: 'bg-red-50', border: 'border-red-200', icon: XCircle, iconColor: 'text-red-600' },
-    warning: { bg: 'bg-yellow-50', border: 'border-yellow-200', icon: AlertTriangle, iconColor: 'text-yellow-600' },
-    info: { bg: 'bg-blue-50', border: 'border-blue-200', icon: Activity, iconColor: 'text-blue-600' },
-  };
-
-  const config = typeConfig[alert.type];
-  const AlertIcon = config.icon;
-
-  return (
-    <div className={`p-3 rounded-lg border ${config.bg} ${config.border}`}>
-      <div className="flex items-start gap-3">
-        <AlertIcon className={`h-4 w-4 mt-0.5 ${config.iconColor}`} />
-        <div className="flex-1">
-          <p className="text-sm font-medium">{alert.message}</p>
-          {alert.action && alert.link && (
-            <Link to={alert.link} className="text-xs text-primary hover:underline mt-1 inline-block">
-              {alert.action} →
-            </Link>
-          )}
-        </div>
-      </div>
-    </div>
   );
 };

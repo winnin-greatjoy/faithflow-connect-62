@@ -22,13 +22,14 @@ import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfigu
 import { GlobalRoleManagement } from '@/components/admin/superadmin/GlobalRoleManagement';
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
 import { SuperAdminDashboardOverview } from '@/components/admin/superadmin/SuperAdminDashboardOverview';
-import { MultiBranchManagement } from '@/components/admin/superadmin/MultiBranchManagement';
 import { DistrictManagement } from '@/components/admin/superadmin/DistrictManagement';
 import { DistrictDashboard } from '@/components/admin/district/DistrictDashboard';
+import { GeminiAIReportModule } from '../components/admin/GeminiAIReportModule';
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { useAuthz } from '@/hooks/useAuthz';
 import { AdminProvider, useAdminContext } from '@/context/AdminContext';
+import { motion } from 'framer-motion';
 
 // Define the inner dashboard content to use the context
 const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) => {
@@ -173,6 +174,8 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
         return can('streaming', 'view') || isSuperadmin ? <StreamingModule /> : denied;
       case 'reports':
         return can('reports', 'view') || isSuperadmin ? <BranchReportsModule /> : denied;
+      case 'ai-reports':
+        return can('reports', 'view') || isSuperadmin ? <GeminiAIReportModule /> : denied;
       case 'templates':
         return can('communication', 'manage') || isSuperadmin ? <MessageTemplateManager /> : denied;
 
@@ -183,7 +186,13 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-gray-50 flex w-full">
+      <div className="min-h-screen bg-background flex w-full relative overflow-hidden">
+        {/* Modern Background Accents */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/5 blur-[120px]" />
+        </div>
+
         <AdminSidebar
           activeModule={activeModule}
           onModuleChange={handleModuleChange}
@@ -193,14 +202,20 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
           isPortalMode={isPortalMode}
         />
 
-        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-0">
+        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:ml-0 h-screen">
           <AdminHeader
             onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
             isPortalMode={isPortalMode}
           />
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-            <div className="max-w-7xl mx-auto">{renderActiveModule()}</div>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 xl:p-10 overflow-y-auto overflow-x-hidden">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-7xl mx-auto flex flex-col gap-8 pb-10"
+            >
+              {renderActiveModule()}
+            </motion.div>
           </main>
         </div>
       </div>

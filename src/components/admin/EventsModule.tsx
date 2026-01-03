@@ -46,7 +46,11 @@ import {
   Info,
   Banknote,
   FileText,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import eventsApi from '@/services/eventsApi';
 import registrationsApi from '@/services/registrationsApi';
@@ -159,7 +163,16 @@ export const EventsModule: React.FC = () => {
   const [tab, setTab] = useState<'All' | EventType>('All');
   const [scopeFilter, setScopeFilter] = useState<'All' | EventLevel>('All');
   const [dialog, setDialog] = useState<
-    'create' | 'edit' | 'view' | 'calendar' | 'register' | 'manage' | 'quotas' | 'create-task' | 'book-appointment' | null
+    | 'create'
+    | 'edit'
+    | 'view'
+    | 'calendar'
+    | 'register'
+    | 'manage'
+    | 'quotas'
+    | 'create-task'
+    | 'book-appointment'
+    | null
   >(null);
   const [form, setForm] = useState<Partial<EventItem> | null>(null);
   const [activeEvent, setActiveEvent] = useState<EventItem | null>(null);
@@ -483,32 +496,77 @@ export const EventsModule: React.FC = () => {
 
   const recurrenceLabel = (ev: EventItem) => ev.frequency;
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring' as const, stiffness: 260, damping: 20 },
+    },
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex flex-col items-center justify-center p-20 space-y-4">
+        <div className="relative">
+          <div className="h-12 w-12 rounded-full border-4 border-primary/20"></div>
+          <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
+        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary animate-pulse">
+          Synchronizing Protocols...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 lg:px-0">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="space-y-8 px-2 sm:px-4 lg:px-0"
+    >
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6"
+      >
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Events Management</h1>
-          <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">
-            Hierarchical system: National, District, Branch
+          <h1 className="text-3xl sm:text-4xl font-bold font-serif tracking-tight text-foreground">
+            Events <span className="text-primary">Intelligence</span>
+          </h1>
+          <p className="text-muted-foreground mt-2 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary opacity-60" />
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">
+              Global Hierarchy: National • District • Branch
+            </span>
           </p>
         </div>
-        <Button
-          onClick={() => setDialog('calendar')}
-          variant="outline"
-          size="sm"
-          className="w-full sm:w-auto"
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" /> Calendar
-        </Button>
-      </div>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => setDialog('calendar')}
+            variant="outline"
+            className="glass h-11 px-5 rounded-xl font-semibold border-primary/20 hover:bg-primary/5 transition-all"
+          >
+            <CalendarIcon className="mr-2 h-4 w-4 text-primary" /> Calendar View
+          </Button>
+          {canManageEvents && (
+            <Button
+              onClick={openCreate}
+              className="bg-vibrant-gradient h-11 px-6 rounded-xl font-bold text-white shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all"
+            >
+              <Plus className="mr-2 h-5 w-5" /> Initialize Event
+            </Button>
+          )}
+        </div>
+      </motion.div>
 
       <div className="flex flex-col gap-4">
         <Tabs value={scopeFilter} onValueChange={(v: any) => setScopeFilter(v)}>
@@ -691,7 +749,7 @@ export const EventsModule: React.FC = () => {
           if (!open) {
             console.log('Calendar dialog closing via onOpenCheck');
             // Only close if we aren't switching to another dialog (hacky check?)
-            // Actually, if we switched state to 'create-task', 'open' becomes false by React. 
+            // Actually, if we switched state to 'create-task', 'open' becomes false by React.
             // Does Radix trigger this? Usually no, only on user interaction.
             setDialog(null);
           }
@@ -728,7 +786,9 @@ export const EventsModule: React.FC = () => {
       <CreateTaskDialog
         open={dialog === 'create-task'}
         onOpenChange={(open) => !open && setDialog('calendar')} // Return to calendar on close
-        onSuccess={() => { /* Refresh logic if needed or just let live query handle it */ }}
+        onSuccess={() => {
+          /* Refresh logic if needed or just let live query handle it */
+        }}
       />
 
       <BookAppointmentDialog
@@ -1240,7 +1300,7 @@ export const EventsModule: React.FC = () => {
           onClose={() => setDialog('view')}
         />
       )}
-    </div>
+    </motion.div>
   );
 };
 

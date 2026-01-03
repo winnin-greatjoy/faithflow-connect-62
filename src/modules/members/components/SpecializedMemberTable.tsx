@@ -9,14 +9,27 @@ import {
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Phone, Mail, Users, Eye, MoreHorizontal, Sparkles } from 'lucide-react';
+import {
+  Edit,
+  Trash2,
+  Phone,
+  Mail,
+  Users,
+  Eye,
+  MoreHorizontal,
+  Sparkles,
+  UserCheck,
+  Shield,
+  Zap,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { Member } from '@/types/membership';
 
-interface MemberTableProps {
+interface SpecializedMemberTableProps {
   members: Member[];
+  type: 'disciple' | 'leader' | 'convert';
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
   onView: (member: Member) => void;
@@ -25,8 +38,9 @@ interface MemberTableProps {
   getBranchName: (branchId: string) => string;
 }
 
-export const MemberTable: React.FC<MemberTableProps> = ({
+export const SpecializedMemberTable: React.FC<SpecializedMemberTableProps> = ({
   members,
+  type,
   selectedIds,
   onSelectionChange,
   onView,
@@ -50,60 +64,61 @@ export const MemberTable: React.FC<MemberTableProps> = ({
     }
   };
 
-  const getMembershipBadge = (member: Member) => {
-    const badgeBaseClass =
-      'rounded-lg px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-widest border-none';
-
-    if (member.membershipLevel === 'convert') {
-      return (
-        <Badge className={cn(badgeBaseClass, 'bg-indigo-500/10 text-indigo-600')}>
-          Regen Status: Convert
-        </Badge>
-      );
+  const getTypeConfig = () => {
+    const baseClass =
+      'rounded-lg px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-widest border-none flex items-center gap-1.5';
+    switch (type) {
+      case 'disciple':
+        return {
+          label: 'Tier: Disciple',
+          icon: UserCheck,
+          badge: (
+            <Badge className={cn(baseClass, 'bg-purple-500/10 text-purple-600')}>
+              <UserCheck className="h-3 w-3" /> Tier: Disciple
+            </Badge>
+          ),
+          emptyLabel: 'No Disciples Detected',
+        };
+      case 'leader':
+        return {
+          label: 'Hierarchy: Leader',
+          icon: Shield,
+          badge: (
+            <Badge className={cn(baseClass, 'bg-orange-500/10 text-orange-600')}>
+              <Shield className="h-3 w-3" /> Hierarchy: Leader
+            </Badge>
+          ),
+          emptyLabel: 'No Leaders Detected',
+        };
+      case 'convert':
+        return {
+          label: 'Regen Status: Convert',
+          icon: Zap,
+          badge: (
+            <Badge className={cn(baseClass, 'bg-indigo-500/10 text-indigo-600')}>
+              <Zap className="h-3 w-3" /> Regen Status: Convert
+            </Badge>
+          ),
+          emptyLabel: 'No Converts Detected',
+        };
     }
-    if (member.baptizedSubLevel === 'worker') {
-      return (
-        <Badge className={cn(badgeBaseClass, 'bg-emerald-500/10 text-emerald-600')}>
-          Protocol: Worker
-        </Badge>
-      );
-    }
-    if (member.baptizedSubLevel === 'disciple') {
-      return (
-        <Badge className={cn(badgeBaseClass, 'bg-purple-500/10 text-purple-600')}>
-          Tier: Disciple
-        </Badge>
-      );
-    }
-    if (member.baptizedSubLevel === 'leader') {
-      return (
-        <Badge className={cn(badgeBaseClass, 'bg-orange-500/10 text-orange-600')}>
-          Hierarchy: Leader
-        </Badge>
-      );
-    }
-    if (member.leaderRole === 'pastor' || member.leaderRole === 'assistant_pastor') {
-      return (
-        <Badge className={cn(badgeBaseClass, 'bg-blue-500/10 text-blue-600')}>
-          Authority: Pastor
-        </Badge>
-      );
-    }
-    return <Badge className={cn(badgeBaseClass, 'bg-primary/10 text-primary')}>Member</Badge>;
   };
 
+  const config = getTypeConfig();
+
   if (members.length === 0) {
+    const Icon = config.icon;
     return (
       <div className="text-center py-24 glass rounded-[2rem] border-primary/5">
         <div className="relative inline-block mb-4">
-          <Users className="h-16 w-16 text-primary opacity-20" />
+          <Icon className="h-16 w-16 text-primary opacity-20" />
           <Sparkles className="absolute -top-2 -right-2 h-6 w-6 text-primary opacity-40 animate-pulse" />
         </div>
         <h3 className="text-xl font-serif font-bold text-foreground opacity-60">
-          Roster Data Unavailable
+          {config.emptyLabel}
         </h3>
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-2 opacity-40">
-          No personnel detected in the current matrix
+          The current matrix shows no personal in this sector
         </p>
       </div>
     );
@@ -122,19 +137,19 @@ export const MemberTable: React.FC<MemberTableProps> = ({
               />
             </TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-              Name
+              Identity
             </TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-              Contact
+              Contact Protocol
             </TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-              Branch
+              Operational Unit
             </TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-              Category
+              Sector Status
             </TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-              Status
+              Life-Cycle
             </TableHead>
             <TableHead className="text-right pr-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
               Actions
@@ -203,10 +218,10 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                   {getBranchName(member.branchId)}
                 </div>
                 <div className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground opacity-30">
-                  Operational Unit
+                  Branch Allocation
                 </div>
               </TableCell>
-              <TableCell>{getMembershipBadge(member)}</TableCell>
+              <TableCell>{config.badge}</TableCell>
               <TableCell>
                 <div
                   className={cn(
@@ -232,7 +247,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                     size="icon"
                     onClick={() => onView(member)}
                     className="h-8 w-8 rounded-lg hover:bg-primary/10 text-primary"
-                    title="Examine Profile"
+                    title="Profile Review"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
@@ -241,7 +256,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                     size="icon"
                     onClick={() => onEdit(member)}
                     className="h-8 w-8 rounded-lg hover:bg-primary/10 text-primary"
-                    title="Modify Records"
+                    title="Modify Intel"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -250,7 +265,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                     size="icon"
                     onClick={() => onDelete(member.id)}
                     className="h-8 w-8 rounded-lg hover:bg-rose-500/10 text-rose-500"
-                    title="Purge Entry"
+                    title="Remove Record"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
