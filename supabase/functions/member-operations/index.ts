@@ -347,22 +347,28 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
           .split(/\s+/)
           .filter(Boolean);
 
-        const { error: profileError } = await adminClient.from('profiles').insert({
-          id: authUserId,
-          first_name: parts[0] || '',
-          last_name: parts.slice(1).join(' ') || '',
-          phone: memberData.phone ?? null,
-          branch_id: memberData.branch_id,
-          profile_photo: memberData.profile_photo ?? null,
-        });
+        const { error: profileError } = await adminClient.from('profiles').upsert(
+          {
+            id: authUserId,
+            first_name: parts[0] || '',
+            last_name: parts.slice(1).join(' ') || '',
+            phone: memberData.phone ?? null,
+            branch_id: memberData.branch_id,
+            profile_photo: memberData.profile_photo ?? null,
+          },
+          { onConflict: 'id' }
+        );
 
         if (profileError) throw profileError;
 
-        const { error: roleError } = await adminClient.from('user_roles').insert({
-          user_id: authUserId,
-          role: 'member',
-          branch_id: memberData.branch_id,
-        });
+        const { error: roleError } = await adminClient.from('user_roles').upsert(
+          {
+            user_id: authUserId,
+            role: 'member',
+            branch_id: memberData.branch_id,
+          },
+          { onConflict: 'user_id,role' }
+        );
 
         if (roleError) throw roleError;
       }
@@ -492,25 +498,31 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
 
     if (error) throw error;
 
-    // Profile
-    const { error: profileError } = await adminClient.from('profiles').insert({
-      id: user.user.id,
-      first_name: full_name?.split(' ')[0] || '',
-      last_name: full_name?.split(' ').slice(1).join(' ') || '',
-      profile_photo: payload.profile_photo || payload.profilePhoto || null,
-      phone,
-      branch_id,
-      district_id,
-    });
+    // Profile (idempotent: signup trigger may already have created a row)
+    const { error: profileError } = await adminClient.from('profiles').upsert(
+      {
+        id: user.user.id,
+        first_name: full_name?.split(' ')[0] || '',
+        last_name: full_name?.split(' ').slice(1).join(' ') || '',
+        profile_photo: payload.profile_photo || payload.profilePhoto || null,
+        phone,
+        branch_id,
+        district_id,
+      },
+      { onConflict: 'id' }
+    );
     if (profileError) throw profileError;
 
     // Roles (source of truth)
-    await adminClient.from('user_roles').insert({
-      user_id: user.user.id,
-      role,
-      branch_id,
-      district_id,
-    });
+    await adminClient.from('user_roles').upsert(
+      {
+        user_id: user.user.id,
+        role,
+        branch_id,
+        district_id,
+      },
+      { onConflict: 'user_id,role' }
+    );
 
     // Link district admins to their district record (so District Dashboard can resolve)
     if (role === 'district_admin' && district_id) {
