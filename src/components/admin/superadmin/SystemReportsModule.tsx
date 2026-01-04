@@ -11,8 +11,14 @@ import {
   Building,
   BarChart3,
   Activity,
+  Sparkles,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 
 /**
  * System Reports Module - Superadmin Only
@@ -101,6 +107,7 @@ const recentSystemReports = [
 ];
 
 export const SystemReportsModule: React.FC = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const getCategoryColor = (category: string) => {
@@ -113,6 +120,28 @@ export const SystemReportsModule: React.FC = () => {
     };
     return colors[category] || 'bg-gray-100 text-gray-800';
   };
+
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['system-reports-stats'],
+    queryFn: async () => {
+      const [{ count: branchCount }, { count: memberCount }, { data: financeData }] =
+        await Promise.all([
+          supabase.from('church_branches').select('id', { count: 'exact', head: true }),
+          supabase.from('members').select('id', { count: 'exact', head: true }),
+          supabase.from('finance_records').select('amount'),
+        ]);
+
+      const totalGiving =
+        financeData?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
+
+      return {
+        branches: branchCount || 0,
+        members: memberCount || 0,
+        giving: totalGiving,
+        reports: systemReports.length,
+      };
+    },
+  });
 
   const handleGenerateReport = (reportId: number, format: 'PDF' | 'Excel') => {
     toast({
@@ -148,13 +177,18 @@ export const SystemReportsModule: React.FC = () => {
         </Button>
       </div>
 
-      {/* System Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">12</div>
+                <div className="text-2xl font-bold">
+                  {statsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin opacity-20" />
+                  ) : (
+                    stats?.branches
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">Total Branches</p>
               </div>
               <Building className="h-8 w-8 text-purple-500" />
@@ -166,7 +200,13 @@ export const SystemReportsModule: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">3,847</div>
+                <div className="text-2xl font-bold">
+                  {statsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin opacity-20" />
+                  ) : (
+                    stats?.members.toLocaleString()
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">Total Members</p>
               </div>
               <Users className="h-8 w-8 text-blue-500" />
@@ -178,7 +218,13 @@ export const SystemReportsModule: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">$248K</div>
+                <div className="text-2xl font-bold">
+                  {statsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin opacity-20" />
+                  ) : (
+                    `$${(stats?.giving || 0).toLocaleString()}`
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">System-Wide Giving</p>
               </div>
               <DollarSign className="h-8 w-8 text-green-500" />
@@ -190,7 +236,13 @@ export const SystemReportsModule: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">94</div>
+                <div className="text-2xl font-bold">
+                  {statsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin opacity-20" />
+                  ) : (
+                    stats?.reports
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">System Reports</p>
               </div>
               <FileText className="h-8 w-8 text-orange-500" />
@@ -208,57 +260,73 @@ export const SystemReportsModule: React.FC = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {systemReports.map((report) => (
-              <Card key={report.id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={report.id}
+                className="group relative overflow-hidden glass border-primary/5 hover:border-primary/20 hover:shadow-2xl transition-all duration-500 cursor-pointer rounded-[2rem]"
+                onClick={() => navigate(`/superadmin/reports/${report.id}`)}
+              >
+                <div className="absolute top-0 left-0 w-full h-1 bg-vibrant-gradient opacity-0 group-hover:opacity-100 transition-opacity" />
+
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start gap-2">
-                    <div className="flex items-start space-x-3 min-w-0">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <report.icon className="h-5 w-5 text-purple-600" />
+                    <div className="flex items-start space-x-4 min-w-0">
+                      <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 shadow-lg shadow-transparent group-hover:shadow-primary/20">
+                        <report.icon className="h-6 w-6 transition-transform group-hover:scale-110" />
                       </div>
-                      <div className="min-w-0">
-                        <CardTitle className="text-base font-semibold truncate">
+                      <div className="min-w-0 pt-1">
+                        <CardTitle className="text-lg font-serif font-black tracking-tight group-hover:text-primary transition-colors">
                           {report.title}
                         </CardTitle>
-                        <CardDescription className="mt-1 text-xs line-clamp-2">
+                        <CardDescription className="mt-1 text-[11px] font-medium leading-relaxed opacity-60 line-clamp-2">
                           {report.description}
                         </CardDescription>
                       </div>
                     </div>
                     <Badge
-                      className={`${getCategoryColor(report.category)} text-xs`}
-                      variant="secondary"
+                      className={cn(
+                        'rounded-lg px-2 py-0.5 font-bold text-[9px] uppercase tracking-widest border-none shadow-sm',
+                        getCategoryColor(report.category)
+                      )}
                     >
                       {report.category}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Frequency:</span>
-                      <span className="font-medium">{report.frequency}</span>
+
+                <CardContent className="pt-2">
+                  <div className="space-y-4">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      <span className="opacity-40">Frequency:</span>
+                      <span>{report.frequency}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Last Generated:</span>
-                      <span className="font-medium">{report.lastGenerated}</span>
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      <span className="opacity-40">Last Matrix Generation:</span>
+                      <span>{report.lastGenerated}</span>
                     </div>
-                    <div className="flex gap-2 mt-4">
+
+                    <div className="flex gap-3 mt-6">
                       <Button
+                        variant="secondary"
                         size="sm"
-                        className="flex-1"
-                        onClick={() => handleGenerateReport(report.id, 'PDF')}
+                        className="flex-1 rounded-xl h-10 font-bold text-[10px] uppercase tracking-wider bg-primary/5 hover:bg-primary/10 text-primary border-none shadow-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/superadmin/reports/${report.id}`);
+                        }}
                       >
-                        <FileText className="mr-1.5 h-3 w-3" />
-                        PDF
+                        <FileText className="mr-2 h-3.5 w-3.5" />
+                        Detail Analysis
                       </Button>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleGenerateReport(report.id, 'Excel')}
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors group/ai"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/superadmin/reports/${report.id}`, { state: { autoAI: true } });
+                        }}
                       >
-                        <Download className="mr-1.5 h-3 w-3" />
-                        Excel
+                        <Sparkles className="h-4 w-4 group-hover/ai:scale-125 transition-transform" />
                       </Button>
                     </div>
                   </div>

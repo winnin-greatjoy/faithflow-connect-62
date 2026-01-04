@@ -19,9 +19,10 @@ import { MemberImportDialog } from '@/components/admin/MemberImportDialog';
 import { SendNotificationDialog } from '@/components/admin/SendNotificationDialog';
 import { SpecializedMemberTable } from './components/SpecializedMemberTable';
 import { FirstTimerTable } from '@/components/departments/FirstTimerTable';
-import { useFirstTimers } from '@/hooks/useFirstTimers';
+import { useFirstTimers } from './hooks/useFirstTimers';
 import type { Member, FirstTimer } from '@/types/membership';
 import type { ConvertFormData } from '@/components/admin/ConvertForm';
+import { MemberCardDialog } from '@/components/admin/MemberCardDialog';
 
 export const MemberManagementPage: React.FC = () => {
   const navigate = useNavigate();
@@ -43,9 +44,11 @@ export const MemberManagementPage: React.FC = () => {
   const {
     firstTimers,
     loading: firstTimersLoading,
-    updateFirstTimer,
-    deleteFirstTimer,
-  } = useFirstTimers(filters.branchFilter !== 'all' ? filters.branchFilter : undefined);
+    reload: reloadFirstTimers,
+  } = useFirstTimers({
+    branchFilter: filters.branchFilter,
+    search: filters.search,
+  });
 
   // CRUD actions
   const actions = useMemberActions();
@@ -58,6 +61,8 @@ export const MemberManagementPage: React.FC = () => {
   const [showSendMessage, setShowSendMessage] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [editingFirstTimer, setEditingFirstTimer] = useState<FirstTimer | null>(null);
+  const [showIdCard, setShowIdCard] = useState(false);
+  const [idCardMember, setIdCardMember] = useState<Member | null>(null);
 
   // Selection state for batch operations
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
@@ -98,7 +103,16 @@ export const MemberManagementPage: React.FC = () => {
   };
 
   const handleAddConvert = () => {
-    setEditingMember({ membershipLevel: 'convert' } as Member);
+    setEditingMember({
+      membershipLevel: 'convert',
+      fullName: '',
+      email: '',
+      phone: '',
+      community: '',
+      area: '',
+      branchId: branches[0]?.id || '',
+      profilePhoto: '',
+    } as Member);
     setShowConvertForm(true);
   };
 
@@ -115,7 +129,8 @@ export const MemberManagementPage: React.FC = () => {
 
   const handleDeleteFirstTimer = async (id: string) => {
     if (confirm('Are you sure you want to delete this first-timer?')) {
-      await deleteFirstTimer({ id });
+      await actions.deleteFirstTimer(id);
+      await reloadFirstTimers();
     }
   };
 
@@ -126,6 +141,11 @@ export const MemberManagementPage: React.FC = () => {
     } else {
       setShowMemberForm(true);
     }
+  };
+
+  const handleShowIdCard = (member: Member) => {
+    setIdCardMember(member);
+    setShowIdCard(true);
   };
 
   const handleDeleteMember = async (id: string) => {
@@ -205,6 +225,7 @@ export const MemberManagementPage: React.FC = () => {
       community: formData.community || null,
       area: formData.area || null,
       branch_id: formData.branchId,
+      profile_photo: formData.profilePhoto || null,
       membership_level: 'convert',
       status: 'active',
       date_joined: new Date().toISOString().split('T')[0],
@@ -363,6 +384,7 @@ export const MemberManagementPage: React.FC = () => {
               onView={handleViewMember}
               onEdit={handleEditMember}
               onDelete={handleDeleteMember}
+              onIdCard={handleShowIdCard}
               getBranchName={getBranchName}
             />
           ) : filters.activeTab === 'first_timers' ? (
@@ -382,6 +404,7 @@ export const MemberManagementPage: React.FC = () => {
               onView={handleViewMember}
               onEdit={handleEditMember}
               onDelete={handleDeleteMember}
+              onIdCard={handleShowIdCard}
               getBranchName={getBranchName}
             />
           )}
@@ -411,8 +434,9 @@ export const MemberManagementPage: React.FC = () => {
         open={showFirstTimerForm}
         onOpenChange={setShowFirstTimerForm}
         firstTimer={editingFirstTimer}
-        onSubmit={() => {
+        onSubmit={async () => {
           setShowFirstTimerForm(false);
+          await reloadFirstTimers();
         }}
       />
 
@@ -437,6 +461,13 @@ export const MemberManagementPage: React.FC = () => {
           setShowSendMessage(false);
           setSelectedMemberIds([]);
         }}
+      />
+
+      <MemberCardDialog
+        open={showIdCard}
+        onOpenChange={setShowIdCard}
+        member={idCardMember}
+        branchName={idCardMember ? getBranchName(idCardMember.branchId) : ''}
       />
     </motion.div>
   );

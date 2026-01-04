@@ -17,6 +17,7 @@ import { TransferApprovalQueue } from '@/components/admin/TransferApprovalQueue'
 import { CMSDashboard } from '@/components/cms/CMSDashboard';
 import { StreamingModule } from '@/components/admin/StreamingModule';
 import { BranchReportsModule } from '@/components/admin/BranchReportsModule';
+import { BranchReportDetailPage } from '../components/admin/BranchReportDetailPage';
 import { MessageTemplateManager } from '@/components/admin/MessageTemplateManager';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { GlobalRoleManagement } from '@/components/admin/superadmin/GlobalRoleManagement';
@@ -172,8 +173,18 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
         return hasRole('super_admin', 'admin') ? <CMSDashboard /> : denied;
       case 'streaming':
         return can('streaming', 'view') || isSuperadmin ? <StreamingModule /> : denied;
-      case 'reports':
+      case 'reports': {
+        const reportsPath = isPortalMode ? 'reports/' : '/admin/reports/';
+        const splat = (params as any)['*'] as string | undefined;
+        const reportId = isPortalMode
+          ? splat?.split('reports/')[1]
+          : location.pathname.split('/admin/reports/')[1];
+
+        if (reportId) {
+          return <BranchReportDetailPage reportId={reportId} />;
+        }
         return can('reports', 'view') || isSuperadmin ? <BranchReportsModule /> : denied;
+      }
       case 'ai-reports':
         return can('reports', 'view') || isSuperadmin ? <GeminiAIReportModule /> : denied;
       case 'templates':

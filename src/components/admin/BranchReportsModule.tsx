@@ -13,6 +13,11 @@ import {
   Share,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAdminContext } from '@/context/AdminContext';
+import { Loader2, RefreshCw, Sparkles } from 'lucide-react';
 
 const availableReports = [
   {
@@ -104,6 +109,40 @@ const recentReports = [
 
 export const BranchReportsModule = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { selectedBranchId } = useAdminContext();
+
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['branch-reports-stats', selectedBranchId],
+    queryFn: async () => {
+      if (!selectedBranchId) return null;
+
+      const [{ count: memberCount }, { data: financeData }, { data: attendanceData }] =
+        await Promise.all([
+          supabase
+            .from('members')
+            .select('id', { count: 'exact', head: true })
+            .eq('branch_id', selectedBranchId),
+          supabase.from('finance_records').select('amount').eq('branch_id', selectedBranchId),
+          supabase.from('attendance').select('id').eq('branch_id', selectedBranchId),
+        ]);
+
+      const totalGiving =
+        financeData?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
+
+      return {
+        reports: availableReports.length,
+        responseTime: '1.8s',
+        mostRequested: 'Attendance',
+        downloads: 124,
+        members: memberCount || 0,
+        giving: totalGiving,
+        attendance: attendanceData?.length || 0,
+      };
+    },
+    enabled: !!selectedBranchId,
+  });
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
@@ -193,14 +232,16 @@ export const BranchReportsModule = () => {
           <CardHeader className="p-3 sm:p-4 space-y-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-[10px] xs:text-xs sm:text-sm font-medium leading-tight">
-                Reports Generated
+                Reports Available
               </CardTitle>
               <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="text-lg sm:text-xl md:text-2xl font-bold">47</div>
-            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">This quarter</p>
+            <div className="text-lg sm:text-xl md:text-2xl font-bold">
+              {statsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : stats?.reports || 6}
+            </div>
+            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">System Standard</p>
           </CardContent>
         </Card>
 
@@ -208,46 +249,64 @@ export const BranchReportsModule = () => {
           <CardHeader className="p-3 sm:p-4 space-y-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-[10px] xs:text-xs sm:text-sm font-medium leading-tight">
-                Avg. Response Time
+                Branch Members
+              </CardTitle>
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-4 pt-0">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold">
+              {statsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                stats?.members.toLocaleString()
+              )}
+            </div>
+            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">Active on Roster</p>
+          </CardContent>
+        </Card>
+
+        <Card className="h-full">
+          <CardHeader className="p-3 sm:p-4 space-y-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-[10px] xs:text-xs sm:text-sm font-medium leading-tight">
+                Total Revenue
+              </CardTitle>
+              <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-4 pt-0">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold truncate">
+              {statsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                `$${(stats?.giving || 0).toLocaleString()}`
+              )}
+            </div>
+            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">Cumulative Total</p>
+          </CardContent>
+        </Card>
+
+        <Card className="h-full">
+          <CardHeader className="p-3 sm:p-4 space-y-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-[10px] xs:text-xs sm:text-sm font-medium leading-tight">
+                Attendance Log
               </CardTitle>
               <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="text-lg sm:text-xl md:text-2xl font-bold">2.3s</div>
-            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">Report generation</p>
-          </CardContent>
-        </Card>
-
-        <Card className="h-full">
-          <CardHeader className="p-3 sm:p-4 space-y-0">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-[10px] xs:text-xs sm:text-sm font-medium leading-tight">
-                Most Requested
-              </CardTitle>
-              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+            <div className="text-lg sm:text-xl md:text-2xl font-bold">
+              {statsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                (stats?.attendance || 0).toLocaleString()
+              )}
             </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="text-lg sm:text-xl md:text-2xl font-bold truncate">Attendance</div>
             <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">
-              42% of all reports
+              Total Visits Records
             </p>
-          </CardContent>
-        </Card>
-
-        <Card className="h-full">
-          <CardHeader className="p-3 sm:p-4 space-y-0">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-[10px] xs:text-xs sm:text-sm font-medium leading-tight">
-                Total Downloads
-              </CardTitle>
-              <Download className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="text-lg sm:text-xl md:text-2xl font-bold">156</div>
-            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">This month</p>
           </CardContent>
         </Card>
       </div>
@@ -300,24 +359,40 @@ export const BranchReportsModule = () => {
                       <span className="text-gray-500">Last Generated:</span>
                       <span className="font-medium">{report.lastGenerated}</span>
                     </div>
-                    <div className="flex flex-col xs:flex-row gap-2 mt-3 sm:mt-4">
+                    <div className="flex flex-col gap-2 mt-4">
                       <Button
                         size="sm"
-                        className="flex-1 h-8 text-xs sm:text-sm"
-                        onClick={() => handleGeneratePDF(report.id)}
+                        className="w-full h-10 rounded-xl font-bold text-xs"
+                        onClick={() => {
+                          const basePath = location.pathname.endsWith('/')
+                            ? location.pathname
+                            : `${location.pathname}/`;
+                          navigate(`${basePath}${report.id}`);
+                        }}
                       >
-                        <FileText className="mr-1.5 h-3 w-3" />
-                        PDF
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        Detail Analysis
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 h-8 text-xs sm:text-sm"
-                        onClick={() => handleGenerateExcel(report.id)}
-                      >
-                        <Download className="mr-1.5 h-3 w-3" />
-                        Excel
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="flex-1 h-9 rounded-xl font-bold text-[10px]"
+                          onClick={() => handleGeneratePDF(report.id)}
+                        >
+                          <FileText className="mr-1.5 h-3 w-3" />
+                          PDF
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 h-9 rounded-xl font-bold text-[10px] border border-primary/5"
+                          onClick={() => handleGenerateExcel(report.id)}
+                        >
+                          <Download className="mr-1.5 h-3 w-3" />
+                          Excel
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

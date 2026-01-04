@@ -10,6 +10,7 @@ import { DistrictManagement } from '@/components/admin/superadmin/DistrictManage
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
 import { UsersRolesModule } from '@/components/admin/superadmin/users-roles/UsersRolesModule';
 import { SystemReportsModule } from '@/components/admin/superadmin/SystemReportsModule';
+import { ReportDetailPage } from '@/components/admin/superadmin/ReportDetailPage';
 import { SystemConfiguration } from '@/components/admin/superadmin/SystemConfiguration';
 import { AuditLogsModule } from '@/components/admin/superadmin/AuditLogsModule';
 import { EventsModule } from '@/components/admin/EventsModule';
@@ -93,8 +94,14 @@ const SuperadminDashboard: React.FC = () => {
         return <SuperAdminCMSDashboard />;
       case 'streaming':
         return <SuperAdminStreamingDashboard />;
-      case 'reports':
+      case 'reports': {
+        const pathParts = location.pathname.split('/superadmin/reports/');
+        const reportId = pathParts[1];
+        if (reportId) {
+          return <ReportDetailPage reportId={reportId} />;
+        }
         return <SystemReportsModule />;
+      }
       case 'events':
         return <EventsModule />;
       case 'settings':

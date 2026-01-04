@@ -9,7 +9,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ProfileEdit from './ProfileEdit';
 import { useToast } from '@/components/ui/use-toast';
 import { usePersistentState } from '@/hooks/use-persistent-state';
-import { QrCode, ShieldCheck, KeyRound, Settings, FileEdit, UserCog } from 'lucide-react';
+import {
+  QrCode,
+  ShieldCheck,
+  KeyRound,
+  Settings,
+  FileEdit,
+  UserCog,
+  CreditCard,
+} from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -76,7 +84,7 @@ const isMemberInfoEqual = (a?: MemberInfo | null, b?: MemberInfo | null) => {
 
 const isPersistedStateEqual = (
   prev: PersistedProfileState | null | undefined,
-  next: PersistedProfileState,
+  next: PersistedProfileState
 ) => {
   if (!prev) return false;
   return (
@@ -106,10 +114,11 @@ export const ProfilePage: React.FC = () => {
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [persistedState, setPersistedState, persistedMeta] = usePersistentState<PersistedProfileState | null>(
-    currentUserId ? buildStorageKey(currentUserId) : null,
-    () => null,
-  );
+  const [persistedState, setPersistedState, persistedMeta] =
+    usePersistentState<PersistedProfileState | null>(
+      currentUserId ? buildStorageKey(currentUserId) : null,
+      () => null
+    );
   const [middleName, setMiddleName] = useState('');
   const [nickname, setNickname] = useState('');
   const [addressLine, setAddressLine] = useState('');
@@ -125,37 +134,36 @@ export const ProfilePage: React.FC = () => {
   const { toast } = useToast();
   const hasAppliedPersisted = useRef(false);
 
-  const refreshPhotoUrl = useCallback(
-    async (path: string | null) => {
-      if (!path) {
-        setPhotoUrl(null);
-        return;
-      }
+  const refreshPhotoUrl = useCallback(async (path: string | null) => {
+    if (!path) {
+      setPhotoUrl(null);
+      return;
+    }
 
-      if (path.startsWith('http://') || path.startsWith('https://')) {
-        setPhotoUrl(path);
-        return;
-      }
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      setPhotoUrl(path);
+      return;
+    }
 
-      const { data, error } = await supabase.storage
-        .from('profile-photos')
-        .createSignedUrl(path, 60 * 60 * 24);
+    const { data, error } = await supabase.storage
+      .from('profile-photos')
+      .createSignedUrl(path, 60 * 60 * 24);
 
-      if (error) {
-        console.error('Failed to create signed URL for profile photo', error);
-        setPhotoUrl(null);
-        return;
-      }
+    if (error) {
+      console.error('Failed to create signed URL for profile photo', error);
+      setPhotoUrl(null);
+      return;
+    }
 
-      setPhotoUrl(data?.signedUrl ?? null);
-    },
-    []
-  );
+    setPhotoUrl(data?.signedUrl ?? null);
+  }, []);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         setCurrentUserId(user.id);
         setEmail(user.email || '');
@@ -183,7 +191,7 @@ export const ProfilePage: React.FC = () => {
           const storedPhoto = (profileRes.data as any).profile_photo as string | null;
           setPhotoPath(storedPhoto || null);
           await refreshPhotoUrl(storedPhoto || null);
-          setMemberInfo(prev => ({
+          setMemberInfo((prev) => ({
             ...prev,
             mobilePhone: profileRes.data.phone || prev.mobilePhone,
           }));
@@ -194,7 +202,7 @@ export const ProfilePage: React.FC = () => {
 
         if (memberRes && memberRes.data) {
           setMemberId((memberRes.data as any).id);
-          setMemberInfo(prev => ({
+          setMemberInfo((prev) => ({
             ...prev,
             birthdate: memberRes.data.date_of_birth,
             gender: memberRes.data.gender,
@@ -223,7 +231,7 @@ export const ProfilePage: React.FC = () => {
       return;
     }
 
-    setForm(prev => ({ ...prev, ...persistedState.form }));
+    setForm((prev) => ({ ...prev, ...persistedState.form }));
     setMiddleName(persistedState.middleName ?? '');
     setNickname(persistedState.nickname ?? '');
     setAddressLine(persistedState.addressLine ?? '');
@@ -233,7 +241,7 @@ export const ProfilePage: React.FC = () => {
     setDoNotEmail(persistedState.doNotEmail ?? false);
     setDoNotText(persistedState.doNotText ?? false);
     if (persistedState.memberInfo) {
-      setMemberInfo(prev => ({ ...prev, ...persistedState.memberInfo }));
+      setMemberInfo((prev) => ({ ...prev, ...persistedState.memberInfo }));
     }
     setEditOpen(persistedState.editOpen ?? false);
     hasAppliedPersisted.current = true;
@@ -241,9 +249,12 @@ export const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     if (!photoPath) return;
-    const interval = setInterval(() => {
-      refreshPhotoUrl(photoPath);
-    }, 12 * 60 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        refreshPhotoUrl(photoPath);
+      },
+      12 * 60 * 60 * 1000
+    );
     return () => clearInterval(interval);
   }, [photoPath, refreshPhotoUrl]);
 
@@ -257,7 +268,7 @@ export const ProfilePage: React.FC = () => {
     if (!currentUserId) return;
     if (!persistedMeta.isHydrated) return;
 
-    setPersistedState(prev => {
+    setPersistedState((prev) => {
       const next: PersistedProfileState = {
         form,
         middleName,
@@ -297,14 +308,20 @@ export const ProfilePage: React.FC = () => {
 
   const save = async () => {
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
       if (!form.first_name.trim() || !form.last_name.trim()) {
-        toast({ title: 'Validation', description: 'First and last name are required.', variant: 'destructive' });
+        toast({
+          title: 'Validation',
+          description: 'First and last name are required.',
+          variant: 'destructive',
+        });
         setSaving(false);
         return;
       }
-      
+
       // Update profiles table
       const { error: profileError } = await supabase
         .from('profiles')
@@ -314,7 +331,7 @@ export const ProfilePage: React.FC = () => {
           phone: form.phone.trim() || null,
         })
         .eq('id', user.id);
-      
+
       if (profileError) {
         toast({ title: 'Save failed', description: profileError.message, variant: 'destructive' });
         setSaving(false);
@@ -334,14 +351,18 @@ export const ProfilePage: React.FC = () => {
             membership_level: (memberInfo.membershipLevel as any) || null,
           })
           .eq('email', user.email);
-        
+
         if (memberError) {
-          toast({ title: 'Warning', description: 'Profile updated but member info update failed: ' + memberError.message, variant: 'destructive' });
+          toast({
+            title: 'Warning',
+            description: 'Profile updated but member info update failed: ' + memberError.message,
+            variant: 'destructive',
+          });
         }
       }
 
       toast({ title: 'Saved', description: 'Profile updated successfully.' });
-      setMemberInfo(prev => ({
+      setMemberInfo((prev) => ({
         ...prev,
         mobilePhone: form.phone.trim() || prev.mobilePhone,
       }));
@@ -354,7 +375,11 @@ export const ProfilePage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid file', description: 'Please select an image file.', variant: 'destructive' });
+      toast({
+        title: 'Invalid file',
+        description: 'Please select an image file.',
+        variant: 'destructive',
+      });
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
@@ -363,11 +388,18 @@ export const ProfilePage: React.FC = () => {
     }
     setUploading(true);
     const previousPath = photoPath;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setUploading(false); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setUploading(false);
+      return;
+    }
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const path = `${user.id}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('profile-photos').upload(path, file, { upsert: true, contentType: file.type });
+    const { error: upErr } = await supabase.storage
+      .from('profile-photos')
+      .upload(path, file, { upsert: true, contentType: file.type });
     if (upErr) {
       console.error('Profile photo upload failed', upErr);
       toast({ title: 'Upload failed', description: upErr.message, variant: 'destructive' });
@@ -390,7 +422,9 @@ export const ProfilePage: React.FC = () => {
     toast({ title: 'Photo updated' });
 
     if (previousPath && previousPath !== path) {
-      const { error: removeErr } = await supabase.storage.from('profile-photos').remove([previousPath]);
+      const { error: removeErr } = await supabase.storage
+        .from('profile-photos')
+        .remove([previousPath]);
       if (removeErr) {
         console.error('Failed to remove previous profile photo', removeErr);
       }
@@ -400,15 +434,25 @@ export const ProfilePage: React.FC = () => {
 
   const removePhoto = async () => {
     setUploading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setUploading(false); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setUploading(false);
+      return;
+    }
     const currentPath = photoPath;
-    const { error } = await supabase.from('profiles').update({ profile_photo: null }).eq('id', user.id);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ profile_photo: null })
+      .eq('id', user.id);
     if (error) {
       toast({ title: 'Remove failed', description: error.message, variant: 'destructive' });
     } else {
       if (currentPath) {
-        const { error: removeErr } = await supabase.storage.from('profile-photos').remove([currentPath]);
+        const { error: removeErr } = await supabase.storage
+          .from('profile-photos')
+          .remove([currentPath]);
         if (removeErr) {
           console.error('Failed to delete profile photo from storage', removeErr);
         }
@@ -427,7 +471,11 @@ export const ProfilePage: React.FC = () => {
   const formatDate = (value: string | null) => {
     if (!value) return '—';
     try {
-      return new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(value));
+      return new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }).format(new Date(value));
     } catch (error) {
       return value;
     }
@@ -438,7 +486,7 @@ export const ProfilePage: React.FC = () => {
     return value
       .toLowerCase()
       .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
 
@@ -446,7 +494,9 @@ export const ProfilePage: React.FC = () => {
   const birthdateDisplay = formatDate(memberInfo.birthdate);
   const genderDisplay = formatEnum(memberInfo.gender);
   const maritalStatusDisplay = formatEnum(memberInfo.maritalStatus);
-  const gradeDisplay = memberInfo.membershipLevel ? formatEnum(memberInfo.membershipLevel, '—') : '—';
+  const gradeDisplay = memberInfo.membershipLevel
+    ? formatEnum(memberInfo.membershipLevel, '—')
+    : '—';
   const genderOptions = Constants.public.Enums.gender;
   const maritalStatusOptions = Constants.public.Enums.marital_status;
   const membershipLevelOptions = Constants.public.Enums.membership_level;
@@ -455,16 +505,39 @@ export const ProfilePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">Loading profile…</div>
+      <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
+        Loading profile…
+      </div>
     );
   }
 
   const actionButtons = [
     { label: 'QR Code', icon: QrCode, onClick: () => handleNavigation('/portal/qr-code') },
-    { label: 'Two-Factor Authentication', icon: ShieldCheck, onClick: () => handleNavigation('/portal/two-factor-auth') },
-    { label: 'Change Password', icon: KeyRound, onClick: () => handleNavigation('/portal/change-password') },
-    { label: 'Directory Settings', icon: Settings, onClick: () => handleNavigation('/portal/directory-settings') },
-    { label: 'Edit Account Info', icon: FileEdit, onClick: () => handleNavigation('/portal/edit-account') },
+    {
+      label: 'Digital ID Card',
+      icon: CreditCard,
+      onClick: () => handleNavigation('/portal/id-card'),
+    },
+    {
+      label: 'Two-Factor Authentication',
+      icon: ShieldCheck,
+      onClick: () => handleNavigation('/portal/two-factor-auth'),
+    },
+    {
+      label: 'Change Password',
+      icon: KeyRound,
+      onClick: () => handleNavigation('/portal/change-password'),
+    },
+    {
+      label: 'Directory Settings',
+      icon: Settings,
+      onClick: () => handleNavigation('/portal/directory-settings'),
+    },
+    {
+      label: 'Edit Account Info',
+      icon: FileEdit,
+      onClick: () => handleNavigation('/portal/edit-account'),
+    },
   ];
 
   return (
@@ -517,8 +590,19 @@ export const ProfilePage: React.FC = () => {
               </div>
             )}
             <div className="flex items-center gap-2">
-              <input ref={fileInputRef as any} type="file" accept="image/*" className="hidden" onChange={onUpload} />
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              <input
+                ref={fileInputRef as any}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
                 {uploading ? 'Uploading…' : 'Change Photo'}
               </Button>
               {photoUrl && (
@@ -534,15 +618,21 @@ export const ProfilePage: React.FC = () => {
           <Card className="border border-border/60 bg-card/80 shadow-sm">
             <CardContent className="grid gap-6 p-6 sm:grid-cols-2">
               <div className="space-y-1">
-                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Mobile Phone</div>
+                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                  Mobile Phone
+                </div>
                 <div className="text-base font-semibold text-foreground">{mobilePhoneDisplay}</div>
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Home Phone</div>
+                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                  Home Phone
+                </div>
                 <div className="text-base font-semibold text-foreground">{homePhoneDisplay}</div>
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Email</div>
+                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                  Email
+                </div>
                 <div className="text-base font-semibold text-foreground break-all">{email}</div>
               </div>
             </CardContent>
@@ -552,11 +642,15 @@ export const ProfilePage: React.FC = () => {
             <Card className="border border-border/60 bg-card/80 shadow-sm">
               <CardContent className="grid gap-6 p-6 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Birthdate</div>
+                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                    Birthdate
+                  </div>
                   <div className="text-base font-semibold text-foreground">{birthdateDisplay}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Gender</div>
+                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                    Gender
+                  </div>
                   <div className="text-base font-semibold text-foreground">{genderDisplay}</div>
                 </div>
               </CardContent>
@@ -565,7 +659,12 @@ export const ProfilePage: React.FC = () => {
             <Card className="border border-border/60 bg-card/80 shadow-sm">
               <CardContent className="p-6">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Grade <span className="normal-case text-xs text-muted-foreground/80">(As of school year 2025-2026)</span></div>
+                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                    Grade{' '}
+                    <span className="normal-case text-xs text-muted-foreground/80">
+                      (As of school year 2025-2026)
+                    </span>
+                  </div>
                   <div className="text-base font-semibold text-foreground">{gradeDisplay}</div>
                 </div>
               </CardContent>
@@ -574,8 +673,12 @@ export const ProfilePage: React.FC = () => {
             <Card className="border border-border/60 bg-card/80 shadow-sm md:col-span-2">
               <CardContent className="p-6">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Marital Status</div>
-                  <div className="text-base font-semibold text-foreground">{maritalStatusDisplay}</div>
+                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                    Marital Status
+                  </div>
+                  <div className="text-base font-semibold text-foreground">
+                    {maritalStatusDisplay}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -584,4 +687,4 @@ export const ProfilePage: React.FC = () => {
       </div>
     </div>
   );
-}
+};

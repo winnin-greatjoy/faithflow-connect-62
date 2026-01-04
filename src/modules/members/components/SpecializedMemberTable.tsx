@@ -21,6 +21,7 @@ import {
   UserCheck,
   Shield,
   Zap,
+  CreditCard,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
@@ -35,6 +36,7 @@ interface SpecializedMemberTableProps {
   onView: (member: Member) => void;
   onEdit: (member: Member) => void;
   onDelete: (id: string) => void;
+  onIdCard: (member: Member) => void;
   getBranchName: (branchId: string) => string;
 }
 
@@ -46,6 +48,7 @@ export const SpecializedMemberTable: React.FC<SpecializedMemberTableProps> = ({
   onView,
   onEdit,
   onDelete,
+  onIdCard,
   getBranchName,
 }) => {
   const handleSelectAll = (checked: boolean) => {
@@ -173,7 +176,7 @@ export const SpecializedMemberTable: React.FC<SpecializedMemberTableProps> = ({
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-4">
-                  <div className="relative group/photo">
+                  <div className="relative group/photo flex-shrink-0">
                     {member.profilePhoto ? (
                       <img
                         src={member.profilePhoto}
@@ -242,6 +245,15 @@ export const SpecializedMemberTable: React.FC<SpecializedMemberTableProps> = ({
               </TableCell>
               <TableCell className="text-right pr-6">
                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onIdCard(member)}
+                    className="h-8 w-8 rounded-lg hover:bg-primary/10 text-primary"
+                    title="Digital ID Card"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"

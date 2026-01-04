@@ -1,5 +1,7 @@
-// src/components/departments/FirstTimerFormDialog.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -7,20 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { useBranches } from '@/hooks/useBranches';
-import { useFirstTimers } from '@/hooks/useFirstTimers';
+import { FirstTimerForm } from '@/components/admin/FirstTimerForm';
 import type { FirstTimer } from '@/types/membership';
 
 interface FirstTimerFormDialogProps {
@@ -36,296 +25,59 @@ export const FirstTimerFormDialog: React.FC<FirstTimerFormDialogProps> = ({
   firstTimer,
   onSubmit,
 }) => {
-  const { toast } = useToast();
-  const { branches } = useBranches();
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    community: '',
-    area: '',
-    street: '',
-    publicLandmark: '',
-    serviceDate: '',
-    firstVisit: '',
-    invitedBy: '',
-    branchId: '',
-    status: 'new' as 'new' | 'contacted' | 'followed_up' | 'converted',
-    followUpStatus: 'pending' as 'pending' | 'called' | 'visited' | 'completed',
-    followUpNotes: '',
-    notes: '',
-  });
-
-  useEffect(() => {
-    if (firstTimer) {
-      setFormData({
-        fullName: firstTimer.fullName || '',
-        email: firstTimer.email || '',
-        phone: firstTimer.phone || '',
-        community: firstTimer.community || '',
-        area: firstTimer.area || '',
-        street: firstTimer.street || '',
-        publicLandmark: firstTimer.publicLandmark || '',
-        serviceDate: firstTimer.serviceDate || '',
-        firstVisit: firstTimer.firstVisit || '',
-        invitedBy: firstTimer.invitedBy || '',
-        branchId: firstTimer.branchId?.toString() || '',
-        status: (firstTimer.status as any) || 'new',
-        followUpStatus: (firstTimer.followUpStatus as any) || 'pending',
-        followUpNotes: firstTimer.followUpNotes || '',
-        notes: firstTimer.notes || '',
-      });
-    } else if (branches.length > 0) {
-      setFormData((prev) => ({ ...prev, branchId: branches[0].id }));
-    }
-  }, [firstTimer, branches, open]);
-
-  const { createFirstTimer, updateFirstTimer } = useFirstTimers(formData.branchId);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (
-      !formData.fullName ||
-      !formData.community ||
-      !formData.area ||
-      !formData.street ||
-      !formData.serviceDate ||
-      !formData.firstVisit ||
-      !formData.branchId
-    ) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please fill in all required fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const payload = {
-        fullName: formData.fullName,
-        email: formData.email || null,
-        phone: formData.phone || null,
-        community: formData.community,
-        area: formData.area,
-        street: formData.street,
-        publicLandmark: formData.publicLandmark || null,
-        serviceDate: formData.serviceDate,
-        firstVisit: formData.firstVisit,
-        invitedBy: formData.invitedBy || null,
-        branchId: formData.branchId,
-        status: formData.status,
-        followUpStatus: formData.followUpStatus,
-        followUpNotes: formData.followUpNotes || null,
-        notes: formData.notes || null,
-      };
-
-      if (firstTimer?.id) {
-        await updateFirstTimer({ id: firstTimer.id, ...payload });
-      } else {
-        await createFirstTimer(payload);
-      }
-
-      onSubmit();
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error saving first-timer:', error);
-      // Error is handled by hook's toast, but we catch to stop loading
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{firstTimer ? 'Edit First Timer' : 'Add New First Timer'}</DialogTitle>
-          <DialogDescription>
-            Internal protocol for documenting first-time encounter intelligence.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name *</Label>
-              <Input
-                id="fullName"
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="community">Community *</Label>
-              <Input
-                id="community"
-                value={formData.community}
-                onChange={(e) => setFormData({ ...formData, community: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="area">Area *</Label>
-              <Input
-                id="area"
-                value={formData.area}
-                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="street">Street *</Label>
-              <Input
-                id="street"
-                value={formData.street}
-                onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="publicLandmark">Public Landmark</Label>
-              <Input
-                id="publicLandmark"
-                value={formData.publicLandmark}
-                onChange={(e) => setFormData({ ...formData, publicLandmark: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="serviceDate">Service Date *</Label>
-              <Input
-                id="serviceDate"
-                type="date"
-                value={formData.serviceDate}
-                onChange={(e) => setFormData({ ...formData, serviceDate: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="firstVisit">First Visit *</Label>
-              <Input
-                id="firstVisit"
-                type="date"
-                value={formData.firstVisit}
-                onChange={(e) => setFormData({ ...formData, firstVisit: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="invitedBy">Invited By</Label>
-              <Input
-                id="invitedBy"
-                value={formData.invitedBy}
-                onChange={(e) => setFormData({ ...formData, invitedBy: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="branchId">Branch *</Label>
-              <Select
-                value={formData.branchId}
-                onValueChange={(v) => setFormData({ ...formData, branchId: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(v: any) => setFormData({ ...formData, status: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="followed_up">Followed Up</SelectItem>
-                  <SelectItem value="converted">Converted</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="followUpStatus">Follow-up Status</Label>
-              <Select
-                value={formData.followUpStatus}
-                onValueChange={(v: any) => setFormData({ ...formData, followUpStatus: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="called">Called</SelectItem>
-                  <SelectItem value="visited">Visited</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="followUpNotes">Follow-up Notes</Label>
-            <Textarea
-              id="followUpNotes"
-              value={formData.followUpNotes}
-              onChange={(e) => setFormData({ ...formData, followUpNotes: e.target.value })}
-              rows={2}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="notes">Additional Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              rows={2}
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
+      <AnimatePresence>
+        {open && (
+          <DialogContent
+            key="first-timer-dialog-content"
+            className="max-w-2xl bg-transparent border-none shadow-none p-0 overflow-visible"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="glass border-primary/10 rounded-[32px] overflow-hidden shadow-2xl relative"
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : firstTimer ? 'Update' : 'Add'} First-Timer
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-vibrant-gradient" />
+
+              <div className="p-8">
+                <DialogHeader className="mb-8">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-2xl bg-vibrant-gradient flex items-center justify-center shadow-lg shadow-primary/20">
+                        <Sparkles className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <DialogTitle className="text-2xl font-serif font-black text-foreground">
+                          {firstTimer ? 'Refine Prospect' : 'Initialize Encounter'}
+                        </DialogTitle>
+                        <DialogDescription className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                          First Encounter Digital Protocol
+                        </DialogDescription>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onOpenChange(false)}
+                      className="h-10 w-10 rounded-xl hover:bg-rose-500/10 hover:text-rose-500 transition-all"
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </DialogHeader>
+
+                <FirstTimerForm
+                  firstTimer={firstTimer}
+                  onSubmit={onSubmit}
+                  onCancel={() => onOpenChange(false)}
+                />
+              </div>
+            </motion.div>
+          </DialogContent>
+        )}
+      </AnimatePresence>
     </Dialog>
   );
 };

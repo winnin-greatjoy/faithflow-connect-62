@@ -27,6 +27,10 @@ import { format } from 'date-fns';
 import { getMembershipLevelDisplay } from '@/utils/membershipUtils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MemberTransferDialog } from '@/components/admin/MemberTransferDialog';
+import { resolveProfilePhotoUrl } from '@/utils/memberOperations';
+import { MemberCardDialog } from '@/components/admin/MemberCardDialog';
+import { useBranches } from '@/hooks/useBranches';
+import { CreditCard } from 'lucide-react';
 
 interface MemberData {
   id: string;
@@ -102,8 +106,10 @@ const ITEMS_PER_PAGE = 5;
 export const MemberProfilePage: React.FC = () => {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
+  const { branches } = useBranches();
   const [loading, setLoading] = useState(true);
   const [member, setMember] = useState<MemberData | null>(null);
+  const [showCardDialog, setShowCardDialog] = useState(false);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [rsvps, setRSVPs] = useState<RSVPRecord[]>([]);
   const [giving, setGiving] = useState<GivingRecord[]>([]);
@@ -129,6 +135,12 @@ export const MemberProfilePage: React.FC = () => {
         .single();
 
       if (memberError) throw memberError;
+
+      // Resolve profile photo URL
+      if (memberData.profile_photo) {
+        memberData.profile_photo = await resolveProfilePhotoUrl(memberData.profile_photo);
+      }
+
       setMember(memberData);
 
       // Fetch attendance history
@@ -381,13 +393,21 @@ export const MemberProfilePage: React.FC = () => {
           <Download className="h-4 w-4 mr-2" />
           Export Data
         </Button>
+
+        <Button
+          className="bg-vibrant-gradient h-10 px-6 rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
+          onClick={() => setShowCardDialog(true)}
+        >
+          <CreditCard className="h-4 w-4 mr-2" />
+          Digital ID Card
+        </Button>
       </div>
 
       {/* Member Header */}
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-6">
-            <Avatar className="h-24 w-24">
+            <Avatar className="h-24 w-24 flex-shrink-0">
               <AvatarImage src={member.profile_photo || ''} />
               <AvatarFallback className="text-2xl">{getInitials(member.full_name)}</AvatarFallback>
             </Avatar>
@@ -702,6 +722,13 @@ export const MemberProfilePage: React.FC = () => {
         memberName={member.full_name}
         currentBranchId={member.branch_id}
         onTransferRequested={loadMemberData}
+      />
+
+      <MemberCardDialog
+        open={showCardDialog}
+        onOpenChange={setShowCardDialog}
+        member={member}
+        branchName={branches.find((b) => b.id === member.branch_id)?.name || 'Unknown Branch'}
       />
     </div>
   );

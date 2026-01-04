@@ -158,3 +158,50 @@ export function bulkTransferFirstTimers(
     payload: { ids, target_branch_id, district_id },
   });
 }
+
+/* ========================================================================
+   6. PHOTO RESOLUTION UTILITY
+   ======================================================================== */
+
+/**
+ * Helper to resolve profile photo URL
+ * If the stored value is a path, generate a signed URL; otherwise use as-is
+ */
+export async function resolveProfilePhotoUrl(photoPath: string | null): Promise<string> {
+  if (!photoPath) return '';
+
+  let path = photoPath;
+
+  // If it's a full URL, check if it's our Supabase storage URL
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    // Example: https://dewfponmggkwaipooqqs.supabase.co/storage/v1/object/public/profile-photos/member-123.jpg
+    const storageInfix = '/storage/v1/object/public/profile-photos/';
+    if (path.includes(storageInfix)) {
+      path = path.split(storageInfix).pop() || '';
+      console.log('Detected public Supabase URL, extracted path:', path);
+    } else if (path.startsWith('data:')) {
+      // Already handled or separate case
+      return path;
+    } else {
+      // Non-Supabase external URL
+      return path;
+    }
+  }
+
+  // It's a storage path (either original or extracted from URL), generate a signed URL (valid for 24 hours)
+  try {
+    const { data, error } = await supabase.storage
+      .from('profile-photos')
+      .createSignedUrl(path, 60 * 60 * 24);
+
+    if (error || !data?.signedUrl) {
+      console.warn('Failed to create signed URL for profile photo:', path, error);
+      return '';
+    }
+
+    return data.signedUrl;
+  } catch (err) {
+    console.warn('Error creating signed URL:', err);
+    return '';
+  }
+}

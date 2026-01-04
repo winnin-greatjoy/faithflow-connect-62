@@ -145,7 +145,7 @@ export const FirstTimerTable: React.FC<FirstTimerTableProps> = ({
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-primary/5 flex items-center justify-center text-primary font-bold text-sm ring-2 ring-primary/5 group-hover:ring-primary/20 transition-all">
+                  <div className="w-11 h-11 rounded-xl bg-primary/5 flex items-center justify-center text-primary font-bold text-sm ring-2 ring-primary/5 group-hover:ring-primary/20 transition-all flex-shrink-0">
                     {ft.fullName.charAt(0).toUpperCase()}
                   </div>
                   <div>

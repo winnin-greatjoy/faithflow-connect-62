@@ -53,6 +53,9 @@ const SettingsPage = lazy(() => import('./pages/portal/SettingsPage'));
 const ShareAppPage = lazy(() => import('./pages/portal/ShareAppPage'));
 const StreamingPage = lazy(() => import('@/pages/portal/StreamingPage'));
 const QRCodePage = lazy(() => import('./pages/portal/profilepage/QRCodePage'));
+const IDCardPage = lazy(() =>
+  import('./pages/portal/profilepage/IDCardPage').then((module) => ({ default: module.IDCardPage }))
+);
 const ChangePasswordPage = lazy(() => import('./pages/portal/profilepage/ChangePasswordPage'));
 const DirectorySettingsPage = lazy(
   () => import('./pages/portal/profilepage/DirectorySettingsPage')
@@ -162,6 +165,7 @@ const App = () => (
               <Route path="streaming/:streamId" element={<StreamingPage />} />
               <Route path="transfer-request" element={<TransferRequestPage />} />
               <Route path="qr-code" element={<QRCodePage />} />
+              <Route path="id-card" element={<IDCardPage />} />
               <Route path="change-password" element={<ChangePasswordPage />} />
               <Route path="directory-settings" element={<DirectorySettingsPage />} />
               <Route path="edit-account" element={<EditAccountInfoPage />} />

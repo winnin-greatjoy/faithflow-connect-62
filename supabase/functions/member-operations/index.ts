@@ -425,6 +425,16 @@ const handlers: Record<MemberCommand, (actor: any, payload: any) => Promise<any>
       .single();
 
     if (error) throw error;
+
+    // Sync to profiles if linked
+    const profileId = target.profile_id || updated.profile_id;
+    if (profileId && updateData.profile_photo !== undefined) {
+      await adminClient
+        .from('profiles')
+        .update({ profile_photo: updateData.profile_photo })
+        .eq('id', profileId);
+    }
+
     await logAudit(actor.id, 'update', 'members', id, { data: updateData });
     return updated;
   },

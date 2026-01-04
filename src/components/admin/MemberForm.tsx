@@ -203,6 +203,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
   const { effectiveBranchId, canSwitchBranch } = useBranchScope();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [districts, setDistricts] = useState<{ id: string; name: string }[]>([]);
 
@@ -314,10 +315,39 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 
     if (error) throw error;
 
-    const { data: urlData } = supabase.storage.from('profile-photos').getPublicUrl(fileName);
-
-    return urlData.publicUrl;
+    return fileName;
   };
+
+  // Effect to resolve signed URL for preview
+  const watchedPhoto = form.watch('profilePhoto');
+  useEffect(() => {
+    if (!watchedPhoto) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    if (
+      watchedPhoto.startsWith('http://') ||
+      watchedPhoto.startsWith('https://') ||
+      watchedPhoto.startsWith('data:')
+    ) {
+      setPreviewUrl(watchedPhoto);
+      return;
+    }
+
+    (async () => {
+      try {
+        const { data, error } = await supabase.storage
+          .from('profile-photos')
+          .createSignedUrl(watchedPhoto, 60 * 60); // 1 hour for preview
+        if (!error && data?.signedUrl) {
+          setPreviewUrl(data.signedUrl);
+        }
+      } catch (err) {
+        console.error('Error resolving preview URL:', err);
+      }
+    })();
+  }, [watchedPhoto]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -478,7 +508,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
               <div className="flex flex-col items-center gap-4">
                 <div className="relative group p-1">
                   <Avatar className="h-32 w-32 rounded-[2rem] ring-4 ring-primary/5 group-hover:ring-primary/20 transition-all duration-500 overflow-hidden shadow-xl">
-                    <AvatarImage src={form.watch('profilePhoto')} className="object-cover" />
+                    <AvatarImage src={previewUrl || ''} className="object-cover" />
                     <AvatarFallback className="bg-vibrant-gradient text-white text-3xl font-serif font-bold">
                       {(form.watch('fullName') || 'P').charAt(0).toUpperCase()}
                     </AvatarFallback>

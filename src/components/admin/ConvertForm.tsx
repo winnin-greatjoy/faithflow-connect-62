@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Camera, Phone, Mail, MapPin, Building2, User } from 'lucide-react';
+import { resolveProfilePhotoUrl } from '@/utils/memberOperations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -32,7 +33,7 @@ const convertSchema = z.object({
   community: z.string().min(1, 'Community is required'),
   area: z.string().min(1, 'Area is required'),
   branchId: z.string().min(1, 'Branch is required'),
-  profilePhoto: z.string().url().optional().or(z.literal('')),
+  profilePhoto: z.string().optional().or(z.literal('')),
 });
 
 export type ConvertFormData = z.infer<typeof convertSchema>;
@@ -52,6 +53,8 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
 }) => {
   const { toast } = useToast();
   const uploadInputId = useId();
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const [isUploading, setIsUploading] = React.useState(false);
 
   const form = useForm<ConvertFormData>({
     resolver: zodResolver(convertSchema),
@@ -75,15 +78,27 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
   const uploadProfilePhoto = async (file: File): Promise<string> => {
     const fileName = `convert-${Date.now()}.${file.name.split('.').pop()}`;
     const { error } = await supabase.storage
-      .from('convert-profiles')
+      .from('profile-photos')
       .upload(fileName, file, { upsert: true });
 
     if (error) throw error;
 
-    const { data: urlData } = supabase.storage.from('convert-profiles').getPublicUrl(fileName);
-
-    return urlData.publicUrl;
+    return fileName;
   };
+
+  // Effect to resolve signed URL for preview
+  const watchedPhoto = form.watch('profilePhoto');
+  useEffect(() => {
+    if (!watchedPhoto) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    (async () => {
+      const url = await resolveProfilePhotoUrl(watchedPhoto);
+      setPreviewUrl(url);
+    })();
+  }, [watchedPhoto]);
 
   const handleSubmit = (data: ConvertFormData) => {
     onSubmit(data);
@@ -121,9 +136,9 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                     <FormItem className="shrink-0">
                       <div className="relative group/photo p-1">
                         <div className="h-32 w-32 rounded-[2rem] ring-4 ring-primary/5 group-hover/photo:ring-primary/20 transition-all duration-500 overflow-hidden shadow-xl glass bg-white/50">
-                          {field.value ? (
+                          {previewUrl ? (
                             <img
-                              src={field.value}
+                              src={previewUrl}
                               alt="Convert"
                               className="h-full w-full object-cover"
                             />
@@ -138,7 +153,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                           htmlFor={uploadInputId}
                           className="absolute -bottom-2 -right-2 h-11 w-11 rounded-2xl bg-vibrant-gradient text-white shadow-lg flex items-center justify-center border-4 border-white dark:border-zinc-950 z-10 transition-all hover:scale-110 active:scale-90 cursor-pointer shadow-primary/20 hover:shadow-primary/40"
                         >
-                          <Camera className="h-5 w-5" />
+                          <Camera className={cn('h-5 w-5', isUploading && 'animate-pulse')} />
                         </label>
 
                         <input
@@ -149,9 +164,10 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
+                            setIsUploading(true);
                             try {
-                              const url = await uploadProfilePhoto(file);
-                              field.onChange(url);
+                              const path = await uploadProfilePhoto(file);
+                              field.onChange(path);
                               toast({
                                 title: 'Visual Data Secure',
                                 description: 'Identity biometric record updated.',
@@ -162,6 +178,8 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                                 description: error.message,
                                 variant: 'destructive',
                               });
+                            } finally {
+                              setIsUploading(false);
                             }
                           }}
                         />
