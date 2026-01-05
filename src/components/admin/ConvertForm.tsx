@@ -119,13 +119,13 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
           {/* Section 1: Core Identity */}
           <div className="space-y-6">
             <div className="flex items-center gap-3 px-1">
-              <div className="h-8 w-1.5 rounded-full bg-vibrant-gradient" />
+              <div className="h-8 w-1.5 rounded-full bg-primary" />
               <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-foreground/80">
                 Core Identity
               </h3>
             </div>
 
-            <div className="glass border-primary/5 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+            <div className="bg-card border border-primary/10 p-8 rounded-[2.5rem] shadow-md relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[5rem] -mr-16 -mt-16 transition-all group-hover:bg-primary/10" />
 
               <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
@@ -135,7 +135,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                   render={({ field }) => (
                     <FormItem className="shrink-0">
                       <div className="relative group/photo p-1">
-                        <div className="h-32 w-32 rounded-[2rem] ring-4 ring-primary/5 group-hover/photo:ring-primary/20 transition-all duration-500 overflow-hidden shadow-xl glass bg-white/50">
+                        <div className="h-32 w-32 rounded-[2rem] ring-4 ring-primary/10 group-hover/photo:ring-primary/20 transition-all duration-500 overflow-hidden shadow-md bg-card">
                           {previewUrl ? (
                             <img
                               src={previewUrl}
@@ -143,7 +143,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <div className="h-full w-full bg-vibrant-gradient opacity-10 flex items-center justify-center">
+                            <div className="h-full w-full bg-primary/10 flex items-center justify-center">
                               <User className="h-12 w-12 text-primary/40" />
                             </div>
                           )}
@@ -151,7 +151,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
 
                         <label
                           htmlFor={uploadInputId}
-                          className="absolute -bottom-2 -right-2 h-11 w-11 rounded-2xl bg-vibrant-gradient text-white shadow-lg flex items-center justify-center border-4 border-white dark:border-zinc-950 z-10 transition-all hover:scale-110 active:scale-90 cursor-pointer shadow-primary/20 hover:shadow-primary/40"
+                          className="absolute -bottom-2 -right-2 h-11 w-11 rounded-2xl bg-primary text-white shadow-md flex items-center justify-center border-4 border-white dark:border-zinc-950 z-10 transition-all hover:scale-110 active:scale-90 cursor-pointer"
                         >
                           <Camera className={cn('h-5 w-5', isUploading && 'animate-pulse')} />
                         </label>
@@ -202,7 +202,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                             <Input
                               placeholder="Enter full identity designation"
                               {...field}
-                              className="glass h-14 rounded-2xl border-primary/5 focus:ring-primary/20 font-serif text-2xl font-bold bg-white/40 pl-5 transition-all focus:bg-white/60"
+                              className="bg-card h-14 rounded-2xl border border-primary/10 focus:ring-primary/20 font-serif text-2xl font-bold pl-5 transition-all"
                             />
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20">
                               <Sparkles className="h-5 w-5 text-primary" />
@@ -227,7 +227,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                             <Input
                               placeholder="+000 000 0000"
                               {...field}
-                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-bold text-sm bg-white/30"
+                              className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-bold text-sm shadow-sm transition-all"
                             />
                           </FormControl>
                           <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -248,7 +248,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                               type="email"
                               placeholder="identity@node.com"
                               {...field}
-                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-bold text-sm bg-white/30"
+                              className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-bold text-sm shadow-sm transition-all"
                             />
                           </FormControl>
                           <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -270,7 +270,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
               </h3>
             </div>
 
-            <div className="glass border-primary/5 p-8 rounded-[2.5rem] shadow-xl space-y-8 bg-white/20">
+            <div className="bg-card border border-primary/10 p-8 rounded-[2.5rem] shadow-md space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <FormField
                   control={form.control}
@@ -284,7 +284,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                         <Input
                           placeholder="Assigned community area"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-bold text-sm bg-white/30"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-bold text-sm shadow-sm transition-all"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -304,7 +304,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                         <Input
                           placeholder="Assigned regional zone"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-bold text-sm bg-white/30"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-bold text-sm shadow-sm transition-all"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -323,10 +323,10 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
                     </FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="glass h-14 rounded-2xl border-primary/5 focus:ring-primary/20 font-black text-xs uppercase tracking-widest bg-white/40">
+                        <SelectTrigger className="bg-card h-14 rounded-2xl border border-primary/10 focus:ring-primary/20 font-black text-xs uppercase tracking-widest">
                           <SelectValue placeholder="Select Operational Center" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-primary/10 rounded-2xl shadow-3xl">
+                        <SelectContent className="bg-card border border-primary/10 rounded-2xl shadow-md">
                           {branches.map((branch) => (
                             <SelectItem
                               key={branch.id}
@@ -360,7 +360,7 @@ export const ConvertForm: React.FC<ConvertFormProps> = ({
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
               <Button
                 type="submit"
-                className="w-full sm:w-auto bg-vibrant-gradient text-white border-none font-black text-[10px] uppercase tracking-[0.25em] h-14 px-12 rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-3 group"
+                className="w-full sm:w-auto bg-primary text-white border-none font-black text-[10px] uppercase tracking-[0.25em] h-14 px-12 rounded-2xl hover:bg-primary/90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-3 group"
               >
                 <Sparkles className="h-4 w-4 group-hover:rotate-12 transition-transform" />
                 {convert && convert.id ? 'Authorize Update' : 'Initialize Record'}

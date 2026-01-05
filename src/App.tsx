@@ -19,6 +19,11 @@ const MemberProfilePage = lazy(() =>
     default: module.MemberProfilePage,
   }))
 );
+const FirstTimerProfilePage = lazy(() =>
+  import('./pages/admin/FirstTimerProfilePage').then((module) => ({
+    default: module.FirstTimerProfilePage,
+  }))
+);
 const DepartmentPage = lazy(() =>
   import('./pages/departments/DepartmentPage').then((module) => ({
     default: module.DepartmentPage,
@@ -216,6 +221,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MemberProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/first-timer/:timerId"
+              element={
+                <ProtectedRoute>
+                  <FirstTimerProfilePage />
                 </ProtectedRoute>
               }
             />

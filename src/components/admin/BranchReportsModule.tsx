@@ -11,6 +11,7 @@ import {
   DollarSign,
   Eye,
   Share,
+  BarChart3,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useLocation } from 'react-router-dom';

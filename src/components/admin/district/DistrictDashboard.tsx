@@ -243,7 +243,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8 h-screen bg-background relative overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5" />
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary relative z-10"></div>
       </div>
     );
@@ -252,7 +252,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
   if (!district) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-8">
-        <div className="max-w-md w-full glass p-10 rounded-3xl text-center border-dashed border-2 border-primary/20">
+        <div className="max-w-md w-full bg-card p-10 rounded-3xl text-center border border-primary/10 shadow-xl">
           <Shield className="h-16 w-16 mx-auto mb-6 text-primary opacity-50" />
           <h2 className="text-2xl font-bold font-serif mb-3">District Not Resolved</h2>
           <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
@@ -282,9 +282,9 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     <AdminProvider>
       <div className="min-h-screen bg-background flex w-full relative overflow-hidden">
         {/* Modern Background Accents */}
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/5 blur-[120px]" />
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-50">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/5" />
         </div>
 
         {/* Sidebar */}
@@ -298,9 +298,9 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
                 : -256,
           }}
           className={cn(
-            'h-screen glass border-r border-primary/5 transition-[width,transform] duration-300 ease-in-out flex flex-col overflow-hidden',
+            'h-screen bg-card border-r border-primary/10 transition-[width,transform] duration-300 ease-in-out flex flex-col overflow-hidden',
             'fixed top-0 left-0 z-50 lg:sticky lg:z-20',
-            isSidebarOpen ? 'shadow-xl ring-1 ring-black/5' : ''
+            isSidebarOpen ? 'shadow-2xl ring-1 ring-black/5' : ''
           )}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -322,7 +322,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
               )}
 
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-vibrant-gradient text-white shadow-lg shadow-primary/20">
+                <div className="p-2.5 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20">
                   <Shield className="h-6 w-6" />
                 </div>
                 {showFullSidebar && (
@@ -406,7 +406,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
 
         {/* Content Wrapper */}
         <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:ml-0 h-screen">
-          <header className="sticky top-0 z-30 glass dark:bg-black/30 border-b border-primary/5 px-6 py-4 backdrop-blur-2xl flex justify-between items-center shrink-0">
+          <header className="sticky top-0 z-30 bg-background border-b border-primary/10 px-6 py-4 backdrop-blur-2xl flex justify-between items-center shrink-0 shadow-sm">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"

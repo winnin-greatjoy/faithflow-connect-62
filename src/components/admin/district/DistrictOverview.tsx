@@ -91,7 +91,7 @@ export const DistrictOverview: React.FC<DistrictOverviewProps> = ({ stats }) => 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {statItems.map((item, idx) => (
           <motion.div key={idx} variants={itemVariants} whileHover={{ y: -5 }}>
-            <Card className="glass border-primary/5 hover-glow overflow-hidden relative group h-full">
+            <Card className="bg-card border border-primary/10 hover-glow overflow-hidden relative group h-full shadow-sm">
               <div
                 className={cn(
                   'absolute inset-0 bg-gradient-to-br opacity-50 group-hover:opacity-70 transition-opacity',
@@ -124,7 +124,7 @@ export const DistrictOverview: React.FC<DistrictOverviewProps> = ({ stats }) => 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Activity Feed */}
         <motion.div variants={itemVariants} className="lg:col-span-2">
-          <Card className="glass dark:bg-black/20 border-primary/5 h-full flex flex-col shadow-xl overflow-hidden">
+          <Card className="bg-card border border-primary/10 h-full flex flex-col shadow-xl overflow-hidden rounded-2xl">
             <CardHeader className="bg-primary/[0.02] border-b border-primary/5 px-6 py-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl flex items-center gap-2">
@@ -151,7 +151,7 @@ export const DistrictOverview: React.FC<DistrictOverviewProps> = ({ stats }) => 
 
         {/* Alerts / Warnings */}
         <motion.div variants={itemVariants}>
-          <Card className="glass dark:bg-black/20 border-primary/5 h-full shadow-xl overflow-hidden">
+          <Card className="bg-card border border-primary/10 h-full shadow-xl overflow-hidden rounded-2xl">
             <CardHeader className="bg-primary/[0.02] border-b border-primary/5 p-6">
               <CardTitle className="text-xl flex items-center gap-2">
                 <Target className="h-5 w-5 text-primary" />

@@ -334,16 +334,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       <div className="lg:hidden">{renderMobileTabs()}</div>
 
       {/* Sidebar */}
-      <motion.div
-        initial={false}
-        animate={{
-          width: isCollapsed ? 80 : 256,
-          x: isOpen || (typeof window !== 'undefined' && window.innerWidth >= 1024) ? 0 : -256,
-        }}
+      <aside
         className={cn(
-          'h-screen glass border-r border-primary/5 transition-[width,transform] duration-300 ease-in-out flex flex-col overflow-hidden',
+          'h-screen bg-white dark:bg-card border-r border-border flex flex-col overflow-hidden transition-all duration-300',
           'fixed top-0 left-0 z-50 lg:sticky lg:z-20',
-          isOpen ? 'shadow-xl ring-1 ring-black/5' : ''
+          isOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full lg:translate-x-0',
+          showFullSidebar ? 'w-64' : 'w-20'
         )}
         ref={sidebarRef}
         onMouseEnter={() => setIsHovered(true)}
@@ -352,17 +348,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         aria-label="Main navigation"
         tabIndex={-1}
       >
-        <Sidebar className="w-full h-full flex flex-col bg-transparent border-none">
-          <SidebarContent className="bg-transparent">
+        <div className="w-full h-full flex flex-col bg-transparent border-none">
+          <div className="flex-1 min-h-0 flex flex-col">
             {/* Sidebar Header */}
-            <div className="pt-6 p-5 border-b border-primary/5 sticky top-0 bg-transparent z-10 backdrop-blur-xl">
+            <div className="pt-6 p-5 border-b border-border sticky top-0 bg-white dark:bg-card z-10 font-serif">
               <div className="flex items-center gap-3">
                 {/* Logo */}
                 <motion.div
                   layout
                   className={cn(
-                    'flex-shrink-0 flex items-center justify-center rounded-2xl bg-vibrant-gradient p-2 shadow-lg shadow-primary/20',
-                    isCollapsed ? 'w-10 h-10' : 'w-12 h-12'
+                    'flex-shrink-0 flex items-center justify-center rounded-2xl bg-primary p-2 shadow-md',
+                    !showFullSidebar ? 'w-10 h-10' : 'w-12 h-12'
                   )}
                 >
                   <img
@@ -378,28 +374,24 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 </motion.div>
 
                 {/* Text */}
-                <AnimatePresence>
-                  {showFullSidebar && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      className="hidden lg:block overflow-hidden whitespace-nowrap"
-                    >
-                      <div className="text-sm font-bold font-serif tracking-tight text-foreground">
-                        Faith Healing
-                      </div>
-                      <div className="text-[10px] uppercase font-bold tracking-widest text-primary">
-                        Beccle St
-                      </div>
-                    </motion.div>
+                <div
+                  className={cn(
+                    'hidden lg:block overflow-hidden transition-all duration-300',
+                    showFullSidebar ? 'opacity-100 w-auto' : 'opacity-0 w-0'
                   )}
-                </AnimatePresence>
+                >
+                  <div className="text-sm font-bold font-serif tracking-tight text-foreground whitespace-nowrap">
+                    Faith Healing
+                  </div>
+                  <div className="text-[10px] uppercase font-bold tracking-widest text-primary whitespace-nowrap">
+                    Beccle St
+                  </div>
+                </div>
 
                 {/* Mobile close button */}
                 <button
                   onClick={onToggle}
-                  className="ml-auto lg:hidden p-2 rounded-xl hover:bg-primary/10 text-primary transition-colors"
+                  className="ml-auto lg:hidden p-2 rounded-xl hover:bg-muted text-primary transition-colors"
                   aria-label="Close menu"
                 >
                   <X className="h-5 w-5" />
@@ -409,11 +401,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
             {/* Back Button for Portal Mode */}
             {isPortalMode && (isSuperadmin || hasRole('district_admin')) && (
-              <div className="px-3 py-3 border-b border-primary/5 bg-primary/5">
+              <div className="px-3 py-3 border-b border-border bg-muted/30">
                 <Button
                   variant="ghost"
                   className={cn(
-                    'w-full justify-start text-primary font-bold hover:bg-primary/10 rounded-xl transition-all',
+                    'w-full justify-start text-primary font-bold hover:bg-muted rounded-xl transition-all',
                     !showFullSidebar && 'justify-center px-0'
                   )}
                   onClick={() => {
@@ -441,47 +433,45 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             )}
 
             {/* Menu Items */}
-            <SidebarGroup className="flex-1 overflow-y-auto py-6 px-3">
-              <SidebarMenu className="gap-2">
+            <div className="flex-1 overflow-y-auto py-6 px-3">
+              <nav className="flex flex-col gap-2">
                 {(menuItems ?? (variant === 'portal' ? portalMenuItems : allMenuItems)).map(
                   ({ id, label, icon: Icon }) => (
-                    <SidebarMenuItem key={id}>
-                      <SidebarMenuButton
-                        isActive={activeModule === id}
-                        onClick={() => handleModuleChange(id)}
+                    <button
+                      key={id}
+                      onClick={() => handleModuleChange(id)}
+                      className={cn(
+                        'group relative w-full flex items-center rounded-xl p-3 transition-all duration-300',
+                        activeModule === id
+                          ? 'bg-primary text-white shadow-md scale-[1.01]'
+                          : 'hover:bg-muted text-muted-foreground hover:text-primary'
+                      )}
+                    >
+                      <Icon
                         className={cn(
-                          'group relative w-full justify-start rounded-xl px-4 py-6 transition-all duration-300',
-                          activeModule === id
-                            ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
-                            : 'hover:bg-primary/5 text-muted-foreground hover:text-primary'
+                          'h-5 w-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110',
+                          showFullSidebar ? 'mr-3' : 'mx-auto'
                         )}
-                      >
-                        <Icon
-                          className={cn(
-                            'h-5 w-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110',
-                            showFullSidebar ? 'mr-3' : 'mx-auto'
-                          )}
-                        />
-                        {showFullSidebar && (
-                          <span className="font-bold tracking-tight truncate">{label}</span>
-                        )}
+                      />
+                      {showFullSidebar && (
+                        <span className="font-bold tracking-tight truncate">{label}</span>
+                      )}
 
-                        {/* Hover bar for collapsed state */}
-                        {!showFullSidebar && (
-                          <div className="absolute left-0 w-1 h-6 bg-primary rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                      {/* Hover bar for collapsed state */}
+                      {!showFullSidebar && (
+                        <div className="absolute left-0 w-1 h-6 bg-primary rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </button>
                   )
                 )}
-              </SidebarMenu>
-            </SidebarGroup>
+              </nav>
+            </div>
 
             {/* Collapse Toggle - Desktop Only */}
-            <div className="hidden lg:block border-t border-primary/5 p-4 bg-transparent backdrop-blur-xl">
+            <div className="hidden lg:block border-t border-border p-4 bg-white dark:bg-card">
               <button
                 onClick={() => handleCollapse(!isCollapsed)}
-                className="w-full h-10 flex items-center justify-center rounded-xl bg-primary/5 hover:bg-primary/10 text-primary transition-all group"
+                className="w-full h-10 flex items-center justify-center rounded-xl bg-muted hover:bg-muted/80 text-primary transition-all group"
                 aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {isCollapsed ? (
@@ -494,9 +484,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 )}
               </button>
             </div>
-          </SidebarContent>
-        </Sidebar>
-      </motion.div>
+          </div>
+        </div>
+      </aside>
     </>
   );
 };

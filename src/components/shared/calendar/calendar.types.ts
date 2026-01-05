@@ -17,7 +17,7 @@ export interface RawEvent {
 }
 
 export interface CalendarEventProps {
-  events: RawEvent[];
+  events?: RawEvent[];
   onEventClick?: (ev: RawEvent) => void;
   title?: string;
   showCard?: boolean;

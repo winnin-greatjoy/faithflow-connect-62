@@ -220,7 +220,7 @@ export const BranchReportDetailPage: React.FC<BranchReportDetailPageProps> = ({
           <Button
             onClick={handleGenerateAI}
             disabled={isGeneratingAI}
-            className="bg-vibrant-gradient rounded-xl font-black text-[10px] uppercase tracking-wider h-9"
+            className="bg-primary hover:bg-primary/90 rounded-xl font-black text-[10px] uppercase tracking-wider h-9 shadow-sm"
           >
             {isGeneratingAI ? (
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -233,7 +233,7 @@ export const BranchReportDetailPage: React.FC<BranchReportDetailPageProps> = ({
       </div>
 
       <div id="branch-report-content" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 glass border-none rounded-[2.5rem] shadow-xl overflow-hidden p-8">
+        <Card className="lg:col-span-2 bg-card border border-primary/10 rounded-[2.5rem] shadow-xl overflow-hidden p-8">
           <div className="h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               {reportId === '2' ? (
@@ -295,7 +295,7 @@ export const BranchReportDetailPage: React.FC<BranchReportDetailPageProps> = ({
           <AnimatePresence mode="wait">
             {aiNarrative ? (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <Card className="glass border-primary/10 bg-primary/[0.01] rounded-[2rem] p-6">
+                <Card className="bg-card border border-primary/10 bg-primary/[0.01] rounded-[2rem] p-6 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <Zap className="h-4 w-4 text-primary" />
                     <h3 className="text-sm font-black uppercase tracking-widest">
@@ -306,7 +306,7 @@ export const BranchReportDetailPage: React.FC<BranchReportDetailPageProps> = ({
                 </Card>
               </motion.div>
             ) : (
-              <Card className="glass border-none rounded-[2rem] p-8 text-center flex flex-col items-center justify-center min-h-[200px] border-dashed border-2 border-primary/10">
+              <Card className="bg-card border-2 border-dashed border-primary/10 rounded-[2rem] p-8 text-center flex flex-col items-center justify-center min-h-[200px] shadow-sm">
                 <Sparkles className="h-8 w-8 text-primary opacity-20 mb-3" />
                 <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                   Pending Synthesis
@@ -323,7 +323,7 @@ export const BranchReportDetailPage: React.FC<BranchReportDetailPageProps> = ({
             )}
           </AnimatePresence>
 
-          <Card className="glass border-none rounded-[2rem] p-6 space-y-4">
+          <Card className="bg-card border border-primary/10 rounded-[2rem] p-6 space-y-4 shadow-sm">
             <h4 className="text-sm font-black uppercase tracking-widest px-2">Key Metrics</h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-primary/5 p-4 rounded-2xl">
@@ -357,7 +357,7 @@ export const BranchReportDetailPage: React.FC<BranchReportDetailPageProps> = ({
         </div>
       </div>
 
-      <Card className="glass border-none rounded-[2.5rem] overflow-hidden">
+      <Card className="bg-card border border-primary/10 rounded-[2.5rem] overflow-hidden shadow-xl">
         <CardHeader className="p-8 pb-0">
           <CardTitle className="text-lg font-serif">Branch Matrix Reference</CardTitle>
         </CardHeader>

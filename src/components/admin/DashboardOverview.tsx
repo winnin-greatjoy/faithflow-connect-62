@@ -7,6 +7,8 @@ import { useAdminContext } from '@/context/AdminContext';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { exportToPDF } from '@/utils/reportExportUtils';
+import { useToast } from '@/hooks/use-toast';
 import {
   Users,
   DollarSign,
@@ -19,8 +21,19 @@ import {
   Sparkles,
   ArrowRight,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import { format, subMonths, startOfWeek, addDays, parseISO, isAfter } from 'date-fns';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -55,13 +68,22 @@ export const DashboardOverview = () => {
     firstTimers: 0,
   });
 
+  const [activities, setActivities] = useState<any[]>([]);
+  const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [branchName, setBranchName] = useState('your church');
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        setLoading(true);
+        if (effectiveBranchId === undefined && !isSuperadmin) {
+          setLoading(false);
+          return;
+        }
+
+        // 1. Fetch Basic Stats
         let mQuery = supabase.from('members').select('*', { count: 'exact', head: true });
         let dQuery = supabase.from('departments').select('*', { count: 'exact', head: true });
         let minQuery = supabase.from('ministries').select('*', { count: 'exact', head: true });
@@ -77,7 +99,7 @@ export const DashboardOverview = () => {
             .from('church_branches')
             .select('name')
             .eq('id', effectiveBranchId)
-            .single();
+            .maybeSingle();
           if (bData) setBranchName(bData.name);
         } else {
           setBranchName('Global System');
@@ -91,8 +113,65 @@ export const DashboardOverview = () => {
           ministries: minRes.count || 0,
           firstTimers: ftRes.count || 0,
         });
+
+        // 2. Fetch Recent Activities (Members & Finance)
+        let rmQuery = supabase.from('members').select('full_name, created_at');
+        let rfQuery = supabase.from('finance_records').select('category, amount, type, created_at');
+
+        if (effectiveBranchId) {
+          rmQuery = rmQuery.eq('branch_id', effectiveBranchId);
+          rfQuery = rfQuery.eq('branch_id', effectiveBranchId);
+        }
+
+        const [recentMembers, recentFinance] = await Promise.all([
+          rmQuery.order('created_at', { ascending: false }).limit(5),
+          rfQuery.order('created_at', { ascending: false }).limit(5),
+        ]);
+
+        const formattedActivities = [
+          ...(recentMembers.data || []).map((m) => ({
+            type: 'member',
+            title: 'New Member Joined',
+            desc: `${m.full_name} registered.`,
+            time: m.created_at,
+            icon: Users,
+          })),
+          ...(recentFinance.data || []).map((f) => ({
+            type: 'finance',
+            title: f.type === 'income' ? 'Donation Received' : 'Expense Recorded',
+            desc: `${f.category}: $${f.amount.toLocaleString()}`,
+            time: f.created_at,
+            icon: DollarSign,
+          })),
+        ]
+          .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+          .slice(0, 5);
+
+        setActivities(formattedActivities);
+
+        // 3. Fetch Attendance Trend (Last 8 Weeks)
+        const { data: attendance } = await supabase
+          .from('attendance')
+          .select('attendance_date')
+          .eq('branch_id', effectiveBranchId);
+
+        const trend = Array.from({ length: 8 }).map((_, i) => {
+          const weekStart = startOfWeek(addDays(new Date(), -(7 - i) * 7));
+          const nextWeekStart = addDays(weekStart, 7);
+          const count =
+            attendance?.filter((a) => {
+              const d = parseISO(a.attendance_date);
+              return (
+                (isAfter(d, weekStart) || d.getTime() === weekStart.getTime()) &&
+                !isAfter(d, nextWeekStart)
+              );
+            }).length || 0;
+          return { name: format(weekStart, 'MMM dd'), attendance: count };
+        });
+
+        setAttendanceData(trend);
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
       }
@@ -105,42 +184,96 @@ export const DashboardOverview = () => {
       label: 'Total Members',
       value: stats.members,
       icon: Users,
-      gradient: 'from-blue-500/10 to-indigo-500/10',
+      bg: 'bg-blue-50 dark:bg-blue-900/10',
       color: 'text-blue-600',
       sub: 'Verified members',
+      module: 'members',
     },
     {
       label: 'Departments',
       value: stats.departments,
       icon: DollarSign,
-      gradient: 'from-emerald-500/10 to-teal-500/10',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/10',
       color: 'text-emerald-600',
       sub: 'Service units',
+      module: 'departments',
     },
     {
       label: 'Ministries',
       value: stats.ministries,
       icon: Calendar,
-      gradient: 'from-purple-500/10 to-pink-500/10',
+      bg: 'bg-purple-50 dark:bg-purple-900/10',
       color: 'text-purple-600',
       sub: 'Outreach teams',
+      module: 'ministries',
     },
     {
       label: 'First Timers',
       value: stats.firstTimers,
       icon: UserCheck,
-      gradient: 'from-orange-500/10 to-amber-500/10',
+      bg: 'bg-orange-50 dark:bg-orange-900/10',
       color: 'text-orange-600',
       sub: 'New visitors',
+      module: 'members',
+      state: { activeTab: 'first_timers' },
     },
   ];
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      toast({
+        title: 'Initializing Export',
+        description: 'Preparing your branch overview PDF...',
+      });
+
+      await exportToPDF(
+        'dashboard-overview-content',
+        `Branch_Overview_${format(new Date(), 'yyyy-MM-dd')}`
+      );
+
+      toast({
+        title: 'Export Complete',
+        description: 'Your report has been downloaded successfully.',
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Export Failed',
+        description: 'There was an error generating your PDF. Please try again.',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'Add Member':
+        navigate('/admin/members', { state: { openAddMember: true } });
+        break;
+      case 'Send Message':
+        navigate('/admin/communication');
+        break;
+      case 'Create Event':
+        navigate('/admin/events', { state: { openCreateEvent: true } });
+        break;
+      case 'Donation':
+        navigate('/admin/finance', { state: { openRecordTransaction: true } });
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <motion.div
+      id="dashboard-overview-content"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="space-y-8"
+      className="space-y-8 p-4 md:p-0 bg-background"
     >
       {/* Page Header */}
       <motion.div
@@ -161,13 +294,22 @@ export const DashboardOverview = () => {
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            className="glass h-11 px-5 rounded-xl font-semibold border-primary/20"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="bg-card h-11 px-5 rounded-xl font-semibold border border-primary/10 shadow-sm"
           >
-            Export Data
+            {isExporting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              'Export Data'
+            )}
           </Button>
           <Button
             onClick={() => navigate('/admin/ai-reports')}
-            className="bg-vibrant-gradient h-11 px-6 rounded-xl font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all"
+            className="bg-primary h-11 px-6 rounded-xl font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all text-white"
           >
             Generate Report
           </Button>
@@ -177,12 +319,18 @@ export const DashboardOverview = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {statItems.map((item, idx) => (
-          <motion.div key={idx} variants={itemVariants} whileHover={{ y: -5 }}>
-            <Card className="glass border-primary/5 hover-glow overflow-hidden relative group h-full">
+          <motion.div
+            key={idx}
+            variants={itemVariants}
+            whileHover={{ y: -5 }}
+            onClick={() => navigate(`/admin/${item.module}`, { state: item.state })}
+            className="cursor-pointer"
+          >
+            <Card className="bg-card border border-primary/10 hover:shadow-md transition-shadow overflow-hidden relative group h-full">
               <div
                 className={cn(
-                  'absolute inset-0 bg-gradient-to-br opacity-50 group-hover:opacity-70 transition-opacity',
-                  item.gradient
+                  'absolute inset-0 opacity-50 group-hover:opacity-70 transition-opacity',
+                  item.bg
                 )}
               />
               <CardHeader className="flex flex-row items-center justify-between space-y-0 p-6 pb-2 relative z-10">
@@ -220,7 +368,8 @@ export const DashboardOverview = () => {
           <Button
             key={idx}
             variant="outline"
-            className="h-24 glass border-primary/10 hover:border-primary/30 flex flex-col items-center justify-center gap-3 p-4 transition-all hover:bg-primary/5 rounded-2xl group"
+            onClick={() => handleQuickAction(action.label)}
+            className="h-24 bg-card border border-primary/10 hover:border-primary/30 flex flex-col items-center justify-center gap-3 p-4 transition-all hover:bg-primary/5 rounded-2xl group shadow-sm"
           >
             <div className="p-3 rounded-xl bg-primary/5 group-hover:bg-primary/10 transition-colors">
               <action.icon className="h-6 w-6 text-primary" />
@@ -233,43 +382,52 @@ export const DashboardOverview = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Recent Activity */}
         <motion.div variants={itemVariants} className="xl:col-span-1">
-          <Card className="glass dark:bg-black/20 border-primary/5 h-full flex flex-col shadow-xl overflow-hidden">
+          <Card className="bg-card border border-primary/10 h-full flex flex-col shadow-sm overflow-hidden">
             <CardHeader className="bg-primary/[0.02] border-b border-primary/5 px-6 py-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-500" />
                   Activity
                 </CardTitle>
-                <Button variant="ghost" size="sm" className="text-xs font-bold text-primary">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs font-bold text-primary"
+                  onClick={() => navigate('/admin/reports')}
+                >
                   View All
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="p-0 flex-1">
               <div className="divide-y divide-primary/5">
-                {[1, 2, 3, 4, 5].map((item) => (
-                  <div
-                    key={item}
-                    className="px-6 py-5 hover:bg-primary/[0.01] transition-colors group cursor-default"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 h-10 w-10 btn-glass bg-primary/5 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110">
-                        <UserCheck className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-bold truncate">New member joined</p>
-                          <span className="text-[10px] text-muted-foreground whitespace-nowrap bg-muted px-2 py-0.5 rounded-full">
-                            2h ago
-                          </span>
+                {activities.length > 0 ? (
+                  activities.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="px-6 py-5 hover:bg-primary/[0.01] transition-colors group cursor-default"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 h-10 w-10 bg-background border border-primary/10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm">
+                          <item.icon className="h-5 w-5 text-primary" />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 truncate">
-                          John Doe has been registered successfully.
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-bold truncate">{item.title}</p>
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap bg-muted px-2 py-0.5 rounded-full">
+                              {format(new Date(item.time), 'MMM dd')}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 truncate">{item.desc}</p>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-muted-foreground text-xs font-bold uppercase tracking-widest opacity-40">
+                    No recent activity
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -277,7 +435,7 @@ export const DashboardOverview = () => {
 
         {/* Attendance Chart */}
         <motion.div variants={itemVariants} className="xl:col-span-2">
-          <Card className="glass dark:bg-black/20 border-primary/5 h-full shadow-xl overflow-hidden">
+          <Card className="bg-card border border-primary/10 h-full shadow-sm overflow-hidden">
             <CardHeader className="bg-primary/[0.02] border-b border-primary/5 p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -292,21 +450,84 @@ export const DashboardOverview = () => {
               </div>
             </CardHeader>
             <CardContent className="p-8">
-              <div className="h-[300px] flex items-center justify-center glass border-dashed border-2 border-primary/10 rounded-3xl relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none" />
-                <div className="text-center p-8 relative z-10">
-                  <div className="w-20 h-20 bg-primary/5 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500">
-                    <TrendingUp className="h-10 w-10 text-primary animate-pulse" />
+              <div className="h-[300px] w-full mt-4">
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary/20" />
                   </div>
-                  <h3 className="text-xl font-bold mb-2">Metrics Processing</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    Analyzing sunday service patterns and small-group engagement for the current
-                    quarter.
-                  </p>
-                  <Button variant="link" className="mt-4 text-primary font-bold gap-2">
-                    Open detailed analytics <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
+                ) : attendanceData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={attendanceData}>
+                      <defs>
+                        <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="hsl(var(--primary)/0.05)"
+                      />
+                      <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          fill: 'hsl(var(--muted-foreground))',
+                        }}
+                        dy={10}
+                      />
+                      <YAxis hide />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--background))',
+                          borderRadius: '12px',
+                          border: '1px solid hsl(var(--primary)/0.1)',
+                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                        }}
+                        itemStyle={{
+                          color: 'hsl(var(--primary))',
+                          fontWeight: 800,
+                          fontSize: '12px',
+                        }}
+                        labelStyle={{
+                          fontWeight: 800,
+                          fontSize: '10px',
+                          marginBottom: '4px',
+                          textTransform: 'uppercase',
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="attendance"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={4}
+                        fillOpacity={1}
+                        fill="url(#colorAttendance)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-card border-dashed border-2 border-primary/10 rounded-3xl">
+                    <TrendingUp className="h-10 w-10 text-primary/20 mb-4" />
+                    <h3 className="text-sm font-bold">No Attendance Data</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Start recording attendance to see trends.
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-6 flex justify-center">
+                <Button
+                  variant="link"
+                  className="text-primary font-bold gap-2"
+                  onClick={() => navigate('/admin/reports/1')}
+                >
+                  Open detailed analytics <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>

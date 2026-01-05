@@ -10,7 +10,9 @@ export const IDCardPage: React.FC = () => {
   const { user } = useAuth();
   const { branches } = useBranches();
   const [member, setMember] = useState<any>(null);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [districtName, setDistrictName] = useState<string>('');
 
   useEffect(() => {
     const fetchMember = async () => {
@@ -24,6 +26,28 @@ export const IDCardPage: React.FC = () => {
 
       if (data) {
         setMember(data);
+
+        // Fetch departments
+        const { data: deptData } = await supabase
+          .from('department_assignments')
+          .select('*, departments(name)')
+          .eq('member_id', data.id)
+          .eq('status', 'approved');
+
+        if (deptData) {
+          setDepartments(deptData.map((d: any) => d.departments.name));
+        }
+
+        // Fetch District info via Branch
+        const { data: branchData } = await supabase
+          .from('church_branches')
+          .select('*, districts(name)')
+          .eq('id', data.branch_id)
+          .single();
+
+        if (branchData?.districts) {
+          setDistrictName(branchData.districts.name);
+        }
       }
       setLoading(false);
     };
@@ -58,7 +82,7 @@ export const IDCardPage: React.FC = () => {
         <p className="text-muted-foreground mt-2 font-medium">Your official membership token</p>
       </div>
 
-      <Card className="border-none glass bg-white/5 overflow-hidden rounded-[2.5rem]">
+      <Card className="border border-primary/10 bg-card overflow-hidden rounded-[2.5rem] shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg font-bold">Standard Identifier</CardTitle>
           <CardDescription>
@@ -66,7 +90,12 @@ export const IDCardPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center pb-12">
-          <MembershipCard member={member} branchName={branchName} />
+          <MembershipCard
+            member={member}
+            branchName={branchName}
+            districtName={districtName}
+            departments={departments}
+          />
         </CardContent>
       </Card>
     </div>

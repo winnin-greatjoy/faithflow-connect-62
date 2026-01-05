@@ -67,10 +67,10 @@ const DepartmentCard: React.FC<{
   <motion.div layout whileHover={{ y: -4 }} className="group">
     <Card
       key={dept.id}
-      className="glass border-primary/5 transition-all cursor-pointer overflow-hidden rounded-[2rem] hover:border-primary/20 hover:shadow-xl relative"
+      className="bg-card border border-primary/10 transition-all cursor-pointer overflow-hidden rounded-[2rem] hover:border-primary/20 hover:shadow-xl relative shadow-sm"
       onClick={() => onOpen(dept)}
     >
-      <div className="absolute top-0 left-0 w-full h-1.5 bg-vibrant-gradient opacity-60" />
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-primary opacity-60" />
       <CardHeader className="p-6 pb-2">
         <div className="flex justify-between items-start gap-4">
           <div>
@@ -104,7 +104,7 @@ const DepartmentCard: React.FC<{
             <Button
               variant="outline"
               size="sm"
-              className="glass flex-1 text-[10px] font-black uppercase tracking-widest h-9 border-primary/10 hover:bg-primary/5 rounded-xl"
+              className="bg-card flex-1 text-[10px] font-black uppercase tracking-widest h-9 border border-primary/10 hover:bg-primary/5 rounded-xl shadow-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onMembersClick(dept);
@@ -141,10 +141,10 @@ const MinistryCard: React.FC<{
   <motion.div layout whileHover={{ y: -4 }} className="group">
     <Card
       key={ministry.id}
-      className="glass border-primary/5 transition-all cursor-pointer overflow-hidden rounded-[2rem] hover:border-primary/20 hover:shadow-xl relative"
+      className="bg-card border border-primary/10 transition-all cursor-pointer overflow-hidden rounded-[2rem] hover:border-primary/20 hover:shadow-xl relative shadow-sm"
       onClick={() => onOpen(ministry)}
     >
-      <div className="absolute top-0 left-0 w-full h-1.5 bg-accent-gradient opacity-60" />
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-500 opacity-60" />
       <CardHeader className="p-6 pb-2">
         <div className="flex justify-between items-start gap-4">
           <div className="space-y-1">
@@ -181,7 +181,7 @@ const MinistryCard: React.FC<{
             <Button
               variant="outline"
               size="sm"
-              className="glass flex-1 text-[10px] font-black uppercase tracking-widest h-9 border-primary/10 hover:bg-primary/5 rounded-xl"
+              className="bg-card flex-1 text-[10px] font-black uppercase tracking-widest h-9 border border-primary/10 hover:bg-primary/5 rounded-xl shadow-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onMembersClick(ministry);
@@ -589,7 +589,7 @@ export const DepartmentsModule = () => {
             placeholder="Search organizational matrix..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="glass pl-11 h-11 w-full rounded-xl border-primary/5 focus:ring-primary/20 focus:border-primary/20 transition-all font-medium text-sm"
+            className="bg-card pl-11 h-11 w-full rounded-xl border border-primary/10 focus:ring-primary/20 focus:border-primary/20 transition-all font-medium text-sm shadow-sm"
           />
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -631,7 +631,7 @@ export const DepartmentsModule = () => {
         ].map((stat, i) => (
           <Card
             key={i}
-            className="glass border-primary/5 rounded-[1.5rem] overflow-hidden group hover:border-primary/20 transition-all"
+            className="bg-card border border-primary/10 rounded-[1.5rem] overflow-hidden group hover:border-primary/20 transition-all shadow-sm"
           >
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">

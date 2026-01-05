@@ -87,7 +87,7 @@ export const MemberStats: React.FC<MemberStatsProps> = ({ stats, loading, onCard
         {[...Array(6)].map((_, index) => (
           <Card
             key={index}
-            className="glass animate-pulse border-primary/5 rounded-2xl overflow-hidden"
+            className="bg-card animate-pulse border border-primary/10 rounded-2xl overflow-hidden"
           >
             <CardContent className="p-6">
               <div className="h-10 bg-gray-200/20 rounded-xl"></div>
@@ -109,7 +109,7 @@ export const MemberStats: React.FC<MemberStatsProps> = ({ stats, loading, onCard
         <motion.div key={index} variants={itemVariants}>
           <Card
             onClick={() => onCardClick?.(stat.type)}
-            className="glass border-primary/5 rounded-2xl overflow-hidden group hover:border-primary/20 transition-all hover:shadow-lg cursor-pointer"
+            className="bg-card border border-primary/10 rounded-2xl overflow-hidden group hover:border-primary/20 transition-all hover:shadow-md cursor-pointer"
           >
             <CardContent className="p-5">
               <div className="flex flex-col gap-3">

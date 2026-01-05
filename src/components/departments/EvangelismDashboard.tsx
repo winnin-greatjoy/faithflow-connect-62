@@ -45,6 +45,7 @@ import { PlanOutreachDialog } from './evangelism/PlanOutreachDialog';
 import { FirstTimerTable } from './FirstTimerTable';
 import { FirstTimerFormDialog } from './FirstTimerFormDialog';
 import { useFirstTimers } from '@/modules/members/hooks/useFirstTimers';
+import { useMemberActions } from '@/modules/members/hooks/useMemberActions';
 import { useDepartmentMembers } from '@/hooks/useDepartmentMembers';
 import { useBranches } from '@/hooks/useBranches';
 
@@ -286,9 +287,44 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
 
   // Fetch first-timers
   const { firstTimers, loading: firstTimersLoading, reload: reloadFirstTimers } = useFirstTimers();
+  const actions = useMemberActions();
+
+  const handleFirstTimerSubmit = async (formData: any) => {
+    const dbData: Record<string, any> = {
+      full_name: formData.fullName,
+      email: formData.email || null,
+      phone: formData.phone || null,
+      community: formData.community,
+      area: formData.area,
+      street: formData.street,
+      public_landmark: formData.publicLandmark || null,
+      service_date: formData.serviceDate,
+      first_visit: formData.firstVisit,
+      invited_by: formData.invitedBy || null,
+      branch_id: formData.branchId,
+      status: formData.status,
+      follow_up_status: formData.followUpStatus,
+      follow_up_notes: formData.followUpNotes || null,
+      notes: formData.notes || null,
+    };
+
+    let result;
+    if (editingFirstTimer?.id) {
+      result = await actions.updateFirstTimer(editingFirstTimer.id as string, dbData);
+    } else {
+      result = await actions.createFirstTimer(dbData);
+    }
+
+    if (result.success) {
+      setIsAddFirstTimerOpen(false);
+      setEditingFirstTimer(null);
+      await reloadFirstTimers();
+    }
+  };
 
   // Fetch department members
-  const { members: departmentMembers, loading: membersLoading } = useDepartmentMembers(departmentId);
+  const { members: departmentMembers, loading: membersLoading } =
+    useDepartmentMembers(departmentId);
   const { branches } = useBranches();
 
   // Filter members
@@ -303,10 +339,11 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
 
   // Filter first-timers for follow-up (those who need follow-up)
   const followUpContacts = useMemo(() => {
-    return firstTimers.filter(ft =>
-      ft.followUpStatus !== 'completed' ||
-      ft.status === 'contacted' ||
-      ft.status === 'followed_up'
+    return firstTimers.filter(
+      (ft) =>
+        ft.followUpStatus !== 'completed' ||
+        ft.status === 'contacted' ||
+        ft.status === 'followed_up'
     );
   }, [firstTimers]);
 
@@ -345,15 +382,15 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'converted':
-        return 'bg-green-100 text-green-800';
+        return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
       case 'interested':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
       case 'contacted':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
       case 'new':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-slate-500/10 text-slate-600 border-slate-500/20';
       case 'not-interested':
-        return 'bg-red-100 text-red-800';
+        return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -390,101 +427,64 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-blue-50 p-2 rounded-full">
-                <Users className="h-4 w-4 text-blue-600" />
+        {[
+          { label: 'Members', value: mockEvangelismStats.totalMembers, icon: Users, color: 'blue' },
+          {
+            label: 'Active',
+            value: mockEvangelismStats.activeMembers,
+            icon: Megaphone,
+            color: 'emerald',
+          },
+          {
+            label: 'Events',
+            value: mockEvangelismStats.plannedEvents,
+            icon: Calendar,
+            color: 'amber',
+          },
+          {
+            label: 'Outreaches',
+            value: mockEvangelismStats.completedOutreaches,
+            icon: Activity,
+            color: 'violet',
+          },
+          {
+            label: 'Growth',
+            value: `+${mockEvangelismStats.monthlyGrowth}%`,
+            icon: TrendingUp,
+            color: 'indigo',
+          },
+          {
+            label: 'Conversions',
+            value: mockEvangelismStats.totalConversions,
+            icon: Target,
+            color: 'rose',
+          },
+        ].map((stat, idx) => (
+          <Card
+            key={idx}
+            className="bg-card border border-primary/10 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group rounded-2xl"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`bg-muted/50 p-2.5 rounded-xl group-hover:bg-${stat.color}-500/10 transition-colors duration-300`}
+                >
+                  <stat.icon
+                    className={`h-4 w-4 text-muted-foreground group-hover:text-${stat.color}-600 transition-colors`}
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                    {stat.label}
+                  </p>
+                  <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                    {stat.value}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Members</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockEvangelismStats.totalMembers}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-green-50 p-2 rounded-full">
-                <Megaphone className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockEvangelismStats.activeMembers}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-orange-50 p-2 rounded-full">
-                <Calendar className="h-4 w-4 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Events</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockEvangelismStats.plannedEvents}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-purple-50 p-2 rounded-full">
-                <Activity className="h-4 w-4 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Outreaches</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockEvangelismStats.completedOutreaches}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-indigo-50 p-2 rounded-full">
-                <TrendingUp className="h-4 w-4 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Growth</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  +{mockEvangelismStats.monthlyGrowth}%
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-emerald-50 p-2 rounded-full">
-                <Target className="h-4 w-4 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Conversions</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockEvangelismStats.totalConversions}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Quick Actions */}
@@ -561,7 +561,10 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                     color: 'bg-indigo-500',
                   },
                 ].map((area) => (
-                  <div key={area.area} className="p-4 border rounded-lg">
+                  <div
+                    key={area.area}
+                    className="p-4 bg-card border border-primary/10 rounded-xl shadow-sm"
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium">{area.area}</span>
                       <div className={`w-3 h-3 rounded-full ${area.color}`} />
@@ -591,7 +594,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                   .map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
+                      className="flex items-center justify-between p-3 bg-card border border-primary/10 rounded-xl shadow-sm"
                     >
                       <div>
                         <h4 className="font-medium">{event.title}</h4>
@@ -624,7 +627,10 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                   { status: 'Converted', count: 3, color: 'bg-green-500' },
                   { status: 'Not Interested', count: 2, color: 'bg-red-500' },
                 ].map((pipeline) => (
-                  <div key={pipeline.status} className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div
+                    key={pipeline.status}
+                    className="text-center p-4 bg-card border border-primary/5 rounded-xl shadow-sm"
+                  >
                     <div className={`w-4 h-4 rounded-full ${pipeline.color} mx-auto mb-2`} />
                     <div className="text-2xl font-bold text-gray-900">{pipeline.count}</div>
                     <div className="text-sm text-gray-600">{pipeline.status}</div>
@@ -737,7 +743,9 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                              <div className="text-sm text-gray-500">{member.phone || member.email || '-'}</div>
+                              <div className="text-sm text-gray-500">
+                                {member.phone || member.email || '-'}
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -746,16 +754,10 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {member.role}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            -
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            -
-                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge variant={'default'}>
-                              {member.status}
-                            </Badge>
+                            <Badge variant={'default'}>{member.status}</Badge>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end space-x-2">
@@ -794,9 +796,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle>First-Timers Management</CardTitle>
-                  <CardDescription>
-                    Track and follow up with visitors to the church
-                  </CardDescription>
+                  <CardDescription>Track and follow up with visitors to the church</CardDescription>
                 </div>
                 <Button onClick={() => setIsAddFirstTimerOpen(true)}>
                   <UserPlus className="mr-2 h-4 w-4" />
@@ -816,13 +816,14 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                     setEditingFirstTimer(ft);
                     setIsAddFirstTimerOpen(true);
                   }}
+                  onView={(id) => navigate(`/admin/first-timer/${id}`)}
                   onDelete={async (id) => {
                     if (confirm('Are you sure you want to delete this first-timer?')) {
                       // TODO: Implement delete
                       console.log('Delete:', id);
                     }
                   }}
-                  getBranchName={(id) => 'Branch'}
+                  getBranchName={(id) => branches.find((b) => b.id === id)?.name || 'Branch'}
                 />
               )}
             </CardContent>
@@ -874,11 +875,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
         open={isAddFirstTimerOpen}
         onOpenChange={setIsAddFirstTimerOpen}
         firstTimer={editingFirstTimer}
-        onSubmit={() => {
-          reloadFirstTimers();
-          setIsAddFirstTimerOpen(false);
-          setEditingFirstTimer(null);
-        }}
+        onSubmit={handleFirstTimerSubmit}
       />
     </div>
   );

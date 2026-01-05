@@ -543,98 +543,70 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-blue-50 p-2 rounded-full">
-                <Users className="h-4 w-4 text-blue-600" />
+        {[
+          {
+            label: 'Total Members',
+            value: stats?.totalMembers || choirMembers.length || 0,
+            icon: Users,
+            color: 'blue',
+          },
+          {
+            label: 'Active Singers',
+            value:
+              stats?.activeMembers || choirMembers.filter((m) => m.status === 'approved').length,
+            icon: Music,
+            color: 'emerald',
+          },
+          {
+            label: 'Events',
+            value: stats?.upcomingEvents || choirEvents.length || 0,
+            icon: Calendar,
+            color: 'amber',
+          },
+          {
+            label: 'Activities',
+            value: stats?.completedActivities || 0,
+            icon: Activity,
+            color: 'violet',
+          },
+          {
+            label: 'Growth',
+            value: `+${stats?.monthlyGrowth || 0}%`,
+            icon: TrendingUp,
+            color: 'indigo',
+          },
+          {
+            label: 'Budget',
+            value: `${stats?.budgetUtilization || 0}%`,
+            icon: FileText,
+            color: 'rose',
+          },
+        ].map((stat, idx) => (
+          <Card
+            key={idx}
+            className="border-primary/5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`bg-muted/50 p-2.5 rounded-xl group-hover:bg-${stat.color}-500/10 transition-colors duration-300`}
+                >
+                  <stat.icon
+                    className={`h-4 w-4 text-muted-foreground group-hover:text-${stat.color}-600 transition-colors`}
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                    {stat.label}
+                  </p>
+                  <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                    {stat.value}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Members</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats?.totalMembers || choirMembers.length || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-green-50 p-2 rounded-full">
-                <Music className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Singers</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats?.activeMembers ||
-                    choirMembers.filter((m) => m.status === 'approved').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-orange-50 p-2 rounded-full">
-                <Calendar className="h-4 w-4 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Events</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats?.upcomingEvents || choirEvents.length || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-purple-50 p-2 rounded-full">
-                <Activity className="h-4 w-4 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Activities</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats?.completedActivities || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-indigo-50 p-2 rounded-full">
-                <TrendingUp className="h-4 w-4 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Growth</p>
-                <p className="text-2xl font-bold text-gray-900">+{stats?.monthlyGrowth || 0}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-emerald-50 p-2 rounded-full">
-                <FileText className="h-4 w-4 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Budget</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.budgetUtilization || 0}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Quick Actions */}
@@ -676,11 +648,19 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
                   const count = choirMembers.filter(
                     (m) => m.voice_part === voice && m.status === 'approved'
                   ).length;
+                  const icons = { soprano: Music, alto: Mic, tenor: Music, bass: Mic };
+                  const Icon = (icons as any)[voice];
                   return (
-                    <div key={voice} className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-gray-900">{count}</div>
-                      <div className="text-sm text-gray-600">
-                        {voice[0].toUpperCase() + voice.slice(1)}
+                    <div
+                      key={voice}
+                      className="text-center p-6 bg-muted/30 rounded-2xl border border-primary/5 group hover:bg-primary/5 transition-colors duration-300"
+                    >
+                      <div className="h-10 w-10 rounded-xl bg-background border border-primary/10 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="text-2xl font-black text-foreground">{count}</div>
+                      <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                        {voice}
                       </div>
                     </div>
                   );
@@ -702,15 +682,25 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
                   .map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 border border-primary/5 rounded-xl transition-colors"
                     >
-                      <div>
-                        <h4 className="font-medium">{event.title}</h4>
-                        <p className="text-sm text-gray-600">
-                          {event.date} • {event.attendees} attendees
-                        </p>
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                          <Activity className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm">{event.title}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            {event.date} • {event.attendees} attendees
+                          </p>
+                        </div>
                       </div>
-                      <Badge variant="outline">{event.type}</Badge>
+                      <Badge
+                        variant="secondary"
+                        className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+                      >
+                        {event.type}
+                      </Badge>
                     </div>
                   ))}
               </div>
@@ -730,17 +720,24 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
                   .map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-primary/5 border border-primary/10 rounded-xl hover:bg-primary/10 transition-colors"
                     >
-                      <div>
-                        <h4 className="font-medium">{event.title}</h4>
-                        <p className="text-sm text-gray-600">
-                          {event.date} • {event.type}
-                        </p>
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                          <Calendar className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm">{event.title}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            {event.date} • {event.type}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-medium">{event.attendees} singers</div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs font-bold text-primary">
+                          {event.attendees} singers
+                        </div>
+                        <div className="text-[10px] uppercase tracking-tight text-muted-foreground/70">
                           {event.songs?.length || 0} songs
                         </div>
                       </div>

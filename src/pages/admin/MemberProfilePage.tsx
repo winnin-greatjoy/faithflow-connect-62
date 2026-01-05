@@ -395,7 +395,7 @@ export const MemberProfilePage: React.FC = () => {
         </Button>
 
         <Button
-          className="bg-vibrant-gradient h-10 px-6 rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
+          className="bg-primary h-10 px-6 rounded-xl font-bold shadow-md hover:bg-primary/90 transition-all text-xs text-white"
           onClick={() => setShowCardDialog(true)}
         >
           <CreditCard className="h-4 w-4 mr-2" />

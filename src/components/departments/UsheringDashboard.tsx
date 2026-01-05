@@ -192,93 +192,39 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-blue-50 p-2 rounded-full">
-                <Users className="h-4 w-4 text-blue-600" />
+        {[
+          { label: 'Total Ushers', value: stats.totalMembers, icon: Users, color: 'blue' },
+          { label: 'Active', value: stats.activeMembers, icon: UserCheck, color: 'emerald' },
+          { label: 'Services', value: stats.upcomingServices, icon: Calendar, color: 'amber' },
+          { label: 'Completed', value: stats.completedServices, icon: Activity, color: 'violet' },
+          { label: 'Growth', value: `+${stats.monthlyGrowth}%`, icon: TrendingUp, color: 'indigo' },
+          { label: 'Coverage', value: `${stats.coverageRate}%`, icon: MapPin, color: 'rose' },
+        ].map((stat, idx) => (
+          <Card
+            key={idx}
+            className="bg-card border border-primary/10 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group rounded-2xl"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`bg-muted/50 p-2.5 rounded-xl group-hover:bg-${stat.color}-500/10 transition-colors duration-300`}
+                >
+                  <stat.icon
+                    className={`h-4 w-4 text-muted-foreground group-hover:text-${stat.color}-600 transition-colors`}
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                    {stat.label}
+                  </p>
+                  <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                    {stat.value}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Ushers</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalMembers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-green-50 p-2 rounded-full">
-                <UserCheck className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activeMembers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-orange-50 p-2 rounded-full">
-                <Calendar className="h-4 w-4 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Services</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.upcomingServices}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-purple-50 p-2 rounded-full">
-                <Activity className="h-4 w-4 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.completedServices}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-indigo-50 p-2 rounded-full">
-                <TrendingUp className="h-4 w-4 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Growth</p>
-                <p className="text-2xl font-bold text-gray-900">+{stats.monthlyGrowth}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-emerald-50 p-2 rounded-full">
-                <MapPin className="h-4 w-4 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Coverage</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.coverageRate}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Quick Actions */}
@@ -322,11 +268,11 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
                   .map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-card border border-primary/5 rounded-xl shadow-sm"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="bg-blue-100 p-2 rounded-full">
-                          <Calendar className="h-4 w-4 text-blue-600" />
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <Calendar className="h-4 w-4 text-primary" />
                         </div>
                         <div>
                           <h4 className="font-medium">{event.title}</h4>
@@ -370,7 +316,10 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
                   { name: "Children's Area", ushers: 0, total: 1, color: 'bg-red-500' },
                   { name: 'Overflow Area', ushers: 0, total: 1, color: 'bg-red-500' },
                 ].map((station) => (
-                  <div key={station.name} className="p-4 border rounded-lg">
+                  <div
+                    key={station.name}
+                    className="p-4 bg-card border border-primary/10 rounded-xl shadow-sm"
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium">{station.name}</span>
                       <div className={`w-3 h-3 rounded-full ${station.color}`} />
@@ -398,7 +347,7 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
                   .map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-3 bg-card border border-primary/5 rounded-xl shadow-sm"
                     >
                       <div>
                         <h4 className="font-medium">{event.title}</h4>

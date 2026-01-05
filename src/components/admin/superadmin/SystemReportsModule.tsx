@@ -262,10 +262,10 @@ export const SystemReportsModule: React.FC = () => {
             {systemReports.map((report) => (
               <Card
                 key={report.id}
-                className="group relative overflow-hidden glass border-primary/5 hover:border-primary/20 hover:shadow-2xl transition-all duration-500 cursor-pointer rounded-[2rem]"
+                className="group relative overflow-hidden bg-card border border-primary/5 hover:border-primary/10 hover:shadow-xl transition-all duration-500 cursor-pointer rounded-3xl"
                 onClick={() => navigate(`/superadmin/reports/${report.id}`)}
               >
-                <div className="absolute top-0 left-0 w-full h-1 bg-vibrant-gradient opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute top-0 left-0 w-full h-1 bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start gap-2">

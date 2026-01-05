@@ -18,10 +18,17 @@ import {
   Filter,
   Plus,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Activity,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { technicalApi } from '@/services/departments/technicalApi';
@@ -104,10 +111,10 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
         const [statsResult, membersResult, equipmentResult, ticketsResult] = await Promise.all([
           technicalApi.getTechnicalStats(),
           technicalApi.getTechnicalMembers({
-            sort: { field: 'member.full_name', direction: 'asc' }
+            sort: { field: 'member.full_name', direction: 'asc' },
           }),
           technicalApi.getEquipment(),
-          technicalApi.getSupportTickets()
+          technicalApi.getSupportTickets(),
         ]);
 
         if (statsResult.error) {
@@ -135,7 +142,7 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
         toast({
           title: 'Error',
           description: 'Failed to load dashboard data',
-          variant: 'destructive'
+          variant: 'destructive',
         });
       } finally {
         setLoading(false);
@@ -146,7 +153,7 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
   }, [toast]);
 
   // Transform members to include technical-specific fields
-  const technicalMembers: TechnicalMember[] = members.map(member => ({
+  const technicalMembers: TechnicalMember[] = members.map((member) => ({
     ...member,
     specialization: 'av_systems', // Would come from API response
     certifications: ['CTS', 'Dante Level 2'], // Would come from API response
@@ -158,9 +165,10 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
 
   // Filter tickets
   const filteredTickets = useMemo(() => {
-    return tickets.filter(ticket => {
-      const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           ticket.requester.toLowerCase().includes(searchTerm.toLowerCase());
+    return tickets.filter((ticket) => {
+      const matchesSearch =
+        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.requester.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
       const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
       return matchesSearch && matchesStatus && matchesPriority;
@@ -169,10 +177,43 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
 
   // Quick actions
   const quickActions = [
-    { label: 'Add Member', icon: UserPlus, onClick: () => toast({ title: 'Add Member', description: 'Add new technical team member form would open here' }), variant: 'default' as const },
-    { label: 'New Ticket', icon: Headphones, onClick: () => toast({ title: 'New Ticket', description: 'Support ticket form would open here' }), variant: 'outline' as const },
-    { label: 'Add Equipment', icon: Monitor, onClick: () => toast({ title: 'Add Equipment', description: 'Equipment registration form would open here' }), variant: 'outline' as const },
-    { label: 'Schedule Maintenance', icon: Wrench, onClick: () => toast({ title: 'Schedule Maintenance', description: 'Maintenance scheduling form would open here' }), variant: 'outline' as const }
+    {
+      label: 'Add Member',
+      icon: UserPlus,
+      onClick: () =>
+        toast({
+          title: 'Add Member',
+          description: 'Add new technical team member form would open here',
+        }),
+      variant: 'default' as const,
+    },
+    {
+      label: 'New Ticket',
+      icon: Headphones,
+      onClick: () =>
+        toast({ title: 'New Ticket', description: 'Support ticket form would open here' }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Add Equipment',
+      icon: Monitor,
+      onClick: () =>
+        toast({
+          title: 'Add Equipment',
+          description: 'Equipment registration form would open here',
+        }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Schedule Maintenance',
+      icon: Wrench,
+      onClick: () =>
+        toast({
+          title: 'Schedule Maintenance',
+          description: 'Maintenance scheduling form would open here',
+        }),
+      variant: 'outline' as const,
+    },
   ];
 
   const handleBack = () => {
@@ -199,9 +240,7 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
           <div className="text-center">
             <div className="text-red-500 mb-4">⚠️</div>
             <p className="text-gray-600 mb-4">Failed to load dashboard data</p>
-            <Button onClick={() => window.location.reload()}>
-              Retry
-            </Button>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
           </div>
         </div>
       </div>
@@ -239,75 +278,38 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-blue-50 p-2 rounded-full">
-                <Users className="h-4 w-4 text-blue-600" />
+        {[
+          { label: 'Team', value: stats?.totalMembers || 0, icon: Users, color: 'blue' },
+          { label: 'Equipment', value: equipment.length, icon: Monitor, color: 'emerald' },
+          { label: 'Tickets', value: tickets.length, icon: Headphones, color: 'amber' },
+          { label: 'Uptime', value: '99.2%', icon: Activity, color: 'violet' },
+          { label: 'Health', value: '95%', icon: Activity, color: 'rose' },
+        ].map((stat, idx) => (
+          <Card
+            key={idx}
+            className="bg-card border border-primary/10 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group rounded-2xl"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`bg-muted/50 p-2.5 rounded-xl group-hover:bg-${stat.color}-500/10 transition-colors duration-300`}
+                >
+                  <stat.icon
+                    className={`h-4 w-4 text-muted-foreground group-hover:text-${stat.color}-600 transition-colors`}
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                    {stat.label}
+                  </p>
+                  <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                    {stat.value}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Team</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.totalMembers || 0}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-green-50 p-2 rounded-full">
-                <Monitor className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Equipment</p>
-                <p className="text-2xl font-bold text-gray-900">{equipment.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-orange-50 p-2 rounded-full">
-                <Headphones className="h-4 w-4 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Tickets</p>
-                <p className="text-2xl font-bold text-gray-900">{tickets.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-purple-50 p-2 rounded-full">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Uptime</p>
-                <p className="text-2xl font-bold text-gray-900">99.2%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-emerald-50 p-2 rounded-full">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Health</p>
-                <p className="text-2xl font-bold text-gray-900">95%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Quick Actions */}
@@ -346,19 +348,57 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { system: 'Audio Systems', status: 'operational', uptime: '99.8%', issues: 0, color: 'bg-green-500' },
-                  { system: 'Video Systems', status: 'operational', uptime: '99.5%', issues: 1, color: 'bg-green-500' },
-                  { system: 'Network Infrastructure', status: 'operational', uptime: '99.9%', issues: 0, color: 'bg-green-500' },
-                  { system: 'Streaming Platform', status: 'maintenance', uptime: '98.2%', issues: 2, color: 'bg-yellow-500' }
+                  {
+                    system: 'Audio Systems',
+                    status: 'operational',
+                    uptime: '99.8%',
+                    issues: 0,
+                    color: 'bg-green-500',
+                  },
+                  {
+                    system: 'Video Systems',
+                    status: 'operational',
+                    uptime: '99.5%',
+                    issues: 1,
+                    color: 'bg-green-500',
+                  },
+                  {
+                    system: 'Network Infrastructure',
+                    status: 'operational',
+                    uptime: '99.9%',
+                    issues: 0,
+                    color: 'bg-green-500',
+                  },
+                  {
+                    system: 'Streaming Platform',
+                    status: 'maintenance',
+                    uptime: '98.2%',
+                    issues: 2,
+                    color: 'bg-yellow-500',
+                  },
                 ].map((system) => (
-                  <div key={system.system} className="p-4 border rounded-lg">
+                  <div
+                    key={system.system}
+                    className="p-4 bg-card border border-primary/10 rounded-xl shadow-sm"
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium">{system.system}</span>
                       <div className={`w-3 h-3 rounded-full ${system.color}`} />
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
                       <div>Uptime: {system.uptime}</div>
-                      <div>Status: <Badge className={system.status === 'operational' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>{system.status}</Badge></div>
+                      <div>
+                        Status:{' '}
+                        <Badge
+                          className={
+                            system.status === 'operational'
+                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                          }
+                        >
+                          {system.status}
+                        </Badge>
+                      </div>
                       <div>Open Issues: {system.issues}</div>
                     </div>
                   </div>
@@ -376,10 +416,19 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {equipment.slice(0, 6).map((item) => (
-                  <div key={item.id} className="p-4 border rounded-lg">
+                  <div
+                    key={item.id}
+                    className="p-4 bg-card border border-primary/10 rounded-xl shadow-sm"
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium">{item.name}</span>
-                      <Badge className={item.status === 'operational' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                      <Badge
+                        className={
+                          item.status === 'operational'
+                            ? 'bg-emerald-500/10 text-emerald-600'
+                            : 'bg-amber-500/10 text-amber-600'
+                        }
+                      >
                         {item.status}
                       </Badge>
                     </div>
@@ -404,21 +453,32 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
             <CardContent>
               <div className="space-y-3">
                 {tickets.slice(0, 4).map((ticket) => (
-                  <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div
+                    key={ticket.id}
+                    className="flex items-center justify-between p-3 bg-card border border-primary/5 rounded-xl shadow-sm"
+                  >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${ticket.priority === 'critical' ? 'bg-red-500' : ticket.priority === 'high' ? 'bg-orange-500' : 'bg-yellow-500'}`} />
+                      <div
+                        className={`w-3 h-3 rounded-full ${ticket.priority === 'critical' ? 'bg-red-500' : ticket.priority === 'high' ? 'bg-orange-500' : 'bg-yellow-500'}`}
+                      />
                       <div>
                         <h4 className="font-medium">{ticket.title}</h4>
-                        <p className="text-sm text-gray-600">{ticket.requester} • {ticket.category}</p>
+                        <p className="text-sm text-gray-600">
+                          {ticket.requester} • {ticket.category}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <Badge className={ticket.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                      <Badge
+                        className={
+                          ticket.status === 'resolved'
+                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                        }
+                      >
                         {ticket.status}
                       </Badge>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {ticket.created_date}
-                      </div>
+                      <div className="text-xs text-gray-500 mt-1">{ticket.created_date}</div>
                     </div>
                   </div>
                 ))}
@@ -443,12 +503,20 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">{item.name}</span>
-                    <Badge className={item.status === 'operational' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                    <Badge
+                      className={
+                        item.status === 'operational'
+                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                          : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                      }
+                    >
                       {item.status}
                     </Badge>
                   </div>
                   <div className="space-y-1 text-sm text-gray-600">
-                    <div>{item.type} • {item.category}</div>
+                    <div>
+                      {item.type} • {item.category}
+                    </div>
                     <div>Location: {item.location}</div>
                     <div>Next Maintenance: {item.next_maintenance}</div>
                     {item.assigned_to && <div>Assigned: {item.assigned_to}</div>}
@@ -519,13 +587,27 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ticket
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Priority
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Assigned To
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -539,12 +621,20 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
-                            <div className={`w-3 h-3 rounded-full ${ticket.priority === 'critical' ? 'bg-red-500' : ticket.priority === 'high' ? 'bg-orange-500' : 'bg-yellow-500'}`} />
+                            <div
+                              className={`w-3 h-3 rounded-full ${ticket.priority === 'critical' ? 'bg-red-500' : ticket.priority === 'high' ? 'bg-orange-500' : 'bg-yellow-500'}`}
+                            />
                             <span className="text-sm capitalize">{ticket.priority}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge className={ticket.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                          <Badge
+                            className={
+                              ticket.status === 'resolved'
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                            }
+                          >
                             {ticket.status}
                           </Badge>
                         </td>
@@ -591,8 +681,8 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
               <Card key={member.id}>
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Users className="h-5 w-5 text-blue-600" />
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Users className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                       <h4 className="font-medium">{member.member.full_name}</h4>
@@ -602,7 +692,9 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Specialization:</span>
-                      <span className="font-medium capitalize">{(member as any).specialization?.replace('_', ' ')}</span>
+                      <span className="font-medium capitalize">
+                        {(member as any).specialization?.replace('_', ' ')}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Tickets Resolved:</span>
@@ -610,7 +702,9 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Certifications:</span>
-                      <span className="font-medium">{(member as any).certifications?.length || 0}</span>
+                      <span className="font-medium">
+                        {(member as any).certifications?.length || 0}
+                      </span>
                     </div>
                   </div>
                   <div className="mt-3">

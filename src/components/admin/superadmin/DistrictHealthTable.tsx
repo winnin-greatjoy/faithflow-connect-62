@@ -41,7 +41,7 @@ export const DistrictHealthTable: React.FC<DistrictHealthTableProps> = ({ distri
   };
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm">
+    <div className="bg-card rounded-lg border shadow-sm">
       <div className="p-4 border-b">
         <h3 className="font-semibold text-lg">District Health Matrix</h3>
         <p className="text-sm text-muted-foreground">Governance compliance and structure status</p>

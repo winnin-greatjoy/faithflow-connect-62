@@ -15,10 +15,13 @@ import {
   MapPin,
   ArrowRight,
   Sparkles,
+  LayoutGrid,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
+import { EventCalendar } from '@/components/shared/EventCalendar';
 
 type Event = Database['public']['Tables']['events']['Row'];
 
@@ -49,6 +52,7 @@ export const HomePage: React.FC = () => {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [rsvpCount, setRsvpCount] = useState<number | null>(null);
   const [notificationsCount, setNotificationsCount] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   useEffect(() => {
     let mounted = true;
@@ -121,8 +125,8 @@ export const HomePage: React.FC = () => {
       sub: 'Active Status',
       icon: Users,
       color: 'blue',
-      gradient: 'from-blue-500/20 to-indigo-500/20',
-      text: 'text-blue-600 dark:text-blue-400',
+      gradient: 'bg-blue-50',
+      text: 'text-blue-700 dark:text-blue-400',
     },
     {
       title: 'Upcoming RSVPs',
@@ -130,8 +134,8 @@ export const HomePage: React.FC = () => {
       sub: 'Event Attendance',
       icon: Calendar,
       color: 'purple',
-      gradient: 'from-purple-500/20 to-pink-500/20',
-      text: 'text-purple-600 dark:text-purple-400',
+      gradient: 'bg-purple-50',
+      text: 'text-purple-700 dark:text-purple-400',
     },
     {
       title: 'New Alerts',
@@ -139,8 +143,8 @@ export const HomePage: React.FC = () => {
       sub: 'Recently Received',
       icon: Bell,
       color: 'amber',
-      gradient: 'from-amber-500/20 to-orange-500/20',
-      text: 'text-amber-600 dark:text-amber-400',
+      gradient: 'bg-amber-50',
+      text: 'text-amber-700 dark:text-amber-400',
     },
     {
       title: 'Departments',
@@ -148,8 +152,8 @@ export const HomePage: React.FC = () => {
       sub: 'Active Roles',
       icon: BookOpen,
       color: 'emerald',
-      gradient: 'from-emerald-500/20 to-teal-500/20',
-      text: 'text-emerald-600 dark:text-emerald-400',
+      gradient: 'bg-emerald-50',
+      text: 'text-emerald-700 dark:text-emerald-400',
     },
   ];
 
@@ -163,7 +167,7 @@ export const HomePage: React.FC = () => {
       {/* Welcome Hero Section */}
       <motion.div
         variants={itemVariants}
-        className="relative overflow-hidden rounded-3xl p-8 sm:p-12 glass dark:bg-black/20 border-primary/10"
+        className="relative overflow-hidden rounded-3xl p-8 sm:p-12 bg-white dark:bg-card border border-border"
       >
         <div className="absolute top-0 right-0 p-8 opacity-10 scale-150 rotate-12">
           <Sparkles className="w-32 h-32 text-primary" />
@@ -178,7 +182,7 @@ export const HomePage: React.FC = () => {
             <Sparkles className="w-3 h-3" />
             Member Portal Experience
           </motion.div>
-          <h1 className="text-4xl sm:text-6xl font-bold bg-gradient-to-r from-primary via-vibrant-blue to-purple-500 bg-clip-text text-transparent leading-tight mb-4">
+          <h1 className="text-4xl sm:text-6xl font-bold text-primary leading-tight mb-4">
             Welcome Home, <br className="hidden sm:block" />{' '}
             {user?.user_metadata?.firstName || 'Friend'}.
           </h1>
@@ -190,7 +194,7 @@ export const HomePage: React.FC = () => {
             <Link to="/portal/calendar">
               <Button
                 size="lg"
-                className="rounded-full bg-vibrant-gradient hover:opacity-90 transition-all font-sans px-8 h-12"
+                className="rounded-full bg-primary hover:bg-primary/90 transition-all font-sans px-8 h-12"
               >
                 Join an Event
               </Button>
@@ -199,7 +203,7 @@ export const HomePage: React.FC = () => {
               <Button
                 size="lg"
                 variant="outline"
-                className="rounded-full glass hover:bg-white/10 font-sans border-primary/20 px-8 h-12"
+                className="rounded-full bg-background hover:bg-muted font-sans border-border px-8 h-12"
               >
                 Watch Live
               </Button>
@@ -211,11 +215,11 @@ export const HomePage: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {stats.map((stat, idx) => (
-          <motion.div key={idx} variants={itemVariants} whileHover={{ y: -5 }} className="group">
-            <Card className="glass dark:bg-black/30 border-primary/5 hover-glow overflow-hidden relative border-none">
+          <motion.div key={idx} whileHover={{ y: -2 }} className="group">
+            <Card className="border border-border hover:border-primary/20 bg-card overflow-hidden relative shadow-sm">
               <div
                 className={cn(
-                  'absolute inset-0 bg-gradient-to-br opacity-50 group-hover:opacity-70 transition-opacity',
+                  'absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity',
                   stat.gradient
                 )}
               />
@@ -223,7 +227,7 @@ export const HomePage: React.FC = () => {
                 <CardTitle className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   {stat.title}
                 </CardTitle>
-                <div className={cn('p-2 rounded-xl bg-white/50 dark:bg-black/30', stat.text)}>
+                <div className={cn('p-2 rounded-xl bg-muted dark:bg-muted/10', stat.text)}>
                   <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               </CardHeader>
@@ -261,7 +265,7 @@ export const HomePage: React.FC = () => {
             <Link to={action.to} className="block group">
               <Button
                 variant="outline"
-                className="w-full h-24 sm:h-32 glass border-primary/10 hover:border-primary/30 flex flex-col items-center justify-center gap-3 p-6 transition-all group-hover:bg-primary/[0.02]"
+                className="w-full h-24 sm:h-32 bg-card border-border hover:border-primary/30 flex flex-col items-center justify-center gap-3 p-6 transition-all"
               >
                 <div className="p-3 rounded-full bg-primary/5 group-hover:bg-primary/10 transition-colors">
                   <action.icon className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
@@ -282,107 +286,163 @@ export const HomePage: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 sm:gap-8">
         {/* Upcoming Events Column */}
         <motion.div variants={itemVariants} className="xl:col-span-3">
-          <Card className="glass dark:bg-black/20 border-primary/5 h-full overflow-hidden shadow-2xl">
-            <CardHeader className="bg-primary/5 border-b border-primary/5 px-6 py-6">
+          <Card className="bg-card border-border h-full overflow-hidden shadow-sm flex flex-col">
+            <CardHeader className="bg-muted/30 border-b border-border px-6 py-6">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-primary" />
                     Church Calendar
                   </CardTitle>
-                  <CardDescription>Upcoming gatherings for the next 30 days</CardDescription>
+                  <CardDescription>Upcoming gatherings and rituals</CardDescription>
                 </div>
-                <Link to="/portal/calendar">
-                  <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold">
-                    View All <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                  <div className="flex p-1 bg-muted/50 rounded-xl border border-border">
+                    <Button
+                      variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                      className={cn(
+                        'h-8 px-3 rounded-lg text-[10px] font-black tracking-widest uppercase transition-all',
+                        viewMode === 'list'
+                          ? 'bg-white text-primary shadow-sm'
+                          : 'text-muted-foreground hover:text-primary'
+                      )}
+                    >
+                      <LayoutGrid className="w-3 h-3 mr-1.5" /> List
+                    </Button>
+                    <Button
+                      variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('calendar')}
+                      className={cn(
+                        'h-8 px-3 rounded-lg text-[10px] font-black tracking-widest uppercase transition-all',
+                        viewMode === 'calendar'
+                          ? 'bg-white text-primary shadow-sm'
+                          : 'text-muted-foreground hover:text-primary'
+                      )}
+                    >
+                      <CalendarIcon className="w-3 h-3 mr-1.5" /> Calendar
+                    </Button>
+                  </div>
+                  <Link to="/portal/calendar">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-secondary hover:bg-secondary/5 h-10 w-10 p-0 rounded-xl"
+                    >
+                      <ArrowRight className="w-5 h-5" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              {loadingEvents ? (
-                <div className="space-y-6">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex gap-4 animate-pulse">
-                      <div className="h-12 w-12 bg-muted rounded-2xl" />
-                      <div className="flex-1 space-y-2 py-1">
-                        <div className="h-4 bg-muted rounded w-3/4" />
-                        <div className="h-3 bg-muted rounded w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : events.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="p-4 rounded-full bg-muted mb-4 opacity-50">
-                    <Calendar className="w-12 h-12 text-muted-foreground" />
-                  </div>
-                  <p className="text-muted-foreground font-sans">
-                    No scheduled events for the near future.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-6">
-                  {events.map((ev) => {
-                    const dateObj = new Date(ev.event_date!);
-                    const day = dateObj.getDate();
-                    const month = dateObj.toLocaleString('default', { month: 'short' });
-                    const weekday = dateObj.toLocaleString('default', { weekday: 'short' });
-
-                    return (
-                      <motion.div
-                        key={ev.id}
-                        whileHover={{ x: 5 }}
-                        className="group flex items-center gap-4 p-4 rounded-2xl bg-white/50 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/40 transition-all border border-transparent hover:border-primary/10"
-                      >
-                        <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-vibrant-gradient text-white flex flex-col items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                          <span className="text-xs uppercase font-bold leading-none mb-0.5">
-                            {month}
-                          </span>
-                          <span className="text-xl font-bold leading-none">{day}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-base sm:text-lg font-bold font-serif truncate">
-                            {ev.title}
-                          </h4>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs sm:text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" /> {weekday}
-                            </span>
-                            {ev.location && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3.5 h-3.5" /> {ev.location}
-                              </span>
-                            )}
-                            {ev.start_time && (
-                              <span className="flex items-center gap-1">
-                                <Sparkles className="w-3.5 h-3.5" /> {ev.start_time}
-                              </span>
-                            )}
+            <CardContent className="p-0 flex-1 overflow-hidden relative">
+              <AnimatePresence mode="wait">
+                {viewMode === 'list' ? (
+                  <motion.div
+                    key="list"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="p-6 h-[500px] overflow-y-auto custom-scrollbar"
+                  >
+                    {loadingEvents ? (
+                      <div className="space-y-6">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="flex gap-4 animate-pulse">
+                            <div className="h-12 w-12 bg-muted rounded-2xl" />
+                            <div className="flex-1 space-y-2 py-1">
+                              <div className="h-4 bg-muted rounded w-3/4" />
+                              <div className="h-3 bg-muted rounded w-1/2" />
+                            </div>
                           </div>
+                        ))}
+                      </div>
+                    ) : events.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="p-4 rounded-full bg-muted mb-4 opacity-50">
+                          <Calendar className="w-12 h-12 text-muted-foreground" />
                         </div>
-                        <Link to={`/portal/events/${ev.id}`}>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="rounded-full bg-primary/5 hover:bg-primary text-primary hover:text-white transition-colors"
-                          >
-                            <ArrowRight className="w-4 h-4" />
-                          </Button>
-                        </Link>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
+                        <p className="text-muted-foreground font-sans">
+                          No scheduled events for the near future.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-6">
+                        {events.map((ev) => {
+                          const dateObj = new Date(ev.event_date!);
+                          const day = dateObj.getDate();
+                          const month = dateObj.toLocaleString('default', { month: 'short' });
+                          const weekday = dateObj.toLocaleString('default', { weekday: 'short' });
+
+                          return (
+                            <motion.div
+                              key={ev.id}
+                              whileHover={{ x: 5 }}
+                              className="group flex items-center gap-4 p-4 rounded-2xl bg-muted/30 hover:bg-muted/50 transition-all border border-transparent hover:border-border"
+                            >
+                              <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-primary text-white flex flex-col items-center justify-center shadow-md transition-transform">
+                                <span className="text-xs uppercase font-bold leading-none mb-0.5">
+                                  {month}
+                                </span>
+                                <span className="text-xl font-bold leading-none">{day}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-base sm:text-lg font-bold font-serif truncate">
+                                  {ev.title}
+                                </h4>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs sm:text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3.5 h-3.5" /> {weekday}
+                                  </span>
+                                  {ev.location && (
+                                    <span className="flex items-center gap-1">
+                                      <MapPin className="w-3.5 h-3.5" /> {ev.location}
+                                    </span>
+                                  )}
+                                  {ev.start_time && (
+                                    <span className="flex items-center gap-1">
+                                      <Sparkles className="w-3.5 h-3.5" /> {ev.start_time}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <Link to={`/portal/events/${ev.id}`}>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="rounded-full bg-primary/5 hover:bg-primary text-primary hover:text-white transition-colors"
+                                >
+                                  <ArrowRight className="w-4 h-4" />
+                                </Button>
+                              </Link>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="calendar"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="h-[500px]"
+                  >
+                    <EventCalendar showCard={false} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Activity Feed Column */}
         <motion.div variants={itemVariants} className="xl:col-span-2">
-          <Card className="glass dark:bg-black/20 border-primary/5 h-full flex flex-col shadow-xl">
-            <CardHeader className="bg-primary/[0.02] border-b border-primary/5 px-6 py-6">
+          <Card className="bg-card border-border h-full flex flex-col shadow-sm">
+            <CardHeader className="bg-muted/20 border-b border-border px-6 py-6">
               <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
                 Latest Updates
@@ -443,11 +503,11 @@ export const HomePage: React.FC = () => {
                 ))}
               </div>
             </CardContent>
-            <div className="p-6 bg-gradient-to-t from-primary/5 to-transparent border-t border-primary/5">
+            <div className="p-6 bg-muted/10 border-t border-border">
               <Link to="/portal/notifications" className="block w-full">
                 <Button
                   variant="outline"
-                  className="w-full glass hover:bg-primary/5 border-primary/20 font-bold"
+                  className="w-full bg-white hover:bg-muted border-border font-bold"
                 >
                   View All Notifications
                 </Button>

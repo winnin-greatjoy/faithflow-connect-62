@@ -13,15 +13,22 @@ import { useCalendarEvents } from './calendar/useCalendarEvents';
 import { CalendarLayout } from './calendar/CalendarLayout';
 import { CalendarHeader } from './calendar/CalendarHeader';
 import { CalendarSidebar } from './calendar/CalendarSidebar';
-import { CalendarType, RawEvent, CalendarEventProps as BaseCalendarEventProps } from './calendar/calendar.types';
+import {
+  CalendarType,
+  RawEvent,
+  CalendarEventProps as BaseCalendarEventProps,
+} from './calendar/calendar.types';
 import { CalendarCreateButton } from './calendar/CalendarCreateButton';
 import './calendar/calendar.css';
 
 // Lazy load FullCalendar
 const FullCalendar = lazy(() => import('@fullcalendar/react'));
 
+import { useNavigate } from 'react-router-dom';
+import { useEvents } from '@/modules/events/hooks/useEvents';
+
 interface CalendarEventProps {
-  events: RawEvent[];
+  events?: RawEvent[];
   onEventClick?: (ev: RawEvent) => void;
   title?: string;
   showCard?: boolean;
@@ -34,7 +41,7 @@ export interface EventCalendarProps extends CalendarEventProps {
 }
 
 export const EventCalendar: React.FC<EventCalendarProps> = ({
-  events,
+  events: propEvents,
   onEventClick,
   title: initialTitle,
   showCard = true,
@@ -42,6 +49,36 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
   onCreateTask,
   onCreateAppointment,
 }) => {
+  const navigate = useNavigate();
+  const { events: allEvents } = useEvents();
+
+  // Use provided events or map all events from hook
+  const events =
+    propEvents ||
+    (allEvents?.map((e) => ({
+      ...e,
+      id: e.id,
+      title: e.title,
+      start: e.date, // useCalendarEvents uses start/end or event_date
+      start_at: `${e.date}T${e.time}`,
+      end_at: `${e.end_date || e.date}T${e.time}`,
+      event_level: e.event_level,
+      type: 'event',
+    })) as any) ||
+    [];
+
+  const handleEventClickNative = useCallback(
+    (ev: RawEvent) => {
+      if (onEventClick) {
+        onEventClick(ev);
+      } else if (ev.id) {
+        // Default to portal view if no handler provided
+        navigate(`/portal/events/${ev.id}`);
+      }
+    },
+    [onEventClick, navigate]
+  );
+
   // State
   const [view, setView] = useState('dayGridMonth');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -160,7 +197,7 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
               console.log('Appointment clicked', props);
             } else {
               // Standard Event Click
-              if (onEventClick) onEventClick(props as RawEvent);
+              handleEventClickNative(props as RawEvent);
             }
           }}
           height="100%"
@@ -175,8 +212,9 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
             if (isTask) {
               return (
                 <div
-                  className={`flex items-center gap-1.5 px-1.5 py-0.5 w-full overflow-hidden text-xs rounded-sm border-l-2 ${props.is_completed ? 'opacity-60 line-through' : ''
-                    }`}
+                  className={`flex items-center gap-1.5 px-1.5 py-0.5 w-full overflow-hidden text-xs rounded-sm border-l-2 ${
+                    props.is_completed ? 'opacity-60 line-through' : ''
+                  }`}
                   style={{
                     backgroundColor: eventInfo.backgroundColor,
                     borderColor: eventInfo.borderColor,
@@ -184,8 +222,11 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
                   }}
                 >
                   <div
-                    className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${props.is_completed ? 'bg-slate-400 border-slate-400' : 'bg-white border-blue-500'
-                      }`}
+                    className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${
+                      props.is_completed
+                        ? 'bg-slate-400 border-slate-400'
+                        : 'bg-white border-blue-500'
+                    }`}
                   >
                     {props.is_completed && <Check className="w-2 h-2 text-white" />}
                   </div>
@@ -240,7 +281,7 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
           onDateSelect={handleDateSelect}
           selectedCalendars={selectedCalendars}
           onToggleCalendar={handleToggleCalendar}
-          onCreateEvent={onCreateEvent || (() => { })}
+          onCreateEvent={onCreateEvent || (() => {})}
           onCreateTask={onCreateTask}
           onCreateAppointment={onCreateAppointment}
         />
@@ -252,9 +293,9 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
       {!showSidebar && (
         <div className="absolute bottom-8 right-8 z-30 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
           <CalendarCreateButton
-            onCreateEvent={onCreateEvent || (() => { })}
-            onCreateTask={onCreateTask || (() => { })}
-            onCreateAppointment={onCreateAppointment || (() => { })}
+            onCreateEvent={onCreateEvent || (() => {})}
+            onCreateTask={onCreateTask || (() => {})}
+            onCreateAppointment={onCreateAppointment || (() => {})}
             showLabel={false}
           />
         </div>
@@ -262,10 +303,12 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
     </CalendarLayout>
   );
 
-  if (!showCard) return <div className="h-full w-full min-h-[600px]">{layout}</div>;
+  if (!showCard) return <div className="h-full w-full">{layout}</div>;
 
   return (
-    <div className="h-[850px] w-full overflow-hidden rounded-xl border shadow-sm">{layout}</div>
+    <div className="h-full w-full min-h-[600px] overflow-hidden rounded-xl border shadow-sm">
+      {layout}
+    </div>
   );
 };
 

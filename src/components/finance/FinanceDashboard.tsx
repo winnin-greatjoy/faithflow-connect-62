@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthz } from '@/hooks/useAuthz';
@@ -155,6 +156,8 @@ const statusVariant = (status?: string) => {
 };
 
 export function FinanceDashboard({ mode, branchId, districtId }: FinanceDashboardProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { hasRole } = useAuthz();
 
@@ -165,6 +168,7 @@ export function FinanceDashboard({ mode, branchId, districtId }: FinanceDashboar
   const [records, setRecords] = React.useState<FinanceRecord[]>([]);
   const [remittances, setRemittances] = React.useState<RemittanceRow[]>([]);
   const [fundRequests, setFundRequests] = React.useState<FundRequestRow[]>([]);
+  const [openRecordDialog, setOpenRecordDialog] = React.useState(false);
 
   const isApprover = hasRole('district_admin', 'super_admin');
   const canWriteBranch = mode === 'branch' && !hasRole('district_admin', 'super_admin');
@@ -178,6 +182,17 @@ export function FinanceDashboard({ mode, branchId, districtId }: FinanceDashboar
   React.useEffect(() => {
     setActiveTab(TABS_BY_MODE[mode][0]);
   }, [mode]);
+
+  // Handle incoming navigation state
+  React.useEffect(() => {
+    const state = location.state as any;
+    if (state && state.openRecordTransaction && canWriteBranch) {
+      setActiveTab('transactions');
+      setOpenRecordDialog(true);
+      // Clear state
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, navigate, location.pathname, canWriteBranch]);
 
   const reload = React.useCallback(async () => {
     if (!scopeReady) return;
@@ -320,26 +335,26 @@ export function FinanceDashboard({ mode, branchId, districtId }: FinanceDashboar
         <KpiCard
           title="Income"
           value={loading ? '—' : formatCurrency(totals.income)}
-          icon={<ArrowUpRight className="h-6 w-6 text-green-600" />}
-          accentClass="bg-green-100"
+          icon={<ArrowUpRight className="h-5 w-5 text-emerald-600" />}
+          accentClass="bg-emerald-500/10 border-emerald-500/20"
         />
         <KpiCard
           title="Expenses"
           value={loading ? '—' : formatCurrency(totals.expenses)}
-          icon={<ArrowDownRight className="h-6 w-6 text-red-600" />}
-          accentClass="bg-red-100"
+          icon={<ArrowDownRight className="h-5 w-5 text-rose-600" />}
+          accentClass="bg-rose-500/10 border-rose-500/20"
         />
         <KpiCard
           title="Net"
           value={loading ? '—' : formatCurrency(totals.net)}
-          icon={<DollarSign className="h-6 w-6 text-primary" />}
-          accentClass="bg-primary/10"
+          icon={<DollarSign className="h-5 w-5 text-primary" />}
+          accentClass="bg-primary/10 border-primary/20"
         />
         <KpiCard
           title="Pending"
           value={loading ? '—' : String(totals.pending)}
-          icon={<HandCoins className="h-6 w-6 text-amber-600" />}
-          accentClass="bg-amber-100"
+          icon={<HandCoins className="h-5 w-5 text-amber-600" />}
+          accentClass="bg-amber-500/10 border-amber-500/20"
         />
       </div>
 
@@ -370,6 +385,8 @@ export function FinanceDashboard({ mode, branchId, districtId }: FinanceDashboar
             branches={branches}
             records={records}
             onCreated={reload}
+            openDialog={openRecordDialog}
+            onOpenChange={setOpenRecordDialog}
           />
         </TabsContent>
 
@@ -457,14 +474,18 @@ function KpiCard({
   accentClass: string;
 }) {
   return (
-    <Card>
-      <CardContent className="pt-6">
+    <Card className="border-primary/5 shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300">
+      <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">
+              {title}
+            </p>
+            <p className="text-2xl font-black tracking-tight">{value}</p>
           </div>
-          <div className={`h-12 w-12 rounded-full ${accentClass} flex items-center justify-center`}>
+          <div
+            className={`h-12 w-12 rounded-2xl ${accentClass} border flex items-center justify-center transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6`}
+          >
             {icon}
           </div>
         </div>
@@ -519,6 +540,8 @@ function TransactionsTab({
   branches,
   records,
   onCreated,
+  openDialog,
+  onOpenChange,
 }: {
   mode: FinanceDashboardProps['mode'];
   loading: boolean;
@@ -527,9 +550,13 @@ function TransactionsTab({
   branches: BranchRow[];
   records: FinanceRecord[];
   onCreated: () => void;
+  openDialog?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const { toast } = useToast();
-  const [open, setOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const open = openDialog ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [saving, setSaving] = React.useState(false);
 
   const [type, setType] = React.useState<'income' | 'expense'>('income');

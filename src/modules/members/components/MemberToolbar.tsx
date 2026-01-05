@@ -39,7 +39,7 @@ export const MemberToolbar: React.FC<MemberToolbarProps> = ({
           placeholder="Search personnel matrix..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="glass pl-11 h-12 rounded-xl border-primary/5 focus:ring-primary/20 focus:border-primary/20 transition-all font-medium text-sm"
+          className="bg-card pl-11 h-12 rounded-xl border-primary/10 focus:ring-primary/20 focus:border-primary/20 transition-all font-medium text-sm"
         />
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-40 pointer-events-none">
           <span className="text-[10px] font-bold uppercase tracking-widest">Active Search</span>
@@ -55,7 +55,7 @@ export const MemberToolbar: React.FC<MemberToolbarProps> = ({
               onClick={onSendMessage}
               disabled={totalRecipients === 0}
               variant="outline"
-              className="glass h-12 px-5 rounded-xl font-semibold border-primary/10 hover:bg-primary/5 transition-all text-xs disabled:opacity-30"
+              className="bg-card h-12 px-5 rounded-xl font-semibold border border-primary/10 hover:bg-primary/5 transition-all text-xs disabled:opacity-30"
             >
               <Mail className="h-4 w-4 mr-2 text-primary" />
               Dispatch Notification {totalRecipients > 0 ? `(${totalRecipients})` : ''}
@@ -68,7 +68,7 @@ export const MemberToolbar: React.FC<MemberToolbarProps> = ({
             <Button
               variant="outline"
               onClick={onBatchTransfer}
-              className="glass h-12 px-5 rounded-xl font-semibold border-amber-500/20 text-amber-600 hover:bg-amber-500/5 transition-all text-xs"
+              className="bg-card h-12 px-5 rounded-xl font-semibold border border-amber-500/20 text-amber-600 hover:bg-amber-500/5 transition-all text-xs"
             >
               <ArrowRightLeft className="h-4 w-4 mr-2" />
               Relocate ({selectedCount})

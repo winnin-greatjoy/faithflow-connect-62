@@ -46,7 +46,6 @@ const SuperadminDashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center relative overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
         <div className="w-16 h-16 rounded-3xl bg-primary/5 flex items-center justify-center animate-pulse mb-6 relative z-10">
           <Shield className="h-8 w-8 text-primary" />
         </div>
@@ -58,7 +57,7 @@ const SuperadminDashboard: React.FC = () => {
   if (!isSuperadmin) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center">
-        <div className="max-w-md glass p-10 rounded-3xl border-2 border-dashed border-destructive/20 scale-in-center">
+        <div className="max-w-md bg-card p-10 rounded-3xl border border-border shadow-xl scale-in-center">
           <Shield className="h-16 w-16 text-destructive mx-auto mb-6 opacity-50" />
           <h1 className="text-3xl font-bold font-serif text-foreground mb-3">Restricted Access</h1>
           <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
@@ -117,11 +116,8 @@ const SuperadminDashboard: React.FC = () => {
     <AdminProvider>
       <SidebarProvider>
         <div className="min-h-screen bg-background flex w-full relative overflow-hidden">
-          {/* Background Accents */}
-          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-            <div className="absolute top-[-5%] right-[-5%] w-[35%] h-[35%] rounded-full bg-primary/5 blur-[100px]" />
-            <div className="absolute bottom-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full bg-secondary/5 blur-[120px]" />
-          </div>
+          {/* Background */}
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-slate-50/50 dark:bg-slate-950/50" />
 
           <SuperadminSidebar
             activeModule={activeModule}

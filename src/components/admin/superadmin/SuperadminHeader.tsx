@@ -37,7 +37,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({ onMenuToggle
   };
 
   return (
-    <header className="sticky top-0 z-30 glass dark:bg-black/30 border-b border-primary/5 px-6 py-4 backdrop-blur-2xl flex justify-between items-center shrink-0">
+    <header className="sticky top-0 z-30 bg-background border-b border-primary/10 px-6 py-4 backdrop-blur-2xl flex justify-between items-center shrink-0 shadow-sm">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -72,7 +72,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({ onMenuToggle
           variant="ghost"
           size="sm"
           onClick={() => navigate('/admin')}
-          className="hidden md:flex glass border-primary/10 text-xs font-bold uppercase tracking-wider hover:bg-primary/5 rounded-xl h-10 px-4"
+          className="hidden md:flex bg-card border border-primary/10 text-xs font-bold uppercase tracking-wider hover:bg-primary/5 rounded-xl h-10 px-4 shadow-sm"
         >
           Branch Console
         </Button>
@@ -94,7 +94,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({ onMenuToggle
               variant="ghost"
               className="h-12 gap-3 px-2 hover:bg-primary/5 rounded-2xl group transition-all"
             >
-              <div className="w-10 h-10 rounded-xl bg-vibrant-gradient flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
                 <User className="h-5 w-5" />
               </div>
               <div className="hidden sm:flex flex-col items-start">
@@ -108,7 +108,7 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({ onMenuToggle
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-64 glass rounded-2xl border-primary/10 p-2 shadow-2xl animate-in fade-in slide-in-from-top-2"
+            className="w-64 bg-card rounded-2xl border-primary/10 p-2 shadow-2xl animate-in fade-in slide-in-from-top-2"
           >
             <DropdownMenuLabel className="px-4 py-3">
               <p className="text-sm font-bold font-serif">System Management</p>

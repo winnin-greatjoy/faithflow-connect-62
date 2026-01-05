@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 // Note: useAuthContext not needed - forms handle their own branch scoping
 import { useBranches } from '@/hooks/useBranches';
 import { useMembers } from './hooks/useMembers';
@@ -23,13 +23,16 @@ import { useFirstTimers } from './hooks/useFirstTimers';
 import type { Member, FirstTimer } from '@/types/membership';
 import type { ConvertFormData } from '@/components/admin/ConvertForm';
 import { MemberCardDialog } from '@/components/admin/MemberCardDialog';
+import { useAdminContext } from '@/context/AdminContext';
 
 export const MemberManagementPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { branches } = useBranches();
+  const { selectedBranchId } = useAdminContext();
 
-  // Initialize filters
-  const filters = useMemberFilters();
+  // Initialize filters with the selected branch from context
+  const filters = useMemberFilters(selectedBranchId || undefined);
 
   // Fetch data using hooks
   const {
@@ -89,6 +92,17 @@ export const MemberManagementPage: React.FC = () => {
     return branches.find((b) => b.id === branchId)?.name || 'Unknown';
   };
 
+  // Handle state from navigation (e.g. from profile page)
+  useEffect(() => {
+    if (location.state?.editingTimer) {
+      setEditingFirstTimer(location.state.editingTimer);
+      filters.setActiveTab('first_timers');
+      setShowFirstTimerForm(true);
+      // Clear navigation state to prevent loop
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, filters, navigate, location.pathname]);
+
   // Action handlers
   const handleAddMember = () => {
     setEditingMember(null);
@@ -122,6 +136,10 @@ export const MemberManagementPage: React.FC = () => {
     }
   };
 
+  const handleViewFirstTimer = (id: string) => {
+    navigate(`/admin/first-timer/${id}`);
+  };
+
   const handleEditFirstTimer = (ft: any) => {
     setEditingFirstTimer(ft);
     setShowFirstTimerForm(true);
@@ -152,6 +170,39 @@ export const MemberManagementPage: React.FC = () => {
     if (confirm('Are you sure you want to delete this member?')) {
       await actions.deleteMember(id);
       await reloadMembers();
+    }
+  };
+
+  const handleFirstTimerSubmit = async (formData: any) => {
+    const dbData: Record<string, any> = {
+      full_name: formData.fullName,
+      email: formData.email || null,
+      phone: formData.phone || null,
+      community: formData.community,
+      area: formData.area,
+      street: formData.street,
+      public_landmark: formData.publicLandmark || null,
+      service_date: formData.serviceDate,
+      first_visit: formData.firstVisit,
+      invited_by: formData.invitedBy || null,
+      branch_id: formData.branchId,
+      status: formData.status,
+      follow_up_status: formData.followUpStatus,
+      follow_up_notes: formData.followUpNotes || null,
+      notes: formData.notes || null,
+    };
+
+    let result;
+    if (editingFirstTimer?.id) {
+      result = await actions.updateFirstTimer(editingFirstTimer.id as string, dbData);
+    } else {
+      result = await actions.createFirstTimer(dbData);
+    }
+
+    if (result.success) {
+      setShowFirstTimerForm(false);
+      setEditingFirstTimer(null);
+      await reloadFirstTimers();
     }
   };
 
@@ -216,6 +267,21 @@ export const MemberManagementPage: React.FC = () => {
     }
   };
 
+  // Handle incoming navigation state
+  React.useEffect(() => {
+    const state = location.state as any;
+    if (state && (state.activeTab || state.openAddMember)) {
+      if (state.activeTab) {
+        filters.setActiveTab(state.activeTab);
+      }
+      if (state.openAddMember) {
+        setShowMemberForm(true);
+      }
+      // Clear state after handling to prevent re-opening on manual refreshes
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, filters, navigate, location.pathname]);
+
   const handleConvertSubmit = async (formData: ConvertFormData) => {
     // Transform to DB schema (similar to handleMemberSubmit but specific to converts)
     const dbData = {
@@ -265,7 +331,7 @@ export const MemberManagementPage: React.FC = () => {
     }
   };
 
-  const loading = membersLoading;
+  const loading = membersLoading || firstTimersLoading;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -311,14 +377,14 @@ export const MemberManagementPage: React.FC = () => {
           <Button
             onClick={() => setShowImportDialog(true)}
             variant="outline"
-            className="glass h-11 px-5 rounded-xl font-semibold border-primary/20 hover:bg-primary/5 transition-all text-xs"
+            className="bg-card h-11 px-5 rounded-xl font-semibold border-primary/20 hover:bg-primary/5 transition-all text-xs"
           >
             <ArrowDownToLine className="mr-2 h-4 w-4 text-primary" /> Import Matrix
           </Button>
           {filters.activeTab !== 'first_timers' && (
             <Button
               onClick={handleAddMember}
-              className="bg-vibrant-gradient h-11 px-6 rounded-xl font-bold text-white shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
+              className="bg-primary h-11 px-6 rounded-xl font-bold text-white shadow-md hover:bg-primary/90 transition-all text-xs"
             >
               {filters.activeTab === 'converts' ? (
                 <>
@@ -366,7 +432,7 @@ export const MemberManagementPage: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="glass border-primary/5 rounded-[2rem] overflow-hidden shadow-xl">
+        <div className="bg-card border border-primary/10 rounded-3xl overflow-hidden shadow-md">
           {filters.activeTab === 'disciples' ||
           filters.activeTab === 'leaders' ||
           filters.activeTab === 'converts' ? (
@@ -392,6 +458,7 @@ export const MemberManagementPage: React.FC = () => {
               firstTimers={filteredFirstTimers}
               selectedIds={selectedMemberIds}
               onSelectionChange={setSelectedMemberIds}
+              onView={handleViewFirstTimer}
               onEdit={handleEditFirstTimer}
               onDelete={handleDeleteFirstTimer}
               getBranchName={getBranchName}
@@ -434,10 +501,7 @@ export const MemberManagementPage: React.FC = () => {
         open={showFirstTimerForm}
         onOpenChange={setShowFirstTimerForm}
         firstTimer={editingFirstTimer}
-        onSubmit={async () => {
-          setShowFirstTimerForm(false);
-          await reloadFirstTimers();
-        }}
+        onSubmit={handleFirstTimerSubmit}
       />
 
       <MemberImportDialog

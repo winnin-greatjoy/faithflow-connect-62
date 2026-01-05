@@ -3,143 +3,215 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { QRCodeSVG } from 'qrcode.react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Download, Share2, MapPin, Phone, Mail, Calendar, ShieldCheck, Zap } from 'lucide-react';
+import { ShieldCheck, Download, Mail, Phone, MapPin, Building2, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
 import html2canvas from 'html2canvas';
-import { motion } from 'framer-motion';
 
 interface MembershipCardProps {
   member: any;
   branchName: string;
+  districtName?: string;
+  departments?: string[];
 }
 
-export const MembershipCard: React.FC<MembershipCardProps> = ({ member, branchName }) => {
+export const MembershipCard: React.FC<MembershipCardProps> = ({
+  member,
+  branchName,
+  districtName = 'Main District',
+  departments = [],
+}) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
-    const canvas = await html2canvas(cardRef.current, {
-      useCORS: true,
-      scale: 2,
-      backgroundColor: null,
-    });
-    const link = document.createElement('a');
-    link.download = `Membership_Card_${member.full_name.replace(/\s+/g, '_')}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+
+    // Snapshot Bridge: Temporarily force fixed dimensions for high-quality portrait capture
+    const originalWidth = cardRef.current.style.width;
+    const originalHeight = cardRef.current.style.height;
+    const originalAspect = cardRef.current.style.aspectRatio;
+
+    cardRef.current.style.width = '800px';
+    cardRef.current.style.height = '1100px';
+    cardRef.current.style.aspectRatio = 'auto';
+
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#ffffff',
+        logging: false,
+        allowTaint: true,
+      });
+
+      const link = document.createElement('a');
+      link.download = `Portrait_ID_Card_${member.full_name.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+    } catch (err) {
+      console.error('Failed to generate card image', err);
+    } finally {
+      cardRef.current.style.width = originalWidth;
+      cardRef.current.style.height = originalHeight;
+      cardRef.current.style.aspectRatio = originalAspect;
+    }
   };
 
   const verificationUrl = `${window.location.origin}/verify/member/${member.id}`;
 
+  const districtPrefix = districtName.substring(0, 3).toUpperCase();
+  const branchPrefix = branchName.substring(0, 3).toUpperCase();
+  const shortId = (member.id || '00000000').substring(0, 8).toUpperCase();
+  const formattedId = `${districtPrefix}-${branchPrefix}-${shortId}`;
+
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col items-center gap-8 w-full max-w-[400px] mx-auto">
+      {/* Vertical ID Card Container */}
       <div
         ref={cardRef}
-        className="relative w-[400px] h-[250px] rounded-[2rem] overflow-hidden shadow-2xl bg-[#0f172a] text-white p-6 font-sans group"
-        style={{
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-        }}
+        className="relative w-full aspect-[3/4.2] bg-white text-slate-900 overflow-hidden shadow-2xl rounded-2xl font-sans flex flex-col items-center border border-slate-100"
       >
-        {/* Abstract Background Ornaments */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-700" />
-        <div className="absolute -bottom-20 -left-10 w-52 h-52 bg-secondary/10 rounded-full blur-3xl group-hover:bg-secondary/20 transition-all duration-700" />
-
-        {/* Card Header Branding */}
-        <div className="flex justify-between items-start mb-4 relative z-10">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-vibrant-gradient flex items-center justify-center p-1.5 shadow-lg">
-              <Zap className="text-white fill-white h-full w-full" />
-            </div>
-            <div>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] leading-none opacity-80">
-                FaithFlow Connect
-              </h3>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-primary/80 mt-1">
-                {branchName}
-              </p>
-            </div>
+        {/* Geometric Header (Blue Chevron) */}
+        <div
+          className="absolute top-0 left-0 w-full h-[40%] bg-[#1e88e5] flex flex-col items-center pt-8 px-4"
+          style={{
+            clipPath: 'polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%)',
+          }}
+        >
+          <span className="text-white font-black text-sm tracking-[0.3em] uppercase opacity-90">
+            FaithFlow Connect
+          </span>
+          <div className="flex items-center gap-1.5 mt-2 opacity-60">
+            <Building2 className="w-3 h-3 text-white" />
+            <p className="text-white text-[9px] font-bold uppercase tracking-widest">
+              {branchName} • {districtName}
+            </p>
           </div>
-          <Badge
-            variant="secondary"
-            className="bg-white/5 text-white/60 border-none text-[8px] font-black uppercase tracking-widest px-2 h-5"
-          >
-            Member ID Card
-          </Badge>
         </div>
 
-        <div className="flex gap-6 mt-4 relative z-10">
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative">
-              <Avatar className="h-20 w-20 border-2 border-white/10 p-0.5 rounded-2xl shadow-xl">
+        {/* Lower Chevron (Footer) */}
+        <div
+          className="absolute bottom-0 left-0 w-full h-[12%] bg-[#1a1a1a]"
+          style={{
+            clipPath: 'polygon(0 25%, 50% 0, 100% 25%, 100% 100%, 0 100%)',
+          }}
+        />
+
+        {/* Content Overlay */}
+        <div className="relative z-10 w-full flex flex-col items-center pt-[22%] h-full pb-8">
+          {/* Square Avatar Container */}
+          <div className="relative w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center">
+            {/* Outer Square Border */}
+            <div className="absolute inset-0 bg-white rounded-2xl shadow-md border border-slate-100" />
+            {/* Profile Photo Square */}
+            <div className="absolute inset-2 overflow-hidden bg-slate-200 rounded-xl border border-slate-50">
+              <Avatar className="w-full h-full rounded-none">
                 <AvatarImage
-                  src={member.profile_photo || ''}
-                  className="rounded-2xl object-cover"
+                  src={member.profile_photo || member.profilePhoto || ''}
+                  className="w-full h-full object-cover"
+                  crossOrigin="anonymous"
                 />
-                <AvatarFallback className="bg-slate-800 text-white rounded-2xl text-xl font-black">
-                  {member.full_name
-                    ?.split(' ')
-                    .map((n: string) => n[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2)}
+                <AvatarFallback className="w-full h-full flex items-center justify-center bg-slate-300 text-slate-500 text-4xl font-black rounded-none">
+                  {member.full_name?.substring(0, 1).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="absolute -bottom-2 -right-2 bg-green-500 rounded-full p-1 border-4 border-[#121c31]">
-                <ShieldCheck className="h-3 w-3 text-white" />
-              </div>
-            </div>
-            <div className="bg-white p-1 rounded-lg">
-              <QRCodeSVG value={verificationUrl} size={42} level="H" includeMargin={false} />
             </div>
           </div>
 
-          <div className="flex-1 space-y-3">
-            <div>
-              <h2 className="text-lg font-serif font-black tracking-tight leading-none truncate w-[220px]">
-                {member.full_name}
-              </h2>
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1 opacity-60">
-                {member.membership_level || 'Member'}
-              </p>
-            </div>
+          {/* Name and Designation */}
+          <div className="mt-6 flex flex-col items-center px-6">
+            <h2 className="text-xl sm:text-2xl font-black text-[#1a1a1a] uppercase tracking-tighter text-center leading-tight">
+              {member.full_name}
+            </h2>
+            <span className="text-[10px] sm:text-[12px] font-bold text-[#1e88e5] uppercase tracking-[0.2em] mt-1 italic">
+              {member.membership_level || 'MEMBER'}
+            </span>
 
-            <div className="grid grid-cols-1 gap-1.5">
-              <div className="flex items-center gap-2 text-[10px] opacity-70">
-                <Zap className="h-3 w-3 text-primary" />
-                <span className="font-bold tracking-tight">
-                  ID: {member.id.substring(0, 8).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-[10px] opacity-70">
-                <Calendar className="h-3 w-3 text-primary" />
-                <span className="font-bold tracking-tight">
-                  Joined:{' '}
-                  {member.date_joined ? format(new Date(member.date_joined), 'MMM yyyy') : 'N/A'}
-                </span>
+            {/* Horizontal Line with Dots */}
+            <div className="mt-4 w-32 h-[2px] bg-slate-200 relative flex justify-center items-center">
+              <div className="flex gap-1 bg-white px-2">
+                <div className="w-1 h-1 rounded-full bg-slate-300" />
+                <div className="w-1 h-1 rounded-full bg-slate-300" />
+                <div className="w-1 h-1 rounded-full bg-slate-300" />
               </div>
             </div>
+          </div>
 
-            <div className="pt-2 border-t border-white/5 mt-2">
-              <div className="flex items-center gap-2 text-[8px] opacity-40 font-black uppercase tracking-[0.15em]">
-                Official Verified Persona
+          {/* Details List (Aligned like sample) */}
+          <div className="mt-6 w-full px-8 sm:px-12 space-y-2 sm:space-y-3">
+            <div className="flex items-baseline">
+              <span className="w-20 text-[9px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                ID No
+              </span>
+              <span className="mr-2 text-slate-400">:</span>
+              <span className="text-[10px] sm:text-[12px] font-mono font-bold text-slate-800">
+                {formattedId}
+              </span>
+            </div>
+            <div className="flex items-baseline">
+              <span className="w-20 text-[9px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Phone
+              </span>
+              <span className="mr-2 text-slate-400">:</span>
+              <span className="text-[10px] sm:text-[12px] font-bold text-slate-800">
+                {member.phone || 'N/A'}
+              </span>
+            </div>
+            <div className="flex items-baseline">
+              <span className="w-20 text-[9px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Email
+              </span>
+              <span className="mr-2 text-slate-400">:</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-slate-800 truncate flex-1">
+                {member.email || 'N/A'}
+              </span>
+            </div>
+            <div className="flex items-start">
+              <span className="w-20 text-[9px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mt-0.5">
+                Unit(s)
+              </span>
+              <span className="mr-2 text-slate-400">:</span>
+              <div className="flex flex-wrap gap-1">
+                {departments && departments.length > 0 ? (
+                  departments.map((dept, i) => (
+                    <span
+                      key={i}
+                      className="text-[8px] sm:text-[10px] font-black text-[#1e88e5] uppercase px-1.5 py-0.5 rounded-sm bg-blue-50 border border-blue-100 italic"
+                    >
+                      @{dept.replace(/\s+/g, '').toLowerCase()}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[10px] font-medium text-slate-300">No assigned units</span>
+                )}
               </div>
             </div>
+          </div>
+
+          {/* QR Code Watermark (Bottom Left Relative) */}
+          <div className="mt-auto mb-2 flex flex-col items-center opacity-30">
+            <QRCodeSVG value={verificationUrl} size={32} />
+            <span className="text-[6px] font-black uppercase tracking-tighter mt-1">
+              SECURED ID
+            </span>
           </div>
         </div>
-
-        {/* Glossy Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.02] to-white/[0.05] pointer-events-none" />
       </div>
 
-      <div className="flex gap-3">
+      {/* Action Buttons */}
+      <div className="flex flex-col gap-3 w-full">
         <Button
           onClick={handleDownload}
-          className="rounded-xl h-10 px-6 font-bold text-xs bg-vibrant-gradient border-none lg:hover:scale-105 transition-transform shadow-lg shadow-primary/20"
+          className="w-full bg-[#1e88e5] hover:bg-[#1976d2] text-white font-black h-14 rounded-2xl text-xs uppercase tracking-[0.2em] shadow-lg flex items-center justify-center gap-3 transition-all"
         >
-          <Download className="mr-2 h-4 w-4" /> Download Digital ID
+          <Download className="h-5 w-5" />
+          Download ID Card
         </Button>
+        <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest px-4">
+          Digital Membership Identity • Portrait High-Res Capture
+        </p>
       </div>
     </div>
   );
 };
+
+export default MembershipCard;

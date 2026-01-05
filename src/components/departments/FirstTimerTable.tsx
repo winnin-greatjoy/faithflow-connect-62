@@ -32,6 +32,7 @@ interface FirstTimerTableProps {
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
   onEdit: (firstTimer: FirstTimer) => void;
+  onView?: (id: string) => void;
   onDelete: (id: string) => void;
   getBranchName: (branchId: string) => string;
 }
@@ -41,6 +42,7 @@ export const FirstTimerTable: React.FC<FirstTimerTableProps> = ({
   selectedIds,
   onSelectionChange,
   onEdit,
+  onView,
   onDelete,
   getBranchName,
 }) => {
@@ -81,7 +83,7 @@ export const FirstTimerTable: React.FC<FirstTimerTableProps> = ({
 
   if (firstTimers.length === 0) {
     return (
-      <div className="text-center py-24 glass rounded-[2rem] border-primary/5">
+      <div className="text-center py-24 bg-card border border-primary/10 rounded-[2rem] shadow-sm">
         <div className="relative inline-block mb-4">
           <UserPlus className="h-16 w-16 text-primary opacity-20" />
           <Sparkles className="absolute -top-2 -right-2 h-6 w-6 text-primary opacity-40 animate-pulse" />
@@ -219,7 +221,7 @@ export const FirstTimerTable: React.FC<FirstTimerTableProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onEdit(ft)}
+                    onClick={() => onView?.(ft.id)}
                     className="h-8 w-8 rounded-lg hover:bg-primary/10 text-primary"
                     title="Examine History"
                   >

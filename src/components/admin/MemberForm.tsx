@@ -452,34 +452,34 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         <Tabs defaultValue="personal" className="w-full">
           <TabsList
             className={cn(
-              'glass p-1 h-14 rounded-2xl border-primary/5 gap-1 bg-white/40 dark:bg-black/20 grid w-full',
+              'bg-muted/30 p-1 h-14 rounded-2xl border border-primary/5 gap-1 grid w-full',
               showAdminRoleSelector ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'
             )}
           >
             <TabsTrigger
               value="personal"
-              className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:!text-blue-600 data-[state=active]:shadow-lg active:scale-95 flex items-center justify-center gap-2 hover:bg-primary/5 hover:text-primary"
+              className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md active:scale-95 flex items-center justify-center gap-2 hover:bg-primary/5 hover:text-primary"
             >
               <User className="h-3.5 w-3.5" />
               <span className="inline-block transition-colors">Personal</span>
             </TabsTrigger>
             <TabsTrigger
               value="church"
-              className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:!text-blue-600 data-[state=active]:shadow-lg active:scale-95 flex items-center justify-center gap-2 hover:bg-primary/5 hover:text-primary"
+              className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md active:scale-95 flex items-center justify-center gap-2 hover:bg-primary/5 hover:text-primary"
             >
               <Sparkles className="h-3.5 w-3.5" />
               <span className="inline-block transition-colors">Church Info</span>
             </TabsTrigger>
             <TabsTrigger
               value="account"
-              className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:!text-blue-600 data-[state=active]:shadow-lg active:scale-95 flex items-center justify-center gap-2 hover:bg-primary/5 hover:text-primary"
+              className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md active:scale-95 flex items-center justify-center gap-2 hover:bg-primary/5 hover:text-primary"
             >
               <Key className="h-3.5 w-3.5" />
               <span className="inline-block transition-colors">Account</span>
             </TabsTrigger>
             <TabsTrigger
               value="notes"
-              className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:!text-blue-600 data-[state=active]:shadow-lg active:scale-95 flex items-center justify-center gap-2 hover:bg-primary/5 hover:text-primary"
+              className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md active:scale-95 flex items-center justify-center gap-2 hover:bg-primary/5 hover:text-primary"
             >
               <FileText className="h-3.5 w-3.5" />
               <span className="inline-block transition-colors">Notes</span>
@@ -487,10 +487,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
             {showAdminRoleSelector && (
               <TabsTrigger
                 value="admin-role"
-                className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-amber-500 data-[state=active]:!text-blue-600 data-[state=active]:shadow-lg active:scale-95 flex items-center justify-center gap-2 hover:bg-amber-500/10 hover:text-amber-600"
+                className="rounded-xl px-2 sm:px-4 h-full font-bold text-[9px] sm:text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:shadow-md active:scale-95 flex items-center justify-center gap-2 hover:bg-amber-500/10 hover:text-amber-600"
               >
                 <Shield className="h-3.5 w-3.5" />
-                <span className="inline">Admin Role</span>
+                <span className="inline-block transition-colors">Admin Role</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -507,9 +507,9 @@ export const MemberForm: React.FC<MemberFormProps> = ({
             >
               <div className="flex flex-col items-center gap-4">
                 <div className="relative group p-1">
-                  <Avatar className="h-32 w-32 rounded-[2rem] ring-4 ring-primary/5 group-hover:ring-primary/20 transition-all duration-500 overflow-hidden shadow-xl">
+                  <Avatar className="h-32 w-32 rounded-[2rem] ring-4 ring-primary/5 group-hover:ring-primary/20 transition-all duration-500 overflow-hidden shadow-md">
                     <AvatarImage src={previewUrl || ''} className="object-cover" />
-                    <AvatarFallback className="bg-vibrant-gradient text-white text-3xl font-serif font-bold">
+                    <AvatarFallback className="bg-primary text-white text-3xl font-serif font-bold">
                       {(form.watch('fullName') || 'P').charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -517,7 +517,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                   {/* Floating Upload Icon Trigger via Label for better mobile support */}
                   <label
                     htmlFor="profile-upload"
-                    className="absolute -bottom-1 -right-1 h-11 w-11 rounded-2xl bg-vibrant-gradient text-white shadow-lg flex items-center justify-center border-4 border-white dark:border-zinc-950 z-10 transition-all hover:scale-110 active:scale-90 cursor-pointer hover:shadow-primary/40"
+                    className="absolute -bottom-1 -right-1 h-11 w-11 rounded-2xl bg-primary text-white shadow-md flex items-center justify-center border-4 border-white dark:border-zinc-950 z-10 transition-all hover:scale-110 active:scale-90 cursor-pointer hover:shadow-primary/40"
                   >
                     <Upload className={cn('h-5 w-5', isUploading && 'animate-bounce')} />
                   </label>
@@ -558,7 +558,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             <Input
                               placeholder="Enter full name"
                               {...field}
-                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                              className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                             />
                           </FormControl>
                           <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -580,7 +580,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             <Input
                               type="date"
                               {...field}
-                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                              className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                             />
                           </FormControl>
                           <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -598,10 +598,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                           </FormLabel>
                           <FormControl>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                              <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
-                              <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                              <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                                 <SelectItem value="male" className="font-medium">
                                   Male
                                 </SelectItem>
@@ -626,10 +626,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                           </FormLabel>
                           <FormControl>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                              <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
-                              <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                              <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                                 <SelectItem value="single" className="font-medium">
                                   Single
                                 </SelectItem>
@@ -664,7 +664,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             <Input
                               placeholder="Enter spouse full name"
                               {...field}
-                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                              className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                             />
                           </FormControl>
                           <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -699,7 +699,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                           type="email"
                           placeholder="email@domain.com"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -719,7 +719,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                         <Input
                           placeholder="+Country Code"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -739,7 +739,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                         <Input
                           placeholder="Enter community name"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -759,7 +759,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                         <Input
                           placeholder="Enter specific area"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -779,7 +779,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                         <Input
                           placeholder="House number and street"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -799,7 +799,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                         <Input
                           placeholder="Nearby recognizable feature"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -822,14 +822,14 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                   variant="outline"
                   type="button"
                   onClick={handleAddChild}
-                  className="glass border-primary/10 font-bold text-[10px] uppercase tracking-widest h-9 rounded-xl hover:bg-primary/5 transition-all text-xs"
+                  className="bg-card border border-primary/10 font-bold text-[10px] uppercase tracking-widest h-9 rounded-xl hover:bg-primary/5 transition-all text-xs shadow-sm"
                 >
                   <Plus className="mr-2 h-3.5 w-3.5" /> Add Child
                 </Button>
               </div>
 
               {fields.length === 0 && (
-                <div className="glass border-dashed border-primary/10 rounded-2xl p-8 text-center bg-primary/[0.02]">
+                <div className="bg-muted/40 border border-dashed border-primary/10 rounded-2xl p-8 text-center bg-primary/[0.02]">
                   <p className="text-sm font-medium text-muted-foreground opacity-60">
                     No children records added
                   </p>
@@ -842,9 +842,9 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                     key={f.id}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="glass border-primary/5 rounded-2xl p-6 relative group overflow-hidden"
+                    className="bg-card border border-primary/5 rounded-2xl p-6 relative group overflow-hidden shadow-sm"
                   >
-                    <div className="absolute top-0 left-0 w-1 h-full bg-vibrant-gradient opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
 
                     <div className="flex justify-between items-center mb-6">
                       <div className="flex items-center gap-3">
@@ -879,7 +879,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                               <Input
                                 placeholder="Child Name"
                                 {...field}
-                                className="glass h-10 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                                className="bg-card h-10 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm"
                               />
                             </FormControl>
                             <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -899,7 +899,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                               <Input
                                 type="date"
                                 {...field}
-                                className="glass h-10 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                                className="bg-card h-10 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm"
                               />
                             </FormControl>
                             <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -917,10 +917,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             </FormLabel>
                             <FormControl>
                               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger className="glass h-10 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                                <SelectTrigger className="bg-card h-10 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm">
                                   <SelectValue placeholder="Select" />
                                 </SelectTrigger>
-                                <SelectContent className="glass border-primary/10 rounded-xl">
+                                <SelectContent className="bg-card border border-primary/10 rounded-xl shadow-lg">
                                   <SelectItem value="male" className="font-medium">
                                     Male
                                   </SelectItem>
@@ -947,7 +947,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                               <Input
                                 placeholder="Extra data"
                                 {...field}
-                                className="glass h-10 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                                className="bg-card h-10 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm"
                               />
                             </FormControl>
                             <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -994,10 +994,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             value={field.value}
                             disabled={!canSwitchBranch && !!effectiveBranchId}
                           >
-                            <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium disabled:opacity-50">
+                            <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/5 focus:ring-primary/20 font-medium disabled:opacity-50">
                               <SelectValue placeholder="Select operational unit" />
                             </SelectTrigger>
-                            <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                            <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                               {branches.map((b) => (
                                 <SelectItem key={b.id} value={b.id}>
                                   {b.name}
@@ -1023,7 +1023,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                           <Input
                             type="date"
                             {...field}
-                            className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                            className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                           />
                         </FormControl>
                         <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -1055,10 +1055,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             onValueChange={field.onChange}
                             defaultValue={field.value || 'baptized'}
                           >
-                            <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                            <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all">
                               <SelectValue placeholder="Select level" />
                             </SelectTrigger>
-                            <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                            <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                               <SelectItem value="baptized" className="font-medium">
                                 Baptized
                               </SelectItem>
@@ -1120,10 +1120,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                           </FormLabel>
                           <FormControl>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                              <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all">
                                 <SelectValue placeholder="Select sub-level" />
                               </SelectTrigger>
-                              <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                              <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                                 <SelectItem value="disciple" className="font-medium">
                                   Disciple
                                 </SelectItem>
@@ -1152,10 +1152,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             </FormLabel>
                             <FormControl>
                               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                                <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all">
                                   <SelectValue placeholder="Select role" />
                                 </SelectTrigger>
-                                <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                                <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                                   <SelectItem value="pastor" className="font-medium">
                                     Pastor
                                   </SelectItem>
@@ -1189,7 +1189,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             <Input
                               type="date"
                               {...field}
-                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                              className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                             />
                           </FormControl>
                           <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -1209,7 +1209,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             <Input
                               placeholder="Enter officiator name"
                               {...field}
-                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                              className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                             />
                           </FormControl>
                           <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -1229,7 +1229,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             <Input
                               placeholder="Enter mentor name"
                               {...field}
-                              className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                              className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all"
                             />
                           </FormControl>
                           <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -1253,7 +1253,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
               className="space-y-8"
             >
               {watchedMembershipLevel !== 'baptized' ? (
-                <div className="glass border-amber-500/10 rounded-2xl p-8 bg-amber-500/[0.02] border-dashed text-center">
+                <div className="bg-muted/40 border border-amber-500/10 rounded-2xl p-8 bg-amber-500/[0.02] border-dashed text-center">
                   <div className="h-12 w-12 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
                     <Shield className="h-6 w-6 text-amber-500" />
                   </div>
@@ -1267,7 +1267,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                   </p>
                 </div>
               ) : (
-                <div className="glass border-primary/5 rounded-2xl p-8 bg-primary/[0.02]">
+                <div className="bg-muted/40 border border-primary/5 rounded-2xl p-8 bg-primary/[0.02]">
                   <FormField
                     control={form.control}
                     name="createAccount"
@@ -1277,7 +1277,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                           <Checkbox
                             checked={field.value}
                             onCheckedChange={field.onChange}
-                            className="h-5 w-5 rounded-lg border-primary/20 data-[state=checked]:bg-vibrant-gradient data-[state=checked]:border-transparent"
+                            className="h-5 w-5 rounded-lg border-primary/20 data-[state=checked]:bg-primary data-[state=checked]:border-transparent"
                           />
                         </FormControl>
                         <div className="space-y-1">
@@ -1313,7 +1313,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                                   type="email"
                                   placeholder="member@domain.com"
                                   {...field}
-                                  className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                                  className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                                 />
                               </FormControl>
                               <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -1334,7 +1334,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                                   type="password"
                                   placeholder="Minimum 8 characters"
                                   {...field}
-                                  className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                                  className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                                 />
                               </FormControl>
                               <FormMessage className="text-[10px] uppercase font-bold tracking-widest" />
@@ -1347,7 +1347,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                 </div>
               )}
 
-              <div className="glass border-primary/5 rounded-2xl p-6 bg-vibrant-gradient/5">
+              <div className="bg-muted/40 border border-primary/5 rounded-2xl p-6 bg-primary/5">
                 <h4 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   Ecosystem Privileges
@@ -1391,7 +1391,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                     <FormControl>
                       <Textarea
                         placeholder="Detail specific spiritual requirements..."
-                        className="glass min-h-[150px] rounded-2xl border-primary/5 focus:ring-primary/20 font-medium resize-none shadow-inner p-4"
+                        className="bg-card min-h-[150px] rounded-2xl border border-primary/5 focus:ring-primary/20 font-medium resize-none shadow-inner p-4"
                         {...field}
                       />
                     </FormControl>
@@ -1414,7 +1414,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                     <FormControl>
                       <Textarea
                         placeholder="Enter highly sensitive pastoral data..."
-                        className="glass min-h-[150px] rounded-2xl border-rose-500/10 focus:ring-rose-500/20 font-medium border-dashed bg-rose-500/[0.02] resize-none shadow-inner p-4"
+                        className="bg-card min-h-[150px] rounded-2xl border border-rose-500/10 focus:ring-rose-500/20 font-medium border-dashed bg-rose-500/[0.02] resize-none shadow-inner p-4"
                         {...field}
                       />
                     </FormControl>
@@ -1440,7 +1440,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-8"
               >
-                <div className="glass border-purple-500/20 rounded-2xl p-6 bg-purple-500/[0.03] flex items-start gap-4">
+                <div className="bg-muted/40 border border-purple-500/20 rounded-2xl p-6 bg-purple-500/[0.03] flex items-start gap-4">
                   <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
                     <Shield className="h-5 w-5 text-purple-500" />
                   </div>
@@ -1459,7 +1459,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                   control={form.control}
                   name="assignAdminRole"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-4 space-y-0 glass border-primary/5 p-6 rounded-2xl hover:bg-primary/5 transition-all">
+                    <FormItem className="flex flex-row items-start space-x-4 space-y-0 bg-muted/40 border border-primary/5 p-6 rounded-2xl hover:bg-primary/5 transition-all">
                       <FormControl>
                         <Checkbox
                           checked={field.value}
@@ -1467,7 +1467,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                             field.onChange(checked);
                             if (checked) form.setValue('createAccount', true);
                           }}
-                          className="h-6 w-6 rounded-lg border-primary/20 data-[state=checked]:bg-vibrant-gradient data-[state=checked]:border-transparent mt-1"
+                          className="h-6 w-6 rounded-lg border-primary/20 data-[state=checked]:bg-primary data-[state=checked]:border-transparent mt-1"
                         />
                       </FormControl>
                       <div className="space-y-1">
@@ -1503,11 +1503,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                               defaultValue={defaultAdminRole || field.value}
                             >
                               <FormControl>
-                                <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                                <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all">
                                   <SelectValue placeholder="Select rank" />
                                 </SelectTrigger>
                               </FormControl>
-                              <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                              <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                                 <SelectItem value="super_admin" className="font-medium">
                                   Super Admin (System Core)
                                 </SelectItem>
@@ -1546,11 +1546,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                                 </FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl>
-                                    <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                                    <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all">
                                       <SelectValue placeholder="Select district" />
                                     </SelectTrigger>
                                   </FormControl>
-                                  <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                                  <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                                     {districts.map((district) => (
                                       <SelectItem key={district.id} value={district.id}>
                                         {district.name}
@@ -1579,11 +1579,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                                   value={field.value || form.watch('branchId')}
                                 >
                                   <FormControl>
-                                    <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                                    <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium shadow-sm transition-all">
                                       <SelectValue placeholder="Select branch" />
                                     </SelectTrigger>
                                   </FormControl>
-                                  <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                                  <SelectContent className="bg-card border-primary/10 shadow-sm transition-all">
                                     {branches.map((branch) => (
                                       <SelectItem key={branch.id} value={branch.id}>
                                         {branch.name}
@@ -1620,13 +1620,13 @@ export const MemberForm: React.FC<MemberFormProps> = ({
               variant="outline"
               type="button"
               onClick={onCancel}
-              className="glass border-primary/10 font-bold text-[10px] uppercase tracking-widest h-12 px-8 rounded-xl hover:bg-primary/5 transition-all w-full sm:w-auto"
+              className="bg-card border border-primary/10 font-bold text-[10px] uppercase tracking-widest h-12 px-8 rounded-xl hover:bg-primary/5 transition-all w-full sm:w-auto shadow-sm"
             >
               Abort
             </Button>
             <Button
               type="submit"
-              className="bg-vibrant-gradient text-white border-none font-bold text-[10px] uppercase tracking-widest h-12 px-10 rounded-xl hover:opacity-90 transition-all shadow-lg active:scale-95 w-full sm:w-auto"
+              className="bg-primary text-white border-none font-bold text-[10px] uppercase tracking-widest h-12 px-10 rounded-xl hover:bg-primary/90 transition-all shadow-lg active:scale-95 w-full sm:w-auto"
             >
               {member ? 'Finalize Changes' : 'Initialize Identity'}
             </Button>

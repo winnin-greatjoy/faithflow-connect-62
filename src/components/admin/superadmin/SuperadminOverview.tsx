@@ -129,7 +129,7 @@ export const SuperadminOverview: React.FC = () => {
   if (isLoading || !data) {
     return (
       <div className="flex flex-col items-center justify-center py-20 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 blur-[100px] rounded-full" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full" />
         <Loader2 className="h-12 w-12 animate-spin text-primary opacity-50 relative z-10" />
         <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground animate-pulse relative z-10">
           Aggregating Global Data...
@@ -151,7 +151,7 @@ export const SuperadminOverview: React.FC = () => {
         className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
       >
         <div className="flex items-center gap-5">
-          <div className="w-16 h-16 rounded-[2rem] bg-vibrant-gradient flex items-center justify-center relative shadow-xl shadow-primary/20 group hover:rotate-6 transition-transform">
+          <div className="w-16 h-16 rounded-[1.5rem] bg-primary flex items-center justify-center relative shadow-xl shadow-primary/20 group hover:rotate-6 transition-transform">
             <Globe className="h-8 w-8 text-white" />
             <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-4 border-background animate-pulse" />
           </div>
@@ -176,7 +176,7 @@ export const SuperadminOverview: React.FC = () => {
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
-            className="glass border-primary/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-12 px-8 hover:bg-primary/5"
+            className="bg-card border border-primary/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-12 px-8 hover:bg-primary/5 shadow-sm"
             asChild
           >
             <Link to="/superadmin/audit">Security Audit</Link>
@@ -242,7 +242,7 @@ export const SuperadminOverview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* District Health Section */}
         <motion.div variants={itemVariants} className="lg:col-span-2">
-          <Card className="glass dark:bg-black/20 border-primary/5 shadow-xl overflow-hidden rounded-[2rem]">
+          <Card className="bg-card border border-primary/10 shadow-xl overflow-hidden rounded-[2rem]">
             <CardHeader className="bg-primary/[0.02] border-b border-primary/5 p-8 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-2xl font-serif">Network Integrity</CardTitle>
@@ -294,7 +294,7 @@ export const SuperadminOverview: React.FC = () => {
           {/* Alerts Card */}
           <Card
             className={cn(
-              'glass transition-all shadow-xl overflow-hidden border-primary/5 rounded-[2rem]',
+              'bg-card shadow-xl overflow-hidden border border-primary/10 rounded-[2rem]',
               data.alerts.length > 0 ? 'ring-2 ring-amber-500/20' : ''
             )}
           >
@@ -353,7 +353,7 @@ export const SuperadminOverview: React.FC = () => {
           </Card>
 
           {/* Core Handlers */}
-          <Card className="glass border-primary/5 shadow-xl rounded-[2rem]">
+          <Card className="bg-card border border-primary/10 shadow-xl rounded-[2rem]">
             <CardHeader className="p-8 border-b border-primary/5">
               <CardTitle className="text-xl font-serif">Quick Protocols</CardTitle>
             </CardHeader>
@@ -389,7 +389,7 @@ export const SuperadminOverview: React.FC = () => {
 const KPICard = ({ title, value, icon: Icon, color, gradient, subtitle, link }: any) => (
   <motion.div variants={itemVariants} whileHover={{ y: -5 }}>
     <Link to={link}>
-      <Card className="glass border-primary/5 hover-glow overflow-hidden relative group h-full cursor-pointer transition-all rounded-3xl">
+      <Card className="bg-card border border-primary/10 hover-glow overflow-hidden relative group h-full cursor-pointer transition-all rounded-3xl shadow-sm">
         <div
           className={cn(
             'absolute inset-0 bg-gradient-to-br opacity-50 group-hover:opacity-70 transition-opacity',

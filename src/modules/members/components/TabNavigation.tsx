@@ -15,34 +15,34 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabCh
       onValueChange={(value) => onTabChange(value as TabType)}
       className="w-full"
     >
-      <TabsList className="glass p-1 h-12 rounded-xl border-primary/5 gap-1 mb-2 bg-white/40 dark:bg-black/20">
+      <TabsList className="bg-muted/30 p-1 h-12 rounded-xl border border-primary/5 gap-1 mb-2">
         <TabsTrigger
           value="all"
-          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
         >
           All Members
         </TabsTrigger>
         <TabsTrigger
           value="workers"
-          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
         >
           Workers
         </TabsTrigger>
         <TabsTrigger
           value="disciples"
-          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
         >
           Disciples
         </TabsTrigger>
         <TabsTrigger
           value="leaders"
-          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
         >
           Leaders
         </TabsTrigger>
         <TabsTrigger
           value="pastors"
-          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-vibrant-gradient data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
         >
           Pastors
         </TabsTrigger>

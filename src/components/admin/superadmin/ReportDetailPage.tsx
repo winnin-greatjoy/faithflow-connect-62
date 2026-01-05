@@ -260,7 +260,7 @@ export const ReportDetailPage: React.FC<ReportDetailPageProps> = ({ reportId: pr
             Back to Analytics
           </Button>
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-3xl bg-vibrant-gradient flex items-center justify-center shadow-xl shadow-primary/20">
+            <div className="h-14 w-14 rounded-3xl bg-primary flex items-center justify-center shadow-xl shadow-primary/20">
               <BarChart3 className="h-7 w-7 text-white" />
             </div>
             <div>
@@ -298,7 +298,7 @@ export const ReportDetailPage: React.FC<ReportDetailPageProps> = ({ reportId: pr
           <Button
             onClick={handleGenerateAI}
             disabled={isGeneratingAI}
-            className="h-12 px-6 rounded-2xl bg-vibrant-gradient font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all"
+            className="h-12 px-6 rounded-2xl bg-primary hover:bg-primary/90 font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-primary/20 transition-all text-white"
           >
             {isGeneratingAI ? (
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -312,7 +312,7 @@ export const ReportDetailPage: React.FC<ReportDetailPageProps> = ({ reportId: pr
 
       <div id="report-print-container" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Chart Card */}
-        <Card className="lg:col-span-2 glass border-primary/5 rounded-[2.5rem] shadow-2xl overflow-hidden">
+        <Card className="lg:col-span-2 bg-card border border-primary/10 rounded-[2.5rem] shadow-2xl overflow-hidden">
           <CardHeader className="p-10 pb-0">
             <div className="flex justify-between items-center">
               <div>
@@ -473,8 +473,8 @@ export const ReportDetailPage: React.FC<ReportDetailPageProps> = ({ reportId: pr
                 animate={{ opacity: 1, scale: 1 }}
                 className="relative"
               >
-                <Card className="glass border-primary/20 bg-primary/[0.02] rounded-[2.5rem] shadow-xl overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1.5 bg-vibrant-gradient" />
+                <Card className="bg-card border border-primary/20 bg-primary/[0.02] rounded-[2.5rem] shadow-xl overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1.5 bg-primary" />
                   <CardHeader className="p-8 pb-4">
                     <CardTitle className="text-lg font-serif flex items-center gap-3">
                       <Zap className="h-5 w-5 text-primary" />
@@ -495,7 +495,7 @@ export const ReportDetailPage: React.FC<ReportDetailPageProps> = ({ reportId: pr
                 </Card>
               </motion.div>
             ) : (
-              <Card className="glass border-primary/5 rounded-[2.5rem] shadow-xl p-10 flex flex-col items-center justify-center text-center space-y-4 min-h-[250px]">
+              <Card className="bg-card border border-primary/10 rounded-[2.5rem] shadow-xl p-10 flex flex-col items-center justify-center text-center space-y-4 min-h-[250px]">
                 <Sparkles className="h-10 w-10 text-primary opacity-20 animate-pulse" />
                 <div>
                   <h3 className="text-base font-serif font-black">AI Analysis Pending</h3>
@@ -515,7 +515,7 @@ export const ReportDetailPage: React.FC<ReportDetailPageProps> = ({ reportId: pr
             )}
           </AnimatePresence>
 
-          <Card className="glass border-primary/5 rounded-[2.5rem] shadow-xl">
+          <Card className="bg-card border border-primary/10 rounded-[2.5rem] shadow-xl">
             <CardHeader className="p-8 pb-4">
               <CardTitle className="text-lg font-serif">Quick Metrics</CardTitle>
             </CardHeader>
@@ -559,7 +559,7 @@ export const ReportDetailPage: React.FC<ReportDetailPageProps> = ({ reportId: pr
       </div>
 
       {/* Raw Data Table */}
-      <Card className="glass border-primary/5 rounded-[2.5rem] shadow-2xl overflow-hidden">
+      <Card className="bg-card border border-primary/10 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <CardHeader className="p-10 pb-0">
           <CardTitle className="text-xl font-serif">Consolidated Roster Matrix</CardTitle>
           <CardDescription className="text-xs uppercase font-bold tracking-widest opacity-40">

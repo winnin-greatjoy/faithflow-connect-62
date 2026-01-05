@@ -40,15 +40,15 @@ export const ConvertFormDialog: React.FC<ConvertFormDialogProps> = ({
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="glass border-primary/10 rounded-[32px] overflow-hidden shadow-2xl relative"
+              className="bg-card border border-primary/10 rounded-[32px] overflow-hidden shadow-2xl relative"
             >
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-vibrant-gradient" />
+              <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
 
               <div className="p-8">
                 <DialogHeader className="mb-8">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-2xl bg-vibrant-gradient flex items-center justify-center shadow-lg shadow-primary/20">
+                      <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-md">
                         <Sparkles className="h-6 w-6 text-white" />
                       </div>
                       <div className="text-left">

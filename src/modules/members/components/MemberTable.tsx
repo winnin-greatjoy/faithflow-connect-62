@@ -106,7 +106,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
 
   if (members.length === 0) {
     return (
-      <div className="text-center py-24 glass rounded-[2rem] border-primary/5">
+      <div className="text-center py-24 bg-card border border-primary/10 rounded-3xl shadow-sm">
         <div className="relative inline-block mb-4">
           <Users className="h-16 w-16 text-primary opacity-20" />
           <Sparkles className="absolute -top-2 -right-2 h-6 w-6 text-primary opacity-40 animate-pulse" />

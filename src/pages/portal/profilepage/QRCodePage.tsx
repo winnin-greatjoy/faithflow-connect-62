@@ -62,7 +62,7 @@ export const QRCodePage: React.FC = () => {
         </CardHeader>
         <CardContent className="flex flex-col items-center space-y-6">
           <div className="bg-white p-8 rounded-[2rem] border-2 border-primary/5 shadow-2xl relative overflow-hidden group">
-            <div className="absolute inset-0 bg-vibrant-gradient opacity-[0.03]" />
+            <div className="absolute inset-0 bg-primary opacity-[0.03]" />
             <div ref={qrRef} className="relative z-10 bg-white p-4 rounded-xl">
               {user ? (
                 <QRCodeSVG

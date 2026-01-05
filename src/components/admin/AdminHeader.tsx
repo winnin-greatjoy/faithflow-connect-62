@@ -260,7 +260,7 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
   };
 
   return (
-    <header className="sticky top-0 z-30 glass dark:bg-black/30 border-b border-primary/5 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 backdrop-blur-2xl">
+    <header className="sticky top-0 z-30 bg-white dark:bg-card border-b border-border px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
       <div className="flex items-center justify-between gap-6">
         {/* Mobile menu toggle + Logo area */}
         <div className="flex items-center gap-4">
@@ -268,18 +268,18 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
             variant="ghost"
             size="icon"
             onClick={onMenuToggle}
-            className="lg:hidden p-2 rounded-xl hover:bg-primary/10 text-primary transition-colors"
+            className="lg:hidden p-2 rounded-xl hover:bg-muted text-primary transition-colors"
           >
             <Menu className="w-6 h-6" />
           </Button>
 
-          {isSuperadmin && !isPortalMode && (
+          {isSuperadmin && !isPortalMode ? (
             <div className="hidden lg:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-[240px] h-11 glass border-primary/20 text-foreground justify-between rounded-xl hover:bg-primary/5 transition-all px-4"
+                    className="w-[240px] h-11 bg-white dark:bg-muted/10 border-border text-foreground justify-between rounded-xl hover:bg-muted transition-all px-4"
                   >
                     <div className="flex items-center gap-3 truncate">
                       <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
@@ -292,11 +292,11 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-[280px] glass p-2 rounded-2xl shadow-xl"
+                  className="w-[280px] bg-white dark:bg-card p-2 rounded-2xl shadow-xl border-border"
                 >
                   <DropdownMenuItem
                     onClick={() => setSelectedBranchId(null)}
-                    className="font-bold text-primary p-3 rounded-xl focus:bg-primary/10"
+                    className="font-bold text-primary p-3 rounded-xl focus:bg-muted"
                   >
                     <Home className="w-4 h-4 mr-2" />
                     Global Headquarters
@@ -305,10 +305,10 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
 
                   {(districtTree?.districts || []).map((d) => (
                     <DropdownMenuSub key={d.id}>
-                      <DropdownMenuSubTrigger className="p-3 rounded-xl focus:bg-primary/5 font-semibold">
+                      <DropdownMenuSubTrigger className="p-3 rounded-xl focus:bg-muted font-semibold">
                         {d.name}
                       </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-[260px] glass p-2 rounded-2xl border-primary/10">
+                      <DropdownMenuSubContent className="w-[260px] bg-white dark:bg-card p-2 rounded-2xl border-border">
                         {(branchesByDistrict.map.get(d.id) || []).length === 0 ? (
                           <DropdownMenuItem disabled className="text-xs p-3">
                             No branches found
@@ -330,6 +330,18 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          ) : (
+            selectedBranchId && (
+              <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-muted/30 rounded-xl border border-border">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-sm font-bold text-foreground">
+                  {branchName || 'Branch Administration'}
+                </span>
+                <Badge variant="outline" className="text-[10px] h-5 uppercase tracking-tighter">
+                  Branch Active
+                </Badge>
+              </div>
+            )
           )}
 
           {isPortalMode &&
@@ -341,13 +353,16 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      className="h-11 glass border-primary/20 justify-between w-[240px] rounded-xl px-4 font-bold"
+                      className="h-11 bg-white dark:bg-muted/10 border-border justify-between w-[240px] rounded-xl px-4 font-bold"
                     >
                       <span className="truncate">{branchName || 'Select Branch'}</span>
                       <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[260px] glass p-2 rounded-2xl">
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-[260px] bg-white dark:bg-card p-2 rounded-2xl border-border shadow-xl"
+                  >
                     <DropdownMenuLabel className="px-3 pb-2 text-xs uppercase tracking-widest text-muted-foreground">
                       District Network
                     </DropdownMenuLabel>
@@ -375,7 +390,7 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
             </div>
             <Input
               placeholder="Search administration..."
-              className="pl-12 h-12 glass border-primary/5 focus:border-primary/30 rounded-2xl text-base shadow-inner transition-all"
+              className="pl-12 h-12 bg-white dark:bg-muted/10 border-border focus:border-primary/30 rounded-2xl text-base shadow-sm transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -390,7 +405,7 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative w-10 h-10 rounded-xl hover:bg-primary/10 text-primary transition-all"
+                className="relative w-10 h-10 rounded-xl hover:bg-muted text-primary transition-all"
                 aria-label="Notifications"
               >
                 <Bell className="w-5 h-5" />
@@ -403,9 +418,9 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="w-80 glass p-0 rounded-2xl shadow-2xl border-primary/10 overflow-hidden"
+              className="w-80 bg-white dark:bg-card p-0 rounded-2xl shadow-2xl border-border overflow-hidden"
             >
-              <div className="p-4 bg-primary/5 border-b border-primary/5 flex justify-between items-center">
+              <div className="p-4 bg-muted/30 border-b border-border flex justify-between items-center">
                 <span className="font-bold text-sm">Notifications</span>
                 <Button
                   variant="ghost"
@@ -421,7 +436,7 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className="p-4 hover:bg-primary/[0.02] border-b border-primary/5 last:border-0 cursor-pointer"
+                      className="p-4 hover:bg-muted/30 border-b border-border last:border-0 cursor-pointer"
                     >
                       <p className="text-sm font-semibold">{n.text}</p>
                       <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
@@ -442,8 +457,8 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
           {/* User Profile */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 p-1 rounded-xl hover:bg-primary/5 transition-all border border-transparent hover:border-primary/10 group">
-                <div className="w-10 h-10 rounded-xl bg-vibrant-gradient flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+              <button className="flex items-center gap-3 p-1 rounded-xl hover:bg-muted transition-all border border-transparent hover:border-border group">
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-md transition-transform">
                   <User className="w-5 h-5" />
                 </div>
                 <div className="hidden lg:block text-left mr-2">
@@ -458,7 +473,7 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="w-64 glass p-2 rounded-2xl shadow-2xl border-primary/10 mt-2"
+              className="w-64 bg-white dark:bg-card p-2 rounded-2xl shadow-2xl border-border mt-2"
             >
               <div className="px-4 py-4 mb-2">
                 <p className="font-serif font-bold text-lg leading-tight truncate">{user?.email}</p>

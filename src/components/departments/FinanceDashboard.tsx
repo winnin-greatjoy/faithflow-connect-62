@@ -22,10 +22,16 @@ import {
   ArrowLeft,
   Receipt,
   TrendingDown,
-  Calculator
+  Calculator,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -72,35 +78,208 @@ const mockFinanceStats = {
   monthlyExpenses: 8200,
   monthlyGrowth: 12,
   budgetUtilization: 68,
-  pendingApprovals: 3
+  pendingApprovals: 3,
 };
 
 const mockFinanceMembers: FinanceMember[] = [
-  { id: 1, name: 'David Brown', role: 'Finance Director', status: 'active', joinDate: '2019-01-15', email: 'david@example.com', phone: '555-0401', specialization: 'Budgeting', transactionsProcessed: 245, accuracyRate: 99.8 },
-  { id: 2, name: 'Sarah Johnson', role: 'Treasurer', status: 'active', joinDate: '2020-06-20', email: 'sarah@example.com', phone: '555-0402', specialization: 'Reporting', transactionsProcessed: 189, accuracyRate: 99.5 },
-  { id: 3, name: 'Michael Wilson', role: 'Bookkeeper', status: 'active', joinDate: '2021-03-10', email: 'michael@example.com', phone: '555-0403', specialization: 'Accounts Payable', transactionsProcessed: 156, accuracyRate: 99.2 },
-  { id: 4, name: 'Lisa Davis', role: 'Financial Secretary', status: 'active', joinDate: '2022-09-05', email: 'lisa@example.com', phone: '555-0404', specialization: 'Accounts Receivable', transactionsProcessed: 98, accuracyRate: 98.9 },
-  { id: 5, name: 'Robert Smith', role: 'Audit Assistant', status: 'active', joinDate: '2023-02-12', email: 'robert@example.com', phone: '555-0405', specialization: 'Compliance', transactionsProcessed: 67, accuracyRate: 100 }
+  {
+    id: 1,
+    name: 'David Brown',
+    role: 'Finance Director',
+    status: 'active',
+    joinDate: '2019-01-15',
+    email: 'david@example.com',
+    phone: '555-0401',
+    specialization: 'Budgeting',
+    transactionsProcessed: 245,
+    accuracyRate: 99.8,
+  },
+  {
+    id: 2,
+    name: 'Sarah Johnson',
+    role: 'Treasurer',
+    status: 'active',
+    joinDate: '2020-06-20',
+    email: 'sarah@example.com',
+    phone: '555-0402',
+    specialization: 'Reporting',
+    transactionsProcessed: 189,
+    accuracyRate: 99.5,
+  },
+  {
+    id: 3,
+    name: 'Michael Wilson',
+    role: 'Bookkeeper',
+    status: 'active',
+    joinDate: '2021-03-10',
+    email: 'michael@example.com',
+    phone: '555-0403',
+    specialization: 'Accounts Payable',
+    transactionsProcessed: 156,
+    accuracyRate: 99.2,
+  },
+  {
+    id: 4,
+    name: 'Lisa Davis',
+    role: 'Financial Secretary',
+    status: 'active',
+    joinDate: '2022-09-05',
+    email: 'lisa@example.com',
+    phone: '555-0404',
+    specialization: 'Accounts Receivable',
+    transactionsProcessed: 98,
+    accuracyRate: 98.9,
+  },
+  {
+    id: 5,
+    name: 'Robert Smith',
+    role: 'Audit Assistant',
+    status: 'active',
+    joinDate: '2023-02-12',
+    email: 'robert@example.com',
+    phone: '555-0405',
+    specialization: 'Compliance',
+    transactionsProcessed: 67,
+    accuracyRate: 100,
+  },
 ];
 
 const mockTransactions: Transaction[] = [
-  { id: 1, type: 'income', category: 'Tithes', description: 'Sunday Service Collection', amount: 3500, date: '2024-01-28', approvedBy: 'David Brown', status: 'completed' },
-  { id: 2, type: 'expense', category: 'Utilities', description: 'Electricity Bill - January', amount: -850, date: '2024-01-27', approvedBy: 'Sarah Johnson', status: 'completed' },
-  { id: 3, type: 'income', category: 'Offerings', description: 'Special Missions Offering', amount: 1200, date: '2024-01-25', approvedBy: 'David Brown', status: 'completed' },
-  { id: 4, type: 'expense', category: 'Maintenance', description: 'Building Repairs', amount: -2100, date: '2024-01-24', status: 'pending' },
-  { id: 5, type: 'income', category: 'Donations', description: 'Anonymous Donation', amount: 500, date: '2024-01-23', approvedBy: 'Sarah Johnson', status: 'completed' },
-  { id: 6, type: 'expense', category: 'Supplies', description: 'Office Supplies', amount: -150, date: '2024-01-22', approvedBy: 'Michael Wilson', status: 'completed' },
-  { id: 7, type: 'expense', category: 'Ministry', description: 'Youth Ministry Budget', amount: -800, date: '2024-01-21', status: 'pending' },
-  { id: 8, type: 'income', category: 'Events', description: 'Concert Ticket Sales', amount: 750, date: '2024-01-20', approvedBy: 'Lisa Davis', status: 'completed' }
+  {
+    id: 1,
+    type: 'income',
+    category: 'Tithes',
+    description: 'Sunday Service Collection',
+    amount: 3500,
+    date: '2024-01-28',
+    approvedBy: 'David Brown',
+    status: 'completed',
+  },
+  {
+    id: 2,
+    type: 'expense',
+    category: 'Utilities',
+    description: 'Electricity Bill - January',
+    amount: -850,
+    date: '2024-01-27',
+    approvedBy: 'Sarah Johnson',
+    status: 'completed',
+  },
+  {
+    id: 3,
+    type: 'income',
+    category: 'Offerings',
+    description: 'Special Missions Offering',
+    amount: 1200,
+    date: '2024-01-25',
+    approvedBy: 'David Brown',
+    status: 'completed',
+  },
+  {
+    id: 4,
+    type: 'expense',
+    category: 'Maintenance',
+    description: 'Building Repairs',
+    amount: -2100,
+    date: '2024-01-24',
+    status: 'pending',
+  },
+  {
+    id: 5,
+    type: 'income',
+    category: 'Donations',
+    description: 'Anonymous Donation',
+    amount: 500,
+    date: '2024-01-23',
+    approvedBy: 'Sarah Johnson',
+    status: 'completed',
+  },
+  {
+    id: 6,
+    type: 'expense',
+    category: 'Supplies',
+    description: 'Office Supplies',
+    amount: -150,
+    date: '2024-01-22',
+    approvedBy: 'Michael Wilson',
+    status: 'completed',
+  },
+  {
+    id: 7,
+    type: 'expense',
+    category: 'Ministry',
+    description: 'Youth Ministry Budget',
+    amount: -800,
+    date: '2024-01-21',
+    status: 'pending',
+  },
+  {
+    id: 8,
+    type: 'income',
+    category: 'Events',
+    description: 'Concert Ticket Sales',
+    amount: 750,
+    date: '2024-01-20',
+    approvedBy: 'Lisa Davis',
+    status: 'completed',
+  },
 ];
 
 const mockBudgetItems: BudgetItem[] = [
-  { id: 1, category: 'Staff Salaries', budgeted: 6000, spent: 6000, remaining: 0, percentage: 100, status: 'on-track' },
-  { id: 2, category: 'Building Maintenance', budgeted: 2000, spent: 2100, remaining: -100, percentage: 105, status: 'over' },
-  { id: 3, category: 'Ministry Programs', budgeted: 1500, spent: 800, remaining: 700, percentage: 53, status: 'under' },
-  { id: 4, category: 'Utilities', budgeted: 800, spent: 850, remaining: -50, percentage: 106, status: 'over' },
-  { id: 5, category: 'Office Supplies', budgeted: 300, spent: 150, remaining: 150, percentage: 50, status: 'under' },
-  { id: 6, category: 'Missions', budgeted: 1000, spent: 600, remaining: 400, percentage: 60, status: 'under' }
+  {
+    id: 1,
+    category: 'Staff Salaries',
+    budgeted: 6000,
+    spent: 6000,
+    remaining: 0,
+    percentage: 100,
+    status: 'on-track',
+  },
+  {
+    id: 2,
+    category: 'Building Maintenance',
+    budgeted: 2000,
+    spent: 2100,
+    remaining: -100,
+    percentage: 105,
+    status: 'over',
+  },
+  {
+    id: 3,
+    category: 'Ministry Programs',
+    budgeted: 1500,
+    spent: 800,
+    remaining: 700,
+    percentage: 53,
+    status: 'under',
+  },
+  {
+    id: 4,
+    category: 'Utilities',
+    budgeted: 800,
+    spent: 850,
+    remaining: -50,
+    percentage: 106,
+    status: 'over',
+  },
+  {
+    id: 5,
+    category: 'Office Supplies',
+    budgeted: 300,
+    spent: 150,
+    remaining: 150,
+    percentage: 50,
+    status: 'under',
+  },
+  {
+    id: 6,
+    category: 'Missions',
+    budgeted: 1000,
+    spent: 600,
+    remaining: 400,
+    percentage: 60,
+    status: 'under',
+  },
 ];
 
 interface FinanceDashboardProps {
@@ -117,9 +296,10 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
-    return mockTransactions.filter(transaction => {
-      const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.category.toLowerCase().includes(searchTerm.toLowerCase());
+    return mockTransactions.filter((transaction) => {
+      const matchesSearch =
+        transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.category.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
       const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter;
       return matchesSearch && matchesType && matchesStatus;
@@ -128,10 +308,43 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
 
   // Quick actions
   const quickActions = [
-    { label: 'Add Member', icon: UserPlus, onClick: () => toast({ title: 'Add Member', description: 'Add new finance team member form would open here' }), variant: 'default' as const },
-    { label: 'Record Transaction', icon: Receipt, onClick: () => toast({ title: 'Record Transaction', description: 'Transaction recording form would open here' }), variant: 'outline' as const },
-    { label: 'Create Budget', icon: Calculator, onClick: () => toast({ title: 'Create Budget', description: 'Budget creation form would open here' }), variant: 'outline' as const },
-    { label: 'Generate Report', icon: FileText, onClick: () => toast({ title: 'Generate Report', description: 'Financial report generation form would open here' }), variant: 'outline' as const }
+    {
+      label: 'Add Member',
+      icon: UserPlus,
+      onClick: () =>
+        toast({
+          title: 'Add Member',
+          description: 'Add new finance team member form would open here',
+        }),
+      variant: 'default' as const,
+    },
+    {
+      label: 'Record Transaction',
+      icon: Receipt,
+      onClick: () =>
+        toast({
+          title: 'Record Transaction',
+          description: 'Transaction recording form would open here',
+        }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Create Budget',
+      icon: Calculator,
+      onClick: () =>
+        toast({ title: 'Create Budget', description: 'Budget creation form would open here' }),
+      variant: 'outline' as const,
+    },
+    {
+      label: 'Generate Report',
+      icon: FileText,
+      onClick: () =>
+        toast({
+          title: 'Generate Report',
+          description: 'Financial report generation form would open here',
+        }),
+      variant: 'outline' as const,
+    },
   ];
 
   const handleBack = () => {
@@ -140,20 +353,29 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'approved': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'approved':
+        return 'bg-blue-100 text-blue-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getBudgetStatusColor = (status: string) => {
     switch (status) {
-      case 'under': return 'bg-green-100 text-green-800';
-      case 'on-track': return 'bg-blue-100 text-blue-800';
-      case 'over': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'under':
+        return 'bg-green-100 text-green-800';
+      case 'on-track':
+        return 'bg-blue-100 text-blue-800';
+      case 'over':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -196,104 +418,71 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-blue-50 p-2 rounded-full">
-                <Users className="h-4 w-4 text-blue-600" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
+        {[
+          { label: 'Team', value: mockFinanceStats.totalMembers, icon: Users, color: 'blue' },
+          {
+            label: 'Income',
+            value: `£${mockFinanceStats.monthlyIncome.toLocaleString()}`,
+            icon: TrendingUp,
+            color: 'emerald',
+          },
+          {
+            label: 'Expenses',
+            value: `£${mockFinanceStats.monthlyExpenses.toLocaleString()}`,
+            icon: TrendingDown,
+            color: 'rose',
+          },
+          {
+            label: 'Net',
+            value: `£${(mockFinanceStats.monthlyIncome - mockFinanceStats.monthlyExpenses).toLocaleString()}`,
+            icon: PiggyBank,
+            color: 'violet',
+          },
+          {
+            label: 'Growth',
+            value: `+${mockFinanceStats.monthlyGrowth}%`,
+            icon: Activity,
+            color: 'amber',
+          },
+          {
+            label: 'Budget',
+            value: `${mockFinanceStats.budgetUtilization}%`,
+            icon: Calculator,
+            color: 'indigo',
+          },
+          {
+            label: 'Pending',
+            value: mockFinanceStats.pendingApprovals,
+            icon: CreditCard,
+            color: 'yellow',
+          },
+        ].map((stat, idx) => (
+          <Card
+            key={idx}
+            className="bg-card border border-primary/10 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group rounded-2xl"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`bg-muted/50 p-2.5 rounded-xl group-hover:bg-${stat.color}-500/10 transition-colors duration-300`}
+                >
+                  <stat.icon
+                    className={`h-4 w-4 text-muted-foreground group-hover:text-${stat.color}-600 transition-colors`}
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                    {stat.label}
+                  </p>
+                  <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                    {stat.value}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Team</p>
-                <p className="text-2xl font-bold text-gray-900">{mockFinanceStats.totalMembers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-green-50 p-2 rounded-full">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Income</p>
-                <p className="text-2xl font-bold text-gray-900">£{mockFinanceStats.monthlyIncome.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-red-50 p-2 rounded-full">
-                <TrendingDown className="h-4 w-4 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Expenses</p>
-                <p className="text-2xl font-bold text-gray-900">£{mockFinanceStats.monthlyExpenses.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-purple-50 p-2 rounded-full">
-                <PiggyBank className="h-4 w-4 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Net</p>
-                <p className="text-2xl font-bold text-gray-900">£{(mockFinanceStats.monthlyIncome - mockFinanceStats.monthlyExpenses).toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-orange-50 p-2 rounded-full">
-                <Activity className="h-4 w-4 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Growth</p>
-                <p className="text-2xl font-bold text-gray-900">+{mockFinanceStats.monthlyGrowth}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-indigo-50 p-2 rounded-full">
-                <Calculator className="h-4 w-4 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Budget</p>
-                <p className="text-2xl font-bold text-gray-900">{mockFinanceStats.budgetUtilization}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-yellow-50 p-2 rounded-full">
-                <CreditCard className="h-4 w-4 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">{mockFinanceStats.pendingApprovals}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Quick Actions */}
@@ -331,7 +520,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-card border border-emerald-500/20 rounded-xl shadow-sm">
                   <div className="flex items-center space-x-3">
                     <TrendingUp className="h-5 w-5 text-green-600" />
                     <div>
@@ -340,12 +529,16 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-green-600">£{mockFinanceStats.monthlyIncome.toLocaleString()}</p>
-                    <p className="text-sm text-green-600">+{mockFinanceStats.monthlyGrowth}% from last month</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      £{mockFinanceStats.monthlyIncome.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-green-600">
+                      +{mockFinanceStats.monthlyGrowth}% from last month
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-card border border-rose-500/20 rounded-xl shadow-sm">
                   <div className="flex items-center space-x-3">
                     <TrendingDown className="h-5 w-5 text-red-600" />
                     <div>
@@ -354,12 +547,14 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-red-600">£{mockFinanceStats.monthlyExpenses.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      £{mockFinanceStats.monthlyExpenses.toLocaleString()}
+                    </p>
                     <p className="text-sm text-red-600">+5% from last month</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-card border border-blue-500/20 rounded-xl shadow-sm">
                   <div className="flex items-center space-x-3">
                     <PiggyBank className="h-5 w-5 text-blue-600" />
                     <div>
@@ -368,7 +563,12 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-blue-600">£{(mockFinanceStats.monthlyIncome - mockFinanceStats.monthlyExpenses).toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      £
+                      {(
+                        mockFinanceStats.monthlyIncome - mockFinanceStats.monthlyExpenses
+                      ).toLocaleString()}
+                    </p>
                     <p className="text-sm text-blue-600">Monthly surplus</p>
                   </div>
                 </div>
@@ -385,19 +585,23 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
             <CardContent>
               <div className="space-y-3">
                 {mockBudgetItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 bg-card border border-primary/5 rounded-xl shadow-sm"
+                  >
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium">{item.category}</span>
-                        <Badge className={getBudgetStatusColor(item.status)}>
-                          {item.status}
-                        </Badge>
+                        <Badge className={getBudgetStatusColor(item.status)}>{item.status}</Badge>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className={`h-2 rounded-full ${
-                            item.status === 'over' ? 'bg-red-500' :
-                            item.status === 'on-track' ? 'bg-blue-500' : 'bg-green-500'
+                            item.status === 'over'
+                              ? 'bg-red-500'
+                              : item.status === 'on-track'
+                                ? 'bg-blue-500'
+                                : 'bg-green-500'
                           }`}
                           style={{ width: `${Math.min(item.percentage, 100)}%` }}
                         />
@@ -408,7 +612,8 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
                         {formatCurrency(item.spent)} / {formatCurrency(item.budgeted)}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {item.remaining >= 0 ? '+' : ''}{formatCurrency(item.remaining)}
+                        {item.remaining >= 0 ? '+' : ''}
+                        {formatCurrency(item.remaining)}
                       </div>
                     </div>
                   </div>
@@ -425,22 +630,30 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockTransactions.filter(t => t.status === 'pending').map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <div>
-                      <h4 className="font-medium">{transaction.description}</h4>
-                      <p className="text-sm text-gray-600">{transaction.category} • {transaction.date}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {transaction.amount > 0 ? '+' : ''}£{Math.abs(transaction.amount).toLocaleString()}
+                {mockTransactions
+                  .filter((t) => t.status === 'pending')
+                  .map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className="flex items-center justify-between p-3 bg-card border border-amber-500/20 rounded-xl shadow-sm"
+                    >
+                      <div>
+                        <h4 className="font-medium">{transaction.description}</h4>
+                        <p className="text-sm text-gray-600">
+                          {transaction.category} • {transaction.date}
+                        </p>
                       </div>
-                      <Badge className={getStatusColor(transaction.status)}>
-                        {transaction.status}
-                      </Badge>
+                      <div className="text-right">
+                        <div className="text-sm font-medium">
+                          {transaction.amount > 0 ? '+' : ''}£
+                          {Math.abs(transaction.amount).toLocaleString()}
+                        </div>
+                        <Badge className={getStatusColor(transaction.status)}>
+                          {transaction.status}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -504,39 +717,63 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approved By</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Approved By
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredTransactions.map((transaction) => (
                       <tr key={transaction.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{transaction.description}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {transaction.description}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Badge variant="outline">{transaction.category}</Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
-                            {transaction.type === 'income' ?
-                              <TrendingUp className="h-4 w-4 text-green-600" /> :
+                            {transaction.type === 'income' ? (
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                            ) : (
                               <TrendingDown className="h-4 w-4 text-red-600" />
-                            }
-                            <span className={`text-sm capitalize ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                            )}
+                            <span
+                              className={`text-sm capitalize ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}
+                            >
                               {transaction.type}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <span className={transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}>
-                            {transaction.amount > 0 ? '+' : ''}£{Math.abs(transaction.amount).toLocaleString()}
+                          <span
+                            className={transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}
+                          >
+                            {transaction.amount > 0 ? '+' : ''}£
+                            {Math.abs(transaction.amount).toLocaleString()}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -626,7 +863,9 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
               <div className="text-center text-gray-500">
                 <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p>Financial reporting coming soon</p>
-                <p className="text-sm">Generate income statements, balance sheets, and custom reports</p>
+                <p className="text-sm">
+                  Generate income statements, balance sheets, and custom reports
+                </p>
               </div>
             </CardContent>
           </Card>

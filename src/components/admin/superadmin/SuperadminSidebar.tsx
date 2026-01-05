@@ -115,7 +115,7 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
           x: isOpen || (typeof window !== 'undefined' && window.innerWidth >= 1024) ? 0 : -256,
         }}
         className={cn(
-          'h-screen glass border-r border-primary/5 shadow-2xl transition-[width,transform] duration-300 ease-in-out flex flex-col overflow-hidden',
+          'h-screen bg-card border-r border-primary/10 shadow-2xl transition-[width,transform] duration-300 ease-in-out flex flex-col overflow-hidden',
           'fixed top-0 left-0 z-50 lg:sticky lg:z-20'
         )}
         onMouseEnter={() => setIsHovered(true)}
@@ -127,7 +127,7 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
             <div className="flex items-center gap-3">
               <motion.div
                 layout
-                className="w-10 h-10 rounded-xl bg-vibrant-gradient flex items-center justify-center text-white shadow-lg shadow-primary/20"
+                className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20"
               >
                 <Shield className="h-5 w-5" />
               </motion.div>

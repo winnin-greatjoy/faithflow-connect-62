@@ -198,11 +198,8 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
   return (
     <SidebarProvider>
       <div className="min-h-screen bg-background flex w-full relative overflow-hidden">
-        {/* Modern Background Accents */}
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/5 blur-[120px]" />
-        </div>
+        {/* Standard Background */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-slate-50/50 dark:bg-slate-950/50" />
 
         <AdminSidebar
           activeModule={activeModule}
@@ -213,7 +210,7 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
           isPortalMode={isPortalMode}
         />
 
-        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:ml-0 h-screen">
+        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 h-screen">
           <AdminHeader
             onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
             isPortalMode={isPortalMode}

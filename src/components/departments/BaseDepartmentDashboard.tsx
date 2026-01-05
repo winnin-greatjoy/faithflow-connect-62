@@ -10,7 +10,7 @@ import {
   Settings,
   FileText,
   Plus,
-  ArrowLeft
+  ArrowLeft,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -66,7 +66,7 @@ export const BaseDepartmentDashboard: React.FC<BaseDepartmentDashboardProps> = (
   members,
   recentEvents,
   quickActions = [],
-  onBack
+  onBack,
 }) => {
   const navigate = useNavigate();
 
@@ -105,86 +105,110 @@ export const BaseDepartmentDashboard: React.FC<BaseDepartmentDashboardProps> = (
 
       {/* Stats Overview */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
+        <Card className="border-primary/5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
           <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-blue-50 p-2 rounded-full">
-                <Users className="h-4 w-4 text-blue-600" />
+            <div className="flex items-center space-x-3">
+              <div className="bg-muted/50 p-2.5 rounded-xl group-hover:bg-blue-500/10 transition-colors duration-300">
+                <Users className="h-4 w-4 text-muted-foreground group-hover:text-blue-600 transition-colors" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Members</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalMembers}</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                  Total Members
+                </p>
+                <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                  {stats.totalMembers}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-primary/5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
           <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-green-50 p-2 rounded-full">
-                <Users className="h-4 w-4 text-green-600" />
+            <div className="flex items-center space-x-3">
+              <div className="bg-muted/50 p-2.5 rounded-xl group-hover:bg-emerald-500/10 transition-colors duration-300">
+                <Users className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600 transition-colors" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activeMembers}</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                  Active
+                </p>
+                <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                  {stats.activeMembers}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-primary/5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
           <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-orange-50 p-2 rounded-full">
-                <Calendar className="h-4 w-4 text-orange-600" />
+            <div className="flex items-center space-x-3">
+              <div className="bg-muted/50 p-2.5 rounded-xl group-hover:bg-amber-500/10 transition-colors duration-300">
+                <Calendar className="h-4 w-4 text-muted-foreground group-hover:text-amber-600 transition-colors" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Events</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.upcomingEvents}</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                  Events
+                </p>
+                <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                  {stats.upcomingEvents}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-primary/5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
           <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-purple-50 p-2 rounded-full">
-                <Activity className="h-4 w-4 text-purple-600" />
+            <div className="flex items-center space-x-3">
+              <div className="bg-muted/50 p-2.5 rounded-xl group-hover:bg-violet-500/10 transition-colors duration-300">
+                <Activity className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Activities</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.completedActivities}</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                  Activities
+                </p>
+                <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                  {stats.completedActivities}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-primary/5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
           <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="bg-indigo-50 p-2 rounded-full">
-                <TrendingUp className="h-4 w-4 text-indigo-600" />
+            <div className="flex items-center space-x-3">
+              <div className="bg-muted/50 p-2.5 rounded-xl group-hover:bg-indigo-500/10 transition-colors duration-300">
+                <TrendingUp className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 transition-colors" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Growth</p>
-                <p className="text-2xl font-bold text-gray-900">+{stats.monthlyGrowth}%</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                  Growth
+                </p>
+                <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                  +{stats.monthlyGrowth}%
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {stats.budgetUtilization !== undefined && (
-          <Card>
+          <Card className="border-primary/5 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
             <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <div className="bg-emerald-50 p-2 rounded-full">
-                  <FileText className="h-4 w-4 text-emerald-600" />
+              <div className="flex items-center space-x-3">
+                <div className="bg-muted/50 p-2.5 rounded-xl group-hover:bg-rose-500/10 transition-colors duration-300">
+                  <FileText className="h-4 w-4 text-muted-foreground group-hover:text-rose-600 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Budget</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.budgetUtilization}%</p>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">
+                    Budget
+                  </p>
+                  <p className="text-xl font-black text-foreground leading-none mt-0.5">
+                    {stats.budgetUtilization}%
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -218,7 +242,10 @@ export const BaseDepartmentDashboard: React.FC<BaseDepartmentDashboardProps> = (
         <CardContent>
           <div className="space-y-3">
             {members.slice(0, 5).map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div
+                key={member.id}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
                 <div>
                   <h4 className="font-medium">{member.name}</h4>
                   <p className="text-sm text-gray-600">{member.role}</p>
@@ -245,13 +272,20 @@ export const BaseDepartmentDashboard: React.FC<BaseDepartmentDashboardProps> = (
           <div className="space-y-3">
             {recentEvents.slice(0, 5).map((event) => (
               <div key={event.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                <div className={`w-3 h-3 rounded-full ${
-                  event.status === 'upcoming' ? 'bg-blue-500' :
-                  event.status === 'completed' ? 'bg-green-500' : 'bg-red-500'
-                }`} />
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    event.status === 'upcoming'
+                      ? 'bg-blue-500'
+                      : event.status === 'completed'
+                        ? 'bg-green-500'
+                        : 'bg-red-500'
+                  }`}
+                />
                 <div className="flex-1">
                   <p className="font-medium">{event.title}</p>
-                  <p className="text-sm text-gray-600">{event.date} • {event.attendees} attendees</p>
+                  <p className="text-sm text-gray-600">
+                    {event.date} • {event.attendees} attendees
+                  </p>
                 </div>
                 <Badge variant="outline">{event.type}</Badge>
               </div>

@@ -75,8 +75,8 @@ export const SuperAdminDashboardOverview = () => {
       {/* Page Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Governance Command Center</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold text-foreground">Governance Command Center</h1>
+          <p className="text-muted-foreground mt-2">
             Global oversight, compliance monitoring, and system health.
           </p>
         </div>
@@ -171,9 +171,9 @@ export const SuperAdminDashboardOverview = () => {
           />
 
           {/* Placeholder for future financial/global summary */}
-          <Card className="mt-4 border-gray-100 bg-gray-50/50">
+          <Card className="mt-4 border-primary/10 bg-muted/30">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base text-gray-600">Global Financials</CardTitle>
+              <CardTitle className="text-base text-muted-foreground">Global Financials</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2 text-muted-foreground text-sm">

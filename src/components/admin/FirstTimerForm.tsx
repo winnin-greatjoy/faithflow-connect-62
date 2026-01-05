@@ -180,7 +180,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                       <Input
                         placeholder="John Doe"
                         {...field}
-                        className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                        className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -201,7 +201,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                         type="email"
                         placeholder="john@domain.com"
                         {...field}
-                        className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                        className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -221,7 +221,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                       <Input
                         placeholder="+123 456 7890"
                         {...field}
-                        className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                        className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -239,7 +239,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
             className="space-y-6 pt-6 border-t border-primary/5"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="h-8 w-8 rounded-xl bg-vibrant-gradient/10 flex items-center justify-center">
+              <div className="bg-primary/10 flex items-center justify-center p-2 rounded-xl">
                 <MapPin className="h-4 w-4 text-primary" />
               </div>
               <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground">
@@ -260,7 +260,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                       <Input
                         placeholder="Enter community"
                         {...field}
-                        className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                        className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -280,7 +280,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                       <Input
                         placeholder="Enter district/area"
                         {...field}
-                        className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                        className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -300,7 +300,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                       <Input
                         placeholder="House #, Street name"
                         {...field}
-                        className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                        className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -320,7 +320,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                       <Input
                         placeholder="Near prominent structure"
                         {...field}
-                        className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                        className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -361,10 +361,10 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                         value={field.value}
                         disabled={!canSwitchBranch && !!effectiveBranchId}
                       >
-                        <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                        <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium">
                           <SelectValue placeholder="Select unit" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                        <SelectContent className="bg-card border border-primary/10 rounded-xl shadow-md">
                           {branches.map((b) => (
                             <SelectItem key={b.id} value={b.id} className="font-medium">
                               {b.name}
@@ -391,7 +391,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                         <Input
                           type="date"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -411,7 +411,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                         <Input
                           type="date"
                           {...field}
-                          className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium"
+                          className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium"
                         />
                       </FormControl>
                       <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -433,10 +433,10 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                         onValueChange={(val) => field.onChange(val === '_none' ? '' : val)}
                         value={field.value || ''}
                       >
-                        <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                        <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium">
                           <SelectValue placeholder="Select orchestrating member" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                        <SelectContent className="bg-card border border-primary/10 rounded-xl shadow-md">
                           <SelectItem value="_none" className="font-bold text-muted-foreground">
                             None (Universal Inflow)
                           </SelectItem>
@@ -463,7 +463,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
             className="space-y-6 pt-6 border-t border-primary/5"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="h-8 w-8 rounded-xl bg-vibrant-gradient/10 flex items-center justify-center">
+              <div className="bg-primary/10 flex items-center justify-center p-2 rounded-xl">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
               </div>
               <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground">
@@ -482,10 +482,10 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                     </FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                        <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium">
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                        <SelectContent className="bg-card border border-primary/10 rounded-xl shadow-md">
                           <SelectItem value="new" className="font-medium">
                             Initial Encounter
                           </SelectItem>
@@ -519,10 +519,10 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                     </FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="glass h-12 rounded-xl border-primary/5 focus:ring-primary/20 font-medium">
+                        <SelectTrigger className="bg-card h-12 rounded-xl border border-primary/10 focus:ring-primary/20 font-medium">
                           <SelectValue placeholder="Select protocol" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-primary/10 rounded-xl shadow-2xl">
+                        <SelectContent className="bg-card border border-primary/10 rounded-xl shadow-md">
                           <SelectItem value="pending" className="font-medium">
                             Awaiting Logic
                           </SelectItem>
@@ -555,7 +555,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                       <Textarea
                         placeholder="Log detailed encounter dynamics..."
                         {...field}
-                        className="glass min-h-[120px] rounded-2xl border-primary/5 focus:ring-primary/20 font-medium resize-none p-4"
+                        className="bg-card min-h-[120px] rounded-2xl border border-primary/10 focus:ring-primary/20 font-medium resize-none p-4"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -575,7 +575,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
                       <Textarea
                         placeholder="Additional tactical intelligence..."
                         {...field}
-                        className="glass min-h-[120px] rounded-2xl border-primary/5 focus:ring-primary/20 font-medium resize-none p-4"
+                        className="bg-card min-h-[120px] rounded-2xl border border-primary/10 focus:ring-primary/20 font-medium resize-none p-4"
                       />
                     </FormControl>
                     <FormMessage className="text-[10px] uppercase font-bold tracking-widest text-rose-500" />
@@ -598,7 +598,7 @@ export const FirstTimerForm: React.FC<FirstTimerFormProps> = ({
           <div className="flex gap-4">
             <Button
               type="submit"
-              className="bg-vibrant-gradient text-white border-none font-bold text-[10px] uppercase tracking-widest h-14 px-12 rounded-2xl hover:opacity-90 transition-all shadow-xl shadow-primary/20 active:scale-95 flex items-center gap-2"
+              className="bg-primary text-white border-none font-bold text-[10px] uppercase tracking-widest h-14 px-12 rounded-2xl hover:bg-primary/90 transition-all shadow-md active:scale-95 flex items-center gap-2"
             >
               <Sparkles className="h-4 w-4" />
               {firstTimer ? 'Synchronize Data' : 'Execute Recording'}
