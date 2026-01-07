@@ -148,7 +148,10 @@ export const EventsModule: React.FC = () => {
       metadata: {
         type: payload.type,
         frequency: payload.frequency,
-        daysOfWeek: payload.daysOfWeek || [],
+        daysOfWeek:
+          payload.frequency === 'Weekly' && (!payload.daysOfWeek || payload.daysOfWeek.length === 0)
+            ? [new Date(payload.date).getDay()]
+            : payload.daysOfWeek || [],
       },
     };
 
@@ -315,7 +318,17 @@ export const EventsModule: React.FC = () => {
             <div className="flex-1 overflow-hidden relative rounded-2xl border border-primary/5">
               <EventCalendar
                 events={
-                  filteredEvents.map((e) => ({ ...e, start_at: `${e.date}T${e.time}` })) as any
+                  filteredEvents.map((e) => {
+                    const isRecurring = e.daysOfWeek && e.daysOfWeek.length > 0;
+                    return {
+                      ...e,
+                      daysOfWeek: isRecurring ? e.daysOfWeek : undefined,
+                      startTime: isRecurring ? e.time || '10:00' : undefined,
+                      endTime: isRecurring ? e.time || '11:00' : undefined,
+                      start: isRecurring ? undefined : `${e.date}T${e.time}`,
+                      start_at: `${e.date}T${e.time}`,
+                    };
+                  }) as any
                 }
                 onEventClick={(ev: any) => openView(ev as any)}
                 showCard={false}

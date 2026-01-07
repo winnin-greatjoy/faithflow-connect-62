@@ -381,7 +381,7 @@ export const MemberManagementPage: React.FC = () => {
           >
             <ArrowDownToLine className="mr-2 h-4 w-4 text-primary" /> Import Matrix
           </Button>
-          {filters.activeTab !== 'first_timers' && (
+          {true && (
             <Button
               onClick={handleAddMember}
               className="bg-primary h-11 px-6 rounded-xl font-bold text-white shadow-md hover:bg-primary/90 transition-all text-xs"
@@ -389,6 +389,10 @@ export const MemberManagementPage: React.FC = () => {
               {filters.activeTab === 'converts' ? (
                 <>
                   <Plus className="mr-2 h-4 w-4" /> Add Convert
+                </>
+              ) : filters.activeTab === 'first_timers' ? (
+                <>
+                  <Plus className="mr-2 h-4 w-4" /> Add First Timer
                 </>
               ) : (
                 <>
@@ -408,12 +412,9 @@ export const MemberManagementPage: React.FC = () => {
       <motion.div variants={itemVariants} className="space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           {/* Tab Navigation */}
-          {/* <div className="w-full lg:w-auto">
-                        <TabNavigation
-                            activeTab={filters.activeTab}
-                            onTabChange={filters.setActiveTab}
-                        />
-                    </div> */}
+          <div className="w-full lg:w-auto">
+            <TabNavigation activeTab={filters.activeTab} onTabChange={filters.setActiveTab} />
+          </div>
 
           {/* Toolbar Search/Actions */}
           <div className="flex-1">
@@ -434,8 +435,8 @@ export const MemberManagementPage: React.FC = () => {
         {/* Table */}
         <div className="bg-card border border-primary/10 rounded-3xl overflow-hidden shadow-md">
           {filters.activeTab === 'disciples' ||
-          filters.activeTab === 'leaders' ||
-          filters.activeTab === 'converts' ? (
+            filters.activeTab === 'leaders' ||
+            filters.activeTab === 'converts' ? (
             <SpecializedMemberTable
               members={filteredMembers}
               type={

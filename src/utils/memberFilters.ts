@@ -25,6 +25,10 @@ export function memberMatchesTab(
             return member.leaderRole === 'pastor' || member.leaderRole === 'assistant_pastor';
         case 'converts':
             return member.membershipLevel === 'convert';
+        case 'visitors':
+            return member.membershipLevel === 'visitor';
+        case 'first_timers':
+            return false; // First timers are in a separate data set
         default:
             return false;
     }

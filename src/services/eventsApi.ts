@@ -223,6 +223,38 @@ export const eventsApi = {
   async deleteEventQuota(id: string) {
     return (supabase as any).from('event_quotas').delete().eq('id', id);
   },
+
+  // Attendance Management
+  async recordAttendance(payload: {
+    event_id: string;
+    session_id?: string;
+    member_id: string;
+    zone_id: string;
+    type: 'in' | 'out';
+    method: 'QR' | 'NFC' | 'MANUAL' | 'ID-SCAN';
+    metadata?: any;
+  }) {
+    return (supabase as any)
+      .from('attendance_records')
+      .insert({
+        ...payload,
+        timestamp: new Date().toISOString(),
+      })
+      .select()
+      .single();
+  },
+
+  async getAttendanceLogs(eventId: string, limit = 50) {
+    return (supabase as any)
+      .from('attendance_records')
+      .select(`
+        *,
+        member:member_id(full_name, phone)
+      `)
+      .eq('event_id', eventId)
+      .order('timestamp', { ascending: false })
+      .limit(limit);
+  },
 };
 
 export default eventsApi;

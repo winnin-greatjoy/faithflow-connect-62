@@ -75,6 +75,7 @@ const DistrictDashboard = lazy(() =>
     default: m.DistrictDashboard,
   }))
 );
+const EventDashboardPage = lazy(() => import('./pages/admin/EventDashboardPage'));
 
 const queryClient = new QueryClient();
 
@@ -293,6 +294,14 @@ const App = () => (
                   <SuperadminOnlyRoute>
                     <SuperadminDashboard />
                   </SuperadminOnlyRoute>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/event/:eventId/dashboard"
+              element={
+                <ProtectedRoute>
+                  <EventDashboardPage />
                 </ProtectedRoute>
               }
             />

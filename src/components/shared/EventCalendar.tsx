@@ -55,16 +55,24 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
   // Use provided events or map all events from hook
   const events =
     propEvents ||
-    (allEvents?.map((e) => ({
-      ...e,
-      id: e.id,
-      title: e.title,
-      start: e.date, // useCalendarEvents uses start/end or event_date
-      start_at: `${e.date}T${e.time}`,
-      end_at: `${e.end_date || e.date}T${e.time}`,
-      event_level: e.event_level,
-      type: 'event',
-    })) as any) ||
+    (allEvents?.map((e) => {
+      const isRecurring = e.daysOfWeek && e.daysOfWeek.length > 0;
+      return {
+        ...e,
+        id: e.id,
+        title: e.title,
+        // Recurring properties
+        daysOfWeek: isRecurring ? e.daysOfWeek : undefined,
+        startTime: isRecurring ? e.time || '10:00' : undefined,
+        endTime: isRecurring ? e.time || '11:00' : undefined, // Fallback end time
+        // Static properties
+        start: isRecurring ? undefined : `${e.date}T${e.time}`,
+        start_at: `${e.date}T${e.time}`,
+        end_at: `${e.end_date || e.date}T${e.time}`,
+        event_level: e.event_level,
+        type: 'event',
+      };
+    }) as any) ||
     [];
 
   const handleEventClickNative = useCallback(
@@ -212,9 +220,8 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
             if (isTask) {
               return (
                 <div
-                  className={`flex items-center gap-1.5 px-1.5 py-0.5 w-full overflow-hidden text-xs rounded-sm border-l-2 ${
-                    props.is_completed ? 'opacity-60 line-through' : ''
-                  }`}
+                  className={`flex items-center gap-1.5 px-1.5 py-0.5 w-full overflow-hidden text-xs rounded-sm border-l-2 ${props.is_completed ? 'opacity-60 line-through' : ''
+                    }`}
                   style={{
                     backgroundColor: eventInfo.backgroundColor,
                     borderColor: eventInfo.borderColor,
@@ -222,11 +229,10 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
                   }}
                 >
                   <div
-                    className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${
-                      props.is_completed
-                        ? 'bg-slate-400 border-slate-400'
-                        : 'bg-white border-blue-500'
-                    }`}
+                    className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${props.is_completed
+                      ? 'bg-slate-400 border-slate-400'
+                      : 'bg-white border-blue-500'
+                      }`}
                   >
                     {props.is_completed && <Check className="w-2 h-2 text-white" />}
                   </div>
@@ -281,7 +287,7 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
           onDateSelect={handleDateSelect}
           selectedCalendars={selectedCalendars}
           onToggleCalendar={handleToggleCalendar}
-          onCreateEvent={onCreateEvent || (() => {})}
+          onCreateEvent={onCreateEvent || (() => { })}
           onCreateTask={onCreateTask}
           onCreateAppointment={onCreateAppointment}
         />
@@ -293,9 +299,9 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
       {!showSidebar && (
         <div className="absolute bottom-8 right-8 z-30 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
           <CalendarCreateButton
-            onCreateEvent={onCreateEvent || (() => {})}
-            onCreateTask={onCreateTask || (() => {})}
-            onCreateAppointment={onCreateAppointment || (() => {})}
+            onCreateEvent={onCreateEvent || (() => { })}
+            onCreateTask={onCreateTask || (() => { })}
+            onCreateAppointment={onCreateAppointment || (() => { })}
             showLabel={false}
           />
         </div>

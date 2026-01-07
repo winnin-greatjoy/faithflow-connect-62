@@ -17,7 +17,7 @@ export type EventType =
   | 'Departmental'
   | 'Registration';
 
-export type EventStatus = 'Open' | 'Upcoming' | 'Active' | 'Ended' | 'Cancelled';
+export type EventStatus = 'draft' | 'published' | 'upcoming' | 'active' | 'ended' | 'cancelled';
 export type Frequency = 'One-time' | 'Weekly' | 'Monthly' | 'Yearly';
 
 export interface RecurrencePattern {
@@ -61,4 +61,8 @@ export interface EventItem {
   daysOfWeek?: number[];
   end_date?: string;
   numberOfDays?: number;
+  active_modules?: string[];
+  module_config?: Record<string, any>;
+  module_assignments?: Record<string, string>; // moduleId -> userId
+  metadata?: any;
 }

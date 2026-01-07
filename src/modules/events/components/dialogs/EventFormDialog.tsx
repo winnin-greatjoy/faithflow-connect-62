@@ -75,7 +75,7 @@ export const EventFormDialog: React.FC<EventFormDialogProps> = ({
         time: '10:00',
         location: '',
         capacity: 100,
-        status: 'Open',
+        status: 'published',
         type: 'General',
         frequency: 'One-time',
         event_level: initialLevel,

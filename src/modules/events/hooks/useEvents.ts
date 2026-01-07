@@ -36,7 +36,7 @@ export const useEvents = () => {
         visibility: r.visibility,
         recurrencePattern: r.metadata?.recurrencePattern || {},
         end_date: r.end_at ? r.end_at.split('T')[0] : r.start_at ? r.start_at.split('T')[0] : '',
-        daysOfWeek: r.metadata?.daysOfWeek || [],
+        daysOfWeek: r.daysOfWeek || r.metadata?.daysOfWeek || [],
       }));
 
       setEvents(mapped);

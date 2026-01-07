@@ -73,8 +73,14 @@ export const useCalendarEvents = (
     const orgEvents = initialEvents.map(e => {
       const level = e.event_level || 'BRANCH';
       const meta = LEVEL_META[level] || LEVEL_META['BRANCH'];
+      const isRecurring = e.daysOfWeek && e.daysOfWeek.length > 0;
+
       return {
         ...e,
+        daysOfWeek: isRecurring ? e.daysOfWeek : undefined,
+        startTime: isRecurring ? e.time || '10:00' : undefined,
+        endTime: isRecurring ? e.time || '11:00' : undefined,
+        start: isRecurring ? undefined : (e.start || e.start_at || e.date || e.event_date),
         backgroundColor: meta.bg,
         borderColor: meta.border,
         textColor: meta.text,

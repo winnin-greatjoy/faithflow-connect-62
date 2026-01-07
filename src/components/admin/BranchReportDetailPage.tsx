@@ -188,6 +188,8 @@ export const BranchReportDetailPage: React.FC<BranchReportDetailPageProps> = ({
       </div>
     );
 
+  if (!data) return null;
+
   return (
     <div className="space-y-8 pb-20 mt-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -247,7 +249,7 @@ export const BranchReportDetailPage: React.FC<BranchReportDetailPageProps> = ({
                     paddingAngle={5}
                     dataKey="amount"
                   >
-                    {data.map((_: any, index: number) => (
+                    {data?.map((_: any, index: number) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={['#6366f1', '#a855f7', '#ec4899', '#f97316', '#10b981'][index % 5]}

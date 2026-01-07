@@ -1,4 +1,4 @@
-import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
@@ -45,6 +45,7 @@ export const EventViewDialog: React.FC<EventViewDialogProps> = ({
   onManageRegistrations,
   onManageQuotas,
 }) => {
+  const navigate = useNavigate();
   if (!event) return null;
 
   const getLevelColor = (level: string) => {
@@ -239,10 +240,19 @@ export const EventViewDialog: React.FC<EventViewDialogProps> = ({
                   </div>
 
                   <div className="flex flex-wrap gap-4">
+                    {canEdit && (
+                      <Button
+                        onClick={() => navigate(`/admin/event/${event.id}/dashboard`)}
+                        className="w-full bg-primary text-white h-14 rounded-2xl font-black text-xs tracking-[0.25em] shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all border-b-4 border-primary-foreground/20 active:border-b-0 active:translate-y-1"
+                      >
+                        <Zap className="mr-3 h-5 w-5 fill-white" />
+                        LAUNCH COMMAND CENTER
+                      </Button>
+                    )}
                     {event.requires_registration && (
                       <Button
                         onClick={() => onRegister(event)}
-                        className="flex-1 bg-primary text-white h-14 rounded-2xl font-black text-xs tracking-widest shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all"
+                        className="flex-1 bg-muted/40 h-14 rounded-2xl font-black text-[10px] tracking-[0.2em] hover:bg-primary/5 transition-all border border-primary/10"
                       >
                         INITIALIZE REGISTRATION
                       </Button>
@@ -256,14 +266,6 @@ export const EventViewDialog: React.FC<EventViewDialogProps> = ({
                         >
                           <Users className="mr-3 h-4 w-4 text-primary" />
                           MANAGE ATTENDEES
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => onManageQuotas(event)}
-                          className="flex-1 bg-card h-14 border border-primary/10 rounded-2xl font-black text-[10px] tracking-[0.2em] hover:bg-primary/5 transition-all"
-                        >
-                          <Banknote className="mr-3 h-4 w-4 text-primary" />
-                          FINANCIAL QUOTAS
                         </Button>
                       </>
                     )}

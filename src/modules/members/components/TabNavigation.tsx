@@ -46,6 +46,24 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabCh
         >
           Pastors
         </TabsTrigger>
+        <TabsTrigger
+          value="visitors"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+        >
+          Visitors
+        </TabsTrigger>
+        <TabsTrigger
+          value="converts"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+        >
+          Converts
+        </TabsTrigger>
+        <TabsTrigger
+          value="first_timers"
+          className="rounded-lg px-4 h-full font-bold text-[10px] uppercase tracking-widest transition-all data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg active:scale-95"
+        >
+          First Timers
+        </TabsTrigger>
       </TabsList>
     </Tabs>
   );
