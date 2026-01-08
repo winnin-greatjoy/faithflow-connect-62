@@ -11,6 +11,7 @@ import {
   Wrench,
   ArrowRightLeft,
   History,
+  Loader2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,8 +28,15 @@ import {
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Asset, AssetStatus } from '@/modules/events/types/assets';
+import { useAdminContext } from '@/context/AdminContext';
+import {
+  useAssets,
+  useCreateAsset,
+  useUpdateAsset,
+  useReportMaintenance,
+} from '@/hooks/useEventModules';
 
-// Mock Data
+// Mock Data (fallback when no backend)
 const MOCK_ASSETS: Asset[] = [
   {
     id: 'a1',
@@ -92,44 +100,108 @@ const MOCK_ASSETS: Asset[] = [
 
 export const AssetManagerModule = () => {
   const [activeTab, setActiveTab] = useState('inventory');
+  const { selectedBranchId } = useAdminContext();
 
-  /* State */
-  const [assets, setAssets] = useState<Asset[]>(MOCK_ASSETS);
+  // Backend Integration - uses React Query when branchId available
+  const { data: backendAssets, isLoading, isError } = useAssets(selectedBranchId || '');
+  const createAssetMutation = useCreateAsset(selectedBranchId || '');
+  const updateAssetMutation = useUpdateAsset(selectedBranchId || '');
+  const reportMaintenanceMutation = useReportMaintenance(selectedBranchId || '');
+
+  // Use backend data if available, otherwise fall back to mock
+  const useBackend = !!selectedBranchId && !isError && backendAssets;
+
+  /* State - local state for mock mode, backend for real mode */
+  const [localAssets, setLocalAssets] = useState<Asset[]>(MOCK_ASSETS);
+  const assets = useBackend
+    ? (backendAssets as any[]).map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        category: a.category,
+        location: a.location || '',
+        status: a.status,
+        condition: a.condition,
+        serialNumber: a.serial_number,
+        assignedTo: a.current_checkout?.[0]?.user?.full_name,
+      }))
+    : localAssets;
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
 
   /* Handlers */
-  const handleSaveAsset = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveAsset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
 
     const assetData = {
       name: formData.get('name') as string,
       category: formData.get('category') as any,
-      serialNumber: formData.get('serialNumber') as string,
+      serial_number: formData.get('serialNumber') as string,
       location: formData.get('location') as string,
       condition: formData.get('condition') as any,
     };
 
-    if (editingAsset) {
-      setAssets(assets.map((a) => (a.id === editingAsset.id ? { ...a, ...assetData } : a)));
-      toast.success('Asset updated');
+    if (useBackend) {
+      // Use backend
+      if (editingAsset) {
+        await updateAssetMutation.mutateAsync({ assetId: editingAsset.id, updates: assetData });
+      } else {
+        await createAssetMutation.mutateAsync({
+          ...assetData,
+          branch_id: selectedBranchId!,
+          status: 'available',
+        } as any);
+      }
     } else {
-      const newAsset: Asset = {
-        id: `a${Date.now()}`,
-        status: 'available',
-        ...assetData,
-      };
-      setAssets([...assets, newAsset]);
-      toast.success('New asset added to inventory');
+      // Use local state
+      if (editingAsset) {
+        setLocalAssets(
+          localAssets.map((a) =>
+            a.id === editingAsset.id
+              ? { ...a, ...assetData, serialNumber: assetData.serial_number }
+              : a
+          )
+        );
+        toast.success('Asset updated');
+      } else {
+        const newAsset: Asset = {
+          id: `a${Date.now()}`,
+          status: 'available',
+          name: assetData.name,
+          category: assetData.category,
+          serialNumber: assetData.serial_number,
+          location: assetData.location,
+          condition: assetData.condition,
+        };
+        setLocalAssets([...localAssets, newAsset]);
+        toast.success('New asset added to inventory');
+      }
     }
     setIsDialogOpen(false);
     setEditingAsset(null);
   };
 
-  const handleStatusChange = (id: string, newStatus: AssetStatus, assignedTo?: string) => {
-    setAssets(assets.map((a) => (a.id === id ? { ...a, status: newStatus, assignedTo } : a)));
-    toast.success(`Asset marked as ${newStatus.replace('_', ' ')}`);
+  const handleStatusChange = async (id: string, newStatus: AssetStatus, assignedTo?: string) => {
+    if (useBackend) {
+      if (newStatus === 'maintenance') {
+        await reportMaintenanceMutation.mutateAsync({
+          asset_id: id,
+          issue_description: 'Reported for maintenance',
+          priority: 'medium',
+        } as any);
+      } else {
+        await updateAssetMutation.mutateAsync({
+          assetId: id,
+          updates: { status: newStatus } as any,
+        });
+      }
+    } else {
+      setLocalAssets(
+        localAssets.map((a) => (a.id === id ? { ...a, status: newStatus, assignedTo } : a))
+      );
+      toast.success(`Asset marked as ${newStatus.replace('_', ' ')}`);
+    }
   };
 
   const openAddDialog = () => {
