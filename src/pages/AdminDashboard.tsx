@@ -4,6 +4,8 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
+import { CommandPalette } from '@/components/layout/CommandPalette';
+import { NotificationDrawer } from '@/components/layout/NotificationDrawer';
 import { MemberManagementPage } from '@/modules/members';
 import { BibleSchoolPage } from '@/modules/bible-school';
 import { DepartmentsModule } from '@/components/admin/DepartmentsModule';
@@ -59,6 +61,7 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
   }, [location.pathname, params]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
 
   // Determine active module based on URL
   const getActiveModule = () => {
@@ -86,14 +89,11 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
     }
   };
 
-  // ... (denied definition)
-
   if (superadminLoading || authzLoading || contextLoading) {
-    return <div>Loading...</div>; // Replace with proper skeleton
+    return <div>Loading...</div>;
   }
 
   const renderActiveModule = () => {
-    // If superadmin is in "Global View" (no branch selected), show superadmin modules
     const isGlobalView = isSuperadmin && !selectedBranchId;
 
     const denied = (
@@ -107,19 +107,10 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
 
     switch (activeModule) {
       case 'overview':
-        // Show SuperAdmin overview ONLY if in global view AND not in portal mode
-        // If in portal mode, we represent a branch, so show DashboardOverview
-        // Redirect SuperAdmin to the new Governance Dashboard
         if (isGlobalView && !isPortalMode) return <Navigate to="/superadmin" replace />;
-        // Show District Dashboard for District Admins if no branch selected
         if (hasRole('district_admin') && !selectedBranchId) return <DistrictDashboard />;
-
         return <DashboardOverview />;
 
-      // Superadmin Specific Modules - Only accessible in Global View
-      // ... (keep same)
-      // Superadmin Specific Modules - Redirect to new Dashboard
-      // All these are now handled in the dedicated /superadmin route
       case 'superadmin-transfers':
         return isSuperadmin && !isPortalMode ? (
           <Navigate to="/superadmin/transfers" replace />
@@ -140,7 +131,6 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
         ) : (
           denied
         );
-
       case 'districts':
         return isSuperadmin && !isPortalMode ? (
           <Navigate to="/superadmin/districts" replace />
@@ -169,17 +159,14 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
       case 'branch-settings':
         return hasRole('super_admin', 'admin') ? <BranchSettingsModule /> : denied;
       case 'cms':
-        // Assuming CMS access requires 'manage' on 'content' or similar, or just admin access
         return hasRole('super_admin', 'admin') ? <CMSDashboard /> : denied;
       case 'streaming':
         return can('streaming', 'view') || isSuperadmin ? <StreamingModule /> : denied;
       case 'reports': {
-        const reportsPath = isPortalMode ? 'reports/' : '/admin/reports/';
         const splat = (params as any)['*'] as string | undefined;
         const reportId = isPortalMode
           ? splat?.split('reports/')[1]
           : location.pathname.split('/admin/reports/')[1];
-
         if (reportId) {
           return <BranchReportDetailPage reportId={reportId} />;
         }
@@ -214,6 +201,7 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
           <AdminHeader
             onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
             isPortalMode={isPortalMode}
+            onNotificationToggle={() => setNotificationDrawerOpen(true)}
           />
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8 xl:p-10 overflow-y-auto overflow-x-hidden">
@@ -227,6 +215,11 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
           </main>
         </div>
       </div>
+      <CommandPalette />
+      <NotificationDrawer
+        isOpen={notificationDrawerOpen}
+        onClose={() => setNotificationDrawerOpen(false)}
+      />
     </SidebarProvider>
   );
 };

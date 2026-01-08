@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Search, Settings, User, LogOut, Menu, X, ChevronDown, Home } from 'lucide-react';
+import { Bell, Search, Settings, User, LogOut, Menu, ChevronDown, Home } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,29 +18,33 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
-import { SuperadminBadge } from './SuperadminBadge';
 import { useAdminContext } from '@/context/AdminContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useNotifications } from '@/context/NotificationContext';
 
 interface AdminHeaderProps {
   onMenuToggle: () => void;
   isPortalMode?: boolean;
+  onNotificationToggle?: () => void;
 }
 
-export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderProps) => {
+export const AdminHeader = ({
+  onMenuToggle,
+  isPortalMode = false,
+  onNotificationToggle,
+}: AdminHeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut, user } = useAuth();
-  const { isSuperadmin, loading: superadminLoading } = useSuperadmin();
+  const { isSuperadmin } = useSuperadmin();
   const { hasRole } = useAuthz();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
   const { toast } = useToast();
   const { selectedBranchId, setSelectedBranchId, branchName } = useAdminContext();
+  const { notifications, unreadCount, addNotification, clearAll, markAsRead } = useNotifications();
 
   const { data: districtTree } = useQuery({
     queryKey: ['admin-header-district-tree'],
@@ -100,16 +104,12 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
             title: 'New Transfer Request',
             description: 'A new member transfer request has been received.',
           });
-          setNotifications((prev) => [
-            {
-              id: payload.new.id,
-              text: 'New Transfer Request Received',
-              read: false,
-              timestamp: new Date().toISOString(),
-              link: isPortalMode ? '/portal/transfers' : '/admin/transfers',
-            },
-            ...prev,
-          ]);
+          addNotification({
+            type: 'info',
+            title: 'New Transfer Request',
+            message: 'Check the transfers module for details.',
+            link: isPortalMode ? '/portal/transfers' : '/admin/transfers',
+          });
         }
       )
       .subscribe();
@@ -117,7 +117,7 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedBranchId, toast, isPortalMode]);
+  }, [selectedBranchId, toast, isPortalMode, addNotification]);
 
   const { data: portalDistrictBranches } = useQuery({
     queryKey: ['admin-header-portal-district-branches', selectedBranchId],
@@ -162,39 +162,31 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
     navigate(`${prefix}${nextBranchId}${suffix}`, { state: location.state });
   };
 
-  // Debounce function with proper TypeScript types
   function debounce<T extends (...args: any[]) => any>(func: T, wait: number) {
     let timeout: ReturnType<typeof setTimeout> | null = null;
-
     const debounced = (...args: Parameters<T>) => {
       const later = () => {
         timeout = null;
         func(...args);
       };
-
       if (timeout !== null) {
         clearTimeout(timeout);
       }
-
       timeout = setTimeout(later, wait);
     };
-
     debounced.cancel = () => {
       if (timeout) {
         clearTimeout(timeout);
         timeout = null;
       }
     };
-
     return debounced as T & { cancel: () => void };
   }
 
-  // Debounced search function
   const debouncedSearch = useCallback(
     debounce((query: string) => {
       if (query.trim()) {
         setIsSearching(true);
-        // Simulate API call
         setTimeout(() => {
           toast({
             title: 'Search',
@@ -220,26 +212,11 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
     }
   };
 
-  const markAsRead = (id: number) => {
-    setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  };
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const handleNotifications = () => {
-    toast({
-      title: 'Notifications',
-      description: 'Opening notification center...',
-    });
-    console.log('Opening notifications');
-  };
-
   const handleSettings = () => {
     toast({
       title: 'Settings',
       description: 'Opening user settings...',
     });
-    console.log('Opening settings');
   };
 
   const handleLogout = async () => {
@@ -400,59 +377,78 @@ export const AdminHeader = ({ onMenuToggle, isPortalMode = false }: AdminHeaderP
         {/* Actions */}
         <div className="flex items-center gap-2 sm:gap-4 ml-auto">
           {/* Notifications */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative w-10 h-10 rounded-xl hover:bg-muted text-primary transition-all"
-                aria-label="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-5 h-5 text-[10px] font-bold flex items-center justify-center bg-destructive text-destructive-foreground rounded-lg border-2 border-white ring-2 ring-destructive/20 shadow-lg">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-80 bg-white dark:bg-card p-0 rounded-2xl shadow-2xl border-border overflow-hidden"
+          {onNotificationToggle ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNotificationToggle}
+              className="relative w-10 h-10 rounded-xl hover:bg-muted text-primary transition-all"
+              aria-label="Notifications"
             >
-              <div className="p-4 bg-muted/30 border-b border-border flex justify-between items-center">
-                <span className="font-bold text-sm">Notifications</span>
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-5 h-5 text-[10px] font-bold flex items-center justify-center bg-destructive text-destructive-foreground rounded-lg border-2 border-white ring-2 ring-destructive/20 shadow-lg">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="text-[10px] uppercase font-bold text-primary h-7 px-2"
-                  onClick={() => setNotifications([])}
+                  size="icon"
+                  className="relative w-10 h-10 rounded-xl hover:bg-muted text-primary transition-all"
+                  aria-label="Notifications"
                 >
-                  Clear all
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-5 h-5 text-[10px] font-bold flex items-center justify-center bg-destructive text-destructive-foreground rounded-lg border-2 border-white ring-2 ring-destructive/20 shadow-lg">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </Button>
-              </div>
-              <div className="max-h-96 overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className="p-4 hover:bg-muted/30 border-b border-border last:border-0 cursor-pointer"
-                    >
-                      <p className="text-sm font-semibold">{n.text}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
-                        {n.timestamp}
-                      </p>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-80 bg-white dark:bg-card p-0 rounded-2xl shadow-2xl border-border overflow-hidden"
+              >
+                <div className="p-4 bg-muted/30 border-b border-border flex justify-between items-center">
+                  <span className="font-bold text-sm">Notifications</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] uppercase font-bold text-primary h-7 px-2"
+                    onClick={() => clearAll()}
+                  >
+                    Clear all
+                  </Button>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => markAsRead(n.id)}
+                        className="p-4 hover:bg-muted/30 border-b border-border last:border-0 cursor-pointer"
+                      >
+                        <p className="text-sm font-semibold">{n.title}</p>
+                        <p className="text-xs text-muted-foreground">{n.message}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
+                          {n.timestamp}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-12 text-center opacity-50 flex flex-col items-center gap-3">
+                      <Bell className="w-8 h-8 text-muted-foreground" />
+                      <p className="text-sm font-medium">No new updates found</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="py-12 text-center opacity-50 flex flex-col items-center gap-3">
-                    <Bell className="w-8 h-8 text-muted-foreground" />
-                    <p className="text-sm font-medium">No new updates found</p>
-                  </div>
-                )}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* User Profile */}
           <DropdownMenu>

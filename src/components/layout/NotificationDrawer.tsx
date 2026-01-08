@@ -5,50 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-
-interface Notification {
-  id: string;
-  type: 'alert' | 'success' | 'info' | 'message';
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-}
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    type: 'alert',
-    title: 'High Capacity Alert',
-    message: 'Main Auditorium has reached 90% capacity.',
-    timestamp: '2 mins ago',
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'success',
-    title: 'Deployment Complete',
-    message: 'Safety Team Alpha has checked into Zone B.',
-    timestamp: '15 mins ago',
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'message',
-    title: 'New Staff Message',
-    message: 'Sarah: Please verify the AV setup in the cafe.',
-    timestamp: '1 hour ago',
-    read: true,
-  },
-  {
-    id: '4',
-    type: 'info',
-    title: 'System Update',
-    message: 'Attendance data synced successfully.',
-    timestamp: '2 hours ago',
-    read: true,
-  },
-];
+import { useNotifications } from '@/context/NotificationContext';
 
 interface NotificationDrawerProps {
   isOpen: boolean;
@@ -56,6 +13,8 @@ interface NotificationDrawerProps {
 }
 
 export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, onClose }) => {
+  const { notifications, markAsRead, markAllAsRead, clearAll } = useNotifications();
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -98,63 +57,79 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
 
             <ScrollArea className="flex-1 p-6">
               <div className="space-y-4">
-                {MOCK_NOTIFICATIONS.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={cn(
-                      'p-4 rounded-2xl border transition-all hover:shadow-md cursor-pointer group',
-                      notification.read
-                        ? 'bg-white border-dashed border-gray-200 opacity-60 hover:opacity-100'
-                        : 'bg-white border-primary/10 shadow-sm border-l-4 border-l-primary'
-                    )}
-                  >
-                    <div className="flex gap-4">
-                      <div
-                        className={cn(
-                          'h-10 w-10 rounded-full flex items-center justify-center shrink-0',
-                          notification.type === 'alert'
-                            ? 'bg-destructive/10 text-destructive'
-                            : notification.type === 'success'
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : notification.type === 'message'
-                                ? 'bg-blue-500/10 text-blue-500'
-                                : 'bg-primary/10 text-primary'
-                        )}
-                      >
-                        {notification.type === 'alert' && <AlertTriangle className="h-5 w-5" />}
-                        {notification.type === 'success' && <CheckCircle className="h-5 w-5" />}
-                        {notification.type === 'message' && <MessageSquare className="h-5 w-5" />}
-                        {notification.type === 'info' && <Info className="h-5 w-5" />}
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <h4
-                            className={cn(
-                              'text-sm font-bold',
-                              !notification.read && 'text-primary'
-                            )}
-                          >
-                            {notification.title}
-                          </h4>
-                          <span className="text-[10px] font-medium text-muted-foreground">
-                            {notification.timestamp}
-                          </span>
+                {notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-50">
+                    <Bell className="h-12 w-12 mb-4" />
+                    <p className="font-medium text-sm">No notifications</p>
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      onClick={() => markAsRead(notification.id)}
+                      className={cn(
+                        'p-4 rounded-2xl border transition-all hover:shadow-md cursor-pointer group',
+                        notification.read
+                          ? 'bg-white border-dashed border-gray-200 opacity-60 hover:opacity-100'
+                          : 'bg-white border-primary/10 shadow-sm border-l-4 border-l-primary'
+                      )}
+                    >
+                      <div className="flex gap-4">
+                        <div
+                          className={cn(
+                            'h-10 w-10 rounded-full flex items-center justify-center shrink-0',
+                            notification.type === 'alert'
+                              ? 'bg-destructive/10 text-destructive'
+                              : notification.type === 'success'
+                                ? 'bg-emerald-500/10 text-emerald-500'
+                                : notification.type === 'message'
+                                  ? 'bg-blue-500/10 text-blue-500'
+                                  : 'bg-primary/10 text-primary'
+                          )}
+                        >
+                          {notification.type === 'alert' && <AlertTriangle className="h-5 w-5" />}
+                          {notification.type === 'success' && <CheckCircle className="h-5 w-5" />}
+                          {notification.type === 'message' && <MessageSquare className="h-5 w-5" />}
+                          {notification.type === 'info' && <Info className="h-5 w-5" />}
                         </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          {notification.message}
-                        </p>
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h4
+                              className={cn(
+                                'text-sm font-bold',
+                                !notification.read && 'text-primary'
+                              )}
+                            >
+                              {notification.title}
+                            </h4>
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              {notification.timestamp}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {notification.message}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </ScrollArea>
-            <div className="p-4 border-t border-primary/5 bg-muted/20">
+            <div className="p-4 border-t border-primary/5 bg-muted/20 flex gap-2">
               <Button
                 variant="ghost"
-                className="w-full text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary"
+                onClick={() => markAllAsRead()}
+                className="flex-1 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary"
               >
-                Mark all as read
+                Mark all read
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => clearAll()}
+                className="flex-1 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-destructive"
+              >
+                Clear All
               </Button>
             </div>
           </motion.div>

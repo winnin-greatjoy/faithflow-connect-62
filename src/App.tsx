@@ -81,6 +81,7 @@ const PublicRegistrationPage = lazy(() =>
     default: m.PublicRegistrationPage,
   }))
 );
+const MobileEventApp = lazy(() => import('./pages/public/MobileEventApp'));
 
 const queryClient = new QueryClient();
 
@@ -138,190 +139,195 @@ const DistrictAdminOnlyRoute = ({ children }: { children: React.ReactNode }) => 
   return <>{children}</>;
 };
 
+import { NotificationProvider } from './context/NotificationContext';
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <Toaster />
-      <BrowserRouter>
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center min-h-screen p-6">
-              <DashboardSkeleton />
-            </div>
-          }
-        >
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/events/:eventId/register" element={<PublicRegistrationPage />} />
-            <Route
-              path="/portal"
-              element={
-                <ProtectedRoute>
-                  <PortalDashboard />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<HomePage />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="directory" element={<DirectoryPage />} />
-              <Route path="registrations" element={<RegistrationsPage />} />
-              <Route path="attendance" element={<AttendancePage />} />
-              <Route path="groups" element={<GroupsPage />} />
-              <Route path="calendar" element={<CalendarPage />} />
-              <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="share" element={<ShareAppPage />} />
-              <Route path="departments" element={<DepartmentsPage />} />
-              <Route path="streaming" element={<StreamingPage />} />
-              <Route path="streaming/:streamId" element={<StreamingPage />} />
-              <Route path="transfer-request" element={<TransferRequestPage />} />
-              <Route path="qr-code" element={<QRCodePage />} />
-              <Route path="id-card" element={<IDCardPage />} />
-              <Route path="change-password" element={<ChangePasswordPage />} />
-              <Route path="directory-settings" element={<DirectorySettingsPage />} />
-              <Route path="edit-account" element={<EditAccountInfoPage />} />
-              <Route path="transfers" element={<MemberTransfersPage />} />
-            </Route>
-            <Route
-              path="/admin/mens-ministry/:ministryId"
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/womens-ministry/:ministryId"
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/youth-ministry/:ministryId"
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/childrens-ministry/:ministryId"
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/transfers"
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/member/:memberId"
-              element={
-                <ProtectedRoute>
-                  <MemberProfilePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/first-timer/:timerId"
-              element={
-                <ProtectedRoute>
-                  <FirstTimerProfilePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/departments/:slug"
-              element={
-                <ProtectedRoute>
-                  <DepartmentPage />
-                </ProtectedRoute>
-              }
-            />
-            {/* Standalone District Portal */}
-            <Route
-              path="/district-portal/:districtId"
-              element={
-                <ProtectedRoute>
-                  <DistrictDashboard />
-                </ProtectedRoute>
-              }
-            />
+      <NotificationProvider>
+        <BrowserRouter>
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-screen p-6">
+                <DashboardSkeleton />
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/events/:eventId/register" element={<PublicRegistrationPage />} />
+              <Route path="/events/:eventId/app" element={<MobileEventApp />} />
+              <Route
+                path="/portal"
+                element={
+                  <ProtectedRoute>
+                    <PortalDashboard />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<HomePage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="directory" element={<DirectoryPage />} />
+                <Route path="registrations" element={<RegistrationsPage />} />
+                <Route path="attendance" element={<AttendancePage />} />
+                <Route path="groups" element={<GroupsPage />} />
+                <Route path="calendar" element={<CalendarPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="share" element={<ShareAppPage />} />
+                <Route path="departments" element={<DepartmentsPage />} />
+                <Route path="streaming" element={<StreamingPage />} />
+                <Route path="streaming/:streamId" element={<StreamingPage />} />
+                <Route path="transfer-request" element={<TransferRequestPage />} />
+                <Route path="qr-code" element={<QRCodePage />} />
+                <Route path="id-card" element={<IDCardPage />} />
+                <Route path="change-password" element={<ChangePasswordPage />} />
+                <Route path="directory-settings" element={<DirectorySettingsPage />} />
+                <Route path="edit-account" element={<EditAccountInfoPage />} />
+                <Route path="transfers" element={<MemberTransfersPage />} />
+              </Route>
+              <Route
+                path="/admin/mens-ministry/:ministryId"
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/womens-ministry/:ministryId"
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/youth-ministry/:ministryId"
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/childrens-ministry/:ministryId"
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/transfers"
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/member/:memberId"
+                element={
+                  <ProtectedRoute>
+                    <MemberProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/first-timer/:timerId"
+                element={
+                  <ProtectedRoute>
+                    <FirstTimerProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/departments/:slug"
+                element={
+                  <ProtectedRoute>
+                    <DepartmentPage />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Standalone District Portal */}
+              <Route
+                path="/district-portal/:districtId"
+                element={
+                  <ProtectedRoute>
+                    <DistrictDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* District Admin Branch Dashboard */}
-            <Route
-              path="/district-portal/branch/:branchId/*"
-              element={
-                <ProtectedRoute>
-                  <DistrictAdminOnlyRoute>
-                    <AdminDashboard isPortalMode={true} />
-                  </DistrictAdminOnlyRoute>
-                </ProtectedRoute>
-              }
-            />
+              {/* District Admin Branch Dashboard */}
+              <Route
+                path="/district-portal/branch/:branchId/*"
+                element={
+                  <ProtectedRoute>
+                    <DistrictAdminOnlyRoute>
+                      <AdminDashboard isPortalMode={true} />
+                    </DistrictAdminOnlyRoute>
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Superadmin District Portal Branch Dashboard */}
-            <Route
-              path="/superadmin/district-portal/branch/:branchId/*"
-              element={
-                <ProtectedRoute>
-                  <SuperadminOnlyRoute>
-                    <AdminDashboard isPortalMode={true} />
-                  </SuperadminOnlyRoute>
-                </ProtectedRoute>
-              }
-            />
+              {/* Superadmin District Portal Branch Dashboard */}
+              <Route
+                path="/superadmin/district-portal/branch/:branchId/*"
+                element={
+                  <ProtectedRoute>
+                    <SuperadminOnlyRoute>
+                      <AdminDashboard isPortalMode={true} />
+                    </SuperadminOnlyRoute>
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Standalone Branch Portal for Superadmins */}
-            <Route
-              path="/branch-portal/:branchId/*"
-              element={
-                <ProtectedRoute>
-                  <SuperadminOnlyRoute>
-                    <AdminDashboard isPortalMode={true} />
-                  </SuperadminOnlyRoute>
-                </ProtectedRoute>
-              }
-            />
-            {/* Dedicated Superadmin Dashboard */}
-            <Route
-              path="/superadmin/*"
-              element={
-                <ProtectedRoute>
-                  <SuperadminOnlyRoute>
-                    <SuperadminDashboard />
-                  </SuperadminOnlyRoute>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/event/:eventId/dashboard"
-              element={
-                <ProtectedRoute>
-                  <EventDashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/*"
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+              {/* Standalone Branch Portal for Superadmins */}
+              <Route
+                path="/branch-portal/:branchId/*"
+                element={
+                  <ProtectedRoute>
+                    <SuperadminOnlyRoute>
+                      <AdminDashboard isPortalMode={true} />
+                    </SuperadminOnlyRoute>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Dedicated Superadmin Dashboard */}
+              <Route
+                path="/superadmin/*"
+                element={
+                  <ProtectedRoute>
+                    <SuperadminOnlyRoute>
+                      <SuperadminDashboard />
+                    </SuperadminOnlyRoute>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/event/:eventId/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <EventDashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/*"
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </NotificationProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Calculator,
   Calendar,
@@ -13,6 +14,7 @@ import {
   Heart,
   Music,
   Mic2,
+  LayoutDashboard,
 } from 'lucide-react';
 
 import {
@@ -28,6 +30,7 @@ import {
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -39,6 +42,11 @@ export function CommandPalette() {
 
     document.addEventListener('keydown', down);
     return () => document.removeEventListener('keydown', down);
+  }, []);
+
+  const runCommand = React.useCallback((command: () => void) => {
+    setOpen(false);
+    command();
   }, []);
 
   return (
@@ -57,34 +65,39 @@ export function CommandPalette() {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Suggestions">
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/calendar'))}>
               <Calendar className="mr-2 h-4 w-4" />
               <span>Calendar</span>
             </CommandItem>
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/people'))}>
               <Users className="mr-2 h-4 w-4" />
               <span>Search Members</span>
               <CommandShortcut>⌘M</CommandShortcut>
             </CommandItem>
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/finance'))}>
               <Calculator className="mr-2 h-4 w-4" />
               <span>Finance Dashboard</span>
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/events/dashboard'))}>
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              <span>Event Dashboard</span>
             </CommandItem>
           </CommandGroup>
 
           <CommandSeparator />
 
           <CommandGroup heading="Quick Actions">
-            <CommandItem>
+            {/* Placeholder route for new registration until wizard page is confirmed */}
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/events?action=new'))}>
               <PlusCircle className="mr-2 h-4 w-4" />
               <span>New Registration</span>
               <CommandShortcut>⌘N</CommandShortcut>
             </CommandItem>
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/safety/reports'))}>
               <Shield className="mr-2 h-4 w-4" />
               <span>Report Incident</span>
             </CommandItem>
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/reports'))}>
               <FileText className="mr-2 h-4 w-4" />
               <span>Export Report</span>
             </CommandItem>
@@ -93,15 +106,19 @@ export function CommandPalette() {
           <CommandSeparator />
 
           <CommandGroup heading="Modules">
-            <CommandItem>
+            <CommandItem
+              onSelect={() => runCommand(() => navigate('/admin/events/dashboard?module=worship'))}
+            >
               <Music className="mr-2 h-4 w-4" />
               <span>Worship Planner</span>
             </CommandItem>
-            <CommandItem>
+            <CommandItem
+              onSelect={() => runCommand(() => navigate('/admin/events/dashboard?module=assets'))}
+            >
               <Mic2 className="mr-2 h-4 w-4" />
               <span>Asset Manager</span>
             </CommandItem>
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/engagement/prayer'))}>
               <Heart className="mr-2 h-4 w-4" />
               <span>Prayer Wall</span>
             </CommandItem>
@@ -110,17 +127,17 @@ export function CommandPalette() {
           <CommandSeparator />
 
           <CommandGroup heading="Settings">
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/settings/profile'))}>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
               <CommandShortcut>⌘P</CommandShortcut>
             </CommandItem>
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/finance/settings'))}>
               <CreditCard className="mr-2 h-4 w-4" />
               <span>Billing</span>
               <CommandShortcut>⌘B</CommandShortcut>
             </CommandItem>
-            <CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate('/admin/settings'))}>
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
               <CommandShortcut>⌘S</CommandShortcut>
