@@ -76,6 +76,11 @@ const DistrictDashboard = lazy(() =>
   }))
 );
 const EventDashboardPage = lazy(() => import('./pages/admin/EventDashboardPage'));
+const PublicRegistrationPage = lazy(() =>
+  import('./pages/public/PublicRegistrationPage').then((m) => ({
+    default: m.PublicRegistrationPage,
+  }))
+);
 
 const queryClient = new QueryClient();
 
@@ -148,6 +153,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/events/:eventId/register" element={<PublicRegistrationPage />} />
             <Route
               path="/portal"
               element={
