@@ -73,7 +73,6 @@ export default function EventDashboardPage() {
   );
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isKioskMode, setIsKioskMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [visibleModuleIds, setVisibleModuleIds] = useState<string[]>([]);
@@ -82,7 +81,7 @@ export default function EventDashboardPage() {
   const renderModule = (moduleId: string) => {
     switch (moduleId) {
       case 'attendance':
-        return <AttendanceManagerModule />;
+        return <AttendanceManagerModule event={event} />;
       case 'registration':
         return <RegistrationManagerModule />;
       case 'queue':
@@ -138,17 +137,20 @@ export default function EventDashboardPage() {
           // Initialize active_modules if missing
           setEvent({
             ...found,
-            active_modules: found.active_modules || ['registration'],
+            active_modules: found.active_modules ||
+              found.metadata?.active_modules || ['registration'],
             module_config: found.module_config || {},
             module_assignments: found.module_assignments || {},
           } as any);
 
           // Load or init visibility preferences
+          const initialActive = found.active_modules ||
+            found.metadata?.active_modules || ['registration'];
           const storedVisibility = localStorage.getItem(`dashboard_layout_${eventId}`);
           if (storedVisibility) {
             setVisibleModuleIds(JSON.parse(storedVisibility));
           } else {
-            setVisibleModuleIds(found.active_modules || ['registration']);
+            setVisibleModuleIds(initialActive);
           }
         }
       } catch (error) {
@@ -167,7 +169,14 @@ export default function EventDashboardPage() {
       ? currentModules.filter((m) => m !== moduleId)
       : [...currentModules, moduleId];
 
-    const updatedEvent = { ...event, active_modules: newModules };
+    const updatedEvent = {
+      ...event,
+      active_modules: newModules,
+      metadata: {
+        ...event.metadata,
+        active_modules: newModules,
+      },
+    };
     setEvent(updatedEvent);
 
     // Auto-enable visibility for new modules
@@ -175,8 +184,10 @@ export default function EventDashboardPage() {
       handleVisibilityChange(moduleId, true);
     }
 
-    // In a real implementation, we would call an API update here
-    await eventsApi.updateEvent(event.id, updatedEvent);
+    // Persist to metadata to ensure it saves even if column doesn't exist
+    await eventsApi.updateEvent(event.id, {
+      metadata: updatedEvent.metadata,
+    });
   };
 
   const delegateModule = async (moduleId: string, userId: string) => {
@@ -271,7 +282,7 @@ export default function EventDashboardPage() {
                       {event.status}
                     </Badge>
                   </div>
-                  <h1 className="text-4xl font-serif font-black text-foreground tracking-tight leading-tight">
+                  <h1 className="text-2xl md:text-3xl font-serif font-black text-foreground tracking-tight leading-tight">
                     {event.title}
                   </h1>
                 </div>
@@ -281,8 +292,8 @@ export default function EventDashboardPage() {
             <div className="flex items-center gap-3">
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button className="bg-primary hover:bg-primary/90 text-white h-14 px-8 rounded-[20px] font-black text-xs tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95 group">
-                    <Plus className="mr-3 h-4 w-4 transition-transform group-hover:rotate-90" />
+                  <Button className="bg-primary hover:bg-primary/90 text-white h-10 px-6 rounded-xl font-black text-[10px] tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95 group">
+                    <Plus className="mr-2 h-3.5 w-3.5 transition-transform group-hover:rotate-90" />
                     ACTIVATE MODULES
                   </Button>
                 </DialogTrigger>
@@ -362,29 +373,22 @@ export default function EventDashboardPage() {
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button
-                variant="outline"
-                onClick={() => setIsKioskMode(true)}
-                className="h-14 px-6 rounded-[20px] border-primary/10 bg-white shadow-lg hover:bg-primary/5 font-black text-[10px] uppercase tracking-widest text-primary"
-              >
-                <Monitor className="mr-2 h-4 w-4" />
-                Kiosk Mode
-              </Button>
+
               <Button
                 variant="outline"
                 onClick={() => setIsChatOpen(true)}
-                className="h-14 w-14 rounded-[20px] border-primary/10 bg-white shadow-lg hover:bg-primary/5 relative"
+                className="h-10 w-10 rounded-xl border-primary/10 bg-white shadow-lg hover:bg-primary/5 relative"
               >
-                <MessageSquare className="h-5 w-5 text-primary" />
-                <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-destructive" />
+                <MessageSquare className="h-4 w-4 text-primary" />
+                <div className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-destructive" />
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setIsNotificationsOpen(true)}
-                className="h-14 w-14 rounded-[20px] border-primary/10 bg-white shadow-lg hover:bg-primary/5 relative"
+                className="h-10 w-10 rounded-xl border-primary/10 bg-white shadow-lg hover:bg-primary/5 relative"
               >
-                <Bell className="h-5 w-5 text-primary" />
-                <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                <Bell className="h-4 w-4 text-primary" />
+                <div className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-destructive animate-pulse" />
               </Button>
               <DashboardCustomizer
                 activeModuleIds={event.active_modules || []}
@@ -771,9 +775,6 @@ export default function EventDashboardPage() {
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
         />
-        {isKioskMode && (
-          <VenueKioskView eventName={event.title} onExit={() => setIsKioskMode(false)} />
-        )}
       </AnimatePresence>
       <CommandPalette />
     </div>

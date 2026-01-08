@@ -20,6 +20,7 @@ export interface EventPayload {
   registration_fee?: number;
   target_audience?: string;
   metadata?: any;
+  active_modules?: string[];
 }
 
 export interface EventRecord extends EventPayload {
@@ -247,10 +248,12 @@ export const eventsApi = {
   async getAttendanceLogs(eventId: string, limit = 50) {
     return (supabase as any)
       .from('attendance_records')
-      .select(`
+      .select(
+        `
         *,
         member:member_id(full_name, phone)
-      `)
+      `
+      )
       .eq('event_id', eventId)
       .order('timestamp', { ascending: false })
       .limit(limit);

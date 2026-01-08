@@ -35,7 +35,7 @@ export function DashboardCustomizer({
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="h-14 w-14 rounded-[20px] border-primary/10 bg-white shadow-lg hover:bg-primary/5"
+          className="h-10 w-10 rounded-xl border-primary/10 bg-white shadow-lg hover:bg-primary/5"
         >
           <Settings2 className="h-5 w-5 text-primary" />
         </Button>

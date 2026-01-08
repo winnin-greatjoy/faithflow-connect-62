@@ -17,12 +17,14 @@ import { cn } from '@/lib/utils';
 import { CheckInConsole } from './attendance/CheckInConsole';
 import { ZoneMonitor } from './attendance/ZoneMonitor';
 import { AttendanceLogs } from './attendance/AttendanceLogs';
+import { VenueKioskView } from '../views/VenueKioskView';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { toast } from 'sonner';
 
-export const AttendanceManagerModule = () => {
+export const AttendanceManagerModule = ({ event }: { event?: any }) => {
   const [view, setView] = useState<'console' | 'monitor' | 'logs'>('console');
+  const [activeKiosk, setActiveKiosk] = useState(false);
   const [selectedSession, setSelectedSession] = useState('Morning Service');
 
   const handleDispatch = () => {
@@ -63,7 +65,7 @@ export const AttendanceManagerModule = () => {
           </div>
         </div>
 
-        <div className="flex items-center flex-wrap justify-between sm:justify-end gap-2 sm:gap-3 bg-white p-2 sm:p-2.5 rounded-2xl sm:rounded-[24px] shadow-xl shadow-primary/5 border border-primary/5 w-full lg:w-auto">
+        <div className="flex items-center flex-wrap justify-between sm:justify-end gap-2 sm:gap-3 bg-white p-2 sm:p-2 rounded-xl shadow-sm border border-primary/5 w-full lg:w-auto">
           <div className="px-3 sm:px-4">
             <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">
               Active Session
@@ -74,26 +76,26 @@ export const AttendanceManagerModule = () => {
             aria-label="Change session"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-muted/50"
+            className="h-9 w-9 rounded-lg bg-muted/50"
           >
             <ChevronDown className="h-4 w-4" />
           </Button>
           <div className="w-[1px] h-8 bg-primary/5 mx-1" />
           <Button
+            onClick={() => setActiveKiosk(true)}
+            variant="outline"
+            className="h-9 px-4 rounded-lg font-black text-[10px] uppercase tracking-widest text-primary border-primary/10 hover:bg-primary/5"
+          >
+            <Scan className="h-3.5 w-3.5 mr-2" />
+            Kiosk Mode
+          </Button>
+          <Button
             aria-label="Export attendance"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl hover:bg-primary/5 hover:text-primary transition-all"
+            className="h-9 w-9 rounded-lg hover:bg-primary/5 hover:text-primary transition-all"
           >
             <Download className="h-4 w-4" />
-          </Button>
-          <Button
-            aria-label="Share dashboard"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl hover:bg-primary/5 hover:text-primary transition-all"
-          >
-            <Share2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -173,6 +175,15 @@ export const AttendanceManagerModule = () => {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {activeKiosk && (
+          <VenueKioskView
+            eventName={event?.title || 'Event Check-In'}
+            onExit={() => setActiveKiosk(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
