@@ -17,6 +17,8 @@ import {
   Monitor,
   MessageSquare,
   X,
+  Bell,
+  BarChart as BarChartIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +56,10 @@ import { ChildSafetyManagerModule } from '@/modules/events/components/dashboard/
 
 // Views
 import { VenueKioskView } from '@/modules/events/components/dashboard/views/VenueKioskView';
+import { CommandPalette } from '@/components/layout/CommandPalette';
+import { NotificationDrawer } from '@/components/layout/NotificationDrawer';
+import { DashboardCustomizer } from '@/components/layout/DashboardCustomizer';
+import { GlobalAnalyticsDashboard } from '@/modules/events/components/dashboard/analytics/GlobalAnalyticsDashboard';
 
 import { useMembers } from '@/modules/members/hooks/useMembers';
 
@@ -62,11 +68,15 @@ export default function EventDashboardPage() {
   const navigate = useNavigate();
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'library' | 'team'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'library' | 'team'>(
+    'overview'
+  );
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isKioskMode, setIsKioskMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [visibleModuleIds, setVisibleModuleIds] = useState<string[]>([]);
   const { members } = useMembers(); // For delegation
 
   const renderModule = (moduleId: string) => {
@@ -132,6 +142,14 @@ export default function EventDashboardPage() {
             module_config: found.module_config || {},
             module_assignments: found.module_assignments || {},
           } as any);
+
+          // Load or init visibility preferences
+          const storedVisibility = localStorage.getItem(`dashboard_layout_${eventId}`);
+          if (storedVisibility) {
+            setVisibleModuleIds(JSON.parse(storedVisibility));
+          } else {
+            setVisibleModuleIds(found.active_modules || ['registration']);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch event:', error);
@@ -151,6 +169,11 @@ export default function EventDashboardPage() {
 
     const updatedEvent = { ...event, active_modules: newModules };
     setEvent(updatedEvent);
+
+    // Auto-enable visibility for new modules
+    if (!currentModules.includes(moduleId)) {
+      handleVisibilityChange(moduleId, true);
+    }
 
     // In a real implementation, we would call an API update here
     await eventsApi.updateEvent(event.id, updatedEvent);
@@ -175,6 +198,21 @@ export default function EventDashboardPage() {
     });
   };
 
+  const handleVisibilityChange = (moduleId: string, visible: boolean) => {
+    const newVisible = visible
+      ? [...visibleModuleIds, moduleId]
+      : visibleModuleIds.filter((id) => id !== moduleId);
+
+    setVisibleModuleIds(newVisible);
+    localStorage.setItem(`dashboard_layout_${eventId}`, JSON.stringify(newVisible));
+  };
+
+  const handleResetLayout = () => {
+    if (!event?.active_modules) return;
+    setVisibleModuleIds(event.active_modules);
+    localStorage.setItem(`dashboard_layout_${eventId}`, JSON.stringify(event.active_modules));
+  };
+
   if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -186,6 +224,7 @@ export default function EventDashboardPage() {
   if (!event) return <div>Event not found.</div>;
 
   const activeModules = FEATURE_LIBRARY.filter((m) => event.active_modules?.includes(m.id));
+  const dashboardModules = activeModules.filter((m) => visibleModuleIds.includes(m.id));
   const filteredLibrary = FEATURE_LIBRARY.filter(
     (m) =>
       m.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -341,16 +380,25 @@ export default function EventDashboardPage() {
               </Button>
               <Button
                 variant="outline"
-                className="h-14 w-14 rounded-[20px] border-primary/10 bg-white shadow-lg hover:bg-primary/5"
+                onClick={() => setIsNotificationsOpen(true)}
+                className="h-14 w-14 rounded-[20px] border-primary/10 bg-white shadow-lg hover:bg-primary/5 relative"
               >
-                <Settings2 className="h-5 w-5 text-primary" />
+                <Bell className="h-5 w-5 text-primary" />
+                <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-destructive animate-pulse" />
               </Button>
+              <DashboardCustomizer
+                activeModuleIds={event.active_modules || []}
+                visibleModuleIds={visibleModuleIds}
+                onVisibilityChange={handleVisibilityChange}
+                onReset={handleResetLayout}
+              />
             </div>
           </div>
 
           <div className="mt-10 flex gap-1 p-1 bg-muted/40 rounded-2xl border border-primary/5 w-fit">
             {[
               { id: 'overview', label: 'Dashboard', icon: LayoutGrid },
+              { id: 'analytics', label: 'Analytics', icon: BarChartIcon },
               { id: 'team', label: 'Command Team', icon: Users },
               { id: 'library', label: 'Audit Log', icon: ClipboardList },
             ].map((tab) => (
@@ -416,7 +464,7 @@ export default function EventDashboardPage() {
               {activeTab === 'overview' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   <AnimatePresence mode="popLayout">
-                    {activeModules.map((module) => (
+                    {dashboardModules.map((module) => (
                       <motion.div
                         key={module.id}
                         layout
@@ -529,6 +577,12 @@ export default function EventDashboardPage() {
                     </motion.div>
                   </AnimatePresence>
                 </div>
+              )}
+
+              {activeTab === 'analytics' && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                  <GlobalAnalyticsDashboard />
+                </motion.div>
               )}
 
               {activeTab === 'team' && (
@@ -713,10 +767,15 @@ export default function EventDashboardPage() {
 
       {/* Venue Kiosk Mode Overlay */}
       <AnimatePresence>
+        <NotificationDrawer
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+        />
         {isKioskMode && (
           <VenueKioskView eventName={event.title} onExit={() => setIsKioskMode(false)} />
         )}
       </AnimatePresence>
+      <CommandPalette />
     </div>
   );
 }
