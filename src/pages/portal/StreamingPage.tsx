@@ -8,6 +8,7 @@ import { streamingApi, type Stream } from '@/services/streaming/streamingApi';
 import { StreamPlayer } from '@/components/streaming/StreamPlayer';
 import { StreamChat } from '@/components/streaming/StreamChat';
 import { useNavigate, useParams } from 'react-router-dom';
+import { InteractionHub } from '@/modules/events/components/mobile/InteractionHub';
 
 export default function StreamingPage() {
   const [liveStreams, setLiveStreams] = useState<Stream[]>([]);
@@ -36,12 +37,12 @@ export default function StreamingPage() {
   async function loadStreams() {
     setLoading(true);
     const result = await streamingApi.list();
-    
+
     if (result.data) {
       const live = result.data.filter((s) => s.status === 'live');
       const upcoming = result.data.filter((s) => s.status === 'scheduled');
       const past = result.data.filter((s) => s.status === 'ended' || s.status === 'archived');
-      
+
       setLiveStreams(live);
       setUpcomingStreams(upcoming);
       setPastStreams(past);
@@ -90,9 +91,7 @@ export default function StreamingPage() {
         <CardContent className="p-4">
           <h3 className="font-semibold line-clamp-2">{stream.title}</h3>
           {stream.description && (
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-              {stream.description}
-            </p>
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{stream.description}</p>
           )}
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -131,9 +130,7 @@ export default function StreamingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Live Streaming</h1>
-          <p className="text-muted-foreground mt-1">
-            Watch live services and recorded messages
-          </p>
+          <p className="text-muted-foreground mt-1">Watch live services and recorded messages</p>
         </div>
       </div>
 
@@ -143,7 +140,22 @@ export default function StreamingPage() {
             <StreamPlayer stream={selectedStream} />
           </div>
           <div className="lg:col-span-1">
-            <StreamChat streamId={selectedStream.id} />
+            <Card className="h-full flex flex-col border-none shadow-none bg-transparent">
+              <Tabs defaultValue="chat" className="flex-1 flex flex-col">
+                <TabsList className="w-full grid grid-cols-2">
+                  <TabsTrigger value="chat">Chat</TabsTrigger>
+                  <TabsTrigger value="interact">Q&A & Polls</TabsTrigger>
+                </TabsList>
+                <TabsContent value="chat" className="flex-1 mt-4">
+                  <StreamChat streamId={selectedStream.id} />
+                </TabsContent>
+                <TabsContent value="interact" className="flex-1 mt-4">
+                  <Card className="h-full overflow-hidden">
+                    <InteractionHub streamId={selectedStream.id} />
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </Card>
           </div>
         </div>
       )}
@@ -154,12 +166,8 @@ export default function StreamingPage() {
             <Radio className="w-4 h-4" />
             Live Now ({liveStreams.length})
           </TabsTrigger>
-          <TabsTrigger value="upcoming">
-            Upcoming ({upcomingStreams.length})
-          </TabsTrigger>
-          <TabsTrigger value="past">
-            Past Streams ({pastStreams.length})
-          </TabsTrigger>
+          <TabsTrigger value="upcoming">Upcoming ({upcomingStreams.length})</TabsTrigger>
+          <TabsTrigger value="past">Past Streams ({pastStreams.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="live" className="space-y-6">

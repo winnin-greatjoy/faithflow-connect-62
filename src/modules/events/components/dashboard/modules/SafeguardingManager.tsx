@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { ClearanceRecord } from '@/modules/events/types/safety';
 
 // Mock Data
@@ -235,5 +236,3 @@ export const SafeguardingManagerModule = () => {
     </div>
   );
 };
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');

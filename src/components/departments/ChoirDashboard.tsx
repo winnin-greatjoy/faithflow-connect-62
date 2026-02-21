@@ -63,6 +63,7 @@ import { ScheduleRehearsalDialog } from '../choir/ScheduleRehearsalDialog';
 
 interface ChoirDashboardProps {
   departmentId: string;
+  branchId?: string;
 }
 
 interface ChoirEvent {
@@ -88,7 +89,7 @@ interface NewMember {
   status: 'pending' | 'approved' | 'rejected';
 }
 
-export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) => {
+export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId, branchId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -1099,7 +1100,7 @@ export const ChoirDashboard: React.FC<ChoirDashboardProps> = ({ departmentId }) 
 
         {/* Tasks Tab */}
         <TabsContent value="tasks" className="space-y-4">
-          <DepartmentTaskBoard departmentId={departmentId} canEdit={true} />
+          <DepartmentTaskBoard departmentId={departmentId} branchId={branchId} canEdit={true} />
         </TabsContent>
       </Tabs>
 

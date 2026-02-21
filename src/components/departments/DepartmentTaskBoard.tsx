@@ -38,8 +38,9 @@ interface Task {
 }
 
 interface Props {
-  departmentId: string | number;
-  canEdit?: boolean;
+  departmentId: string;
+  branchId?: string;
+  canEdit: boolean;
 }
 
 const priorityColors = {
@@ -54,7 +55,7 @@ const statusColumns = [
   { value: 'done', label: 'Done' },
 ] as const;
 
-export const DepartmentTaskBoard: React.FC<Props> = ({ departmentId, canEdit = false }) => {
+export const DepartmentTaskBoard: React.FC<Props> = ({ departmentId, branchId, canEdit }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);

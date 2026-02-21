@@ -1,5 +1,13 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileEdit, Settings, UserCog } from 'lucide-react';
@@ -51,7 +59,6 @@ type ProfileEditProps = {
   setMemberInfo: (v: any) => void;
   genderOptions: readonly string[];
   maritalStatusOptions: readonly string[];
-  membershipLevelOptions: readonly string[];
   save: () => Promise<void>;
   saving: boolean;
 };
@@ -84,7 +91,6 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
   setMemberInfo,
   genderOptions,
   maritalStatusOptions,
-  membershipLevelOptions,
   save,
   saving,
 }) => {
@@ -105,11 +111,13 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
         </DialogTrigger>
       </div>
 
-      <DialogContent className="w-full h-[85vh] max-h-[85vh] overflow-hidden p-0 sm:max-w-4xl">
+      <DialogContent className="flex flex-col w-full max-h-[95vh] gap-0 p-0 sm:max-w-4xl sm:max-h-[85vh]">
         <div className="flex h-full flex-col">
           <DialogHeader className="relative px-6 pt-6 pb-4">
             <DialogTitle>Edit Profile</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Update your personal details, contact info, and preferences.</DialogDescription>
+            <DialogDescription className="text-muted-foreground">
+              Update your personal details, contact info, and preferences.
+            </DialogDescription>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -127,13 +135,17 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
                   checked={Boolean(memberInfo.doNotEmail ?? false)}
-                  onCheckedChange={value => setMemberInfo((prev: any) => ({ ...prev, doNotEmail: Boolean(value) }))}
+                  onCheckedChange={(value) =>
+                    setMemberInfo((prev: any) => ({ ...prev, doNotEmail: Boolean(value) }))
+                  }
                 >
                   Do not send emails
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={Boolean(memberInfo.doNotText ?? false)}
-                  onCheckedChange={value => setMemberInfo((prev: any) => ({ ...prev, doNotText: Boolean(value) }))}
+                  onCheckedChange={(value) =>
+                    setMemberInfo((prev: any) => ({ ...prev, doNotText: Boolean(value) }))
+                  }
                 >
                   Do not send texts
                 </DropdownMenuCheckboxItem>
@@ -148,7 +160,13 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
                     <AvatarImage src={photoUrl || undefined} alt={displayName} />
                     <AvatarFallback>{displayName?.[0] || '?'}</AvatarFallback>
                   </Avatar>
-                  <input ref={fileInputRef as any} type="file" accept="image/*" className="hidden" onChange={onUpload} />
+                  <input
+                    ref={fileInputRef as any}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onUpload}
+                  />
                   <Button
                     type="button"
                     size="icon"
@@ -172,33 +190,44 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
               </div>
 
               <Tabs defaultValue="personal">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="personal">Personal Info</TabsTrigger>
                   <TabsTrigger value="contact">Contact</TabsTrigger>
-                  <TabsTrigger value="church">Church</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="personal" className="space-y-4 pt-4">
                   <div className="grid gap-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <div>
-                        <Label htmlFor="first_name">First Name<span className="text-destructive"> *</span></Label>
+                        <Label htmlFor="first_name">
+                          First Name<span className="text-destructive"> *</span>
+                        </Label>
                         <Input
                           id="first_name"
                           value={form.first_name}
-                          onChange={e => setForm((f: any) => ({ ...f, first_name: e.target.value }))}
+                          onChange={(e) =>
+                            setForm((f: any) => ({ ...f, first_name: e.target.value }))
+                          }
                         />
                       </div>
                       <div>
                         <Label htmlFor="middle_name">Middle Name</Label>
-                        <Input id="middle_name" value={middleName} onChange={e => setMiddleName(e.target.value)} />
+                        <Input
+                          id="middle_name"
+                          value={middleName}
+                          onChange={(e) => setMiddleName(e.target.value)}
+                        />
                       </div>
                       <div>
-                        <Label htmlFor="last_name">Last Name<span className="text-destructive"> *</span></Label>
+                        <Label htmlFor="last_name">
+                          Last Name<span className="text-destructive"> *</span>
+                        </Label>
                         <Input
                           id="last_name"
                           value={form.last_name}
-                          onChange={e => setForm((f: any) => ({ ...f, last_name: e.target.value }))}
+                          onChange={(e) =>
+                            setForm((f: any) => ({ ...f, last_name: e.target.value }))
+                          }
                         />
                       </div>
                     </div>
@@ -207,13 +236,15 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
                         <Label htmlFor="gender">Gender</Label>
                         <Select
                           value={memberInfo.gender ?? undefined}
-                          onValueChange={value => setMemberInfo((prev: any) => ({ ...prev, gender: value }))}
+                          onValueChange={(value) =>
+                            setMemberInfo((prev: any) => ({ ...prev, gender: value }))
+                          }
                         >
                           <SelectTrigger id="gender" className="w-full capitalize">
                             <SelectValue placeholder="Select gender" />
                           </SelectTrigger>
                           <SelectContent>
-                            {genderOptions.map(option => (
+                            {genderOptions.map((option) => (
                               <SelectItem key={option} value={option} className="capitalize">
                                 {option}
                               </SelectItem>
@@ -227,7 +258,9 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
                           id="birthdate"
                           type="date"
                           value={memberInfo.birthdate || ''}
-                          onChange={e => setMemberInfo((prev: any) => ({ ...prev, birthdate: e.target.value }))}
+                          onChange={(e) =>
+                            setMemberInfo((prev: any) => ({ ...prev, birthdate: e.target.value }))
+                          }
                         />
                       </div>
                     </div>
@@ -235,13 +268,15 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
                       <Label htmlFor="marital_status">Marital Status</Label>
                       <Select
                         value={memberInfo.maritalStatus ?? undefined}
-                        onValueChange={value => setMemberInfo((prev: any) => ({ ...prev, maritalStatus: value }))}
+                        onValueChange={(value) =>
+                          setMemberInfo((prev: any) => ({ ...prev, maritalStatus: value }))
+                        }
                       >
                         <SelectTrigger id="marital_status" className="w-full capitalize">
                           <SelectValue placeholder="Select marital status" />
                         </SelectTrigger>
                         <SelectContent>
-                          {maritalStatusOptions.map(option => (
+                          {maritalStatusOptions.map((option) => (
                             <SelectItem key={option} value={option} className="capitalize">
                               {option}
                             </SelectItem>
@@ -251,7 +286,11 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
                     </div>
                     <div>
                       <Label htmlFor="nickname">Nickname</Label>
-                      <Input id="nickname" value={nickname} onChange={e => setNickname(e.target.value)} />
+                      <Input
+                        id="nickname"
+                        value={nickname}
+                        onChange={(e) => setNickname(e.target.value)}
+                      />
                     </div>
                   </div>
                 </TabsContent>
@@ -263,7 +302,7 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
                       <Input
                         id="mobile_phone"
                         value={form.phone}
-                        onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))}
+                        onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))}
                       />
                     </div>
                     <div>
@@ -271,99 +310,55 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
                       <Input
                         id="home_phone"
                         value={memberInfo.homePhone || ''}
-                        onChange={e => setMemberInfo((prev: any) => ({ ...prev, homePhone: e.target.value }))}
+                        onChange={(e) =>
+                          setMemberInfo((prev: any) => ({ ...prev, homePhone: e.target.value }))
+                        }
                       />
                     </div>
                   </div>
                   <div className="space-y-3">
                     <div>
                       <Label htmlFor="address_line">Address Line</Label>
-                      <Input id="address_line" value={addressLine} onChange={e => setAddressLine(e.target.value)} />
+                      <Input
+                        id="address_line"
+                        value={addressLine}
+                        onChange={(e) => setAddressLine(e.target.value)}
+                      />
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <Label htmlFor="state">Community</Label>
-                        <Input id="state" value={stateVal} onChange={e => setStateVal(e.target.value)} />
+                        <Input
+                          id="state"
+                          value={stateVal}
+                          onChange={(e) => setStateVal(e.target.value)}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="city">Area</Label>
-                        <Input id="city" value={city} onChange={e => setCity(e.target.value)} />
+                        <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
                       </div>
                     </div>
                     <div>
                       <Label htmlFor="zip">Public landmarks</Label>
-                      <Input id="zip" value={zipCode} onChange={e => setZipCode(e.target.value)} />
+                      <Input
+                        id="zip"
+                        value={zipCode}
+                        onChange={(e) => setZipCode(e.target.value)}
+                      />
                     </div>
-                  </div>
-                </TabsContent>
-                        {/* Church Tab */}
-                <TabsContent value="church" className="space-y-4 pt-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    
-                    <div>
-                      <Label htmlFor="grade">Branch <span className="normal-case text-xs text-muted-foreground/80"></span></Label>
-                      <Select
-                        value={memberInfo.membershipLevel ?? undefined}
-                        onValueChange={value => setMemberInfo((prev: any) => ({ ...prev, membershipLevel: value }))}
-                      >
-                        <SelectTrigger id="grade" className="w-full capitalize">
-                          <SelectValue placeholder="Select Membership Level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {membershipLevelOptions.map(option => (
-                            <SelectItem key={option} value={option} className="capitalize">
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="grade">Membership Level <span className="normal-case text-xs text-muted-foreground/80"></span></Label>
-                      <Select
-                        value={memberInfo.membershipLevel ?? undefined}
-                        onValueChange={value => setMemberInfo((prev: any) => ({ ...prev, membershipLevel: value }))}
-                      >
-                        <SelectTrigger id="grade" className="w-full capitalize">
-                          <SelectValue placeholder="Select Membership Level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {membershipLevelOptions.map(option => (
-                            <SelectItem key={option} value={option} className="capitalize">
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="grade">Baptised Sub-Level <span className="normal-case text-xs text-muted-foreground/80"></span></Label>
-                      <Select
-                        value={memberInfo.membershipLevel ?? undefined}
-                        onValueChange={value => setMemberInfo((prev: any) => ({ ...prev, membershipLevel: value }))}
-                      >
-                        <SelectTrigger id="grade" className="w-full capitalize">
-                          <SelectValue placeholder="Select Membership Level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {membershipLevelOptions.map(option => (
-                            <SelectItem key={option} value={option} className="capitalize">
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
                   </div>
                 </TabsContent>
               </Tabs>
             </div>
           </div>
           <DialogFooter className="border-t border-border/60 px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+            >
               Cancel
             </Button>
             <Button type="button" onClick={() => save()} disabled={saving}>

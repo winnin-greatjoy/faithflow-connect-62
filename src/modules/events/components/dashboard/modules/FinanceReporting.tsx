@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { BudgetCategory, FinancialSummary } from '@/modules/events/types/finance';
 
 // Mock Data
@@ -179,5 +180,3 @@ export const FinanceReportingModule = () => {
     </div>
   );
 };
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');

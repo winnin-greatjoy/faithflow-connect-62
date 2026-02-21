@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { DepartmentTaskBoard } from './DepartmentTaskBoard';
 
 interface PrayerMember {
   id: number;
@@ -244,11 +245,12 @@ const mockPrayerSessions: PrayerSession[] = [
   },
 ];
 
-interface PrayerTeamDashboardProps {
+interface Props {
   departmentId: string;
+  branchId?: string;
 }
 
-export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ departmentId }) => {
+export const PrayerTeamDashboard: React.FC<Props> = ({ departmentId, branchId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -445,9 +447,10 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -679,6 +682,11 @@ export const PrayerTeamDashboard: React.FC<PrayerTeamDashboardProps> = ({ depart
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="space-y-4">
+          <DepartmentTaskBoard departmentId={departmentId} branchId={branchId} canEdit={true} />
         </TabsContent>
 
         {/* Members Tab */}

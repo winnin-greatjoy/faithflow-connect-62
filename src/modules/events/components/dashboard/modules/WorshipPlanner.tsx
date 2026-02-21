@@ -28,6 +28,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import { Song, ServiceItem, WorshipTeamMember, Key } from '@/modules/events/types/worship';
 
 // Mock Data
@@ -833,11 +834,3 @@ export const WorshipPlannerModule = () => {
     </div>
   );
 };
-
-// Utility for conditional class names if imports are missing in shell
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}

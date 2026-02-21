@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
   FileEdit,
   UserCog,
   CreditCard,
+  User,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,6 +37,17 @@ interface MemberInfo {
   membershipLevel: string | null;
   mobilePhone: string | null;
   homePhone: string | null;
+  baptismDate: string | null;
+  dateJoined: string | null;
+  baptizedSubLevel: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  community: string | null;
+  area: string | null;
+  street: string | null;
+  publicLandmark: string | null;
+  assignedDepartment: string | null;
+  ministry: string | null;
 }
 
 interface PersistedProfileState {
@@ -67,6 +79,17 @@ const DEFAULT_MEMBER_INFO: MemberInfo = {
   membershipLevel: null,
   mobilePhone: null,
   homePhone: null,
+  baptismDate: null,
+  dateJoined: null,
+  baptizedSubLevel: null,
+  branchId: null,
+  branchName: null,
+  community: null,
+  area: null,
+  street: null,
+  publicLandmark: null,
+  assignedDepartment: null,
+  ministry: null,
 };
 
 const isMemberInfoEqual = (a?: MemberInfo | null, b?: MemberInfo | null) => {
@@ -78,7 +101,17 @@ const isMemberInfoEqual = (a?: MemberInfo | null, b?: MemberInfo | null) => {
     infoA.maritalStatus === infoB.maritalStatus &&
     infoA.membershipLevel === infoB.membershipLevel &&
     infoA.mobilePhone === infoB.mobilePhone &&
-    infoA.homePhone === infoB.homePhone
+    infoA.homePhone === infoB.homePhone &&
+    infoA.baptismDate === infoB.baptismDate &&
+    infoA.dateJoined === infoB.dateJoined &&
+    infoA.baptizedSubLevel === infoB.baptizedSubLevel &&
+    infoA.branchId === infoB.branchId &&
+    infoA.community === infoB.community &&
+    infoA.area === infoB.area &&
+    infoA.street === infoB.street &&
+    infoA.publicLandmark === infoB.publicLandmark &&
+    infoA.assignedDepartment === infoB.assignedDepartment &&
+    infoA.ministry === infoB.ministry
   );
 };
 
@@ -170,13 +203,33 @@ export const ProfilePage: React.FC = () => {
         const [profileRes, memberRes] = await Promise.all([
           supabase
             .from('profiles')
-            .select('first_name, last_name, phone, profile_photo')
+            .select('first_name, last_name, phone, profile_photo, middle_name, nickname')
             .eq('id', user.id)
             .maybeSingle(),
           user.email
             ? supabase
                 .from('members')
-                .select('date_of_birth, gender, marital_status, membership_level, phone')
+                .select(
+                  `
+                id,
+                date_of_birth,
+                gender,
+                marital_status,
+                membership_level,
+                phone,
+                email,
+                baptism_date,
+                date_joined,
+                baptized_sub_level,
+                community,
+                area,
+                street,
+                public_landmark,
+                assigned_department,
+                ministry,
+                church_branches(name)
+              `
+                )
                 .eq('email', user.email)
                 .maybeSingle()
             : Promise.resolve({ data: null }),
@@ -188,6 +241,8 @@ export const ProfilePage: React.FC = () => {
             last_name: profileRes.data.last_name || '',
             phone: profileRes.data.phone || '',
           });
+          setMiddleName((profileRes.data as any).middle_name || '');
+          setNickname((profileRes.data as any).nickname || '');
           const storedPhoto = (profileRes.data as any).profile_photo as string | null;
           setPhotoPath(storedPhoto || null);
           await refreshPhotoUrl(storedPhoto || null);
@@ -210,7 +265,24 @@ export const ProfilePage: React.FC = () => {
             membershipLevel: memberRes.data.membership_level,
             homePhone: memberRes.data.phone || prev.homePhone,
             mobilePhone: prev.mobilePhone || memberRes.data.phone || prev.mobilePhone,
+            baptismDate: (memberRes.data as any).baptism_date,
+            dateJoined: (memberRes.data as any).date_joined,
+            baptizedSubLevel: (memberRes.data as any).baptized_sub_level,
+            branchId: (memberRes.data as any).branch_id,
+            branchName: (memberRes.data as any).church_branches?.name || null,
+            community: (memberRes.data as any).community,
+            area: (memberRes.data as any).area,
+            street: (memberRes.data as any).street,
+            publicLandmark: (memberRes.data as any).public_landmark,
+            assignedDepartment: (memberRes.data as any).assigned_department,
+            ministry: (memberRes.data as any).ministry,
           }));
+
+          // Sync to separate states used in ProfileEdit
+          setAddressLine((memberRes.data as any).street || '');
+          setState((memberRes.data as any).community || '');
+          setCity((memberRes.data as any).area || '');
+          setZipCode((memberRes.data as any).public_landmark || '');
         }
       } else {
         setCurrentUserId(null);
@@ -307,11 +379,22 @@ export const ProfilePage: React.FC = () => {
   ]);
 
   const save = async () => {
-    setSaving(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
+    try {
+      setSaving(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: 'Authentication Error',
+          description: 'User not found. Please log in again.',
+          variant: 'destructive',
+        });
+        setSaving(false);
+        return;
+      }
+
       if (!form.first_name.trim() || !form.last_name.trim()) {
         toast({
           title: 'Validation',
@@ -323,41 +406,77 @@ export const ProfilePage: React.FC = () => {
       }
 
       // Update profiles table
-      const { error: profileError } = await supabase
+      console.log('Attempting profile update for user:', user.id, {
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        phone: form.phone.trim() || null,
+      });
+
+      const {
+        error: profileError,
+        data: profileData,
+        status: profileStatus,
+      } = await supabase
         .from('profiles')
         .update({
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
           phone: form.phone.trim() || null,
+          middle_name: middleName.trim() || null,
+          nickname: nickname.trim() || null,
         })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select();
+
+      console.log('Profile update response:', {
+        status: profileStatus,
+        data: profileData,
+        error: profileError,
+      });
 
       if (profileError) {
-        toast({ title: 'Save failed', description: profileError.message, variant: 'destructive' });
+        console.error('Profile update error details:', profileError);
+        toast({
+          title: 'Profile Save Failed',
+          description: `${profileError.message} (Code: ${profileError.code})`,
+          variant: 'destructive',
+        });
         setSaving(false);
         return;
       }
 
       // Update members table if member exists
       if (memberId && user.email) {
-        const { error: memberError } = await supabase
+        const memberUpdateData: any = {
+          full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
+        };
+
+        if (form.phone.trim()) memberUpdateData.phone = form.phone.trim();
+        if (memberInfo.birthdate) memberUpdateData.date_of_birth = memberInfo.birthdate;
+        if (memberInfo.gender) memberUpdateData.gender = memberInfo.gender;
+        if (memberInfo.maritalStatus) memberUpdateData.marital_status = memberInfo.maritalStatus;
+        if (addressLine.trim()) memberUpdateData.street = addressLine.trim();
+        if (state.trim()) memberUpdateData.community = state.trim();
+        if (city.trim()) memberUpdateData.area = city.trim();
+        if (zipCode.trim()) memberUpdateData.public_landmark = zipCode.trim();
+
+        console.log('Attempting member update for email:', user.email, memberUpdateData);
+
+        const { error: memberError, status: memberStatus } = await supabase
           .from('members')
-          .update({
-            full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
-            phone: form.phone.trim() || null,
-            date_of_birth: memberInfo.birthdate || null,
-            gender: (memberInfo.gender as any) || null,
-            marital_status: (memberInfo.maritalStatus as any) || null,
-            membership_level: (memberInfo.membershipLevel as any) || null,
-          })
+          .update(memberUpdateData)
           .eq('email', user.email);
 
+        console.log('Member update response:', { status: memberStatus, error: memberError });
+
         if (memberError) {
+          console.error('Member update error details:', memberError);
           toast({
             title: 'Warning',
             description: 'Profile updated but member info update failed: ' + memberError.message,
             variant: 'destructive',
           });
+          // We don't return here because profile update succeeded
         }
       }
 
@@ -365,10 +484,22 @@ export const ProfilePage: React.FC = () => {
       setMemberInfo((prev) => ({
         ...prev,
         mobilePhone: form.phone.trim() || prev.mobilePhone,
+        street: addressLine.trim() || prev.street,
+        community: state.trim() || prev.community,
+        area: city.trim() || prev.area,
+        publicLandmark: zipCode.trim() || prev.publicLandmark,
       }));
       setEditOpen(false);
+    } catch (err: any) {
+      console.error('Unexpected error during save:', err);
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred: ' + (err.message || 'Unknown error'),
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -500,6 +631,7 @@ export const ProfilePage: React.FC = () => {
   const genderOptions = Constants.public.Enums.gender;
   const maritalStatusOptions = Constants.public.Enums.marital_status;
   const membershipLevelOptions = Constants.public.Enums.membership_level;
+  const baptizedSubLevelOptions = Constants.public.Enums.baptized_sub_level;
   const mobilePhoneDisplay = memberInfo.mobilePhone?.trim() || '—';
   const homePhoneDisplay = memberInfo.homePhone?.trim() || '—';
 
@@ -541,8 +673,7 @@ export const ProfilePage: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Extracted edit dialog into ProfileEdit component for reuse */}
+    <div className="space-y-8 animate-in fade-in duration-700">
       <ProfileEdit
         open={editOpen}
         onOpenChange={setEditOpen}
@@ -571,115 +702,152 @@ export const ProfilePage: React.FC = () => {
         setMemberInfo={setMemberInfo}
         genderOptions={genderOptions}
         maritalStatusOptions={maritalStatusOptions}
-        membershipLevelOptions={membershipLevelOptions}
         save={save}
         saving={saving}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
-        <Card className="border border-border/60 bg-card/80 shadow-sm">
-          <CardContent className="flex flex-col items-center gap-4 px-6 py-8">
-            <Avatar className="h-24 w-24 border border-muted-foreground/30">
-              <AvatarImage src={photoUrl || undefined} alt={displayName} />
-              <AvatarFallback>{displayName?.[0] || '?'}</AvatarFallback>
-            </Avatar>
-            <div className="text-xl font-semibold text-foreground text-center">{displayName}</div>
-            {memberInfo.membershipLevel && (
-              <div className="text-sm text-muted-foreground">
-                {formatEnum(memberInfo.membershipLevel, 'Member')}
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileInputRef as any}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onUpload}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? 'Uploading…' : 'Change Photo'}
-              </Button>
-              {photoUrl && (
-                <Button variant="ghost" size="sm" onClick={removePhoto} disabled={uploading}>
-                  Remove
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-8 lg:grid-cols-[350px,1fr]">
         <div className="space-y-6">
-          <Card className="border border-border/60 bg-card/80 shadow-sm">
-            <CardContent className="grid gap-6 p-6 sm:grid-cols-2">
-              <div className="space-y-1">
-                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                  Mobile Phone
+          <Card className="overflow-hidden border-none bg-white shadow-xl ring-1 ring-border/20">
+            <div className="h-24 bg-gradient-to-r from-primary/80 to-primary/40" />
+            <CardContent className="relative flex flex-col items-center gap-4 px-6 pb-8 -mt-12">
+              <div className="relative group">
+                <Avatar className="h-32 w-32 border-4 border-white shadow-2xl transition-transform duration-300 group-hover:scale-105">
+                  <AvatarImage src={photoUrl || undefined} alt={displayName} />
+                  <AvatarFallback className="bg-primary/5 text-primary text-3xl font-bold">
+                    {displayName?.[0] || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-transparent"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <FileEdit className="h-6 w-6" />
+                  </Button>
                 </div>
-                <div className="text-base font-semibold text-foreground">{mobilePhoneDisplay}</div>
               </div>
-              <div className="space-y-1">
-                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                  Home Phone
-                </div>
-                <div className="text-base font-semibold text-foreground">{homePhoneDisplay}</div>
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">{displayName}</h2>
+                <p className="text-sm font-medium text-primary/80 uppercase tracking-widest">
+                  {formatEnum(memberInfo.membershipLevel, 'Member')}
+                </p>
+                {memberInfo.branchName && (
+                  <p className="text-xs text-muted-foreground">{memberInfo.branchName} Branch</p>
+                )}
               </div>
-              <div className="space-y-1">
-                <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                  Email
-                </div>
-                <div className="text-base font-semibold text-foreground break-all">{email}</div>
+              <div className="w-full pt-4 space-y-2">
+                <Button
+                  className="w-full shadow-lg hover:shadow-primary/20 transition-all duration-300"
+                  onClick={() => setEditOpen(true)}
+                >
+                  <UserCog className="mr-2 h-4 w-4" /> Edit Profile
+                </Button>
+                <input
+                  ref={fileInputRef as any}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onUpload}
+                />
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        <div className="space-y-8">
           <div className="grid gap-6 md:grid-cols-2">
-            <Card className="border border-border/60 bg-card/80 shadow-sm">
-              <CardContent className="grid gap-6 p-6 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                    Birthdate
-                  </div>
-                  <div className="text-base font-semibold text-foreground">{birthdateDisplay}</div>
+            <Card className="border-none bg-white shadow-xl ring-1 ring-border/20">
+              <CardHeader className="pb-3 border-b border-border/10">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" /> Personal Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 grid gap-6">
+                <InfoItem label="Full Name" value={displayName} />
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Gender" value={genderDisplay} />
+                  <InfoItem label="Birthdate" value={birthdateDisplay} />
                 </div>
-                <div className="space-y-1">
-                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                    Gender
-                  </div>
-                  <div className="text-base font-semibold text-foreground">{genderDisplay}</div>
-                </div>
+                <InfoItem label="Marital Status" value={maritalStatusDisplay} />
+                {nickname && <InfoItem label="Nickname" value={nickname} />}
               </CardContent>
             </Card>
 
-            <Card className="border border-border/60 bg-card/80 shadow-sm">
-              <CardContent className="p-6">
+            <Card className="border-none bg-white shadow-xl ring-1 ring-border/20">
+              <CardHeader className="pb-3 border-b border-border/10">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <KeyRound className="h-5 w-5 text-primary" /> Contact Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 grid gap-6">
+                <InfoItem label="Email Address" value={email} subValue="Primary" />
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Mobile Phone" value={mobilePhoneDisplay} />
+                  <InfoItem label="Home Phone" value={homePhoneDisplay} />
+                </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                    Grade{' '}
-                    <span className="normal-case text-xs text-muted-foreground/80">
-                      (As of school year 2025-2026)
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">
+                    Stay Connected
+                  </p>
+                  <div className="flex gap-4">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full border ${!doNotEmail ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}
+                    >
+                      Email: {!doNotEmail ? 'Enabled' : 'Disabled'}
+                    </span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full border ${!doNotText ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}
+                    >
+                      SMS: {!doNotText ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
-                  <div className="text-base font-semibold text-foreground">{gradeDisplay}</div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-border/60 bg-card/80 shadow-sm md:col-span-2">
-              <CardContent className="p-6">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                    Marital Status
-                  </div>
-                  <div className="text-base font-semibold text-foreground">
-                    {maritalStatusDisplay}
-                  </div>
+            <Card className="border-none bg-white shadow-xl ring-1 ring-border/20">
+              <CardHeader className="pb-3 border-b border-border/10">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-primary" /> Church Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 grid gap-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Membership Level" value={gradeDisplay} />
+                  <InfoItem label="Joined Date" value={formatDate(memberInfo.dateJoined)} />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem
+                    label="Baptism Status"
+                    value={memberInfo.baptismDate ? 'Baptized' : 'Not Baptized'}
+                  />
+                  {memberInfo.baptismDate && (
+                    <InfoItem label="Baptism Date" value={formatDate(memberInfo.baptismDate)} />
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Department" value={memberInfo.assignedDepartment || 'None'} />
+                  <InfoItem label="Ministry" value={memberInfo.ministry || 'None'} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none bg-white shadow-xl ring-1 ring-border/20">
+              <CardHeader className="pb-3 border-b border-border/10">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-primary" /> Address & Location
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 grid gap-6">
+                <InfoItem label="Home Address" value={memberInfo.street || '—'} />
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Area" value={memberInfo.area || '—'} />
+                  <InfoItem label="Community" value={memberInfo.community || '—'} />
+                </div>
+                <InfoItem label="Public Landmarks" value={memberInfo.publicLandmark || '—'} />
               </CardContent>
             </Card>
           </div>
@@ -688,3 +856,23 @@ export const ProfilePage: React.FC = () => {
     </div>
   );
 };
+
+const InfoItem: React.FC<{ label: string; value: string | null; subValue?: string }> = ({
+  label,
+  value,
+  subValue,
+}) => (
+  <div className="space-y-1">
+    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">
+      {label}
+    </p>
+    <div className="flex items-center gap-2">
+      <p className="text-sm font-semibold text-foreground break-all">{value || '—'}</p>
+      {subValue && (
+        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground uppercase font-medium">
+          {subValue}
+        </span>
+      )}
+    </div>
+  </div>
+);

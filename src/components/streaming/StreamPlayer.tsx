@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Radio } from 'lucide-react';
+import { Loader2, Radio, Calendar, Play } from 'lucide-react';
 import type { Stream } from '@/services/streaming/streamingApi';
 import { streamingApi } from '@/services/streaming/streamingApi';
 
@@ -97,12 +98,33 @@ export function StreamPlayer({ stream }: StreamPlayerProps) {
             )}
           </>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-white">
+          <div className="absolute inset-0 flex items-center justify-center text-white px-6">
             <div className="text-center">
-              <p className="text-lg font-medium">Stream Not Available</p>
-              <p className="text-sm text-gray-400 mt-2">
-                {stream.status === 'scheduled' ? 'Stream has not started yet' : 'No video URL available'}
+              <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                {stream.status === 'scheduled' ? (
+                  <Calendar className="w-8 h-8 opacity-50" />
+                ) : (
+                  <Play className="w-8 h-8 opacity-50" />
+                )}
+              </div>
+              <p className="text-lg font-bold">
+                {stream.status === 'scheduled' ? 'Going Live Soon' : 'Stream Not Available'}
               </p>
+              <p className="text-sm text-gray-400 mt-2 max-w-xs mx-auto">
+                {stream.status === 'scheduled'
+                  ? `Scheduled for ${stream.start_time ? new Date(stream.start_time).toLocaleString() : 'later'}. Stay tuned!`
+                  : stream.status === 'ended'
+                    ? 'The live stream has concluded. A recording will be available shortly.'
+                    : 'No video source is currently available for this stream.'}
+              </p>
+              {stream.status === 'scheduled' && (
+                <Button
+                  variant="outline"
+                  className="mt-6 border-white/20 hover:bg-white/10 text-white"
+                >
+                  Set Reminder
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -120,9 +142,7 @@ export function StreamPlayer({ stream }: StreamPlayerProps) {
               {stream.status}
             </Badge>
             {stream.view_count > 0 && (
-              <span className="text-sm text-muted-foreground">
-                {stream.view_count} views
-              </span>
+              <span className="text-sm text-muted-foreground">{stream.view_count} views</span>
             )}
           </div>
         </div>

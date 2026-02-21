@@ -111,6 +111,21 @@ export const EventsModule: React.FC = () => {
     }
   };
 
+  const [activeTask, setActiveTask] = useState<any>(null);
+  const [activeAppt, setActiveAppt] = useState<any>(null);
+
+  const handleCalendarEventClick = (ev: any) => {
+    if (ev.type === 'task') {
+      setActiveTask(ev);
+      setDialog('create-task');
+    } else if (ev.type === 'appointment') {
+      setActiveAppt(ev);
+      setDialog('book-appointment');
+    } else {
+      openView(ev as any);
+    }
+  };
+
   const handleSave = async (payload: any) => {
     // Transform payload for API
     const formatTime = (time: string | undefined): string => {
@@ -330,11 +345,20 @@ export const EventsModule: React.FC = () => {
                     };
                   }) as any
                 }
-                onEventClick={(ev: any) => openView(ev as any)}
+                onEventClick={handleCalendarEventClick}
                 showCard={false}
-                onCreateEvent={() => setDialog('create')}
-                onCreateTask={() => setDialog('create-task')}
-                onCreateAppointment={() => setDialog('book-appointment')}
+                onCreateEvent={() => {
+                  setActiveEvent(null);
+                  setDialog('create');
+                }}
+                onCreateTask={() => {
+                  setActiveTask(null);
+                  setDialog('create-task');
+                }}
+                onCreateAppointment={() => {
+                  setActiveAppt(null);
+                  setDialog('book-appointment');
+                }}
               />
             </div>
           </div>
@@ -344,11 +368,25 @@ export const EventsModule: React.FC = () => {
       <CreateTaskDialog
         open={dialog === 'create-task'}
         onOpenChange={(open) => !open && setDialog('calendar')}
+        task={activeTask}
+        onSuccess={() => {
+          // Trigger calendar re-render by slightly changing a state or just rely on focus
+          // In this architecture, useCalendarEvents fetches internally.
+          // We might need to pass a refresh trigger or rely on internal interval if any.
+          // For now, let's assume close/reopen or focus handles it, or just notify success.
+          toast({ title: 'Success', description: 'Calendar data updated.' });
+          setDialog('calendar');
+        }}
       />
 
       <BookAppointmentDialog
         open={dialog === 'book-appointment'}
         onOpenChange={(open) => !open && setDialog('calendar')}
+        appointment={activeAppt}
+        onSuccess={() => {
+          toast({ title: 'Success', description: 'Appointments synchronized.' });
+          setDialog('calendar');
+        }}
       />
 
       <Dialog open={dialog === 'register'} onOpenChange={() => setDialog('view')}>

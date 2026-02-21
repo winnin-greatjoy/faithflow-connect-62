@@ -48,6 +48,7 @@ import { useFirstTimers } from '@/modules/members/hooks/useFirstTimers';
 import { useMemberActions } from '@/modules/members/hooks/useMemberActions';
 import { useDepartmentMembers } from '@/hooks/useDepartmentMembers';
 import { useBranches } from '@/hooks/useBranches';
+import { useEvangelism } from '@/hooks/useEvangelism';
 
 interface EvangelismMember {
   id: number;
@@ -263,11 +264,12 @@ const mockFollowUps: FollowUp[] = [
   },
 ];
 
-interface EvangelismDashboardProps {
+interface Props {
   departmentId: string;
+  branchId?: string;
 }
 
-export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ departmentId }) => {
+export const EvangelismDashboard: React.FC<Props> = ({ departmentId, branchId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -322,9 +324,33 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
     }
   };
 
-  // Fetch department members
-  const { members: departmentMembers, loading: membersLoading } =
-    useDepartmentMembers(departmentId);
+  // Fetch evangelism data
+  const {
+    stats: apiStats,
+    members: apiMembers,
+    outreachEvents: apiEvents,
+    followUpContacts: apiFollowUps,
+    loading: evangelismLoading,
+  } = useEvangelism();
+
+  const departmentMembers = useMemo(() => {
+    return (apiMembers || []).map(
+      (m) =>
+        ({
+          id: Math.random(),
+          name: m.member?.full_name || 'Unknown',
+          role: (m.member as any)?.assigned_department === 'evangelism' ? 'Evangelism' : 'Member',
+          status: m.member?.status === 'active' ? 'active' : 'inactive',
+          joinDate: m.member?.date_joined || '',
+          email: m.member?.email,
+          phone: m.member?.phone,
+          outreachArea: (m as any).outreach_area || 'Various',
+          conversions: (m as any).conversions || 0,
+          eventsLed: (m as any).events_led || 0,
+        }) as EvangelismMember
+    );
+  }, [apiMembers]);
+
   const { branches } = useBranches();
 
   // Filter members
@@ -428,34 +454,34 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: 'Members', value: mockEvangelismStats.totalMembers, icon: Users, color: 'blue' },
+          { label: 'Members', value: apiStats?.totalMembers || 0, icon: Users, color: 'blue' },
           {
             label: 'Active',
-            value: mockEvangelismStats.activeMembers,
+            value: apiStats?.activeMembers || 0,
             icon: Megaphone,
             color: 'emerald',
           },
           {
             label: 'Events',
-            value: mockEvangelismStats.plannedEvents,
+            value: apiStats?.upcomingEvents || 0,
             icon: Calendar,
             color: 'amber',
           },
           {
             label: 'Outreaches',
-            value: mockEvangelismStats.completedOutreaches,
+            value: apiStats?.completedActivities || 0,
             icon: Activity,
             color: 'violet',
           },
           {
             label: 'Growth',
-            value: `+${mockEvangelismStats.monthlyGrowth}%`,
+            value: `+${apiStats?.monthlyGrowth || 0}%`,
             icon: TrendingUp,
             color: 'indigo',
           },
           {
             label: 'Conversions',
-            value: mockEvangelismStats.totalConversions,
+            value: 0,
             icon: Target,
             color: 'rose',
           },
@@ -725,7 +751,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {membersLoading ? (
+                    {evangelismLoading ? (
                       <tr>
                         <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                           Loading members...
@@ -786,7 +812,7 @@ export const EvangelismDashboard: React.FC<EvangelismDashboardProps> = ({ depart
 
         {/* Tasks Tab */}
         <TabsContent value="tasks" className="space-y-4">
-          <DepartmentTaskBoard departmentId={departmentId} canEdit={true} />
+          <DepartmentTaskBoard departmentId={departmentId} branchId={branchId} canEdit={true} />
         </TabsContent>
 
         {/* First-Timers Tab */}

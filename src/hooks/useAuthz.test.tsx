@@ -212,33 +212,23 @@ describe('useAuthz Hook', () => {
       mockFrom.mockImplementation((table: string) => {
         if (table === 'profiles')
           return {
-            select: vi
-              .fn()
-              .mockReturnValue({
-                eq: vi
-                  .fn()
-                  .mockReturnValue({
-                    maybeSingle: vi
-                      .fn()
-                      .mockResolvedValue({
-                        data: { branch_id: 'b1', role: 'member' },
-                        error: null,
-                      }),
-                  }),
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { branch_id: 'b1', role: 'member' },
+                  error: null,
+                }),
               }),
+            }),
           };
         if (table === 'user_roles')
           return {
-            select: vi
-              .fn()
-              .mockReturnValue({
-                eq: vi
-                  .fn()
-                  .mockResolvedValue({
-                    data: [{ role: 'member', role_id: 'r1', department_id: 'dept-123' }],
-                    error: null,
-                  }),
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [{ role: 'member', role_id: 'r1', department_id: 'dept-123' }],
+                error: null,
               }),
+            }),
           };
         if (table === 'committee_members')
           return {
@@ -268,12 +258,10 @@ describe('useAuthz Hook', () => {
           };
         }
         return {
-          select: vi
-            .fn()
-            .mockReturnValue({
-              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-              in: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
         };
       });
 
@@ -295,40 +283,28 @@ describe('useAuthz Hook', () => {
       mockFrom.mockImplementation((table: string) => {
         if (table === 'profiles')
           return {
-            select: vi
-              .fn()
-              .mockReturnValue({
-                eq: vi
-                  .fn()
-                  .mockReturnValue({
-                    maybeSingle: vi
-                      .fn()
-                      .mockResolvedValue({
-                        data: { branch_id: 'b1', role: 'member' },
-                        error: null,
-                      }),
-                  }),
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { branch_id: 'b1', role: 'member' },
+                  error: null,
+                }),
               }),
+            }),
           };
         if (table === 'user_roles')
           return {
-            select: vi
-              .fn()
-              .mockReturnValue({
-                eq: vi
-                  .fn()
-                  .mockResolvedValue({ data: [{ role: 'member', role_id: 'r2' }], error: null }),
-              }),
+            select: vi.fn().mockReturnValue({
+              eq: vi
+                .fn()
+                .mockResolvedValue({ data: [{ role: 'member', role_id: 'r2' }], error: null }),
+            }),
           };
         if (table === 'committee_members')
           return {
-            select: vi
-              .fn()
-              .mockReturnValue({
-                eq: vi
-                  .fn()
-                  .mockResolvedValue({ data: [{ committee_id: 'comm-456' }], error: null }),
-              }),
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [{ committee_id: 'comm-456' }], error: null }),
+            }),
           };
         if (table === 'role_permissions') {
           return {
@@ -352,12 +328,10 @@ describe('useAuthz Hook', () => {
           };
         }
         return {
-          select: vi
-            .fn()
-            .mockReturnValue({
-              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-              in: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
         };
       });
 
@@ -366,6 +340,136 @@ describe('useAuthz Hook', () => {
 
       expect(result.current.can('tasks', 'manage')).toBe(true);
       expect(result.current.can('tasks', 'delete')).toBe(true);
+    });
+
+    it('should deny access when branch scope does not match', async () => {
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: 'user-branch-mismatch' } as any },
+        error: null,
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'profiles')
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { branch_id: 'branch-A', role: 'member' },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        if (table === 'user_roles')
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [{ role: 'member', role_id: 'role-1' }],
+                error: null,
+              }),
+            }),
+          };
+        if (table === 'role_permissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    role_id: 'role-1',
+                    actions: ['manage'],
+                    scope_type: 'branch',
+                    branch_id: 'branch-B', // Different branch
+                    module: { slug: 'events' },
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      });
+
+      const { result } = renderHook(() => useAuthz());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.can('events', 'manage')).toBe(false);
+    });
+
+    it('should combine permissions from multiple roles', async () => {
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: 'user-multi-role' } as any },
+        error: null,
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'profiles')
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { branch_id: 'branch-A', role: 'member' },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        if (table === 'user_roles')
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  { role: 'member', role_id: 'role-1' },
+                  { role: 'member', role_id: 'role-2' },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        if (table === 'role_permissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    role_id: 'role-1',
+                    actions: ['view'],
+                    scope_type: 'global',
+                    module: { slug: 'finance' },
+                  },
+                  {
+                    role_id: 'role-2',
+                    actions: ['update'],
+                    scope_type: 'global',
+                    module: { slug: 'finance' },
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      });
+
+      const { result } = renderHook(() => useAuthz());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.can('finance', 'view')).toBe(true);
+      expect(result.current.can('finance', 'update')).toBe(true);
+      expect(result.current.can('finance', 'delete')).toBe(false);
     });
   });
 

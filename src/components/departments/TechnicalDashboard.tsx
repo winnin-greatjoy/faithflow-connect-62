@@ -32,6 +32,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { technicalApi } from '@/services/departments/technicalApi';
+import { DepartmentTaskBoard } from './DepartmentTaskBoard';
 import type { DepartmentMember, DepartmentStats } from '@/types/api';
 
 interface TechnicalMember extends Omit<DepartmentMember, 'skill_level'> {
@@ -80,11 +81,12 @@ interface SupportTicket {
   actual_time?: number;
 }
 
-interface TechnicalDashboardProps {
+interface Props {
   departmentId: string;
+  branchId?: string;
 }
 
-export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departmentId }) => {
+export const TechnicalDashboard: React.FC<Props> = ({ departmentId, branchId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -329,10 +331,11 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="equipment">Equipment</TabsTrigger>
           <TabsTrigger value="tickets">Support</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
         </TabsList>
@@ -664,6 +667,11 @@ export const TechnicalDashboard: React.FC<TechnicalDashboardProps> = ({ departme
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="space-y-4">
+          <DepartmentTaskBoard departmentId={departmentId} branchId={branchId} canEdit={true} />
         </TabsContent>
 
         {/* Members Tab */}

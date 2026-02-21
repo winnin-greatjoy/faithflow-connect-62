@@ -17,6 +17,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   departmentId: string;
+  branchId?: string;
   onMembersAdded?: () => void;
 }
 
@@ -31,6 +32,7 @@ export const AddMemberToDepartmentDialog: React.FC<Props> = ({
   open,
   onOpenChange,
   departmentId,
+  branchId,
   onMembersAdded,
 }) => {
   const [members, setMembers] = useState<BaptizedMember[]>([]);
@@ -47,12 +49,17 @@ export const AddMemberToDepartmentDialog: React.FC<Props> = ({
 
   const loadBaptizedMembers = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('members')
         .select('id, full_name, email, assigned_department')
         .eq('membership_level', 'baptized')
-        .or(`assigned_department.is.null,assigned_department.neq.${departmentId}`)
-        .order('full_name');
+        .or(`assigned_department.is.null,assigned_department.neq.${departmentId}`);
+
+      if (branchId) {
+        query = query.eq('branch_id', branchId);
+      }
+
+      const { data, error } = await query.order('full_name');
 
       if (error) throw error;
       setMembers(data || []);
@@ -157,9 +164,7 @@ export const AddMemberToDepartmentDialog: React.FC<Props> = ({
                       <p className="font-medium">{member.full_name}</p>
                       <p className="text-sm text-muted-foreground">{member.email}</p>
                       {member.assigned_department && (
-                        <p className="text-xs text-orange-600">
-                          Currently in another department
-                        </p>
+                        <p className="text-xs text-orange-600">Currently in another department</p>
                       )}
                     </div>
                   </div>

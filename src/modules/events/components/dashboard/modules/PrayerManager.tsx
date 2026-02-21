@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { PrayerRequest } from '@/modules/events/types/engagement';
 
 // Mock Data
@@ -208,5 +209,3 @@ export const PrayerManagerModule = () => {
     </div>
   );
 };
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');

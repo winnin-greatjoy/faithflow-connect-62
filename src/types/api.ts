@@ -45,6 +45,7 @@ export interface DepartmentMember extends DepartmentAssignmentRow {
     phone?: string;
     date_joined: string;
     status: Database['public']['Enums']['member_status'];
+    assigned_department?: string;
   };
   // Department-specific fields (stored in member profile or computed)
   voice_part?: 'soprano' | 'alto' | 'tenor' | 'bass';

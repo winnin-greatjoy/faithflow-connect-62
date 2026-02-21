@@ -130,7 +130,7 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
   }, [showSidebar]);
 
   // Hooks
-  const calendarEvents = useCalendarEvents(events, selectedCalendars, currentDate);
+  const { events: calendarEvents } = useCalendarEvents(events, selectedCalendars, currentDate);
 
   // Handlers
   const handlePrev = useCallback(() => {
@@ -198,11 +198,20 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
           eventClick={(info) => {
             const props = info.event.extendedProps;
             if (props.type === 'task') {
-              // TODO: Handle Task Click (Edit/Toggle)
-              console.log('Task clicked', props);
+              // Check if user clicked the toggle area or the task title
+              // FullCalendar doesn't easily distinguish click targets within an event,
+              // but we can look at the original event's class or target if needed.
+              // For now, we'll open edit dialog, but we could also toggle if we adds
+              // a specific button. Let's make it smarter:
+              // If we want a separate toggle, we might need to handle it in eventContent.
+
+              if (onEventClick) {
+                onEventClick(props as RawEvent);
+              }
             } else if (props.type === 'appointment') {
-              // TODO: Handle Appointment Click
-              console.log('Appointment clicked', props);
+              if (onEventClick) {
+                onEventClick(props as RawEvent);
+              }
             } else {
               // Standard Event Click
               handleEventClickNative(props as RawEvent);
@@ -220,8 +229,9 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
             if (isTask) {
               return (
                 <div
-                  className={`flex items-center gap-1.5 px-1.5 py-0.5 w-full overflow-hidden text-xs rounded-sm border-l-2 ${props.is_completed ? 'opacity-60 line-through' : ''
-                    }`}
+                  className={`flex items-center gap-1.5 px-1.5 py-0.5 w-full overflow-hidden text-xs rounded-sm border-l-2 ${
+                    props.is_completed ? 'opacity-60 line-through' : ''
+                  }`}
                   style={{
                     backgroundColor: eventInfo.backgroundColor,
                     borderColor: eventInfo.borderColor,
@@ -229,10 +239,11 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
                   }}
                 >
                   <div
-                    className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${props.is_completed
-                      ? 'bg-slate-400 border-slate-400'
-                      : 'bg-white border-blue-500'
-                      }`}
+                    className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${
+                      props.is_completed
+                        ? 'bg-slate-400 border-slate-400'
+                        : 'bg-white border-blue-500'
+                    }`}
                   >
                     {props.is_completed && <Check className="w-2 h-2 text-white" />}
                   </div>
@@ -287,7 +298,7 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
           onDateSelect={handleDateSelect}
           selectedCalendars={selectedCalendars}
           onToggleCalendar={handleToggleCalendar}
-          onCreateEvent={onCreateEvent || (() => { })}
+          onCreateEvent={onCreateEvent || (() => {})}
           onCreateTask={onCreateTask}
           onCreateAppointment={onCreateAppointment}
         />
@@ -299,9 +310,9 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
       {!showSidebar && (
         <div className="absolute bottom-8 right-8 z-30 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
           <CalendarCreateButton
-            onCreateEvent={onCreateEvent || (() => { })}
-            onCreateTask={onCreateTask || (() => { })}
-            onCreateAppointment={onCreateAppointment || (() => { })}
+            onCreateEvent={onCreateEvent || (() => {})}
+            onCreateTask={onCreateTask || (() => {})}
+            onCreateAppointment={onCreateAppointment || (() => {})}
             showLabel={false}
           />
         </div>

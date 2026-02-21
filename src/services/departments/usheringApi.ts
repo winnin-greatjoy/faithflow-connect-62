@@ -105,6 +105,43 @@ export class UsheringApiService extends BaseApiService {
     }
   }
 
+  // Get ushering events (using events table)
+  async getUsheringEvents(request?: ListRequest): Promise<ApiResult<any[]>> {
+    try {
+      // Get events that might need ushering (all recent/upcoming events)
+      let query = supabase.from('events').select('*').order('event_date', { ascending: false });
+
+      if (request?.pagination) {
+        const offset = (request.pagination.page - 1) * request.pagination.limit;
+        query = query.range(offset, offset + request.pagination.limit - 1);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        return { data: null, error: { message: error.message } };
+      }
+
+      // Transform events to ushering event format
+      const usheringEvents = (data || []).map((event) => ({
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        event_date: event.event_date,
+        start_time: event.start_time,
+        end_time: event.end_time,
+        location: event.location,
+        status: 'active',
+        usher_count: 0, // Would be calculated from assignments
+        team_lead: event.created_by,
+      }));
+
+      return { data: usheringEvents, error: null };
+    } catch (error: any) {
+      return { data: null, error: { message: error.message } };
+    }
+  }
+
   // Get ushering statistics
   async getUsheringStats(): Promise<ApiResult<DepartmentStats>> {
     try {

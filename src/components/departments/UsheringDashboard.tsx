@@ -33,9 +33,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { DepartmentTaskBoard } from './DepartmentTaskBoard';
+import { useUshering } from '@/hooks/useUshering';
 
 interface UsheringDashboardProps {
   departmentId: string;
+  branchId?: string;
 }
 
 interface UsherMember {
@@ -62,7 +64,7 @@ interface UsherEvent {
   attendance: number;
 }
 
-export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ departmentId }) => {
+export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ departmentId, branchId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -81,37 +83,51 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
   });
   const [members, setMembers] = useState<UsherMember[]>([]);
   const [events, setEvents] = useState<UsherEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Fetch real data using hook
+  const {
+    members: apiMembers,
+    stats: apiStats,
+    events: apiEvents,
+    loading: apiLoading,
+  } = useUshering();
 
   // Load data from DB
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        // TODO: Replace with actual API calls when ushering API is implemented
-        // For now, using empty data
-        setStats({
-          totalMembers: 0,
-          activeMembers: 0,
-          upcomingServices: 0,
-          completedServices: 0,
-          monthlyGrowth: 0,
-          coverageRate: 0,
-        });
-        setMembers([]);
-        setEvents([]);
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to load ushering data',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [departmentId, toast]);
+    if (apiStats) {
+      setStats({
+        totalMembers: apiStats.totalMembers,
+        activeMembers: apiStats.activeMembers,
+        upcomingServices: apiStats.upcomingEvents,
+        completedServices: apiStats.completedActivities,
+        monthlyGrowth: apiStats.monthlyGrowth,
+        coverageRate: 85, // Placeholder for now
+      });
+    }
+
+    if (apiMembers) {
+      setMembers(
+        apiMembers.map((m) => ({
+          id: Math.random(), // Use random number since we don't have a numeric ID in the new schema
+          name: m.member?.full_name || 'Unknown',
+          role: (m.member as any)?.assigned_department === 'technical' ? 'Technical' : 'Usher',
+          status: m.member?.status === 'active' ? 'active' : 'inactive',
+          joinDate: m.member?.date_joined || '',
+          email: m.member?.email,
+          phone: m.member?.phone,
+          station: (m as any).station || 'Main Entrance',
+          experience: (m as any).years_experience || 0,
+          availability: (m as any).availability || [],
+        }))
+      );
+    }
+
+    if (apiEvents) {
+      setEvents(apiEvents);
+    }
+  }, [apiMembers, apiStats, apiEvents]);
+
+  const loading = apiLoading;
 
   // Filter members
   const filteredMembers = useMemo(() => {
@@ -572,9 +588,8 @@ export const UsheringDashboard: React.FC<UsheringDashboardProps> = ({ department
           </Card>
         </TabsContent>
 
-        {/* Tasks Tab */}
         <TabsContent value="tasks" className="space-y-4">
-          <DepartmentTaskBoard departmentId={departmentId} canEdit={true} />
+          <DepartmentTaskBoard departmentId={departmentId} branchId={branchId} canEdit={true} />
         </TabsContent>
       </Tabs>
     </div>

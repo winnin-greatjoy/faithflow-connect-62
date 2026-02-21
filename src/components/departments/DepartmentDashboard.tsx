@@ -20,6 +20,7 @@ import { AddMemberToDepartmentDialog } from './AddMemberToDepartmentDialog';
 interface Props {
   departmentId: string;
   departmentName: string;
+  branchId?: string;
 }
 
 interface DepartmentMember {
@@ -45,7 +46,11 @@ interface DepartmentEvent {
   status: 'upcoming' | 'completed' | 'cancelled';
 }
 
-export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentName }) => {
+export const DepartmentDashboard: React.FC<Props> = ({
+  departmentId,
+  departmentName,
+  branchId,
+}) => {
   const [members, setMembers] = useState<DepartmentMember[]>([]);
   const [stats, setStats] = useState<DepartmentStats>({
     totalMembers: 0,
@@ -57,6 +62,7 @@ export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentN
   const [recentEvents, setRecentEvents] = useState<DepartmentEvent[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
+  const [branchName, setBranchName] = useState<string>('');
   const { toast } = useToast();
 
   const loadMembers = useCallback(async () => {
@@ -79,7 +85,17 @@ export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentN
 
   useEffect(() => {
     loadMembers();
-  }, [loadMembers]);
+    if (branchId) {
+      supabase
+        .from('church_branches')
+        .select('name')
+        .eq('id', branchId)
+        .single()
+        .then(({ data }) => {
+          if (data) setBranchName(data.name);
+        });
+    }
+  }, [loadMembers, branchId]);
 
   return (
     <div className="space-y-6">
@@ -267,6 +283,7 @@ export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentN
         onOpenChange={setIsSettingsOpen}
         departmentId={departmentId}
         departmentName={departmentName}
+        branchId={branchId}
         members={members}
         onUpdated={(n) => {
           /* optionally handle name change */
@@ -281,6 +298,7 @@ export const DepartmentDashboard: React.FC<Props> = ({ departmentId, departmentN
         open={isAddMemberDialogOpen}
         onOpenChange={setIsAddMemberDialogOpen}
         departmentId={departmentId}
+        branchId={branchId}
         onMembersAdded={loadMembers}
       />
     </div>

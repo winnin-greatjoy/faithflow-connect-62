@@ -2,16 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { RoleRecord } from './AddEditRoleForm';
+import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export function AssignRoleToUser({
   open,
@@ -32,7 +37,8 @@ export function AssignRoleToUser({
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [ministries, setMinistries] = useState<{ id: string; name: string }[]>([]);
 
-  const [userId, setUserId] = useState<string>('');
+  const [userIds, setUserIds] = useState<string[]>([]);
+  const [openUserPopover, setOpenUserPopover] = useState(false);
   const [branchId, setBranchId] = useState<string>('');
   const [departmentId, setDepartmentId] = useState<string>('');
   const [ministryId, setMinistryId] = useState<string>('');
@@ -93,7 +99,7 @@ export function AssignRoleToUser({
   }, [toast]);
 
   useEffect(() => {
-    setUserId('');
+    setUserIds([]);
     setBranchId('');
     setDepartmentId('');
     setMinistryId('');
@@ -101,8 +107,8 @@ export function AssignRoleToUser({
   }, [role?.id]);
 
   const handleSave = async () => {
-    if (!userId) {
-      toast({ title: 'Select a user', variant: 'destructive' });
+    if (userIds.length === 0) {
+      toast({ title: 'Select at least one user', variant: 'destructive' });
       return;
     }
     if (scopeType === 'branch' && !branchId) {
@@ -120,23 +126,32 @@ export function AssignRoleToUser({
 
     setSaving(true);
     try {
-      const payload: any = {
-        userId: userId,
-        roleId: role.id,
-      };
-      if (scopeType === 'branch') payload.branchId = branchId;
-      if (scopeType === 'department') payload.departmentId = departmentId;
-      if (scopeType === 'ministry') payload.ministryId = ministryId;
+      const promises = userIds.map(async (uId) => {
+        const payload: any = {
+          userId: uId,
+          roleId: role.id,
+        };
+        if (scopeType === 'branch') payload.branchId = branchId;
+        if (scopeType === 'department') payload.departmentId = departmentId;
+        if (scopeType === 'ministry') payload.ministryId = ministryId;
 
-      const { error } = await supabase.functions.invoke('admin-roles', {
-        body: {
-          action: 'ASSIGN_ROLE',
-          payload: payload,
-        },
+        return supabase.functions.invoke('admin-roles', {
+          body: {
+            action: 'ASSIGN_ROLE',
+            payload: payload,
+          },
+        });
       });
 
-      if (error) throw error;
-      toast({ title: 'Role assigned' });
+      const results = await Promise.all(promises);
+      const errors = results.filter((r) => r.error);
+
+      if (errors.length > 0) {
+        console.error('Some assignments failed:', errors);
+        throw new Error(`${errors.length} assignments failed.`);
+      }
+
+      toast({ title: `Role assigned to ${userIds.length} user(s)` });
       onSaved();
       onClose();
     } catch (e: any) {
@@ -155,19 +170,65 @@ export function AssignRoleToUser({
 
         <div className="space-y-4">
           <div>
-            <Label>User *</Label>
-            <Select value={userId} onValueChange={setUserId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select user" />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.first_name} {u.last_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Users *</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {userIds.map((id) => {
+                const user = users.find((u) => u.id === id);
+                return (
+                  <Badge key={id} variant="secondary" className="flex items-center gap-1">
+                    {user?.first_name} {user?.last_name}
+                    <X
+                      className="h-3 w-3 cursor-pointer hover:text-destructive"
+                      onClick={() => setUserIds((ids) => ids.filter((i) => i !== id))}
+                    />
+                  </Badge>
+                );
+              })}
+            </div>
+            <Popover open={openUserPopover} onOpenChange={setOpenUserPopover}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openUserPopover}
+                  className="w-full justify-between"
+                >
+                  {userIds.length > 0 ? `${userIds.length} user(s) selected` : 'Select users...'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search users..." />
+                  <CommandList>
+                    <CommandEmpty>No user found.</CommandEmpty>
+                    <CommandGroup>
+                      {users.map((u) => (
+                        <CommandItem
+                          key={u.id}
+                          value={`${u.first_name} ${u.last_name}`}
+                          onSelect={() => {
+                            setUserIds((prev) =>
+                              prev.includes(u.id)
+                                ? prev.filter((id) => id !== u.id)
+                                : [...prev, u.id]
+                            );
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              userIds.includes(u.id) ? 'opacity-100' : 'opacity-0'
+                            )}
+                          />
+                          {u.first_name} {u.last_name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>

@@ -4,10 +4,25 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Copy, Eye, RefreshCw, Radio } from 'lucide-react';
-import { streamingApi, type Stream, type StreamChat } from '@/services/streaming/streamingApi';
+import {
+  streamingApi,
+  type Stream,
+  type StreamChat,
+  type StreamQA,
+  type StreamPoll,
+} from '@/services/streaming/streamingApi';
 import { StreamPlayer } from '@/components/streaming/StreamPlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  MessageSquare,
+  BarChart2,
+  CheckCircle2,
+  Trash2,
+  PlusCircle,
+  StopCircle,
+} from 'lucide-react';
 
 interface Props {
   streamId: string;
@@ -19,6 +34,10 @@ export default function StreamControlRoom({ streamId }: Props) {
   const [viewerCount, setViewerCount] = useState(0);
   const [viewsTotal, setViewsTotal] = useState<number | null>(null);
   const [chats, setChats] = useState<StreamChat[]>([]);
+  const [questions, setQuestions] = useState<StreamQA[]>([]);
+  const [polls, setPolls] = useState<StreamPoll[]>([]);
+  const [newPollQuestion, setNewPollQuestion] = useState('');
+  const [newPollOptions, setNewPollOptions] = useState(['', '']);
   const presenceRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Live chat updates
@@ -38,9 +57,16 @@ export default function StreamControlRoom({ streamId }: Props) {
 
   async function load() {
     setLoading(true);
-    const [s, c] = await Promise.all([streamingApi.get(streamId), streamingApi.getChats(streamId)]);
+    const [s, c, qa, p] = await Promise.all([
+      streamingApi.get(streamId),
+      streamingApi.getChats(streamId),
+      streamingApi.getQA(streamId),
+      streamingApi.getPolls(streamId),
+    ]);
     if (!s.error && s.data) setStream(s.data);
     if (!c.error && c.data) setChats(c.data);
+    if (!qa.error && qa.data) setQuestions(qa.data);
+    if (!p.error && p.data) setPolls(p.data);
 
     // Fetch admin-only credentials (rtmp_server, stream_key) via Edge Function
     const creds = await streamingApi.getAdminCredentials(streamId);
@@ -68,11 +94,34 @@ export default function StreamControlRoom({ streamId }: Props) {
         0
       );
       setViewerCount(count);
-    }).subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await ch.track({ online_at: new Date().toISOString() });
+    });
+
+    const unsubscribeQA = streamingApi.subscribeToQA(streamId, (payload) => {
+      if (payload.eventType === 'INSERT') {
+        setQuestions((prev) => [payload.new, ...prev]);
+      } else if (payload.eventType === 'UPDATE') {
+        setQuestions((prev) => prev.map((q) => (q.id === payload.new.id ? payload.new : q)));
+      } else if (payload.eventType === 'DELETE') {
+        setQuestions((prev) => prev.filter((q) => q.id === payload.old.id));
       }
     });
+
+    const unsubscribePolls = streamingApi.subscribeToPolls(streamId, (payload) => {
+      if (payload.eventType === 'INSERT') {
+        setPolls((prev) => [payload.new, ...prev]);
+      } else {
+        setPolls((prev) => {
+          const exists = prev.some((p) => p.id === payload.new.id);
+          if (!exists && payload.eventType === 'UPDATE') return [payload.new, ...prev];
+          return prev.map((p) => (p.id === payload.new.id ? payload.new : p));
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeQA();
+      unsubscribePolls();
+    };
   }
 
   useEffect(
@@ -128,6 +177,52 @@ export default function StreamControlRoom({ streamId }: Props) {
       setChats((prev) => prev.filter((m) => m.id !== id));
     }
   }
+
+  async function handleToggleAnswer(qaId: string, current: boolean) {
+    const res = await streamingApi.toggleAnswered(qaId, !current);
+    if (res.error) toast.error(res.error.message);
+  }
+
+  async function handleDeleteQA(qaId: string) {
+    const { error } = await supabase.from('stream_qa').delete().eq('id', qaId);
+    if (error) toast.error(error.message);
+    else setQuestions((prev) => prev.filter((q) => q.id !== qaId));
+  }
+
+  async function handleCreatePoll() {
+    if (!newPollQuestion.trim() || newPollOptions.some((o) => !o.trim())) {
+      toast.error('Question and all options are required');
+      return;
+    }
+    const res = await streamingApi.createPoll(
+      streamId,
+      newPollQuestion.trim(),
+      newPollOptions.filter((o) => o.trim())
+    );
+    if (res.error) toast.error(res.error.message);
+    else {
+      setNewPollQuestion('');
+      setNewPollOptions(['', '']);
+      toast.success('Poll created as draft');
+    }
+  }
+
+  async function handleUpdatePollStatus(pollId: string, status: StreamPoll['status']) {
+    const res = await streamingApi.updatePollStatus(pollId, status);
+    if (res.error) toast.error(res.error.message);
+  }
+
+  const getPollResults = (poll: StreamPoll) => {
+    const total = poll.votes?.length || 0;
+    return poll.options.map((opt, idx) => {
+      const count = poll.votes?.filter((v) => v.option_index === idx).length || 0;
+      return {
+        text: opt.text,
+        count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+      };
+    });
+  };
 
   if (loading || !stream) {
     return <div className="p-6">Loading...</div>;
@@ -224,34 +319,242 @@ export default function StreamControlRoom({ streamId }: Props) {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Chat Moderation</CardTitle>
-              <CardDescription>Delete inappropriate messages</CardDescription>
+          <Card className="flex-1 flex flex-col min-h-0">
+            <CardHeader className="pb-3">
+              <CardTitle>Audience Interaction</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3 max-h-[360px] overflow-auto">
-                {chats.length === 0 ? (
-                  <div className="text-sm text-muted-foreground py-6 text-center">No messages</div>
-                ) : (
-                  chats.map((m) => (
-                    <div key={m.id} className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-medium">
-                          {m.user?.first_name} {m.user?.last_name}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Date(m.created_at).toLocaleTimeString()}
-                        </div>
-                        <div className="text-sm mt-1">{m.message}</div>
+            <CardContent className="flex-1 p-0 overflow-hidden">
+              <Tabs defaultValue="chat" className="h-full flex flex-col">
+                <TabsList className="mx-6 mb-2">
+                  <TabsTrigger value="chat" className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    Chat
+                  </TabsTrigger>
+                  <TabsTrigger value="qa" className="flex items-center gap-2">
+                    <Radio className="w-4 h-4" />
+                    Q&A
+                  </TabsTrigger>
+                  <TabsTrigger value="polls" className="flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4" />
+                    Polls
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="chat" className="flex-1 overflow-auto px-6 pb-6">
+                  <div className="space-y-4">
+                    {chats.length === 0 ? (
+                      <div className="text-sm text-muted-foreground py-12 text-center">
+                        No messages
                       </div>
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteChat(m.id)}>
-                        Delete
-                      </Button>
+                    ) : (
+                      chats
+                        .slice()
+                        .reverse()
+                        .map((m) => (
+                          <div key={m.id} className="flex items-start justify-between gap-3 group">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold">
+                                  {m.user?.first_name} {m.user?.last_name}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {new Date(m.created_at).toLocaleTimeString()}
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-700 mt-0.5">{m.message}</div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteChat(m.id)}
+                              className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="qa" className="flex-1 overflow-auto px-6 pb-6">
+                  <div className="space-y-4">
+                    {questions.length === 0 ? (
+                      <div className="text-sm text-muted-foreground py-12 text-center">
+                        No questions asked yet
+                      </div>
+                    ) : (
+                      questions.map((q) => (
+                        <div
+                          key={q.id}
+                          className={`p-3 rounded-lg border ${q.is_answered ? 'bg-green-50 border-green-100' : 'bg-white'} relative group`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge
+                              variant={q.is_answered ? 'secondary' : 'outline'}
+                              className={q.is_answered ? 'bg-green-100 text-green-700' : ''}
+                            >
+                              {q.is_answered ? 'Answered' : 'Pending'}
+                            </Badge>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => handleToggleAnswer(q.id, q.is_answered)}
+                              >
+                                <CheckCircle2
+                                  className={`w-4 h-4 ${q.is_answered ? 'text-green-600' : 'text-muted-foreground'}`}
+                                />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => handleDeleteQA(q.id)}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                          <p className="text-sm font-medium pr-8">{q.question}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-[10px] text-muted-foreground">
+                              By {q.user ? `${q.user.first_name} ${q.user.last_name}` : 'Anonymous'}
+                            </span>
+                            <span className="text-[10px] font-bold text-primary">
+                              {q.upvotes?.length || 0} upvotes
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="polls" className="flex-1 overflow-auto px-6 pb-6">
+                  <div className="space-y-6">
+                    {/* Create Poll */}
+                    <div className="p-4 bg-muted/50 rounded-xl space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        New Poll
+                      </h4>
+                      <Input
+                        placeholder="Poll question..."
+                        value={newPollQuestion}
+                        onChange={(e) => setNewPollQuestion(e.target.value)}
+                        className="bg-white"
+                      />
+                      {newPollOptions.map((opt, idx) => (
+                        <div key={idx} className="flex gap-2">
+                          <Input
+                            placeholder={`Option ${idx + 1}`}
+                            value={opt}
+                            onChange={(e) => {
+                              const next = [...newPollOptions];
+                              next[idx] = e.target.value;
+                              setNewPollOptions(next);
+                            }}
+                            className="bg-white"
+                          />
+                          {newPollOptions.length > 2 && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() =>
+                                setNewPollOptions((prev) => prev.filter((_, i) => i !== idx))
+                              }
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setNewPollOptions((prev) => [...prev, ''])}
+                          className="w-full"
+                        >
+                          <PlusCircle className="w-3 h-3 mr-2" />
+                          Add Option
+                        </Button>
+                        <Button size="sm" onClick={handleCreatePoll} className="w-full">
+                          Create Pool
+                        </Button>
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
+
+                    {/* Active & Draft Polls */}
+                    <div className="space-y-4">
+                      {polls.map((poll) => (
+                        <div
+                          key={poll.id}
+                          className={`p-4 rounded-xl border ${poll.status === 'active' ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'bg-white'}`}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <Badge
+                              variant={
+                                poll.status === 'active'
+                                  ? 'destructive'
+                                  : poll.status === 'ended'
+                                    ? 'secondary'
+                                    : 'outline'
+                              }
+                              className="capitalize"
+                            >
+                              {poll.status}
+                            </Badge>
+                            <div className="flex gap-2">
+                              {poll.status === 'draft' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleUpdatePollStatus(poll.id, 'active')}
+                                >
+                                  Launch
+                                </Button>
+                              )}
+                              {poll.status === 'active' && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleUpdatePollStatus(poll.id, 'ended')}
+                                >
+                                  <StopCircle className="w-3 h-3 mr-2" />
+                                  End
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          <h5 className="text-sm font-bold mb-3">{poll.question}</h5>
+
+                          {poll.status !== 'draft' && (
+                            <div className="space-y-2">
+                              {getPollResults(poll).map((res, i) => (
+                                <div key={i} className="space-y-1">
+                                  <div className="flex justify-between text-[10px] font-medium">
+                                    <span>{res.text}</span>
+                                    <span>
+                                      {res.percentage}% ({res.count})
+                                    </span>
+                                  </div>
+                                  <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary"
+                                      style={{ width: `${res.percentage}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>

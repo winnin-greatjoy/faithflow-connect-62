@@ -16,7 +16,10 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
 // Map department slugs to their specialized dashboard components
-const SPECIALIZED_DASHBOARDS: Record<string, React.FC<{ departmentId: string }>> = {
+const SPECIALIZED_DASHBOARDS: Record<
+  string,
+  React.FC<{ departmentId: string; branchId?: string }>
+> = {
   ushering: UsheringDashboard,
   choir: ChoirDashboard,
   technical: TechnicalDashboard,
@@ -28,9 +31,12 @@ const SPECIALIZED_DASHBOARDS: Record<string, React.FC<{ departmentId: string }>>
 export const DepartmentPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [department, setDepartment] = useState<{ id: string; name: string; slug: string } | null>(
-    null
-  );
+  const [department, setDepartment] = useState<{
+    id: string;
+    name: string;
+    slug: string;
+    branch_id: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -41,7 +47,7 @@ export const DepartmentPage: React.FC = () => {
       try {
         const { data, error } = await supabase
           .from('departments')
-          .select('id, name, slug')
+          .select('id, name, slug, branch_id')
           .eq('slug', slug)
           .maybeSingle();
 
@@ -126,7 +132,11 @@ export const DepartmentPage: React.FC = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            <DepartmentDashboard departmentId={department.id} departmentName={department.name} />
+            <DepartmentDashboard
+              departmentId={department.id}
+              departmentName={department.name}
+              branchId={department.branch_id}
+            />
           </TabsContent>
 
           <TabsContent value="tasks">

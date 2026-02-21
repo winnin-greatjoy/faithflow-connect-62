@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { DepartmentTaskBoard } from './DepartmentTaskBoard';
 
 interface FinanceMember {
   id: number;
@@ -282,11 +283,12 @@ const mockBudgetItems: BudgetItem[] = [
   },
 ];
 
-interface FinanceDashboardProps {
+interface Props {
   departmentId: string;
+  branchId?: string;
 }
 
-export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId }) => {
+export const FinanceDashboard: React.FC<Props> = ({ departmentId, branchId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -509,6 +511,11 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ departmentId
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="space-y-4">
+          <DepartmentTaskBoard departmentId={departmentId} branchId={branchId} canEdit={true} />
+        </TabsContent>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">

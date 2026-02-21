@@ -33,6 +33,7 @@ interface Props {
   departmentId: string;
   departmentName: string;
   members: DepartmentMember[];
+  branchId?: string;
   onUpdated?: (name: string) => void;
   onDeleted?: () => void;
   onMembersChanged?: () => void;
@@ -44,6 +45,7 @@ export const DepartmentSettingsDialog: React.FC<Props> = ({
   departmentId,
   departmentName,
   members,
+  branchId,
   onUpdated,
   onDeleted,
   onMembersChanged,
@@ -65,12 +67,14 @@ export const DepartmentSettingsDialog: React.FC<Props> = ({
           .single();
         if (dept) setHeadId(dept.head_id);
 
-        // Fetch all active members for leader selection
-        const { data: members } = await supabase
-          .from('members')
-          .select('id, full_name')
-          .eq('status', 'active')
-          .order('full_name');
+        // Fetch all active members for leader selection, filtered by branch if available
+        let query = supabase.from('members').select('id, full_name').eq('status', 'active');
+
+        if (branchId) {
+          query = query.eq('branch_id', branchId);
+        }
+
+        const { data: members } = await query.order('full_name');
         if (members) setAllMembers(members);
       };
       fetchData();
