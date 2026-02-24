@@ -529,7 +529,7 @@ export const streamingApi = {
             const { data } = await (supabase as any)
               .from('stream_qa')
               .select('*, user:profiles(first_name, last_name, profile_photo)')
-              .eq('id', payload.new.id)
+              .eq('id', (payload.new as any).id)
               .maybeSingle();
             callback({ ...payload, new: data || payload.new });
           } else {
@@ -628,7 +628,7 @@ export const streamingApi = {
           const { data } = await (supabase as any)
             .from('stream_polls')
             .select('*, votes:stream_poll_votes(*)')
-            .eq('id', payload.new?.id || (payload.old as any)?.id)
+            .eq('id', (payload.new as any)?.id || (payload.old as any)?.id)
             .maybeSingle();
           callback({ ...payload, new: data || payload.new });
         }
