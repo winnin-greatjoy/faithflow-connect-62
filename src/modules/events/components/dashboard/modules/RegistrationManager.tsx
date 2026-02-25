@@ -17,7 +17,13 @@ import {
   Trash2,
   Loader2,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -443,6 +449,9 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
         <DialogContent className="max-w-[90vw] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
           <DialogHeader className="px-6 py-4 border-b bg-muted/20">
             <DialogTitle>Form Designer</DialogTitle>
+            <DialogDescription>
+              Configure registration form fields for this event.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 bg-background overflow-hidden">
             <FormBuilder />

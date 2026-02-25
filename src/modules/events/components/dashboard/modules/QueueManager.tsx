@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -294,6 +295,9 @@ export const QueueManagerModule = () => {
                 <DialogTitle className="font-serif font-black text-2xl">
                   Create Service Queue
                 </DialogTitle>
+                <DialogDescription>
+                  Create a queue for a service area and configure capacity and service timing.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">

@@ -23,6 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -229,6 +230,9 @@ export const RosterManagerModule = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Staff</DialogTitle>
+            <DialogDescription>
+              Select an available member to assign to the selected shift.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
@@ -601,6 +605,9 @@ export const RosterManagerModule = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Shift</DialogTitle>
+                <DialogDescription>
+                  Define staffing role, location, schedule, and required headcount.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddShift} className="space-y-4">
                 <div className="grid gap-2">
