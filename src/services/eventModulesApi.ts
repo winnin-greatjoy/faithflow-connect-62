@@ -4,142 +4,225 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
 // ============================================
-// TYPE DEFINITIONS (until types.ts is regenerated)
+// TYPE DEFINITIONS (derived from Supabase Database types)
 // ============================================
 
-export interface EventZone {
-  id: string;
+type PublicTables = Database['public']['Tables'];
+type TableRow<T extends keyof PublicTables> = PublicTables[T]['Row'];
+type TableInsert<T extends keyof PublicTables> = PublicTables[T]['Insert'];
+type TableUpdate<T extends keyof PublicTables> = PublicTables[T]['Update'];
+
+export type EventZone = Pick<
+  TableRow<'event_zones'>,
+  'id' | 'event_id' | 'name' | 'capacity' | 'current_occupancy' | 'zone_type' | 'created_at'
+>;
+
+export type EventAttendance = Pick<
+  TableRow<'event_attendance'>,
+  | 'id'
+  | 'event_id'
+  | 'member_id'
+  | 'zone_id'
+  | 'status'
+  | 'checked_in_at'
+  | 'checked_out_at'
+  | 'checked_in_by'
+  | 'notes'
+>;
+
+export type EventShift = Pick<
+  TableRow<'event_shifts'>,
+  'id' | 'event_id' | 'role' | 'department' | 'start_time' | 'end_time' | 'max_volunteers' | 'notes'
+>;
+
+export type ShiftAssignment = Pick<
+  TableRow<'event_shift_assignments'>,
+  'id' | 'shift_id' | 'member_id' | 'status' | 'assigned_at' | 'confirmed_at'
+>;
+
+export type Song = Pick<
+  TableRow<'songs'>,
+  | 'id'
+  | 'branch_id'
+  | 'title'
+  | 'artist'
+  | 'original_key'
+  | 'bpm'
+  | 'duration'
+  | 'tags'
+  | 'theme'
+  | 'lyrics'
+  | 'chord_chart_url'
+  | 'created_at'
+>;
+
+export type ServiceItem = Pick<
+  TableRow<'service_items'>,
+  | 'id'
+  | 'event_id'
+  | 'song_id'
+  | 'item_type'
+  | 'title'
+  | 'duration'
+  | 'start_time'
+  | 'item_order'
+  | 'assigned_to'
+  | 'key_override'
+  | 'notes'
+>;
+
+export type Asset = Pick<
+  TableRow<'assets'>,
+  | 'id'
+  | 'branch_id'
+  | 'name'
+  | 'category'
+  | 'serial_number'
+  | 'status'
+  | 'location'
+  | 'condition'
+  | 'notes'
+  | 'created_at'
+>;
+
+export type AssetCheckout = Pick<
+  TableRow<'asset_checkouts'>,
+  | 'id'
+  | 'asset_id'
+  | 'event_id'
+  | 'checked_out_to'
+  | 'checked_out_by'
+  | 'checked_out_at'
+  | 'expected_return'
+  | 'returned_at'
+  | 'notes'
+>;
+
+export type MaintenanceTicket = Pick<
+  TableRow<'maintenance_tickets'>,
+  | 'id'
+  | 'asset_id'
+  | 'reported_by'
+  | 'issue_description'
+  | 'priority'
+  | 'status'
+  | 'resolution_notes'
+  | 'resolved_at'
+  | 'created_at'
+>;
+
+export type Queue = Pick<
+  TableRow<'queues'>,
+  'id' | 'event_id' | 'name' | 'description' | 'status' | 'max_capacity' | 'avg_service_time'
+>;
+
+export type QueueTicket = Pick<
+  TableRow<'queue_tickets'>,
+  | 'id'
+  | 'queue_id'
+  | 'ticket_number'
+  | 'member_id'
+  | 'guest_name'
+  | 'priority'
+  | 'status'
+  | 'joined_at'
+  | 'called_at'
+  | 'served_at'
+  | 'completed_at'
+>;
+
+export type QueueCreateInput = Pick<
+  TableInsert<'queues'>,
+  'event_id' | 'name' | 'description' | 'status' | 'max_capacity' | 'avg_service_time'
+> & {
   event_id: string;
   name: string;
-  capacity: number | null;
-  current_occupancy: number;
-  zone_type: 'main_hall' | 'overflow' | 'outdoor' | 'children' | 'vip' | 'other';
-  created_at: string;
+};
+
+export type QueueUpdateInput = Pick<
+  TableUpdate<'queues'>,
+  'name' | 'description' | 'status' | 'max_capacity' | 'avg_service_time'
+>;
+
+export type QueueJoinInput = Pick<
+  TableInsert<'queue_tickets'>,
+  'member_id' | 'guest_name' | 'priority' | 'status' | 'notes'
+>;
+
+export type AccommodationRoom = TableRow<'rooms'>;
+
+export type AccommodationBooking = TableRow<'room_bookings'>;
+
+export interface AccommodationBookingWithRelations extends AccommodationBooking {
+  room?: {
+    id: string;
+    room_number: string;
+    building: string | null;
+    capacity: number;
+    room_type: string | null;
+    status: string | null;
+  } | null;
+  member?: {
+    id: string;
+    full_name: string;
+    email: string | null;
+    phone: string;
+    membership_level: string;
+    status: string | null;
+  } | null;
 }
 
-export interface EventAttendance {
-  id: string;
+export type AccommodationRoomCreateInput = Pick<
+  TableInsert<'rooms'>,
+  | 'event_id'
+  | 'room_number'
+  | 'building'
+  | 'floor'
+  | 'room_type'
+  | 'capacity'
+  | 'status'
+  | 'amenities'
+  | 'notes'
+> & {
   event_id: string;
-  member_id: string | null;
-  zone_id: string | null;
-  status: 'checked_in' | 'active' | 'checked_out';
-  checked_in_at: string;
-  checked_out_at: string | null;
-  checked_in_by: string | null;
-  notes: string | null;
-}
+  room_number: string;
+  capacity: number;
+};
 
-export interface EventShift {
-  id: string;
+export type AccommodationRoomUpdateInput = Pick<
+  TableUpdate<'rooms'>,
+  'room_number' | 'building' | 'floor' | 'room_type' | 'capacity' | 'status' | 'amenities' | 'notes'
+>;
+
+export type AccommodationBookingCreateInput = Pick<
+  TableInsert<'room_bookings'>,
+  | 'event_id'
+  | 'room_id'
+  | 'member_id'
+  | 'guest_name'
+  | 'check_in_date'
+  | 'check_out_date'
+  | 'special_requests'
+  | 'status'
+> & {
   event_id: string;
-  role: string;
-  department: string | null;
-  start_time: string;
-  end_time: string;
-  max_volunteers: number;
-  notes: string | null;
-}
+  check_in_date: string;
+  check_out_date: string;
+};
 
-export interface ShiftAssignment {
-  id: string;
-  shift_id: string;
-  member_id: string;
-  status: 'confirmed' | 'pending' | 'declined';
-  assigned_at: string;
-  confirmed_at: string | null;
-}
-
-export interface Song {
-  id: string;
-  branch_id: string;
-  title: string;
-  artist: string | null;
-  original_key: string | null;
-  bpm: number | null;
-  duration: string | null;
-  tags: string[] | null;
-  theme: string | null;
-  lyrics: string | null;
-  chord_chart_url: string | null;
-  created_at: string;
-}
-
-export interface ServiceItem {
-  id: string;
-  event_id: string;
-  song_id: string | null;
-  item_type: 'song' | 'prayer' | 'sermon' | 'announcement' | 'offering' | 'other';
-  title: string;
-  duration: string | null;
-  start_time: string | null;
-  item_order: number;
-  assigned_to: string | null;
-  key_override: string | null;
-  notes: string | null;
-}
-
-export interface Asset {
-  id: string;
-  branch_id: string;
-  name: string;
-  category: 'audio' | 'visual' | 'lighting' | 'furniture' | 'instruments' | 'other';
-  serial_number: string | null;
-  status: 'available' | 'in_use' | 'maintenance' | 'retired';
-  location: string | null;
-  condition: 'excellent' | 'good' | 'fair' | 'poor' | null;
-  notes: string | null;
-  created_at: string;
-}
-
-export interface AssetCheckout {
-  id: string;
-  asset_id: string;
-  event_id: string | null;
-  checked_out_to: string | null;
-  checked_out_by: string | null;
-  checked_out_at: string;
-  expected_return: string | null;
-  returned_at: string | null;
-  notes: string | null;
-}
-
-export interface MaintenanceTicket {
-  id: string;
-  asset_id: string;
-  reported_by: string | null;
-  issue_description: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'in_progress' | 'resolved' | 'closed';
-  resolution_notes: string | null;
-  resolved_at: string | null;
-  created_at: string;
-}
-
-export interface Queue {
-  id: string;
-  event_id: string;
-  name: string;
-  description: string | null;
-  status: 'active' | 'paused' | 'closed';
-  max_capacity: number | null;
-  avg_service_time: number | null;
-}
-
-export interface QueueTicket {
-  id: string;
-  queue_id: string;
-  ticket_number: string;
-  member_id: string | null;
-  guest_name: string | null;
-  priority: 'normal' | 'priority' | 'vip';
-  status: 'waiting' | 'called' | 'serving' | 'completed' | 'no_show';
-  joined_at: string;
-  called_at: string | null;
-  served_at: string | null;
-  completed_at: string | null;
-}
+export type AccommodationBookingUpdateInput = Pick<
+  TableUpdate<'room_bookings'>,
+  | 'room_id'
+  | 'member_id'
+  | 'guest_name'
+  | 'check_in_date'
+  | 'check_out_date'
+  | 'special_requests'
+  | 'status'
+>;
 
 // ============================================
 // ATTENDANCE API
@@ -508,6 +591,122 @@ export const assetsApi = {
 };
 
 // ============================================
+// ACCOMMODATION API
+// ============================================
+
+export const accommodationApi = {
+  async getRooms(eventId: string) {
+    const { data, error } = await (supabase as any)
+      .from('rooms')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('building')
+      .order('room_number');
+    if (error) throw error;
+    return data as AccommodationRoom[];
+  },
+
+  async createRoom(room: AccommodationRoomCreateInput) {
+    const { data, error } = await (supabase as any)
+      .from('rooms')
+      .insert({
+        event_id: room.event_id,
+        room_number: room.room_number,
+        building: room.building ?? null,
+        floor: room.floor ?? null,
+        room_type: room.room_type ?? null,
+        capacity: room.capacity,
+        status: room.status ?? 'available',
+        amenities: room.amenities ?? [],
+        notes: room.notes ?? null,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as AccommodationRoom;
+  },
+
+  async updateRoom(roomId: string, updates: AccommodationRoomUpdateInput) {
+    const { data, error } = await (supabase as any)
+      .from('rooms')
+      .update(updates)
+      .eq('id', roomId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as AccommodationRoom;
+  },
+
+  async deleteRoom(roomId: string) {
+    const { data: linkedBookings, error: bookingError } = await (supabase as any)
+      .from('room_bookings')
+      .select('id')
+      .eq('room_id', roomId)
+      .limit(1);
+    if (bookingError) throw bookingError;
+    if ((linkedBookings || []).length > 0) {
+      throw new Error(
+        'Cannot delete room with linked bookings. Reassign or delete bookings first.'
+      );
+    }
+
+    const { error } = await (supabase as any).from('rooms').delete().eq('id', roomId);
+    if (error) throw error;
+  },
+
+  async getBookings(eventId: string) {
+    const { data, error } = await (supabase as any)
+      .from('room_bookings')
+      .select(
+        `
+        *,
+        room:rooms(id, room_number, building, capacity, room_type, status),
+        member:members(id, full_name, email, phone, membership_level, status)
+      `
+      )
+      .eq('event_id', eventId)
+      .order('check_in_date');
+    if (error) throw error;
+    return (data || []) as AccommodationBookingWithRelations[];
+  },
+
+  async createBooking(booking: AccommodationBookingCreateInput) {
+    const { data, error } = await (supabase as any)
+      .from('room_bookings')
+      .insert({
+        event_id: booking.event_id,
+        room_id: booking.room_id ?? null,
+        member_id: booking.member_id ?? null,
+        guest_name: booking.guest_name ?? null,
+        check_in_date: booking.check_in_date,
+        check_out_date: booking.check_out_date,
+        special_requests: booking.special_requests ?? null,
+        status: booking.status ?? 'confirmed',
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as AccommodationBooking;
+  },
+
+  async updateBooking(bookingId: string, updates: AccommodationBookingUpdateInput) {
+    const { data, error } = await (supabase as any)
+      .from('room_bookings')
+      .update(updates)
+      .eq('id', bookingId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as AccommodationBooking;
+  },
+
+  async deleteBooking(bookingId: string) {
+    const { error } = await (supabase as any).from('room_bookings').delete().eq('id', bookingId);
+    if (error) throw error;
+  },
+};
+
+// ============================================
 // QUEUE API
 // ============================================
 
@@ -526,16 +725,35 @@ export const queueApi = {
     return data as (Queue & { tickets: QueueTicket[] })[];
   },
 
-  async createQueue(queue: Omit<Queue, 'id'>) {
-    const { data, error } = await (supabase as any).from('queues').insert(queue).select().single();
+  async createQueue(queue: QueueCreateInput) {
+    const { data, error } = await (supabase as any)
+      .from('queues')
+      .insert({
+        event_id: queue.event_id,
+        name: queue.name,
+        description: queue.description ?? null,
+        status: queue.status ?? 'active',
+        max_capacity: queue.max_capacity ?? null,
+        avg_service_time: queue.avg_service_time ?? null,
+      })
+      .select()
+      .single();
     if (error) throw error;
     return data as Queue;
   },
 
-  async joinQueue(
-    queueId: string,
-    ticket: Omit<QueueTicket, 'id' | 'joined_at' | 'ticket_number'>
-  ) {
+  async updateQueue(queueId: string, updates: QueueUpdateInput) {
+    const { data, error } = await (supabase as any)
+      .from('queues')
+      .update(updates)
+      .eq('id', queueId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Queue;
+  },
+
+  async joinQueue(queueId: string, ticket: QueueJoinInput) {
     // Generate ticket number
     const { count } = await (supabase as any)
       .from('queue_tickets')
@@ -546,7 +764,15 @@ export const queueApi = {
 
     const { data, error } = await (supabase as any)
       .from('queue_tickets')
-      .insert({ ...ticket, queue_id: queueId, ticket_number: ticketNumber })
+      .insert({
+        queue_id: queueId,
+        ticket_number: ticketNumber,
+        member_id: ticket.member_id ?? null,
+        guest_name: ticket.guest_name ?? null,
+        priority: ticket.priority ?? 'normal',
+        status: ticket.status ?? 'waiting',
+        notes: ticket.notes ?? null,
+      })
       .select()
       .single();
     if (error) throw error;
@@ -555,7 +781,7 @@ export const queueApi = {
 
   async callNext(queueId: string) {
     // Find next waiting ticket
-    const { data: nextTicket } = await (supabase as any)
+    const { data: nextTicket, error: nextError } = await (supabase as any)
       .from('queue_tickets')
       .select('id')
       .eq('queue_id', queueId)
@@ -563,7 +789,9 @@ export const queueApi = {
       .order('priority', { ascending: false })
       .order('joined_at')
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (nextError) throw nextError;
 
     if (!nextTicket) return null;
 
@@ -599,5 +827,6 @@ export const eventModulesApi = {
   roster: rosterApi,
   worship: worshipApi,
   assets: assetsApi,
+  accommodation: accommodationApi,
   queue: queueApi,
 };

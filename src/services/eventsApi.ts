@@ -55,6 +55,11 @@ async function getDistrictIdForDistrictAdmin(userId: string): Promise<string | n
   return (data as any)?.id ?? null;
 }
 
+function isUuid(value?: string | null): value is string {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 export const eventsApi = {
   async getEvents(opts?: {
     level?: EventLevel;
@@ -229,34 +234,131 @@ export const eventsApi = {
   async recordAttendance(payload: {
     event_id: string;
     session_id?: string;
-    member_id: string;
-    zone_id: string;
+    member_id?: string | null;
+    zone_id?: string | null;
     type: 'in' | 'out';
     method: 'QR' | 'NFC' | 'MANUAL' | 'ID-SCAN';
     metadata?: any;
   }) {
+    const now = new Date().toISOString();
+    const { data: userRes } = await supabase.auth.getUser();
+    const checkedInBy = userRes.user?.id || null;
+    const eventZoneId = isUuid(payload.zone_id) ? payload.zone_id : null;
+    const memberId = isUuid(payload.member_id || '') ? payload.member_id : null;
+    const notes = JSON.stringify({
+      method: payload.method,
+      session_id: payload.session_id,
+      zone_label: payload.zone_id || null,
+      metadata: payload.metadata || null,
+    });
+
+    if (payload.type === 'in') {
+      return (supabase as any)
+        .from('event_attendance')
+        .insert({
+          event_id: payload.event_id,
+          member_id: memberId,
+          zone_id: eventZoneId,
+          status: 'checked_in',
+          checked_in_at: now,
+          checked_in_by: checkedInBy,
+          notes,
+        })
+        .select()
+        .single();
+    }
+
+    let latestQuery: any = (supabase as any)
+      .from('event_attendance')
+      .select('id')
+      .eq('event_id', payload.event_id)
+      .is('checked_out_at', null)
+      .order('checked_in_at', { ascending: false })
+      .limit(1);
+    latestQuery = memberId
+      ? latestQuery.eq('member_id', memberId)
+      : latestQuery.is('member_id', null);
+    const { data: latest, error: latestError } = await latestQuery.maybeSingle();
+
+    if (latestError) return { data: null, error: latestError };
+
+    if (latest?.id) {
+      return (supabase as any)
+        .from('event_attendance')
+        .update({
+          status: 'checked_out',
+          checked_out_at: now,
+          notes,
+        })
+        .eq('id', latest.id)
+        .select()
+        .single();
+    }
+
     return (supabase as any)
-      .from('attendance_records')
+      .from('event_attendance')
       .insert({
-        ...payload,
-        timestamp: new Date().toISOString(),
+        event_id: payload.event_id,
+        member_id: memberId,
+        zone_id: eventZoneId,
+        status: 'checked_out',
+        checked_in_at: now,
+        checked_out_at: now,
+        checked_in_by: checkedInBy,
+        notes,
       })
       .select()
       .single();
   },
 
   async getAttendanceLogs(eventId: string, limit = 50) {
-    return (supabase as any)
-      .from('attendance_records')
+    const { data, error } = await (supabase as any)
+      .from('event_attendance')
       .select(
         `
-        *,
-        member:member_id(full_name, phone)
+        id,
+        event_id,
+        member_id,
+        zone_id,
+        status,
+        checked_in_at,
+        checked_out_at,
+        checked_in_by,
+        notes,
+        member:members(id, full_name),
+        zone:event_zones(id, name)
       `
       )
       .eq('event_id', eventId)
-      .order('timestamp', { ascending: false })
+      .order('checked_in_at', { ascending: false })
       .limit(limit);
+
+    if (error) return { data: null, error };
+
+    const normalized = (data || []).map((row: any) => {
+      let parsedNotes: any = null;
+      if (row.notes) {
+        try {
+          parsedNotes = JSON.parse(row.notes);
+        } catch {
+          parsedNotes = null;
+        }
+      }
+
+      const isCheckout = row.status === 'checked_out';
+      const timestamp = isCheckout && row.checked_out_at ? row.checked_out_at : row.checked_in_at;
+
+      return {
+        ...row,
+        type: isCheckout ? 'out' : 'in',
+        method: parsedNotes?.method || 'MANUAL',
+        timestamp,
+        zone_id: row.zone?.name || parsedNotes?.zone_label || row.zone_id || 'Unknown Zone',
+        metadata: parsedNotes?.metadata || null,
+      };
+    });
+
+    return { data: normalized, error: null };
   },
 };
 

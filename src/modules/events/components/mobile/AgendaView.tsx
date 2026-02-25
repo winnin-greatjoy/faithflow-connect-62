@@ -3,50 +3,63 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, MapPin, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { EventRecord } from '@/services/eventsApi';
 
-export const AgendaView = () => {
-  const sessions = [
-    {
-      id: 1,
-      time: '09:00 AM',
-      title: 'Opening Ceremony',
-      location: 'Main Sanctuary',
-      type: 'Plenary',
-      isKeynote: true,
-    },
-    {
-      id: 2,
-      time: '10:30 AM',
-      title: 'Worship & Praise',
-      location: 'Main Sanctuary',
-      type: 'Worship',
-      isKeynote: false,
-    },
-    {
-      id: 3,
-      time: '11:30 AM',
-      title: 'Breakout: Youth Leadership',
-      location: 'Hall B',
-      type: 'Workshop',
-      isKeynote: false,
-    },
-    {
-      id: 4,
-      time: '01:00 PM',
-      title: 'Lunch Break',
-      location: 'Cafeteria',
-      type: 'Break',
-      isKeynote: false,
-    },
-    {
-      id: 5,
-      time: '02:00 PM',
-      title: 'Closing Keynote',
-      location: 'Main Sanctuary',
-      type: 'Plenary',
-      isKeynote: true,
-    },
-  ];
+interface AgendaViewProps {
+  event: EventRecord | null;
+}
+
+type AgendaSession = {
+  id: string;
+  time: string;
+  title: string;
+  location: string;
+  type: string;
+  isKeynote?: boolean;
+};
+
+const formatTime = (iso?: string | null) => {
+  if (!iso) return 'TBA';
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+export const AgendaView: React.FC<AgendaViewProps> = ({ event }) => {
+  const fromMetadata = Array.isArray((event?.metadata as any)?.agenda)
+    ? ((event?.metadata as any).agenda as any[])
+    : [];
+
+  const sessions: AgendaSession[] =
+    fromMetadata.length > 0
+      ? fromMetadata.map((s, index) => ({
+          id: String(s.id || index + 1),
+          time: s.time || formatTime(s.start_at || s.startAt || null),
+          title: s.title || `Session ${index + 1}`,
+          location: s.location || event?.location || 'TBA',
+          type: s.type || 'Session',
+          isKeynote: Boolean(s.isKeynote || s.is_keynote),
+        }))
+      : [
+          {
+            id: '1',
+            time: formatTime(event?.start_at || null),
+            title: event?.title || 'Event Session',
+            location: event?.location || 'TBA',
+            type: 'Main Session',
+            isKeynote: true,
+          },
+          ...(event?.end_at
+            ? [
+                {
+                  id: '2',
+                  time: formatTime(event.end_at),
+                  title: 'Closing Session',
+                  location: event.location || 'TBA',
+                  type: 'Closing',
+                  isKeynote: false,
+                },
+              ]
+            : []),
+        ];
 
   return (
     <div className="p-4 space-y-4 pb-24">

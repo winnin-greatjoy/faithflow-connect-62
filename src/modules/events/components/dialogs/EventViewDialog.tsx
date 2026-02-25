@@ -267,6 +267,14 @@ export const EventViewDialog: React.FC<EventViewDialogProps> = ({
                           <Users className="mr-3 h-4 w-4 text-primary" />
                           MANAGE ATTENDEES
                         </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => onManageQuotas(event)}
+                          className="flex-1 bg-card h-14 border border-primary/10 rounded-2xl font-black text-[10px] tracking-[0.2em] hover:bg-primary/5 transition-all"
+                        >
+                          <Globe className="mr-3 h-4 w-4 text-primary" />
+                          MANAGE QUOTAS
+                        </Button>
                       </>
                     )}
                   </div>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Timer,
   Users,
@@ -6,7 +7,6 @@ import {
   Activity,
   MapPin,
   Plus,
-  MoreHorizontal,
   Play,
   Pause,
   XCircle,
@@ -14,7 +14,7 @@ import {
   SkipForward,
   Volume2,
   Settings,
-  Maximize2,
+  Loader2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,106 +35,166 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Queue, QueueTicket } from '@/modules/events/types/queue';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import {
+  useCallNextInQueue,
+  useCreateQueue,
+  useJoinQueue,
+  useQueues,
+  useUpdateQueue,
+  useUpdateTicketStatus,
+} from '@/hooks/useEventModules';
+import type {
+  Queue as QueueRecord,
+  QueueTicket as QueueTicketRecord,
+} from '@/services/eventModulesApi';
 
-// Mock Data
-const MOCK_QUEUES: Queue[] = [
-  {
-    id: '1',
-    eventId: 'evt-1',
-    name: 'Registration Desk A',
-    zoneId: 'Main Hall',
-    status: 'ACTIVE',
-    type: 'STANDARD',
-    maxLength: 200,
-    currentLength: 45,
-    averageProcessingTimeSeconds: 120,
-    operators: ['user-1'],
-  },
-  {
-    id: '2',
-    eventId: 'evt-1',
-    name: 'Priority Prayer Line',
-    zoneId: 'Sanctuary East',
-    status: 'ACTIVE',
-    type: 'PRIORITY',
-    maxLength: 50,
-    currentLength: 12,
-    averageProcessingTimeSeconds: 300,
-    operators: ['user-2'],
-  },
-  {
-    id: '3',
-    eventId: 'evt-1',
-    name: 'Medical Triage',
-    zoneId: 'Tent 3',
-    status: 'PAUSED',
-    type: 'STANDARD',
-    maxLength: 20,
-    currentLength: 4,
-    averageProcessingTimeSeconds: 600,
-    operators: ['user-3'],
-  },
-];
+type QueueWithTickets = QueueRecord & { tickets: QueueTicketRecord[] };
+const ACTIVE_TICKET_STATUSES: QueueTicketRecord['status'][] = ['waiting', 'called', 'serving'];
 
-const MOCK_TICKETS: QueueTicket[] = [
-  {
-    id: 't-1',
-    queueId: '1',
-    personId: 'p-1',
-    personName: 'Sarah Jenkins',
-    position: 1,
-    status: 'WAITING',
-    priority: false,
-    groupSize: 1,
-    joinedAt: new Date().toISOString(),
-    notified: { nearTurn: true, called: false },
-  },
-  {
-    id: 't-2',
-    queueId: '1',
-    personId: 'p-2',
-    personName: 'Mike Ross',
-    position: 2,
-    status: 'WAITING',
-    priority: false,
-    groupSize: 3,
-    joinedAt: new Date().toISOString(),
-    notified: { nearTurn: true, called: false },
-  },
-  {
-    id: 't-3',
-    queueId: '1',
-    personId: 'p-3',
-    personName: 'Harvey Specter',
-    position: 3,
-    status: 'WAITING',
-    priority: true,
-    groupSize: 1,
-    joinedAt: new Date().toISOString(),
-    notified: { nearTurn: false, called: false },
-  },
-  {
-    id: 't-4',
-    queueId: '2',
-    personId: 'p-4',
-    personName: 'Louis Litt',
-    position: 1,
-    status: 'CALLED',
-    priority: true,
-    groupSize: 1,
-    joinedAt: new Date().toISOString(),
-    notified: { nearTurn: true, called: true },
-  },
-];
+const priorityScore: Record<QueueTicketRecord['priority'], number> = {
+  normal: 0,
+  priority: 1,
+  vip: 2,
+};
+
+const toMinutes = (seconds: number | null, queueLength: number) => {
+  const sec = seconds || 0;
+  return Math.max(0, Math.round((sec * queueLength) / 60));
+};
 
 export const QueueManagerModule = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [viewMode, setViewMode] = useState<'ADMIN' | 'OPERATOR' | 'KIOSK'>('ADMIN');
-  const [selectedQueue, setSelectedQueue] = useState<Queue | null>(null);
+  const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newMaxCapacity, setNewMaxCapacity] = useState('');
+  const [newAvgService, setNewAvgService] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestPriority, setGuestPriority] = useState<'normal' | 'priority' | 'vip'>('normal');
 
-  // Sub-components for cleaner file structure mockup
+  const { data: queueData = [], isLoading } = useQueues(eventId || '');
+  const createQueue = useCreateQueue(eventId || '');
+  const updateQueue = useUpdateQueue(eventId || '');
+  const callNext = useCallNextInQueue(eventId || '');
+  const updateTicket = useUpdateTicketStatus(eventId || '');
+  const joinQueue = useJoinQueue(eventId || '');
+
+  const queues = useMemo(() => (queueData || []) as QueueWithTickets[], [queueData]);
+
+  useEffect(() => {
+    if (!selectedQueueId && queues.length > 0) {
+      setSelectedQueueId(queues[0].id);
+    }
+    if (selectedQueueId && !queues.find((q) => q.id === selectedQueueId)) {
+      setSelectedQueueId(queues[0]?.id || null);
+    }
+  }, [queues, selectedQueueId]);
+
+  const selectedQueue = useMemo(
+    () => queues.find((q) => q.id === selectedQueueId) || null,
+    [queues, selectedQueueId]
+  );
+
+  const queueMetrics = useMemo(() => {
+    const totalInQueue = queues.reduce(
+      (sum, q) => sum + q.tickets.filter((t) => ACTIVE_TICKET_STATUSES.includes(t.status)).length,
+      0
+    );
+    const activeQueues = queues.filter((q) => q.status === 'active').length;
+    const avgWaitMins =
+      queues.length === 0
+        ? 0
+        : Math.round(
+            queues.reduce((sum, q) => {
+              const length = q.tickets.filter((t) => t.status === 'waiting').length;
+              return sum + toMinutes(q.avg_service_time, length);
+            }, 0) / queues.length
+          );
+    return { totalInQueue, activeQueues, avgWaitMins };
+  }, [queues]);
+
+  const orderedWaitingTickets = useMemo(() => {
+    if (!selectedQueue) return [];
+    return [...selectedQueue.tickets]
+      .filter((t) => t.status === 'waiting')
+      .sort((a, b) => {
+        const p = priorityScore[b.priority] - priorityScore[a.priority];
+        if (p !== 0) return p;
+        return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
+      });
+  }, [selectedQueue]);
+
+  const currentTicket = useMemo(() => {
+    if (!selectedQueue) return null;
+    return (
+      selectedQueue.tickets.find((t) => t.status === 'serving') ||
+      selectedQueue.tickets.find((t) => t.status === 'called') ||
+      null
+    );
+  }, [selectedQueue]);
+
+  const handleCreateQueue = async () => {
+    if (!eventId || !newName.trim()) return;
+    await createQueue.mutateAsync({
+      event_id: eventId,
+      name: newName.trim(),
+      description: newDescription.trim() || null,
+      status: 'active',
+      max_capacity: newMaxCapacity ? Number(newMaxCapacity) : null,
+      avg_service_time: newAvgService ? Number(newAvgService) : null,
+    });
+    setNewName('');
+    setNewDescription('');
+    setNewMaxCapacity('');
+    setNewAvgService('');
+    setCreateOpen(false);
+  };
+
+  const handleToggleQueueStatus = async (queue: QueueWithTickets) => {
+    const next = queue.status === 'active' ? 'paused' : 'active';
+    await updateQueue.mutateAsync({ queueId: queue.id, updates: { status: next } });
+  };
+
+  const handleCallNext = async () => {
+    if (!selectedQueue) return;
+    await callNext.mutateAsync(selectedQueue.id);
+  };
+
+  const handleCallAgain = async () => {
+    if (!currentTicket) return;
+    await updateTicket.mutateAsync({ ticketId: currentTicket.id, status: 'called' });
+  };
+
+  const handleSkipNoShow = async () => {
+    if (!currentTicket) return;
+    await updateTicket.mutateAsync({ ticketId: currentTicket.id, status: 'no_show' });
+  };
+
+  const handleJoinGuest = async () => {
+    if (!selectedQueue || !guestName.trim()) return;
+    await joinQueue.mutateAsync({
+      queueId: selectedQueue.id,
+      ticket: {
+        guest_name: guestName.trim(),
+        priority: guestPriority,
+        status: 'waiting',
+      },
+    });
+    setGuestName('');
+    setGuestPriority('normal');
+  };
+
+  if (!eventId) {
+    return (
+      <div className="min-h-[500px] flex items-center justify-center text-muted-foreground">
+        Invalid event context.
+      </div>
+    );
+  }
+
   const AdminView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
@@ -151,7 +211,7 @@ export const QueueManagerModule = () => {
           <Button variant="outline" onClick={() => setViewMode('KIOSK')}>
             Kiosk Display
           </Button>
-          <Dialog>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button className="font-black text-[10px] uppercase tracking-widest rounded-xl">
                 <Plus className="h-4 w-4 mr-2" />
@@ -168,36 +228,55 @@ export const QueueManagerModule = () => {
                 <div className="space-y-2">
                   <Label>Queue Name</Label>
                   <Input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
                     placeholder="e.g. Registration Desk A"
+                    className="rounded-xl bg-muted/30"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description / Zone</Label>
+                  <Input
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    placeholder="e.g. Main Hall - Gate A"
                     className="rounded-xl bg-muted/30"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Location / Zone</Label>
-                    <Select>
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="Select Zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="main">Main Hall</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Max Capacity</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={newMaxCapacity}
+                      onChange={(e) => setNewMaxCapacity(e.target.value)}
+                      placeholder="200"
+                      className="rounded-xl bg-muted/30"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Type</Label>
-                    <Select>
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="Queue Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="standard">Standard</SelectItem>
-                        <SelectItem value="priority">Priority</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Avg Service Time (sec)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={newAvgService}
+                      onChange={(e) => setNewAvgService(e.target.value)}
+                      placeholder="120"
+                      className="rounded-xl bg-muted/30"
+                    />
                   </div>
                 </div>
-                <Button className="w-full font-black text-[10px] uppercase tracking-widest rounded-xl mt-4">
+                <Button
+                  onClick={handleCreateQueue}
+                  disabled={createQueue.isPending || !newName.trim()}
+                  className="w-full font-black text-[10px] uppercase tracking-widest rounded-xl mt-4"
+                >
+                  {createQueue.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-2" />
+                  )}
                   Create Queue
                 </Button>
               </div>
@@ -208,12 +287,35 @@ export const QueueManagerModule = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Avg Wait Time', value: '14m', icon: Timer, color: 'text-primary' },
-          { label: 'Current Flow', value: '120/min', icon: Activity, color: 'text-emerald-500' },
-          { label: 'In Queue', value: '61', icon: Users, color: 'text-amber-500' },
-          { label: 'Active Gates', value: '3', icon: MapPin, color: 'text-primary' },
-        ].map((stat, i) => (
-          <Card key={i} className="p-4 border border-primary/5 rounded-[24px] bg-white shadow-sm">
+          {
+            label: 'Avg Wait Time',
+            value: `${queueMetrics.avgWaitMins}m`,
+            icon: Timer,
+            color: 'text-primary',
+          },
+          {
+            label: 'Current Flow',
+            value: `${queueMetrics.totalInQueue}`,
+            icon: Activity,
+            color: 'text-emerald-500',
+          },
+          {
+            label: 'In Queue',
+            value: `${queueMetrics.totalInQueue}`,
+            icon: Users,
+            color: 'text-amber-500',
+          },
+          {
+            label: 'Active Gates',
+            value: `${queueMetrics.activeQueues}`,
+            icon: MapPin,
+            color: 'text-primary',
+          },
+        ].map((stat) => (
+          <Card
+            key={stat.label}
+            className="p-4 border border-primary/5 rounded-[24px] bg-white shadow-sm"
+          >
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -229,100 +331,117 @@ export const QueueManagerModule = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {MOCK_QUEUES.map((queue, i) => (
-          <Card
-            key={i}
-            className="p-6 rounded-[32px] border border-primary/5 bg-white shadow-xl shadow-primary/5 overflow-hidden relative group hover:shadow-2xl transition-all duration-300"
-          >
-            <div className="absolute top-0 right-0 h-1 w-full bg-muted/20">
-              <div
-                className={cn(
-                  'h-full transition-all duration-1000',
-                  queue.status === 'ACTIVE'
-                    ? 'bg-emerald-500'
-                    : queue.status === 'PAUSED'
-                      ? 'bg-amber-500'
-                      : 'bg-gray-300'
-                )}
-                style={{ width: `${(queue.currentLength / queue.maxLength) * 100}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between mb-6">
-              <div className="space-y-1">
-                <h4 className="font-serif font-black text-lg">{queue.name}</h4>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> {queue.zoneId}
-                </p>
-              </div>
-              <Badge
-                variant={queue.status === 'ACTIVE' ? 'default' : 'secondary'}
-                className="rounded-lg h-6 px-2 text-[9px] font-black tracking-widest uppercase"
+      {isLoading ? (
+        <div className="py-20 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : queues.length === 0 ? (
+        <Card className="p-10 rounded-[24px] border border-dashed border-primary/20 text-center text-muted-foreground">
+          No queues yet. Create your first queue to begin flow operations.
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {queues.map((queue) => {
+            const inQueue = queue.tickets.filter((t) =>
+              ACTIVE_TICKET_STATUSES.includes(t.status)
+            ).length;
+            const max = queue.max_capacity || 0;
+            const pct = max > 0 ? Math.min((inQueue / max) * 100, 100) : 0;
+            const waitMins = toMinutes(queue.avg_service_time, inQueue);
+            return (
+              <Card
+                key={queue.id}
+                className="p-6 rounded-[32px] border border-primary/5 bg-white shadow-xl shadow-primary/5 overflow-hidden relative group hover:shadow-2xl transition-all duration-300"
               >
-                {queue.status}
-              </Badge>
-            </div>
+                <div className="absolute top-0 right-0 h-1 w-full bg-muted/20">
+                  <div
+                    className={cn(
+                      'h-full transition-all duration-1000',
+                      queue.status === 'active'
+                        ? 'bg-emerald-500'
+                        : queue.status === 'paused'
+                          ? 'bg-amber-500'
+                          : 'bg-gray-300'
+                    )}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="space-y-1">
+                    <h4 className="font-serif font-black text-lg">{queue.name}</h4>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> {queue.description || 'No zone configured'}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={queue.status === 'active' ? 'default' : 'secondary'}
+                    className="rounded-lg h-6 px-2 text-[9px] font-black tracking-widest uppercase"
+                  >
+                    {queue.status}
+                  </Badge>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="p-3 bg-muted/20 rounded-2xl border border-primary/5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-50 mb-1">
-                  Queue Length
-                </p>
-                <p className="text-xl font-black text-primary">
-                  {queue.currentLength}
-                  <span className="text-xs text-muted-foreground font-bold ml-1">
-                    / {queue.maxLength}
-                  </span>
-                </p>
-              </div>
-              <div className="p-3 bg-muted/20 rounded-2xl border border-primary/5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-50 mb-1">
-                  Est. Wait
-                </p>
-                <p className="text-xl font-black text-primary">
-                  {Math.round((queue.currentLength * queue.averageProcessingTimeSeconds) / 60)}
-                  <span className="text-xs text-muted-foreground font-bold ml-1">min</span>
-                </p>
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-3 bg-muted/20 rounded-2xl border border-primary/5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-50 mb-1">
+                      Queue Length
+                    </p>
+                    <p className="text-xl font-black text-primary">
+                      {inQueue}
+                      <span className="text-xs text-muted-foreground font-bold ml-1">
+                        / {queue.max_capacity || '∞'}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="p-3 bg-muted/20 rounded-2xl border border-primary/5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-50 mb-1">
+                      Est. Wait
+                    </p>
+                    <p className="text-xl font-black text-primary">
+                      {waitMins}
+                      <span className="text-xs text-muted-foreground font-bold ml-1">min</span>
+                    </p>
+                  </div>
+                </div>
 
-            <div className="flex gap-2">
-              {queue.status === 'ACTIVE' ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 rounded-xl h-9 text-[9px] uppercase font-black hover:bg-amber-50 hover:text-amber-600 border-primary/10"
-                >
-                  <Pause className="h-3 w-3 mr-2" /> Pause
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 rounded-xl h-9 text-[9px] uppercase font-black hover:bg-emerald-50 hover:text-emerald-600 border-primary/10"
-                >
-                  <Play className="h-3 w-3 mr-2" /> Resume
-                </Button>
-              )}
-              <Button
-                onClick={() => {
-                  setSelectedQueue(queue);
-                  setViewMode('OPERATOR');
-                }}
-                className="flex-1 rounded-xl h-9 text-[9px] uppercase font-black bg-primary text-white hover:bg-primary/90"
-              >
-                <Settings className="h-3 w-3 mr-2" /> Manage
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleToggleQueueStatus(queue)}
+                    disabled={updateQueue.isPending}
+                    className="flex-1 rounded-xl h-9 text-[9px] uppercase font-black border-primary/10"
+                  >
+                    {queue.status === 'active' ? (
+                      <>
+                        <Pause className="h-3 w-3 mr-2" /> Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3 w-3 mr-2" /> Resume
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setSelectedQueueId(queue.id);
+                      setViewMode('OPERATOR');
+                    }}
+                    className="flex-1 rounded-xl h-9 text-[9px] uppercase font-black bg-primary text-white hover:bg-primary/90"
+                  >
+                    <Settings className="h-3 w-3 mr-2" /> Manage
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 
   const OperatorView = () => (
-    <div className="h-[600px] flex overflow-hidden bg-muted/10 rounded-[40px] border border-primary/5 animate-in slide-in-from-right duration-500">
-      {/* Queue List Sidebar (similar to Chat module approach for robustness) */}
+    <div className="h-[700px] flex overflow-hidden bg-muted/10 rounded-[40px] border border-primary/5 animate-in slide-in-from-right duration-500">
       <div className="w-80 bg-white border-r border-primary/5 p-6 flex flex-col gap-6">
         <div>
           <Button
@@ -338,39 +457,78 @@ export const QueueManagerModule = () => {
           </p>
         </div>
 
+        <div className="space-y-2">
+          <Label>Add Guest to Selected Queue</Label>
+          <Input
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            placeholder="Guest name"
+            className="rounded-xl bg-muted/30"
+          />
+          <Select
+            value={guestPriority}
+            onValueChange={(v: 'normal' | 'priority' | 'vip') => setGuestPriority(v)}
+          >
+            <SelectTrigger className="rounded-xl bg-muted/30">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="priority">Priority</SelectItem>
+              <SelectItem value="vip">VIP</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={handleJoinGuest}
+            disabled={!selectedQueue || !guestName.trim() || joinQueue.isPending}
+            className="w-full rounded-xl text-[10px] uppercase font-black"
+          >
+            {joinQueue.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
+            Add to Queue
+          </Button>
+        </div>
+
         <div className="space-y-4 flex-1 overflow-y-auto pr-2">
-          {MOCK_QUEUES.map((q) => (
-            <div
-              key={q.id}
-              onClick={() => setSelectedQueue(q)}
-              className={cn(
-                'p-4 rounded-[24px] border cursor-pointer transition-all hover:scale-[1.02]',
-                selectedQueue?.id === q.id
-                  ? 'bg-primary text-white border-transparent shadow-xl shadow-primary/20'
-                  : 'bg-white border-primary/5 hover:border-primary/20'
-              )}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="font-bold">{q.name}</h4>
-                {q.type === 'PRIORITY' && (
-                  <Badge className="bg-amber-400 text-black border-none text-[8px] h-4">VIP</Badge>
+          {queues.map((q) => {
+            const queueCount = q.tickets.filter((t) =>
+              ACTIVE_TICKET_STATUSES.includes(t.status)
+            ).length;
+            const wait = toMinutes(q.avg_service_time, queueCount);
+            return (
+              <div
+                key={q.id}
+                onClick={() => setSelectedQueueId(q.id)}
+                className={cn(
+                  'p-4 rounded-[24px] border cursor-pointer transition-all hover:scale-[1.02]',
+                  selectedQueueId === q.id
+                    ? 'bg-primary text-white border-transparent shadow-xl shadow-primary/20'
+                    : 'bg-white border-primary/5 hover:border-primary/20'
                 )}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-bold">{q.name}</h4>
+                  <Badge className="bg-amber-400 text-black border-none text-[8px] h-4 uppercase">
+                    {q.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-4 text-xs font-medium opacity-80">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3" /> {queueCount}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Timer className="h-3 w-3" /> ~{wait}m
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-4 text-xs font-medium opacity-80">
-                <span className="flex items-center gap-1">
-                  <Users className="h-3 w-3" /> {q.currentLength}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Timer className="h-3 w-3" /> ~
-                  {Math.round((q.currentLength * q.averageProcessingTimeSeconds) / 60)}m
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* Main Controller */}
       <div className="flex-1 p-8 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white via-muted/20 to-muted/20">
         {selectedQueue ? (
           <div className="w-full max-w-md space-y-8">
@@ -381,58 +539,86 @@ export const QueueManagerModule = () => {
               >
                 Now Serving
               </Badge>
-              <h1 className="text-6xl font-black font-serif text-primary">#34</h1>
+              <h1 className="text-6xl font-black font-serif text-primary">
+                {currentTicket?.ticket_number || '--'}
+              </h1>
               <p className="text-xl font-medium text-muted-foreground">
-                John Doe <span className="text-sm opacity-50 ml-2">(Group of 3)</span>
+                {currentTicket?.guest_name ||
+                  currentTicket?.member_id ||
+                  'No ticket currently called'}
               </p>
-              <div className="flex justify-center gap-2 mt-2">
-                <Badge className="bg-emerald-500/10 text-emerald-600 border-none">Checked In</Badge>
-                <Badge className="bg-amber-500/10 text-amber-600 border-none">Priority</Badge>
-              </div>
+              {currentTicket && (
+                <div className="flex justify-center gap-2 mt-2">
+                  <Badge className="bg-emerald-500/10 text-emerald-600 border-none uppercase">
+                    {currentTicket.status}
+                  </Badge>
+                  <Badge className="bg-amber-500/10 text-amber-600 border-none uppercase">
+                    {currentTicket.priority}
+                  </Badge>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Button className="h-16 rounded-[24px] bg-white border border-primary/10 text-primary hover:bg-neutral-50 shadow-xl font-black text-xs uppercase tracking-widest flex flex-col gap-1 items-center justify-center">
+              <Button
+                onClick={handleCallAgain}
+                disabled={!currentTicket || updateTicket.isPending}
+                className="h-16 rounded-[24px] bg-white border border-primary/10 text-primary hover:bg-neutral-50 shadow-xl font-black text-xs uppercase tracking-widest flex flex-col gap-1 items-center justify-center"
+              >
                 <Volume2 className="h-5 w-5" />
                 Call Again
               </Button>
-              <Button className="h-16 rounded-[24px] bg-white border border-primary/10 text-destructive hover:bg-destructive/5 shadow-xl font-black text-xs uppercase tracking-widest flex flex-col gap-1 items-center justify-center">
+              <Button
+                onClick={handleSkipNoShow}
+                disabled={!currentTicket || updateTicket.isPending}
+                className="h-16 rounded-[24px] bg-white border border-primary/10 text-destructive hover:bg-destructive/5 shadow-xl font-black text-xs uppercase tracking-widest flex flex-col gap-1 items-center justify-center"
+              >
                 <SkipForward className="h-5 w-5" />
                 Skip / No Show
               </Button>
-              <Button className="h-20 col-span-2 rounded-[32px] bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3">
-                <Mic className="h-5 w-5" />
+              <Button
+                onClick={handleCallNext}
+                disabled={callNext.isPending || selectedQueue.status !== 'active'}
+                className="h-20 col-span-2 rounded-[32px] bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3"
+              >
+                {callNext.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Mic className="h-5 w-5" />
+                )}
                 Call Next Ticket
               </Button>
             </div>
 
-            {/* Recent History */}
             <div className="pt-8 border-t border-primary/5">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-40 mb-4 text-center">
                 Up Next
               </p>
               <div className="space-y-3">
-                {MOCK_TICKETS.filter((t) => t.status === 'WAITING')
-                  .slice(0, 3)
-                  .map((t, i) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-white border border-primary/5"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-muted font-black text-xs flex items-center justify-center text-muted-foreground">
-                          #{t.position}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-foreground">{t.personName}</p>
-                          <p className="text-[10px] font-medium text-muted-foreground">
-                            Wait: ~12m
-                          </p>
-                        </div>
+                {orderedWaitingTickets.slice(0, 3).map((t, i) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-white border border-primary/5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-muted font-black text-xs flex items-center justify-center text-muted-foreground">
+                        #{i + 1}
                       </div>
-                      {t.priority && <Activity className="h-4 w-4 text-amber-500" />}
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{t.ticket_number}</p>
+                        <p className="text-[10px] font-medium text-muted-foreground">
+                          {t.guest_name || t.member_id || 'Guest'}
+                        </p>
+                      </div>
                     </div>
-                  ))}
+                    {t.priority !== 'normal' && <Activity className="h-4 w-4 text-amber-500" />}
+                  </div>
+                ))}
+                {orderedWaitingTickets.length === 0 && (
+                  <div className="text-center text-xs text-muted-foreground py-6">
+                    No waiting tickets.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -447,74 +633,88 @@ export const QueueManagerModule = () => {
     </div>
   );
 
-  const KioskDisplay = () => (
-    <div className="fixed inset-0 bg-black text-white z-[100] flex flex-col items-center justify-center p-8">
-      <Button
-        variant="ghost"
-        className="absolute top-8 right-8 text-white/20 hover:text-white"
-        onClick={() => setViewMode('ADMIN')}
-      >
-        <XCircle className="h-8 w-8" />
-      </Button>
+  const KioskDisplay = () => {
+    const queue = selectedQueue || queues[0] || null;
+    const nowServing =
+      queue?.tickets.find((t) => t.status === 'serving') ||
+      queue?.tickets.find((t) => t.status === 'called') ||
+      null;
+    const upcoming = queue
+      ? [...queue.tickets]
+          .filter((t) => t.status === 'waiting')
+          .sort((a, b) => {
+            const p = priorityScore[b.priority] - priorityScore[a.priority];
+            if (p !== 0) return p;
+            return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
+          })
+          .slice(0, 4)
+      : [];
 
-      <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
-        <div className="text-center lg:text-left space-y-8">
-          <Badge
-            variant="outline"
-            className="text-xl py-2 px-6 rounded-full border-white/20 text-white font-black uppercase tracking-[0.3em]"
-          >
-            Now Serving
-          </Badge>
-          <div className="space-y-4">
-            <h1 className="text-[12rem] leading-none font-black font-serif text-emerald-400">
-              #34
-            </h1>
-            <h2 className="text-6xl font-bold tracking-tight">John Doe</h2>
-            <p className="text-3xl text-white/60 font-medium">Please proceed to Counter 01</p>
+    return (
+      <div className="fixed inset-0 bg-black text-white z-[100] flex flex-col items-center justify-center p-8">
+        <Button
+          variant="ghost"
+          className="absolute top-8 right-8 text-white/20 hover:text-white"
+          onClick={() => setViewMode('ADMIN')}
+        >
+          <XCircle className="h-8 w-8" />
+        </Button>
+
+        <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+          <div className="text-center lg:text-left space-y-8">
+            <Badge
+              variant="outline"
+              className="text-xl py-2 px-6 rounded-full border-white/20 text-white font-black uppercase tracking-[0.3em]"
+            >
+              Now Serving
+            </Badge>
+            <div className="space-y-4">
+              <h1 className="text-[8rem] leading-none font-black font-serif text-emerald-400">
+                {nowServing?.ticket_number || '--'}
+              </h1>
+              <h2 className="text-4xl font-bold tracking-tight">
+                {nowServing?.guest_name || nowServing?.member_id || 'No current call'}
+              </h2>
+              <p className="text-2xl text-white/60 font-medium">
+                {queue ? `Please proceed to ${queue.name}` : 'No active queue selected'}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-white/5 rounded-[48px] p-12 border border-white/10 backdrop-blur-sm">
-          <h3 className="text-2xl font-black uppercase tracking-widest text-white/40 mb-8 border-b border-white/10 pb-4">
-            Up Next
-          </h3>
-          <div className="space-y-6">
-            {MOCK_TICKETS.filter((t) => t.status === 'WAITING')
-              .slice(0, 4)
-              .map((t, i) => (
+          <div className="bg-white/5 rounded-[48px] p-12 border border-white/10 backdrop-blur-sm">
+            <h3 className="text-2xl font-black uppercase tracking-widest text-white/40 mb-8 border-b border-white/10 pb-4">
+              Up Next
+            </h3>
+            <div className="space-y-6">
+              {upcoming.map((t, i) => (
                 <div
                   key={t.id}
                   className="flex items-center justify-between p-6 rounded-[24px] bg-white/5 border border-white/5"
                 >
                   <div className="flex items-center gap-6">
-                    <span className="text-4xl font-black font-serif text-white/80">
-                      #{t.position}
-                    </span>
+                    <span className="text-3xl font-black font-serif text-white/80">#{i + 1}</span>
                     <div>
-                      <p className="text-2xl font-bold">{t.personName}</p>
+                      <p className="text-2xl font-bold">{t.ticket_number}</p>
                       <div className="flex gap-3 text-sm font-medium text-white/40 mt-1">
-                        <span>Est. wait: 12 min</span>
-                        {t.priority && <span className="text-amber-400 font-bold">• Priority</span>}
+                        <span>{t.guest_name || t.member_id || 'Guest'}</span>
+                        {t.priority !== 'normal' && (
+                          <span className="text-amber-400 font-bold">Priority</span>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                 </div>
               ))}
+              {upcoming.length === 0 && (
+                <div className="text-center text-white/40 py-6">No waiting tickets.</div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-
-      <div className="absolute bottom-12 text-center space-y-2">
-        <p className="text-sm font-black uppercase tracking-[0.4em] text-white/30">
-          Scan to join queue
-        </p>
-        <div className="h-32 w-32 bg-white rounded-2xl mx-auto flex items-center justify-center">
-          <span className="text-black font-black text-xs">QR CODE</span>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-[600px]">

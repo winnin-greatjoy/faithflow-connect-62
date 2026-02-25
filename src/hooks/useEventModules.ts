@@ -10,6 +10,7 @@ import {
   rosterApi,
   worshipApi,
   assetsApi,
+  accommodationApi,
   queueApi,
   EventZone,
   EventAttendance,
@@ -17,8 +18,15 @@ import {
   Song,
   ServiceItem,
   Asset,
+  AccommodationRoomCreateInput,
+  AccommodationRoomUpdateInput,
+  AccommodationBookingCreateInput,
+  AccommodationBookingUpdateInput,
   Queue,
   QueueTicket,
+  QueueCreateInput,
+  QueueUpdateInput,
+  QueueJoinInput,
 } from '@/services/eventModulesApi';
 
 // ============================================
@@ -32,6 +40,8 @@ export const eventModuleKeys = {
   songs: (branchId: string) => ['songs', branchId] as const,
   setlist: (eventId: string) => ['setlist', eventId] as const,
   assets: (branchId: string) => ['assets', branchId] as const,
+  accommodationRooms: (eventId: string) => ['accommodation-rooms', eventId] as const,
+  accommodationBookings: (eventId: string) => ['accommodation-bookings', eventId] as const,
   queues: (eventId: string) => ['queues', eventId] as const,
 };
 
@@ -364,6 +374,123 @@ export function useReportMaintenance(branchId: string) {
 }
 
 // ============================================
+// ACCOMMODATION HOOKS
+// ============================================
+
+export function useAccommodationRooms(eventId: string) {
+  return useQuery({
+    queryKey: eventModuleKeys.accommodationRooms(eventId),
+    queryFn: () => accommodationApi.getRooms(eventId),
+    enabled: !!eventId,
+  });
+}
+
+export function useCreateAccommodationRoom(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (room: AccommodationRoomCreateInput) => accommodationApi.createRoom(room),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationRooms(eventId) });
+      toast.success('Room added');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to add room: ${error.message}`);
+    },
+  });
+}
+
+export function useUpdateAccommodationRoom(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roomId, updates }: { roomId: string; updates: AccommodationRoomUpdateInput }) =>
+      accommodationApi.updateRoom(roomId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationRooms(eventId) });
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationBookings(eventId) });
+      toast.success('Room updated');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update room: ${error.message}`);
+    },
+  });
+}
+
+export function useDeleteAccommodationRoom(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (roomId: string) => accommodationApi.deleteRoom(roomId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationRooms(eventId) });
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationBookings(eventId) });
+      toast.success('Room deleted');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete room: ${error.message}`);
+    },
+  });
+}
+
+export function useAccommodationBookings(eventId: string) {
+  return useQuery({
+    queryKey: eventModuleKeys.accommodationBookings(eventId),
+    queryFn: () => accommodationApi.getBookings(eventId),
+    enabled: !!eventId,
+  });
+}
+
+export function useCreateAccommodationBooking(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (booking: AccommodationBookingCreateInput) =>
+      accommodationApi.createBooking(booking),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationBookings(eventId) });
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationRooms(eventId) });
+      toast.success('Booking created');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to create booking: ${error.message}`);
+    },
+  });
+}
+
+export function useUpdateAccommodationBooking(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      bookingId,
+      updates,
+    }: {
+      bookingId: string;
+      updates: AccommodationBookingUpdateInput;
+    }) => accommodationApi.updateBooking(bookingId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationBookings(eventId) });
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationRooms(eventId) });
+      toast.success('Booking updated');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update booking: ${error.message}`);
+    },
+  });
+}
+
+export function useDeleteAccommodationBooking(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: string) => accommodationApi.deleteBooking(bookingId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationBookings(eventId) });
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.accommodationRooms(eventId) });
+      toast.success('Booking deleted');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete booking: ${error.message}`);
+    },
+  });
+}
+
+// ============================================
 // QUEUE HOOKS
 // ============================================
 
@@ -379,7 +506,7 @@ export function useQueues(eventId: string) {
 export function useCreateQueue(eventId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (queue: Omit<Queue, 'id'>) => queueApi.createQueue(queue),
+    mutationFn: (queue: QueueCreateInput) => queueApi.createQueue(queue),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: eventModuleKeys.queues(eventId) });
       toast.success('Queue created');
@@ -390,16 +517,26 @@ export function useCreateQueue(eventId: string) {
   });
 }
 
+export function useUpdateQueue(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ queueId, updates }: { queueId: string; updates: QueueUpdateInput }) =>
+      queueApi.updateQueue(queueId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.queues(eventId) });
+      toast.success('Queue updated');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update queue: ${error.message}`);
+    },
+  });
+}
+
 export function useJoinQueue(eventId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      queueId,
-      ticket,
-    }: {
-      queueId: string;
-      ticket: Omit<QueueTicket, 'id' | 'joined_at' | 'ticket_number'>;
-    }) => queueApi.joinQueue(queueId, ticket),
+    mutationFn: ({ queueId, ticket }: { queueId: string; ticket: QueueJoinInput }) =>
+      queueApi.joinQueue(queueId, ticket),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: eventModuleKeys.queues(eventId) });
       toast.success(`Ticket ${data.ticket_number} issued`);

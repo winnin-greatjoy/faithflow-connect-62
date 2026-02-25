@@ -74,7 +74,8 @@ export const EventsModule: React.FC = () => {
     if (!canManageEvents) return false;
     if (hasRole('super_admin')) return true;
     if (e.event_level === 'NATIONAL') return false;
-    // Simplified logic for brevity, matches existing
+    if (hasRole('district_admin') && e.event_level === 'DISTRICT') return true;
+    // Branch-level edit scope
     return e.owner_scope_id === (selectedBranchId || userBranchId);
   };
 
@@ -141,6 +142,12 @@ export const EventsModule: React.FC = () => {
         Active: 'active',
         Ended: 'ended',
         Open: 'published',
+        draft: 'draft',
+        published: 'published',
+        cancelled: 'cancelled',
+        upcoming: 'upcoming',
+        active: 'active',
+        ended: 'ended',
       };
       return mapping[s] || 'published';
     };
@@ -181,6 +188,7 @@ export const EventsModule: React.FC = () => {
       setDialog(null);
       reload();
     }
+    return Boolean(result.success);
   };
 
   const handleDelete = async (id: string) => {

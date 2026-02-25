@@ -3825,6 +3825,7 @@ export type Database = {
           check_in_date: string;
           check_out_date: string;
           created_at: string | null;
+          event_id: string | null;
           guest_name: string | null;
           id: string;
           member_id: string | null;
@@ -3836,6 +3837,7 @@ export type Database = {
           check_in_date: string;
           check_out_date: string;
           created_at?: string | null;
+          event_id?: string | null;
           guest_name?: string | null;
           id?: string;
           member_id?: string | null;
@@ -3847,6 +3849,7 @@ export type Database = {
           check_in_date?: string;
           check_out_date?: string;
           created_at?: string | null;
+          event_id?: string | null;
           guest_name?: string | null;
           id?: string;
           member_id?: string | null;
@@ -3855,6 +3858,13 @@ export type Database = {
           status?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: 'room_bookings_event_id_fkey';
+            columns: ['event_id'];
+            isOneToOne: false;
+            referencedRelation: 'events';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'room_bookings_member_id_fkey';
             columns: ['member_id'];

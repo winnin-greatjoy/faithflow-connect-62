@@ -104,7 +104,13 @@ export default function EventDashboardPage() {
       case 'attendance':
         return <AttendanceManagerModule event={event} />;
       case 'registration':
-        return <RegistrationManagerModule />;
+        return (
+          <RegistrationManagerModule
+            eventId={event?.id}
+            eventTitle={event?.title}
+            capacity={event?.capacity}
+          />
+        );
       case 'queue':
         return <QueueManagerModule />;
       case 'accommodation':

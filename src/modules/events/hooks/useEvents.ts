@@ -22,7 +22,15 @@ export const useEvents = () => {
         time: r.start_at ? r.start_at.split('T')[1]?.substring(0, 5) || '10:00' : '10:00',
         location: r.location,
         capacity: r.capacity,
-        status: r.status === 'published' ? 'Open' : r.status === 'cancelled' ? 'Cancelled' : 'Open',
+        status:
+          r.status === 'draft' ||
+          r.status === 'published' ||
+          r.status === 'upcoming' ||
+          r.status === 'active' ||
+          r.status === 'ended' ||
+          r.status === 'cancelled'
+            ? r.status
+            : 'published',
         type: r.metadata?.type || 'General',
         frequency: r.metadata?.frequency || 'One-time',
         event_level: r.event_level,

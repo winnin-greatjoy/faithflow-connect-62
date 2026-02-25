@@ -3,8 +3,34 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { QrCode, CheckCircle2, ShieldCheck, Utensils } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { EventRecord } from '@/services/eventsApi';
+import type { EventRegistration } from '@/services/registrationsApi';
+import { QRCodeSVG } from 'qrcode.react';
 
-export const DigitalBadge = () => {
+interface DigitalBadgeProps {
+  event: EventRecord | null;
+  registration: EventRegistration | null;
+}
+
+const getInitials = (name?: string | null) =>
+  (name || 'FaithFlow')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase())
+    .join('') || 'FF';
+
+export const DigitalBadge: React.FC<DigitalBadgeProps> = ({ event, registration }) => {
+  const attendeeName = registration?.name || 'Guest User';
+  const roleText = registration?.member_id ? 'Registered Member' : 'Guest Registration';
+  const registrationStatus = registration?.status || 'not_registered';
+  const qrValue = JSON.stringify({
+    event_id: event?.id || null,
+    registration_id: registration?.id || null,
+    name: attendeeName,
+    status: registrationStatus,
+  });
+
   return (
     <div className="p-6 pb-24 flex flex-col items-center justify-center min-h-[70vh]">
       <div className="w-full max-w-sm relative group perspective-1000">
@@ -24,33 +50,51 @@ export const DigitalBadge = () => {
 
               {/* Profile Image Float */}
               <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 h-20 w-20 rounded-full border-4 border-white bg-gray-200 shadow-lg flex items-center justify-center text-2xl font-bold text-gray-500">
-                JD
+                {getInitials(attendeeName)}
               </div>
             </div>
 
             {/* Badge Body */}
             <div className="pt-14 pb-8 px-6 text-center space-y-4">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">John Doe</h2>
+                <h2 className="text-2xl font-bold text-gray-900">{attendeeName}</h2>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                  Volunteer Staff
+                  {roleText}
                 </p>
               </div>
 
               <div className="py-2">
-                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
-                  <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                  Checked In
-                </Badge>
+                {registration ? (
+                  <Badge
+                    className={
+                      registrationStatus === 'confirmed'
+                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest'
+                        : registrationStatus === 'waitlist'
+                          ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-none px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest'
+                          : 'bg-rose-100 text-rose-700 hover:bg-rose-200 border-none px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest'
+                    }
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                    {registrationStatus}
+                  </Badge>
+                ) : (
+                  <Badge className="bg-gray-100 text-gray-700 border-none px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
+                    Not Registered
+                  </Badge>
+                )}
               </div>
 
               {/* QR Code Placeholder */}
               <div className="bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-200 mx-auto w-48 h-48 flex items-center justify-center group-hover:border-primary/20 transition-colors">
-                <QrCode className="h-32 w-32 text-gray-900 opacity-90" />
+                {registration ? (
+                  <QRCodeSVG value={qrValue} size={128} />
+                ) : (
+                  <QrCode className="h-32 w-32 text-gray-900 opacity-40" />
+                )}
               </div>
 
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                Scan for Access
+                {registration ? 'Scan for Access' : 'Registration Required'}
               </p>
             </div>
 
@@ -76,7 +120,9 @@ export const DigitalBadge = () => {
       </div>
 
       <p className="mt-8 text-xs text-center text-muted-foreground/60 max-w-[200px]">
-        This digital ID renders you eligible for all verified zones.
+        {event
+          ? `Valid for ${event.title}`
+          : 'This digital ID renders you eligible for verified zones.'}
       </p>
     </div>
   );

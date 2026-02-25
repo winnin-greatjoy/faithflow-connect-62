@@ -28,7 +28,7 @@ interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event?: EventItem | null;
-  onSubmit: (payload: any) => Promise<void>;
+  onSubmit: (payload: any) => Promise<boolean>;
   initialLevel?: EventLevel;
   initialScopeId?: string | null;
 }
@@ -94,8 +94,8 @@ export const EventFormDialog: React.FC<EventFormDialogProps> = ({
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
-      onOpenChange(false);
+      const success = await onSubmit(formData);
+      if (success) onOpenChange(false);
     } finally {
       setIsSubmitting(false);
     }
