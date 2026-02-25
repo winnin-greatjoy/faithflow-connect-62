@@ -28,6 +28,7 @@ import {
 import { FormBuilder } from '@/modules/events/components/registration/FormBuilder';
 import registrationsApi, { EventRegistration } from '@/services/registrationsApi';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthz } from '@/hooks/useAuthz';
 
 interface RegistrationManagerModuleProps {
   eventId?: string | null;
@@ -41,12 +42,53 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
   capacity,
 }) => {
   const { toast } = useToast();
+  const { hasRole, can, loading: authzLoading } = useAuthz();
   const [view, setView] = useState<'registrants' | 'reports'>('registrants');
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
+  const canManageRegistrations = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const canDeleteRegistrations = useMemo(
+    () => hasRole('super_admin', 'admin') || can('events', 'delete'),
+    [can, hasRole]
+  );
+
+  const ensureCanManage = (action: string) => {
+    if (authzLoading || !canManageRegistrations) {
+      toast({
+        title: 'Permission denied',
+        description: `You do not have permission to ${action}.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const ensureCanDelete = (action: string) => {
+    if (authzLoading || !canDeleteRegistrations) {
+      toast({
+        title: 'Permission denied',
+        description: `You do not have permission to ${action}.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const openFormBuilder = () => {
+    if (!ensureCanManage('manage registration forms')) return;
+    setShowFormBuilder(true);
+  };
 
   const fetchRegistrations = useCallback(async () => {
     if (!eventId) {
@@ -100,6 +142,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
     registrationId: string,
     status: 'confirmed' | 'cancelled' | 'waitlist'
   ) => {
+    if (!ensureCanManage('update registration status')) return;
     setActionLoadingId(registrationId);
     try {
       const { error } = await registrationsApi.updateRegistrationStatus(registrationId, status);
@@ -118,6 +161,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
   };
 
   const deleteRegistration = async (registrationId: string) => {
+    if (!ensureCanDelete('delete registrations')) return;
     if (!confirm('Delete this registration? This cannot be undone.')) return;
     setActionLoadingId(registrationId);
     try {
@@ -175,7 +219,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setShowFormBuilder(true)}>
+          <Button variant="outline" onClick={openFormBuilder} disabled={authzLoading}>
             <Settings className="h-4 w-4 mr-2" /> Form Designer
           </Button>
           <Button variant="outline" onClick={fetchRegistrations} disabled={loading}>
@@ -347,14 +391,23 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
                             {new Date(reg.registered_at).toLocaleString()}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => updateStatus(reg.id, 'confirmed')}>
+                          <DropdownMenuItem
+                            onClick={() => updateStatus(reg.id, 'confirmed')}
+                            disabled={authzLoading || !canManageRegistrations}
+                          >
                             <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" /> Mark
                             Confirmed
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateStatus(reg.id, 'waitlist')}>
+                          <DropdownMenuItem
+                            onClick={() => updateStatus(reg.id, 'waitlist')}
+                            disabled={authzLoading || !canManageRegistrations}
+                          >
                             <Clock className="mr-2 h-4 w-4 text-amber-600" /> Move to Waitlist
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateStatus(reg.id, 'cancelled')}>
+                          <DropdownMenuItem
+                            onClick={() => updateStatus(reg.id, 'cancelled')}
+                            disabled={authzLoading || !canManageRegistrations}
+                          >
                             <AlertCircle className="mr-2 h-4 w-4 text-rose-600" /> Cancel
                             Registration
                           </DropdownMenuItem>
@@ -362,6 +415,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => deleteRegistration(reg.id)}
+                            disabled={authzLoading || !canDeleteRegistrations}
                           >
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>

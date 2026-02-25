@@ -44,6 +44,8 @@ import {
   useUpdateQueue,
   useUpdateTicketStatus,
 } from '@/hooks/useEventModules';
+import { useAuthz } from '@/hooks/useAuthz';
+import { toast } from 'sonner';
 import type {
   Queue as QueueRecord,
   QueueTicket as QueueTicketRecord,
@@ -65,6 +67,7 @@ const toMinutes = (seconds: number | null, queueLength: number) => {
 
 export const QueueManagerModule = () => {
   const { eventId } = useParams<{ eventId: string }>();
+  const { hasRole, can, loading: authzLoading } = useAuthz();
   const [viewMode, setViewMode] = useState<'ADMIN' | 'OPERATOR' | 'KIOSK'>('ADMIN');
   const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -81,6 +84,14 @@ export const QueueManagerModule = () => {
   const callNext = useCallNextInQueue(eventId || '');
   const updateTicket = useUpdateTicketStatus(eventId || '');
   const joinQueue = useJoinQueue(eventId || '');
+  const canManageQueue = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageQueue;
 
   const queues = useMemo(() => (queueData || []) as QueueWithTickets[], [queueData]);
 
@@ -137,6 +148,10 @@ export const QueueManagerModule = () => {
   }, [selectedQueue]);
 
   const handleCreateQueue = async () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to create queues.');
+      return;
+    }
     if (!eventId || !newName.trim()) return;
     await createQueue.mutateAsync({
       event_id: eventId,
@@ -154,26 +169,46 @@ export const QueueManagerModule = () => {
   };
 
   const handleToggleQueueStatus = async (queue: QueueWithTickets) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to update queue status.');
+      return;
+    }
     const next = queue.status === 'active' ? 'paused' : 'active';
     await updateQueue.mutateAsync({ queueId: queue.id, updates: { status: next } });
   };
 
   const handleCallNext = async () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to call next ticket.');
+      return;
+    }
     if (!selectedQueue) return;
     await callNext.mutateAsync(selectedQueue.id);
   };
 
   const handleCallAgain = async () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to call tickets.');
+      return;
+    }
     if (!currentTicket) return;
     await updateTicket.mutateAsync({ ticketId: currentTicket.id, status: 'called' });
   };
 
   const handleSkipNoShow = async () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to update ticket status.');
+      return;
+    }
     if (!currentTicket) return;
     await updateTicket.mutateAsync({ ticketId: currentTicket.id, status: 'no_show' });
   };
 
   const handleJoinGuest = async () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to add guests to queue.');
+      return;
+    }
     if (!selectedQueue || !guestName.trim()) return;
     await joinQueue.mutateAsync({
       queueId: selectedQueue.id,
@@ -185,6 +220,22 @@ export const QueueManagerModule = () => {
     });
     setGuestName('');
     setGuestPriority('normal');
+  };
+
+  const openOperatorMode = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to operate queues.');
+      return;
+    }
+    setViewMode('OPERATOR');
+  };
+
+  const openCreateQueue = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to create queues.');
+      return;
+    }
+    setCreateOpen(true);
   };
 
   if (!eventId) {
@@ -205,7 +256,7 @@ export const QueueManagerModule = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setViewMode('OPERATOR')}>
+          <Button variant="outline" onClick={openOperatorMode} disabled={actionsDisabled}>
             Operator Mode
           </Button>
           <Button variant="outline" onClick={() => setViewMode('KIOSK')}>
@@ -213,7 +264,11 @@ export const QueueManagerModule = () => {
           </Button>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="font-black text-[10px] uppercase tracking-widest rounded-xl">
+              <Button
+                className="font-black text-[10px] uppercase tracking-widest rounded-xl"
+                onClick={openCreateQueue}
+                disabled={actionsDisabled}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 New Queue
               </Button>
@@ -269,7 +324,7 @@ export const QueueManagerModule = () => {
                 </div>
                 <Button
                   onClick={handleCreateQueue}
-                  disabled={createQueue.isPending || !newName.trim()}
+                  disabled={createQueue.isPending || !newName.trim() || actionsDisabled}
                   className="w-full font-black text-[10px] uppercase tracking-widest rounded-xl mt-4"
                 >
                   {createQueue.isPending ? (
@@ -409,7 +464,7 @@ export const QueueManagerModule = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => handleToggleQueueStatus(queue)}
-                    disabled={updateQueue.isPending}
+                    disabled={updateQueue.isPending || actionsDisabled}
                     className="flex-1 rounded-xl h-9 text-[9px] uppercase font-black border-primary/10"
                   >
                     {queue.status === 'active' ? (
@@ -425,8 +480,9 @@ export const QueueManagerModule = () => {
                   <Button
                     onClick={() => {
                       setSelectedQueueId(queue.id);
-                      setViewMode('OPERATOR');
+                      openOperatorMode();
                     }}
+                    disabled={actionsDisabled}
                     className="flex-1 rounded-xl h-9 text-[9px] uppercase font-black bg-primary text-white hover:bg-primary/90"
                   >
                     <Settings className="h-3 w-3 mr-2" /> Manage
@@ -480,7 +536,7 @@ export const QueueManagerModule = () => {
           </Select>
           <Button
             onClick={handleJoinGuest}
-            disabled={!selectedQueue || !guestName.trim() || joinQueue.isPending}
+            disabled={!selectedQueue || !guestName.trim() || joinQueue.isPending || actionsDisabled}
             className="w-full rounded-xl text-[10px] uppercase font-black"
           >
             {joinQueue.isPending ? (
@@ -562,7 +618,7 @@ export const QueueManagerModule = () => {
             <div className="grid grid-cols-2 gap-4">
               <Button
                 onClick={handleCallAgain}
-                disabled={!currentTicket || updateTicket.isPending}
+                disabled={!currentTicket || updateTicket.isPending || actionsDisabled}
                 className="h-16 rounded-[24px] bg-white border border-primary/10 text-primary hover:bg-neutral-50 shadow-xl font-black text-xs uppercase tracking-widest flex flex-col gap-1 items-center justify-center"
               >
                 <Volume2 className="h-5 w-5" />
@@ -570,7 +626,7 @@ export const QueueManagerModule = () => {
               </Button>
               <Button
                 onClick={handleSkipNoShow}
-                disabled={!currentTicket || updateTicket.isPending}
+                disabled={!currentTicket || updateTicket.isPending || actionsDisabled}
                 className="h-16 rounded-[24px] bg-white border border-primary/10 text-destructive hover:bg-destructive/5 shadow-xl font-black text-xs uppercase tracking-widest flex flex-col gap-1 items-center justify-center"
               >
                 <SkipForward className="h-5 w-5" />
@@ -578,7 +634,9 @@ export const QueueManagerModule = () => {
               </Button>
               <Button
                 onClick={handleCallNext}
-                disabled={callNext.isPending || selectedQueue.status !== 'active'}
+                disabled={
+                  callNext.isPending || selectedQueue.status !== 'active' || actionsDisabled
+                }
                 className="h-20 col-span-2 rounded-[32px] bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3"
               >
                 {callNext.isPending ? (

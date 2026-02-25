@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useMembers } from '@/modules/members/hooks/useMembers';
 import { useAdminContext } from '@/context/AdminContext';
+import { useAuthz } from '@/hooks/useAuthz';
 import { useAssignVolunteer, useCreateShift, useEventShifts } from '@/hooks/useEventModules';
 
 type ShiftWithAssignments = {
@@ -69,6 +70,7 @@ const buildIsoFromTime = (time: string) => {
 export const RosterManagerModule = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const { selectedBranchId } = useAdminContext();
+  const { hasRole, can, loading: authzLoading } = useAuthz();
 
   const [activeTab, setActiveTab] = useState<'schedule' | 'directory'>('schedule');
   const [isAddShiftOpen, setIsAddShiftOpen] = useState(false);
@@ -78,6 +80,14 @@ export const RosterManagerModule = () => {
   const { data: shiftsData = [], isLoading: shiftsLoading } = useEventShifts(eventId || '');
   const createShift = useCreateShift(eventId || '');
   const assignVolunteer = useAssignVolunteer(eventId || '');
+  const canManageRoster = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageRoster;
 
   const { members, loading: membersLoading } = useMembers({
     search: staffSearch,
@@ -142,6 +152,10 @@ export const RosterManagerModule = () => {
 
   const handleAddShift = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (actionsDisabled) {
+      toast.error('You do not have permission to create shifts.');
+      return;
+    }
     if (!eventId) return;
     const formData = new FormData(event.currentTarget);
     try {
@@ -161,6 +175,10 @@ export const RosterManagerModule = () => {
   };
 
   const handleAssignStaff = async (memberId: string) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to assign staff.');
+      return;
+    }
     if (!selectedShiftId) return;
     try {
       await assignVolunteer.mutateAsync({ shiftId: selectedShiftId, memberId });
@@ -168,6 +186,15 @@ export const RosterManagerModule = () => {
     } catch (err: any) {
       toast.error(err.message || 'Could not assign volunteer');
     }
+  };
+
+  const openAssignDialog = (shiftId: string) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to manage assignments.');
+      return false;
+    }
+    setSelectedShiftId(shiftId);
+    return true;
   };
 
   const ScheduleView = () => (
@@ -213,7 +240,11 @@ export const RosterManagerModule = () => {
                           </div>
                         </div>
                       </div>
-                      <Button size="sm" variant="ghost" disabled={assignVolunteer.isPending}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={assignVolunteer.isPending || actionsDisabled}
+                      >
                         Assign
                       </Button>
                     </div>
@@ -296,8 +327,13 @@ export const RosterManagerModule = () => {
                             (_, i) => (
                               <div
                                 key={i}
-                                onClick={() => setSelectedShiftId(shift.id)}
-                                className="h-10 w-10 rounded-full border-2 border-white bg-muted/30 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all"
+                                onClick={() => openAssignDialog(shift.id)}
+                                className={cn(
+                                  'h-10 w-10 rounded-full border-2 border-white bg-muted/30 border-dashed border-muted-foreground/30 flex items-center justify-center transition-all',
+                                  actionsDisabled
+                                    ? 'cursor-not-allowed opacity-60'
+                                    : 'cursor-pointer hover:bg-muted/50 hover:border-primary/30'
+                                )}
                               >
                                 <Plus className="h-4 w-4 text-muted-foreground/50" />
                               </div>
@@ -322,7 +358,8 @@ export const RosterManagerModule = () => {
                             size="sm"
                             variant="ghost"
                             className="h-8 text-[10px] font-bold uppercase tracking-widest"
-                            onClick={() => setSelectedShiftId(shift.id)}
+                            onClick={() => openAssignDialog(shift.id)}
+                            disabled={actionsDisabled}
                           >
                             Manage
                           </Button>
@@ -359,7 +396,8 @@ export const RosterManagerModule = () => {
                         </p>
                         <Button
                           size="sm"
-                          onClick={() => setSelectedShiftId(gap.id)}
+                          onClick={() => openAssignDialog(gap.id)}
+                          disabled={actionsDisabled}
                           className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest border-none"
                         >
                           Fill Slot
@@ -460,9 +498,11 @@ export const RosterManagerModule = () => {
                       toast.info('Create a shift first, then assign staff.');
                       return;
                     }
-                    setSelectedShiftId(shifts[0].id);
+                    const opened = openAssignDialog(shifts[0].id);
+                    if (!opened) return;
                     toast.info('Select staff assignment in the shift dialog.');
                   }}
+                  disabled={actionsDisabled}
                 >
                   Assign Shift
                 </Button>
@@ -513,7 +553,10 @@ export const RosterManagerModule = () => {
 
           <Dialog open={isAddShiftOpen} onOpenChange={setIsAddShiftOpen}>
             <DialogTrigger asChild>
-              <Button className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs h-10 px-6 shadow-lg shadow-primary/20">
+              <Button
+                className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs h-10 px-6 shadow-lg shadow-primary/20"
+                disabled={actionsDisabled}
+              >
                 <Plus className="h-4 w-4 mr-2" /> Add Shift
               </Button>
             </DialogTrigger>
@@ -550,7 +593,11 @@ export const RosterManagerModule = () => {
                   <Label>Required Staff Count</Label>
                   <Input name="requiredCount" type="number" min="1" defaultValue="1" />
                 </div>
-                <Button type="submit" className="w-full" disabled={createShift.isPending}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createShift.isPending || actionsDisabled}
+                >
                   {createShift.isPending ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
