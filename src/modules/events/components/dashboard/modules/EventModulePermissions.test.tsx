@@ -1,9 +1,10 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueueManagerModule } from './QueueManager';
 import { RosterManagerModule } from './RosterManager';
 import { RegistrationManagerModule } from './RegistrationManager';
+import { AccommodationManagerModule } from './AccommodationManager';
 
 const mockUseParams = vi.fn();
 const mockUseAuthz = vi.fn();
@@ -16,6 +17,14 @@ const mockUseJoinQueue = vi.fn();
 const mockUseEventShifts = vi.fn();
 const mockUseCreateShift = vi.fn();
 const mockUseAssignVolunteer = vi.fn();
+const mockUseAccommodationRooms = vi.fn();
+const mockUseAccommodationBookings = vi.fn();
+const mockUseCreateAccommodationRoom = vi.fn();
+const mockUseUpdateAccommodationRoom = vi.fn();
+const mockUseDeleteAccommodationRoom = vi.fn();
+const mockUseCreateAccommodationBooking = vi.fn();
+const mockUseUpdateAccommodationBooking = vi.fn();
+const mockUseDeleteAccommodationBooking = vi.fn();
 const mockUseMembers = vi.fn();
 const mockUseAdminContext = vi.fn();
 const mockToastError = vi.fn();
@@ -48,6 +57,14 @@ vi.mock('@/hooks/useEventModules', () => ({
   useEventShifts: () => mockUseEventShifts(),
   useCreateShift: () => mockUseCreateShift(),
   useAssignVolunteer: () => mockUseAssignVolunteer(),
+  useAccommodationRooms: () => mockUseAccommodationRooms(),
+  useAccommodationBookings: () => mockUseAccommodationBookings(),
+  useCreateAccommodationRoom: () => mockUseCreateAccommodationRoom(),
+  useUpdateAccommodationRoom: () => mockUseUpdateAccommodationRoom(),
+  useDeleteAccommodationRoom: () => mockUseDeleteAccommodationRoom(),
+  useCreateAccommodationBooking: () => mockUseCreateAccommodationBooking(),
+  useUpdateAccommodationBooking: () => mockUseUpdateAccommodationBooking(),
+  useDeleteAccommodationBooking: () => mockUseDeleteAccommodationBooking(),
 }));
 
 vi.mock('@/modules/members/hooks/useMembers', () => ({
@@ -107,6 +124,14 @@ describe('Event Modules Permission Guarding', () => {
 
     mockUseCreateShift.mockReturnValue(makeMutation());
     mockUseAssignVolunteer.mockReturnValue(makeMutation());
+    mockUseAccommodationRooms.mockReturnValue({ data: [], isLoading: false });
+    mockUseAccommodationBookings.mockReturnValue({ data: [], isLoading: false });
+    mockUseCreateAccommodationRoom.mockReturnValue(makeMutation());
+    mockUseUpdateAccommodationRoom.mockReturnValue(makeMutation());
+    mockUseDeleteAccommodationRoom.mockReturnValue(makeMutation());
+    mockUseCreateAccommodationBooking.mockReturnValue(makeMutation());
+    mockUseUpdateAccommodationBooking.mockReturnValue(makeMutation());
+    mockUseDeleteAccommodationBooking.mockReturnValue(makeMutation());
     mockUseAdminContext.mockReturnValue({
       selectedBranchId: null,
       setSelectedBranchId: vi.fn(),
@@ -326,5 +351,77 @@ describe('Event Modules Permission Guarding', () => {
     fireEvent.click(formDesignerButton);
 
     expect(await screen.findByText('Form Builder Mock')).toBeInTheDocument();
+  });
+
+  it('allows status updates but blocks delete when only manage is permitted in registration', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (_moduleSlug: string, action: string = 'view') => action !== 'delete',
+      loading: false,
+    });
+
+    render(<RegistrationManagerModule eventId="event-1" eventTitle="Sunday Service" />);
+
+    const regName = await screen.findByText('Guest One');
+    const regRow = regName.closest('div.grid');
+    expect(regRow).toBeTruthy();
+
+    const trigger = within(regRow as HTMLElement).getByRole('button');
+    fireEvent.pointerDown(trigger, { button: 0 });
+
+    const markConfirmed = await screen.findByText(/mark confirmed/i);
+    const deleteItem = await screen.findByText(/^delete$/i);
+
+    expect(markConfirmed).not.toHaveAttribute('aria-disabled', 'true');
+    expect(deleteItem).toHaveAttribute('aria-disabled', 'true');
+
+    fireEvent.click(markConfirmed);
+    await waitFor(() =>
+      expect(mockUpdateRegistrationStatus).toHaveBeenCalledWith('reg-1', 'confirmed')
+    );
+
+    fireEvent.click(deleteItem);
+    expect(mockDeleteRegistration).not.toHaveBeenCalled();
+  });
+
+  it('enables room management but disables delete when only manage is permitted in accommodation', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (_moduleSlug: string, action: string = 'view') => action !== 'delete',
+      loading: false,
+    });
+    const deleteRoomMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+    mockUseDeleteAccommodationRoom.mockReturnValue(deleteRoomMutation);
+    mockUseAccommodationRooms.mockReturnValue({
+      data: [
+        {
+          id: 'room-1',
+          event_id: 'event-1',
+          room_number: '101',
+          building: 'Block A',
+          floor: 1,
+          room_type: 'standard',
+          capacity: 2,
+          status: 'available',
+          amenities: ['WiFi'],
+          notes: '',
+        },
+      ],
+      isLoading: false,
+    });
+    mockUseAccommodationBookings.mockReturnValue({ data: [], isLoading: false });
+
+    render(<AccommodationManagerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /rooms/i }));
+    expect(screen.getByRole('button', { name: /add room/i })).toBeEnabled();
+
+    const deleteButtons = document.querySelectorAll('button.text-destructive');
+    expect(deleteButtons.length).toBeGreaterThan(0);
+    const deleteRoomButton = deleteButtons[0] as HTMLButtonElement;
+    expect(deleteRoomButton).toBeDisabled();
+
+    fireEvent.click(deleteRoomButton);
+    expect(deleteRoomMutation.mutateAsync).not.toHaveBeenCalled();
   });
 });
