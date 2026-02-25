@@ -10,6 +10,7 @@ import {
   Play,
   Pause,
   XCircle,
+  Trash2,
   Mic,
   SkipForward,
   Volume2,
@@ -39,6 +40,7 @@ import { cn } from '@/lib/utils';
 import {
   useCallNextInQueue,
   useCreateQueue,
+  useDeleteQueue,
   useJoinQueue,
   useQueues,
   useUpdateQueue,
@@ -81,6 +83,7 @@ export const QueueManagerModule = () => {
   const { data: queueData = [], isLoading } = useQueues(eventId || '');
   const createQueue = useCreateQueue(eventId || '');
   const updateQueue = useUpdateQueue(eventId || '');
+  const deleteQueue = useDeleteQueue(eventId || '');
   const callNext = useCallNextInQueue(eventId || '');
   const updateTicket = useUpdateTicketStatus(eventId || '');
   const joinQueue = useJoinQueue(eventId || '');
@@ -89,6 +92,10 @@ export const QueueManagerModule = () => {
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
       can('events', 'manage') ||
       can('events', 'update'),
+    [can, hasRole]
+  );
+  const canDeleteQueue = useMemo(
+    () => hasRole('super_admin', 'admin') || can('events', 'delete'),
     [can, hasRole]
   );
   const actionsDisabled = authzLoading || !canManageQueue;
@@ -220,6 +227,15 @@ export const QueueManagerModule = () => {
     });
     setGuestName('');
     setGuestPriority('normal');
+  };
+
+  const handleDeleteQueue = async (queue: QueueWithTickets) => {
+    if (authzLoading || !canDeleteQueue) {
+      toast.error('You do not have permission to delete queues.');
+      return;
+    }
+    if (!window.confirm(`Delete queue "${queue.name}"? This cannot be undone.`)) return;
+    await deleteQueue.mutateAsync(queue.id);
   };
 
   const openOperatorMode = () => {
@@ -486,6 +502,16 @@ export const QueueManagerModule = () => {
                     className="flex-1 rounded-xl h-9 text-[9px] uppercase font-black bg-primary text-white hover:bg-primary/90"
                   >
                     <Settings className="h-3 w-3 mr-2" /> Manage
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 text-destructive hover:text-destructive"
+                    aria-label={`Delete queue ${queue.name}`}
+                    onClick={() => handleDeleteQueue(queue)}
+                    disabled={deleteQueue.isPending || authzLoading || !canDeleteQueue}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </Card>

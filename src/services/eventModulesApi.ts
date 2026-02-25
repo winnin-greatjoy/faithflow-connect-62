@@ -753,6 +753,11 @@ export const queueApi = {
     return data as Queue;
   },
 
+  async deleteQueue(queueId: string) {
+    const { error } = await (supabase as any).from('queues').delete().eq('id', queueId);
+    if (error) throw error;
+  },
+
   async joinQueue(queueId: string, ticket: QueueJoinInput) {
     // Generate ticket number
     const { count } = await (supabase as any)

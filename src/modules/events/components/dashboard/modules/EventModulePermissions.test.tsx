@@ -11,11 +11,13 @@ const mockUseAuthz = vi.fn();
 const mockUseQueues = vi.fn();
 const mockUseCreateQueue = vi.fn();
 const mockUseUpdateQueue = vi.fn();
+const mockUseDeleteQueue = vi.fn();
 const mockUseCallNextInQueue = vi.fn();
 const mockUseUpdateTicketStatus = vi.fn();
 const mockUseJoinQueue = vi.fn();
 const mockUseEventShifts = vi.fn();
 const mockUseCreateShift = vi.fn();
+const mockUseDeleteShift = vi.fn();
 const mockUseAssignVolunteer = vi.fn();
 const mockUseAccommodationRooms = vi.fn();
 const mockUseAccommodationBookings = vi.fn();
@@ -51,11 +53,13 @@ vi.mock('@/hooks/useEventModules', () => ({
   useQueues: () => mockUseQueues(),
   useCreateQueue: () => mockUseCreateQueue(),
   useUpdateQueue: () => mockUseUpdateQueue(),
+  useDeleteQueue: () => mockUseDeleteQueue(),
   useCallNextInQueue: () => mockUseCallNextInQueue(),
   useUpdateTicketStatus: () => mockUseUpdateTicketStatus(),
   useJoinQueue: () => mockUseJoinQueue(),
   useEventShifts: () => mockUseEventShifts(),
   useCreateShift: () => mockUseCreateShift(),
+  useDeleteShift: () => mockUseDeleteShift(),
   useAssignVolunteer: () => mockUseAssignVolunteer(),
   useAccommodationRooms: () => mockUseAccommodationRooms(),
   useAccommodationBookings: () => mockUseAccommodationBookings(),
@@ -118,11 +122,13 @@ describe('Event Modules Permission Guarding', () => {
 
     mockUseCreateQueue.mockReturnValue(makeMutation());
     mockUseUpdateQueue.mockReturnValue(makeMutation());
+    mockUseDeleteQueue.mockReturnValue(makeMutation());
     mockUseCallNextInQueue.mockReturnValue(makeMutation());
     mockUseUpdateTicketStatus.mockReturnValue(makeMutation());
     mockUseJoinQueue.mockReturnValue(makeMutation());
 
     mockUseCreateShift.mockReturnValue(makeMutation());
+    mockUseDeleteShift.mockReturnValue(makeMutation());
     mockUseAssignVolunteer.mockReturnValue(makeMutation());
     mockUseAccommodationRooms.mockReturnValue({ data: [], isLoading: false });
     mockUseAccommodationBookings.mockReturnValue({ data: [], isLoading: false });
@@ -423,5 +429,73 @@ describe('Event Modules Permission Guarding', () => {
 
     fireEvent.click(deleteRoomButton);
     expect(deleteRoomMutation.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('enables queue management but disables queue delete when only manage is permitted', () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (_moduleSlug: string, action: string = 'view') => action !== 'delete',
+      loading: false,
+    });
+    const deleteQueueMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+    mockUseDeleteQueue.mockReturnValue(deleteQueueMutation);
+    mockUseQueues.mockReturnValue({
+      data: [
+        {
+          id: 'queue-1',
+          event_id: 'event-1',
+          name: 'Front Desk',
+          description: 'Main Hall',
+          status: 'active',
+          max_capacity: 20,
+          avg_service_time: 60,
+          tickets: [],
+        },
+      ],
+      isLoading: false,
+    });
+
+    render(<QueueManagerModule />);
+
+    expect(screen.getByRole('button', { name: /manage/i })).toBeEnabled();
+    const deleteQueueButton = screen.getByRole('button', { name: /delete queue front desk/i });
+    expect(deleteQueueButton).toBeDisabled();
+    fireEvent.click(deleteQueueButton);
+    expect(deleteQueueMutation.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('enables roster management but disables shift delete when only manage is permitted', () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (_moduleSlug: string, action: string = 'view') => action !== 'delete',
+      loading: false,
+    });
+    const deleteShiftMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+    mockUseDeleteShift.mockReturnValue(deleteShiftMutation);
+    mockUseEventShifts.mockReturnValue({
+      data: [
+        {
+          id: 'shift-1',
+          event_id: 'event-1',
+          role: 'Security',
+          department: 'Gate A',
+          start_time: '2026-02-25T09:00:00.000Z',
+          end_time: '2026-02-25T11:00:00.000Z',
+          max_volunteers: 2,
+          notes: 'Main Entrance',
+          assignments: [],
+        },
+      ],
+      isLoading: false,
+    });
+    mockUseMembers.mockReturnValue({ members: [], loading: false });
+
+    render(<RosterManagerModule />);
+
+    expect(screen.getByRole('button', { name: /manage/i })).toBeEnabled();
+    const deleteShiftButton = screen.getByRole('button', { name: /delete shift main entrance/i });
+    expect(deleteShiftButton).toBeDisabled();
+    fireEvent.click(deleteShiftButton);
+    expect(deleteShiftMutation.mutateAsync).not.toHaveBeenCalled();
   });
 });

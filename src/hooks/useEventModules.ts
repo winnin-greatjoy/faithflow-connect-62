@@ -532,6 +532,20 @@ export function useUpdateQueue(eventId: string) {
   });
 }
 
+export function useDeleteQueue(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (queueId: string) => queueApi.deleteQueue(queueId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.queues(eventId) });
+      toast.success('Queue deleted');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete queue: ${error.message}`);
+    },
+  });
+}
+
 export function useJoinQueue(eventId: string) {
   const queryClient = useQueryClient();
   return useMutation({

@@ -13,6 +13,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,12 @@ import { cn } from '@/lib/utils';
 import { useMembers } from '@/modules/members/hooks/useMembers';
 import { useAdminContext } from '@/context/AdminContext';
 import { useAuthz } from '@/hooks/useAuthz';
-import { useAssignVolunteer, useCreateShift, useEventShifts } from '@/hooks/useEventModules';
+import {
+  useAssignVolunteer,
+  useCreateShift,
+  useDeleteShift,
+  useEventShifts,
+} from '@/hooks/useEventModules';
 
 type ShiftWithAssignments = {
   id: string;
@@ -79,12 +85,17 @@ export const RosterManagerModule = () => {
 
   const { data: shiftsData = [], isLoading: shiftsLoading } = useEventShifts(eventId || '');
   const createShift = useCreateShift(eventId || '');
+  const deleteShift = useDeleteShift(eventId || '');
   const assignVolunteer = useAssignVolunteer(eventId || '');
   const canManageRoster = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
       can('events', 'manage') ||
       can('events', 'update'),
+    [can, hasRole]
+  );
+  const canDeleteRoster = useMemo(
+    () => hasRole('super_admin', 'admin') || can('events', 'delete'),
     [can, hasRole]
   );
   const actionsDisabled = authzLoading || !canManageRoster;
@@ -195,6 +206,21 @@ export const RosterManagerModule = () => {
     }
     setSelectedShiftId(shiftId);
     return true;
+  };
+
+  const handleDeleteShift = async (shift: ShiftWithAssignments) => {
+    if (authzLoading || !canDeleteRoster) {
+      toast.error('You do not have permission to delete shifts.');
+      return;
+    }
+    if (!window.confirm(`Delete shift "${shift.notes || shift.role}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await deleteShift.mutateAsync(shift.id);
+    } catch (err: any) {
+      toast.error(err.message || 'Could not delete shift');
+    }
   };
 
   const ScheduleView = () => (
@@ -354,15 +380,27 @@ export const RosterManagerModule = () => {
                           >
                             {status}
                           </Badge>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 text-[10px] font-bold uppercase tracking-widest"
-                            onClick={() => openAssignDialog(shift.id)}
-                            disabled={actionsDisabled}
-                          >
-                            Manage
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-[10px] font-bold uppercase tracking-widest"
+                              onClick={() => openAssignDialog(shift.id)}
+                              disabled={actionsDisabled}
+                            >
+                              Manage
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              aria-label={`Delete shift ${shift.notes || shift.role}`}
+                              onClick={() => handleDeleteShift(shift)}
+                              disabled={deleteShift.isPending || authzLoading || !canDeleteRoster}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
