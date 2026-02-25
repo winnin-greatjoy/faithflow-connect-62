@@ -207,4 +207,124 @@ describe('Event Modules Permission Guarding', () => {
     );
     expect(screen.queryByText('Form Builder Mock')).not.toBeInTheDocument();
   });
+
+  it('allows authorized users to create a queue', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+    const createQueueMutation = {
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    };
+    mockUseCreateQueue.mockReturnValue(createQueueMutation);
+    mockUseQueues.mockReturnValue({
+      data: [
+        {
+          id: 'queue-1',
+          event_id: 'event-1',
+          name: 'Front Desk',
+          description: 'Main Hall',
+          status: 'active',
+          max_capacity: 20,
+          avg_service_time: 60,
+          tickets: [],
+        },
+      ],
+      isLoading: false,
+    });
+
+    render(<QueueManagerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /new queue/i }));
+    fireEvent.change(screen.getByPlaceholderText(/registration desk a/i), {
+      target: { value: 'VIP Queue' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create queue/i }));
+
+    await waitFor(() => expect(createQueueMutation.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(createQueueMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_id: 'event-1',
+        name: 'VIP Queue',
+        status: 'active',
+      })
+    );
+  });
+
+  it('allows authorized users to create a shift', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+    const createShiftMutation = {
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    };
+    mockUseCreateShift.mockReturnValue(createShiftMutation);
+    mockUseEventShifts.mockReturnValue({ data: [], isLoading: false });
+    mockUseMembers.mockReturnValue({ members: [], loading: false });
+
+    render(<RosterManagerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /add shift/i }));
+    await waitFor(() => expect(document.querySelector('input[name="name"]')).toBeTruthy());
+
+    const nameInput = document.querySelector('input[name="name"]') as HTMLInputElement | null;
+    const roleInput = document.querySelector('input[name="role"]') as HTMLInputElement | null;
+    const locationInput = document.querySelector(
+      'input[name="location"]'
+    ) as HTMLInputElement | null;
+    const requiredCountInput = document.querySelector(
+      'input[name="requiredCount"]'
+    ) as HTMLInputElement | null;
+
+    expect(nameInput).toBeTruthy();
+    expect(roleInput).toBeTruthy();
+    expect(locationInput).toBeTruthy();
+    expect(requiredCountInput).toBeTruthy();
+
+    fireEvent.change(nameInput!, {
+      target: { value: 'Welcome Team Shift' },
+    });
+    fireEvent.change(roleInput!, {
+      target: { value: 'Welcome Team' },
+    });
+    fireEvent.change(locationInput!, {
+      target: { value: 'Front Gate' },
+    });
+    fireEvent.change(requiredCountInput!, {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create shift/i }));
+
+    await waitFor(() => expect(createShiftMutation.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(createShiftMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_id: 'event-1',
+        role: 'Welcome Team',
+        department: 'Front Gate',
+        max_volunteers: 3,
+        notes: 'Welcome Team Shift',
+      })
+    );
+  });
+
+  it('allows authorized users to open form designer', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    render(<RegistrationManagerModule eventId="event-1" eventTitle="Sunday Service" />);
+
+    const formDesignerButton = await screen.findByRole('button', { name: /form designer/i });
+    expect(formDesignerButton).toBeEnabled();
+    fireEvent.click(formDesignerButton);
+
+    expect(await screen.findByText('Form Builder Mock')).toBeInTheDocument();
+  });
 });
