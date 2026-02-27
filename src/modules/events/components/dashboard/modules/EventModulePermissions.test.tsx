@@ -5,6 +5,7 @@ import { QueueManagerModule } from './QueueManager';
 import { RosterManagerModule } from './RosterManager';
 import { RegistrationManagerModule } from './RegistrationManager';
 import { AccommodationManagerModule } from './AccommodationManager';
+import { WorshipPlannerModule } from './WorshipPlanner';
 
 const mockUseParams = vi.fn();
 const mockUseAuthz = vi.fn();
@@ -27,6 +28,13 @@ const mockUseDeleteAccommodationRoom = vi.fn();
 const mockUseCreateAccommodationBooking = vi.fn();
 const mockUseUpdateAccommodationBooking = vi.fn();
 const mockUseDeleteAccommodationBooking = vi.fn();
+const mockUseSetlist = vi.fn();
+const mockUseSongs = vi.fn();
+const mockUseAddServiceItem = vi.fn();
+const mockUseUpdateServiceItem = vi.fn();
+const mockUseDeleteServiceItem = vi.fn();
+const mockUseCreateSong = vi.fn();
+const mockUseDeleteSong = vi.fn();
 const mockUseMembers = vi.fn();
 const mockUseAdminContext = vi.fn();
 const mockToastError = vi.fn();
@@ -69,6 +77,13 @@ vi.mock('@/hooks/useEventModules', () => ({
   useCreateAccommodationBooking: () => mockUseCreateAccommodationBooking(),
   useUpdateAccommodationBooking: () => mockUseUpdateAccommodationBooking(),
   useDeleteAccommodationBooking: () => mockUseDeleteAccommodationBooking(),
+  useSetlist: () => mockUseSetlist(),
+  useSongs: () => mockUseSongs(),
+  useAddServiceItem: () => mockUseAddServiceItem(),
+  useUpdateServiceItem: () => mockUseUpdateServiceItem(),
+  useDeleteServiceItem: () => mockUseDeleteServiceItem(),
+  useCreateSong: () => mockUseCreateSong(),
+  useDeleteSong: () => mockUseDeleteSong(),
 }));
 
 vi.mock('@/modules/members/hooks/useMembers', () => ({
@@ -138,6 +153,13 @@ describe('Event Modules Permission Guarding', () => {
     mockUseCreateAccommodationBooking.mockReturnValue(makeMutation());
     mockUseUpdateAccommodationBooking.mockReturnValue(makeMutation());
     mockUseDeleteAccommodationBooking.mockReturnValue(makeMutation());
+    mockUseSetlist.mockReturnValue({ data: [], isLoading: false });
+    mockUseSongs.mockReturnValue({ data: [], isLoading: false });
+    mockUseAddServiceItem.mockReturnValue(makeMutation());
+    mockUseUpdateServiceItem.mockReturnValue(makeMutation());
+    mockUseDeleteServiceItem.mockReturnValue(makeMutation());
+    mockUseCreateSong.mockReturnValue(makeMutation());
+    mockUseDeleteSong.mockReturnValue(makeMutation());
     mockUseAdminContext.mockReturnValue({
       selectedBranchId: null,
       setSelectedBranchId: vi.fn(),
@@ -497,5 +519,97 @@ describe('Event Modules Permission Guarding', () => {
     expect(deleteShiftButton).toBeDisabled();
     fireEvent.click(deleteShiftButton);
     expect(deleteShiftMutation.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('disables worship module actions for unauthorized users', async () => {
+    mockUseSetlist.mockReturnValue({
+      data: [
+        {
+          id: 'item-1',
+          event_id: 'event-1',
+          song_id: null,
+          item_type: 'sermon',
+          title: 'Main Sermon',
+          duration: '40:00',
+          start_time: '09:30',
+          item_order: 0,
+          assigned_to: 'Pastor',
+          key_override: null,
+          notes: null,
+        },
+      ],
+      isLoading: false,
+    });
+    mockUseAdminContext.mockReturnValue({
+      selectedBranchId: 'branch-1',
+      setSelectedBranchId: vi.fn(),
+      branchName: 'Main Branch',
+      loading: false,
+    });
+    mockUseSongs.mockReturnValue({
+      data: [
+        {
+          id: 'song-1',
+          branch_id: 'branch-1',
+          title: 'Way Maker',
+          artist: 'Sinach',
+          original_key: 'E',
+          bpm: 68,
+          duration: '5:45',
+          tags: ['Worship'],
+          theme: 'Faith',
+          lyrics: null,
+          chord_chart_url: null,
+          created_at: null,
+        },
+      ],
+      isLoading: false,
+    });
+
+    render(<WorshipPlannerModule />);
+
+    expect(screen.getByRole('button', { name: /add item/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^songs$/i }));
+    expect(screen.getByRole('button', { name: /add song/i })).toBeDisabled();
+  });
+
+  it('allows authorized worship users to create songs', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+    const createSongMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+    mockUseCreateSong.mockReturnValue(createSongMutation);
+    mockUseAdminContext.mockReturnValue({
+      selectedBranchId: 'branch-1',
+      setSelectedBranchId: vi.fn(),
+      branchName: 'Main Branch',
+      loading: false,
+    });
+    mockUseSongs.mockReturnValue({ data: [], isLoading: false });
+    mockUseSetlist.mockReturnValue({ data: [], isLoading: false });
+
+    render(<WorshipPlannerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^songs$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add song/i }));
+
+    const titleInput = document.querySelector('input[name="title"]') as HTMLInputElement | null;
+    expect(titleInput).toBeTruthy();
+    fireEvent.change(titleInput!, {
+      target: { value: 'Goodness of God' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save song/i }));
+
+    await waitFor(() => expect(createSongMutation.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(createSongMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branch_id: 'branch-1',
+        title: 'Goodness of God',
+      })
+    );
   });
 });
