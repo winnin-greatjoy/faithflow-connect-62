@@ -273,6 +273,20 @@ export function useUpdateServiceItem(eventId: string) {
   });
 }
 
+export function useDeleteServiceItem(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => worshipApi.deleteServiceItem(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventModuleKeys.setlist(eventId) });
+      toast.success('Item removed from setlist');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to remove item: ${error.message}`);
+    },
+  });
+}
+
 export function useReorderSetlist(eventId: string) {
   const queryClient = useQueryClient();
   return useMutation({
