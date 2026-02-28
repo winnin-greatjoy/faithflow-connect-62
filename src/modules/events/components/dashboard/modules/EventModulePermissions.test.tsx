@@ -6,6 +6,7 @@ import { RosterManagerModule } from './RosterManager';
 import { RegistrationManagerModule } from './RegistrationManager';
 import { AccommodationManagerModule } from './AccommodationManager';
 import { WorshipPlannerModule } from './WorshipPlanner';
+import { HealthcareManagerModule } from './HealthcareManager';
 
 const mockUseParams = vi.fn();
 const mockUseAuthz = vi.fn();
@@ -611,5 +612,12 @@ describe('Event Modules Permission Guarding', () => {
         title: 'Goodness of God',
       })
     );
+  });
+
+  it('disables healthcare action controls for unauthorized users', () => {
+    render(<HealthcareManagerModule />);
+
+    expect(screen.getByRole('button', { name: /global alert/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /log incident/i })).toBeDisabled();
   });
 });

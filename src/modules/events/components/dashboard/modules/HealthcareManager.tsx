@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Stethoscope,
   AlertTriangle,
@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { IncidentReport } from '@/modules/events/types/safety';
+import { useAuthz } from '@/hooks/useAuthz';
 
 // Mock Data
 const MOCK_INCIDENTS: IncidentReport[] = [
@@ -79,19 +80,33 @@ const MOCK_INCIDENTS: IncidentReport[] = [
 
 export const HealthcareManagerModule = () => {
   const [activeTab, setActiveTab] = useState('incidents');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageHealthcare = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageHealthcare;
 
   const handleTriggerAlert = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to trigger medical alerts.');
+      return;
+    }
     toast.error('Global Medical Alert Triggered', {
       description: 'All operational units have been notified of a new emergency.',
       duration: 5000,
     });
   };
 
-  const handleDispatch = () => {
-    toast.success('Medical Team Dispatched', {
-      description: 'Response unit 01 is now en route to the incident location.',
-      icon: <Stethoscope className="h-4 w-4" />,
-    });
+  const handleLogIncident = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to log incidents.');
+      return;
+    }
+    toast.success('Incident logging flow coming soon');
   };
 
   const IncidentsView = () => (
@@ -111,7 +126,11 @@ export const HealthcareManagerModule = () => {
           >
             <Filter className="h-4 w-4 mr-2 opacity-60" /> Filter
           </Button>
-          <Button className="h-12 px-6 rounded-2xl bg-destructive text-white shadow-lg shadow-destructive/20 font-black text-[10px] uppercase tracking-widest">
+          <Button
+            onClick={handleLogIncident}
+            disabled={actionsDisabled}
+            className="h-12 px-6 rounded-2xl bg-destructive text-white shadow-lg shadow-destructive/20 font-black text-[10px] uppercase tracking-widest"
+          >
             Log Incident
           </Button>
         </div>
@@ -269,6 +288,7 @@ export const HealthcareManagerModule = () => {
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={handleTriggerAlert}
+            disabled={actionsDisabled}
             variant="destructive"
             className="h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-destructive/20"
           >
