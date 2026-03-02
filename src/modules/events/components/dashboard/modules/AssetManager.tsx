@@ -28,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Asset, AssetStatus } from '@/modules/events/types/assets';
 import { useAdminContext } from '@/context/AdminContext';
+import { useAuthz } from '@/hooks/useAuthz';
 import {
   useAssets,
   useCreateAsset,
@@ -39,6 +40,15 @@ export const AssetManagerModule = () => {
   const [activeTab, setActiveTab] = useState('inventory');
   const [searchQuery, setSearchQuery] = useState('');
   const { selectedBranchId, branchName, loading: branchLoading } = useAdminContext();
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageAssets = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageAssets;
 
   const {
     data: backendAssets = [],
@@ -86,6 +96,10 @@ export const AssetManagerModule = () => {
   /* Handlers */
   const handleSaveAsset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (actionsDisabled) {
+      toast.error('You do not have permission to manage assets.');
+      return;
+    }
     if (!selectedBranchId) {
       toast.error('Select a branch before managing assets.');
       return;
@@ -114,6 +128,10 @@ export const AssetManagerModule = () => {
   };
 
   const handleStatusChange = async (id: string, newStatus: AssetStatus, _assignedTo?: string) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to update asset status.');
+      return;
+    }
     if (!selectedBranchId) {
       toast.error('Select a branch before managing assets.');
       return;
@@ -133,6 +151,10 @@ export const AssetManagerModule = () => {
   };
 
   const openAddDialog = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to create assets.');
+      return;
+    }
     if (!selectedBranchId) {
       toast.error('Select a branch before managing assets.');
       return;
@@ -142,6 +164,10 @@ export const AssetManagerModule = () => {
   };
 
   const openEditDialog = (asset: Asset) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to edit assets.');
+      return;
+    }
     if (!selectedBranchId) {
       toast.error('Select a branch before managing assets.');
       return;
@@ -174,7 +200,7 @@ export const AssetManagerModule = () => {
             <DialogTrigger asChild>
               <Button
                 onClick={openAddDialog}
-                disabled={!selectedBranchId}
+                disabled={!selectedBranchId || actionsDisabled}
                 className="h-12 px-6 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest"
               >
                 New Asset
@@ -245,7 +271,7 @@ export const AssetManagerModule = () => {
                     </select>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={isMutating}>
+                <Button type="submit" className="w-full" disabled={isMutating || actionsDisabled}>
                   {editingAsset ? 'Save Changes' : 'Add Asset'}
                 </Button>
               </form>
@@ -289,7 +315,7 @@ export const AssetManagerModule = () => {
                       variant="ghost"
                       className="h-8 text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                       onClick={() => handleStatusChange(asset.id, 'in_use', 'Event Staff')}
-                      disabled={isMutating}
+                      disabled={isMutating || actionsDisabled}
                     >
                       Check Out
                     </Button>
@@ -300,7 +326,7 @@ export const AssetManagerModule = () => {
                       variant="ghost"
                       className="h-8 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                       onClick={() => handleStatusChange(asset.id, 'available')}
-                      disabled={isMutating}
+                      disabled={isMutating || actionsDisabled}
                     >
                       Return
                     </Button>
@@ -310,7 +336,7 @@ export const AssetManagerModule = () => {
                     size="icon"
                     className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
                     onClick={() => handleStatusChange(asset.id, 'maintenance')}
-                    disabled={isMutating}
+                    disabled={isMutating || actionsDisabled}
                   >
                     <Wrench className="h-4 w-4" />
                   </Button>
@@ -426,6 +452,7 @@ export const AssetManagerModule = () => {
                       variant="link"
                       className="h-auto p-0 text-emerald-600 font-bold"
                       onClick={() => handleStatusChange(asset.id, 'available')}
+                      disabled={actionsDisabled}
                     >
                       Resolve Ticket & Return to Inventory
                     </Button>

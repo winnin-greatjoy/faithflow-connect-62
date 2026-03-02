@@ -12,6 +12,8 @@ import { SafeguardingManagerModule } from './SafeguardingManager';
 import { GivingManagerModule } from './GivingManager';
 import { FinanceReportingModule } from './FinanceReporting';
 import { PrayerManagerModule } from './PrayerManager';
+import { AttendanceManagerModule } from './AttendanceManager';
+import { AssetManagerModule } from './AssetManager';
 
 const mockUseParams = vi.fn();
 const mockUseAuthz = vi.fn();
@@ -34,6 +36,10 @@ const mockUseDeleteAccommodationRoom = vi.fn();
 const mockUseCreateAccommodationBooking = vi.fn();
 const mockUseUpdateAccommodationBooking = vi.fn();
 const mockUseDeleteAccommodationBooking = vi.fn();
+const mockUseAssets = vi.fn();
+const mockUseCreateAsset = vi.fn();
+const mockUseUpdateAsset = vi.fn();
+const mockUseReportMaintenance = vi.fn();
 const mockUseSetlist = vi.fn();
 const mockUseSongs = vi.fn();
 const mockUseAddServiceItem = vi.fn();
@@ -83,6 +89,10 @@ vi.mock('@/hooks/useEventModules', () => ({
   useCreateAccommodationBooking: () => mockUseCreateAccommodationBooking(),
   useUpdateAccommodationBooking: () => mockUseUpdateAccommodationBooking(),
   useDeleteAccommodationBooking: () => mockUseDeleteAccommodationBooking(),
+  useAssets: () => mockUseAssets(),
+  useCreateAsset: () => mockUseCreateAsset(),
+  useUpdateAsset: () => mockUseUpdateAsset(),
+  useReportMaintenance: () => mockUseReportMaintenance(),
   useSetlist: () => mockUseSetlist(),
   useSongs: () => mockUseSongs(),
   useAddServiceItem: () => mockUseAddServiceItem(),
@@ -159,6 +169,16 @@ describe('Event Modules Permission Guarding', () => {
     mockUseCreateAccommodationBooking.mockReturnValue(makeMutation());
     mockUseUpdateAccommodationBooking.mockReturnValue(makeMutation());
     mockUseDeleteAccommodationBooking.mockReturnValue(makeMutation());
+    mockUseAssets.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    mockUseCreateAsset.mockReturnValue(makeMutation());
+    mockUseUpdateAsset.mockReturnValue(makeMutation());
+    mockUseReportMaintenance.mockReturnValue(makeMutation());
     mockUseSetlist.mockReturnValue({ data: [], isLoading: false });
     mockUseSongs.mockReturnValue({ data: [], isLoading: false });
     mockUseAddServiceItem.mockReturnValue(makeMutation());
@@ -660,5 +680,45 @@ describe('Event Modules Permission Guarding', () => {
     screen.getAllByRole('button', { name: /pray now/i }).forEach((button) => {
       expect(button).toBeDisabled();
     });
+  });
+
+  it('disables attendance action controls for unauthorized users', () => {
+    render(<AttendanceManagerModule />);
+
+    expect(screen.getByRole('button', { name: /kiosk mode/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /dispatch/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /export attendance/i })).toBeDisabled();
+  });
+
+  it('disables asset manager action controls for unauthorized users', () => {
+    mockUseAdminContext.mockReturnValue({
+      selectedBranchId: 'branch-1',
+      setSelectedBranchId: vi.fn(),
+      branchName: 'Main Branch',
+      loading: false,
+    });
+    mockUseAssets.mockReturnValue({
+      data: [
+        {
+          id: 'asset-1',
+          name: 'Camera A',
+          category: 'AV',
+          location: 'Stage',
+          status: 'available',
+          condition: 'good',
+          serial_number: 'SN-1',
+          current_checkout: [],
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<AssetManagerModule />);
+
+    expect(screen.getByRole('button', { name: /new asset/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /check out/i })).toBeDisabled();
   });
 });

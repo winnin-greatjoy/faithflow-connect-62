@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Scan,
   Map as MapIcon,
@@ -21,17 +21,48 @@ import { VenueKioskView } from '../views/VenueKioskView';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { toast } from 'sonner';
+import { useAuthz } from '@/hooks/useAuthz';
 
 export const AttendanceManagerModule = ({ event }: { event?: any }) => {
   const [view, setView] = useState<'console' | 'monitor' | 'logs'>('console');
   const [activeKiosk, setActiveKiosk] = useState(false);
   const [selectedSession, setSelectedSession] = useState('Morning Service');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageAttendance = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageAttendance;
+
+  const guardAction = (action: () => void, deniedMessage: string) => {
+    if (actionsDisabled) {
+      toast.error(deniedMessage);
+      return;
+    }
+    action();
+  };
+
+  const handleOpenKiosk = () =>
+    guardAction(() => setActiveKiosk(true), 'You do not have permission to open kiosk mode.');
+
+  const handleExportAttendance = () =>
+    guardAction(
+      () => toast.success('Attendance export flow coming soon'),
+      'You do not have permission to export attendance.'
+    );
 
   const handleDispatch = () => {
-    toast.success('Medical Dispatch Activated', {
-      description: 'Emergency response team has been notified and is en route to Sanctuary.',
-      icon: <Stethoscope className="h-4 w-4 text-emerald-500" />,
-    });
+    guardAction(
+      () =>
+        toast.success('Medical Dispatch Activated', {
+          description: 'Emergency response team has been notified and is en route to Sanctuary.',
+          icon: <Stethoscope className="h-4 w-4 text-emerald-500" />,
+        }),
+      'You do not have permission to dispatch emergency teams.'
+    );
   };
 
   const tabs = [
@@ -82,7 +113,8 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
           </Button>
           <div className="w-[1px] h-8 bg-primary/5 mx-1" />
           <Button
-            onClick={() => setActiveKiosk(true)}
+            onClick={handleOpenKiosk}
+            disabled={actionsDisabled}
             variant="outline"
             className="h-9 px-4 rounded-lg font-black text-[10px] uppercase tracking-widest text-primary border-primary/10 hover:bg-primary/5"
           >
@@ -91,6 +123,8 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
           </Button>
           <Button
             aria-label="Export attendance"
+            onClick={handleExportAttendance}
+            disabled={actionsDisabled}
             variant="ghost"
             size="icon"
             className="h-9 w-9 rounded-lg hover:bg-primary/5 hover:text-primary transition-all"
@@ -143,12 +177,14 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
               <div className="flex items-center gap-1.5">
                 <Button
                   onClick={handleDispatch}
+                  disabled={actionsDisabled}
                   className="h-9 px-3 sm:px-4 rounded-full bg-destructive text-white hover:bg-destructive/90 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-destructive/20 border-none transition-all active:scale-95"
                 >
                   Dispatch
                 </Button>
                 <Button
                   variant="ghost"
+                  disabled={actionsDisabled}
                   className="h-9 w-9 rounded-full bg-white/50 border border-destructive/10 text-destructive flex items-center justify-center hover:bg-white transition-all"
                 >
                   <Stethoscope className="h-4 w-4" />
