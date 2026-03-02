@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Wallet,
   TrendingUp,
@@ -19,6 +19,8 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Transaction } from '@/modules/events/types/finance';
+import { toast } from 'sonner';
+import { useAuthz } from '@/hooks/useAuthz';
 
 // Mock Data
 const MOCK_TRANSACTIONS: Transaction[] = [
@@ -66,6 +68,23 @@ const MOCK_TRANSACTIONS: Transaction[] = [
 
 export const GivingManagerModule = () => {
   const [activeTab, setActiveTab] = useState('transactions');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageGiving = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageGiving;
+
+  const guardAction = (message: string) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to manage giving actions.');
+      return;
+    }
+    toast.success(message);
+  };
 
   const LiveTickerView = () => (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -93,7 +112,7 @@ export const GivingManagerModule = () => {
                 {tx.campaign}
               </Badge>
               <span className="text-[10px] font-bold text-muted-foreground opacity-60 uppercase tracking-widest leading-none mt-0.5">
-                • {tx.method.replace('_', ' ')}
+                - {tx.method.replace('_', ' ')}
               </span>
             </div>
           </div>
@@ -169,6 +188,8 @@ export const GivingManagerModule = () => {
           </p>
           <Button
             variant="outline"
+            disabled={actionsDisabled}
+            onClick={() => guardAction('Giving link copied')}
             className="h-10 px-6 rounded-xl border-primary/10 bg-muted/30 text-primary font-black text-[9px] uppercase tracking-widest"
           >
             Copy Link
@@ -187,12 +208,16 @@ export const GivingManagerModule = () => {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              disabled={actionsDisabled}
+              onClick={() => guardAction('Manual giving entry flow coming soon')}
               className="h-10 rounded-xl font-black text-[10px] uppercase tracking-widest border-primary/10"
             >
               <Calculator className="h-4 w-4 mr-2 opacity-50" /> Manual Entry
             </Button>
             <Button
               variant="ghost"
+              disabled={actionsDisabled}
+              onClick={() => guardAction('Register view flow coming soon')}
               className="h-10 rounded-xl font-black text-[10px] uppercase tracking-widest border border-primary/5"
             >
               <Receipt className="h-4 w-4 mr-2 opacity-50" /> View Register

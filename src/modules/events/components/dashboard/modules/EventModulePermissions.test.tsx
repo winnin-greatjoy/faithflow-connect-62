@@ -9,6 +9,9 @@ import { WorshipPlannerModule } from './WorshipPlanner';
 import { HealthcareManagerModule } from './HealthcareManager';
 import { ChildSafetyManagerModule } from './ChildSafetyManager';
 import { SafeguardingManagerModule } from './SafeguardingManager';
+import { GivingManagerModule } from './GivingManager';
+import { FinanceReportingModule } from './FinanceReporting';
+import { PrayerManagerModule } from './PrayerManager';
 
 const mockUseParams = vi.fn();
 const mockUseAuthz = vi.fn();
@@ -633,5 +636,29 @@ describe('Event Modules Permission Guarding', () => {
     render(<SafeguardingManagerModule />);
 
     expect(screen.getByRole('button', { name: /new check/i })).toBeDisabled();
+  });
+
+  it('disables giving action controls for unauthorized users', () => {
+    render(<GivingManagerModule />);
+
+    expect(screen.getByRole('button', { name: /copy link/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /manual entry/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /view register/i })).toBeDisabled();
+  });
+
+  it('disables finance reporting action controls for unauthorized users', () => {
+    render(<FinanceReportingModule />);
+
+    expect(screen.getByRole('button', { name: /export/i })).toBeDisabled();
+  });
+
+  it('disables prayer manager action controls for unauthorized users', () => {
+    render(<PrayerManagerModule />);
+
+    expect(screen.getByRole('button', { name: /share testimony/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /post request/i })).toBeDisabled();
+    screen.getAllByRole('button', { name: /pray now/i }).forEach((button) => {
+      expect(button).toBeDisabled();
+    });
   });
 });

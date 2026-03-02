@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   BarChart3,
   PieChart,
@@ -17,6 +17,8 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { BudgetCategory, FinancialSummary } from '@/modules/events/types/finance';
+import { toast } from 'sonner';
+import { useAuthz } from '@/hooks/useAuthz';
 
 // Mock Data
 const MOCK_BUDGET: BudgetCategory[] = [
@@ -56,6 +58,23 @@ const MOCK_BUDGET: BudgetCategory[] = [
 
 export const FinanceReportingModule = () => {
   const [activeTab, setActiveTab] = useState('budget');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageFinance = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageFinance;
+
+  const handleExport = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to export finance reports.');
+      return;
+    }
+    toast.success('Finance report export coming soon');
+  };
 
   const BudgetView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -154,6 +173,8 @@ export const FinanceReportingModule = () => {
           </div>
           <Button
             variant="outline"
+            disabled={actionsDisabled}
+            onClick={handleExport}
             className="h-11 px-4 rounded-xl border-primary/10 bg-white shadow-sm font-black text-[10px] uppercase tracking-widest"
           >
             <Download className="h-4 w-4 mr-2" />

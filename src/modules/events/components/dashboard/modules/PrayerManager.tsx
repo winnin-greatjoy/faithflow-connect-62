@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Heart,
   MessageCircle,
@@ -18,6 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { PrayerRequest } from '@/modules/events/types/engagement';
+import { toast } from 'sonner';
+import { useAuthz } from '@/hooks/useAuthz';
 
 // Mock Data
 const MOCK_REQUESTS: PrayerRequest[] = [
@@ -66,6 +68,23 @@ const MOCK_REQUESTS: PrayerRequest[] = [
 export const PrayerManagerModule = () => {
   const [activeTab, setActiveTab] = useState('wall');
   const [message, setMessage] = useState('');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManagePrayer = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManagePrayer;
+
+  const guardAction = (message: string) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to manage prayer actions.');
+      return;
+    }
+    toast.success(message);
+  };
 
   const PrayerWallView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -77,7 +96,11 @@ export const PrayerManagerModule = () => {
             className="pl-10 h-11 rounded-2xl border-primary/5 bg-white shadow-sm font-medium"
           />
         </div>
-        <Button className="h-11 px-6 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest">
+        <Button
+          disabled={actionsDisabled}
+          onClick={() => guardAction('Testimony sharing flow coming soon')}
+          className="h-11 px-6 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest"
+        >
           <Sparkles className="h-4 w-4 mr-2" /> Share Testimony
         </Button>
       </div>
@@ -123,6 +146,8 @@ export const PrayerManagerModule = () => {
               </div>
               <Button
                 size="sm"
+                disabled={actionsDisabled}
+                onClick={() => guardAction('Prayer acknowledgement sent')}
                 className="h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white font-black text-[9px] uppercase tracking-widest"
               >
                 Pray Now
@@ -184,7 +209,11 @@ export const PrayerManagerModule = () => {
               placeholder="Type your prayer request here..."
               className="bg-white/10 border-none text-white placeholder:text-white/50 resize-none h-32 rounded-xl mb-4 text-sm"
             />
-            <Button className="w-full bg-white text-destructive hover:bg-white/90 font-black text-xs h-10 rounded-xl uppercase tracking-widest">
+            <Button
+              disabled={actionsDisabled}
+              onClick={() => guardAction('Prayer request posting flow coming soon')}
+              className="w-full bg-white text-destructive hover:bg-white/90 font-black text-xs h-10 rounded-xl uppercase tracking-widest"
+            >
               Post Request
             </Button>
           </Card>
