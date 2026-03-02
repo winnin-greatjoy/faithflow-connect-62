@@ -2,6 +2,15 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Users,
   FileText,
@@ -16,6 +25,8 @@ import {
   AlertCircle,
   Trash2,
   Loader2,
+  Plus,
+  CreditCard,
 } from 'lucide-react';
 import {
   Dialog,
@@ -32,7 +43,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FormBuilder } from '@/modules/events/components/registration/FormBuilder';
-import registrationsApi, { EventRegistration } from '@/services/registrationsApi';
+import registrationsApi, {
+  EventRegistration,
+  RegistrationPaymentStatus,
+  RegistrationStatus,
+} from '@/services/registrationsApi';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthz } from '@/hooks/useAuthz';
 
@@ -41,6 +56,24 @@ interface RegistrationManagerModuleProps {
   eventTitle?: string;
   capacity?: number | null;
 }
+
+interface ManualRegistrationFormState {
+  name: string;
+  email: string;
+  phone: string;
+  status: RegistrationStatus;
+  payment_status: RegistrationPaymentStatus;
+  amount_paid: string;
+}
+
+const defaultManualForm: ManualRegistrationFormState = {
+  name: '',
+  email: '',
+  phone: '',
+  status: 'confirmed',
+  payment_status: 'not_required',
+  amount_paid: '0',
+};
 
 export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps> = ({
   eventId,
@@ -51,10 +84,20 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
   const { hasRole, can, loading: authzLoading } = useAuthz();
   const [view, setView] = useState<'registrants' | 'reports'>('registrants');
   const [showFormBuilder, setShowFormBuilder] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | RegistrationStatus>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | RegistrationPaymentStatus>('all');
   const [loading, setLoading] = useState(true);
+  const [creatingRegistration, setCreatingRegistration] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
+  const [manualForm, setManualForm] = useState<ManualRegistrationFormState>(defaultManualForm);
+  const [selectedRegistration, setSelectedRegistration] = useState<EventRegistration | null>(null);
+  const [detailPaymentStatus, setDetailPaymentStatus] =
+    useState<RegistrationPaymentStatus>('pending');
+  const [detailAmountPaid, setDetailAmountPaid] = useState('0');
   const canManageRegistrations = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -96,6 +139,20 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
     setShowFormBuilder(true);
   };
 
+  const openCreateRegistrationDialog = () => {
+    if (!ensureCanManage('add registrations')) return;
+    setShowCreateDialog(true);
+  };
+
+  const openRegistrationDetails = (registration: EventRegistration) => {
+    setSelectedRegistration(registration);
+    setDetailPaymentStatus(
+      (registration.payment_status || 'not_required') as RegistrationPaymentStatus
+    );
+    setDetailAmountPaid(String(registration.amount_paid || 0));
+    setShowDetailsDialog(true);
+  };
+
   const fetchRegistrations = useCallback(async () => {
     if (!eventId) {
       setLoading(false);
@@ -124,30 +181,50 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
 
   const filteredRegistrations = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return registrations;
-    return registrations.filter(
-      (r) =>
+    return registrations.filter((r) => {
+      const matchesSearch =
+        q.length === 0 ||
         r.name.toLowerCase().includes(q) ||
         r.email.toLowerCase().includes(q) ||
-        (r.phone || '').toLowerCase().includes(q)
-    );
-  }, [registrations, searchTerm]);
+        (r.phone || '').toLowerCase().includes(q);
+      const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
+      const matchesPayment = paymentFilter === 'all' || r.payment_status === paymentFilter;
+      return matchesSearch && matchesStatus && matchesPayment;
+    });
+  }, [registrations, searchTerm, statusFilter, paymentFilter]);
 
   const stats = useMemo(() => {
     const total = registrations.length;
     const confirmed = registrations.filter((r) => r.status === 'confirmed').length;
-    const pending = registrations.filter((r) => r.status === 'waitlist').length;
+    const waitlist = registrations.filter((r) => r.status === 'waitlist').length;
     const cancelled = registrations.filter((r) => r.status === 'cancelled').length;
+    const paid = registrations.filter((r) => r.payment_status === 'paid').length;
     const revenue = registrations.reduce((sum, r) => sum + (r.amount_paid || 0), 0);
-    return { total, confirmed, pending, cancelled, revenue };
+    return { total, confirmed, waitlist, cancelled, paid, revenue };
+  }, [registrations]);
+
+  const reportSlices = useMemo(() => {
+    const emailsByDomain = registrations.reduce<Record<string, number>>((acc, reg) => {
+      const domain = reg.email.split('@')[1]?.toLowerCase() || 'unknown';
+      acc[domain] = (acc[domain] || 0) + 1;
+      return acc;
+    }, {});
+    const topDomains = Object.entries(emailsByDomain)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    const recent = [...registrations]
+      .sort((a, b) => {
+        const t1 = new Date(a.registered_at).getTime();
+        const t2 = new Date(b.registered_at).getTime();
+        return t2 - t1;
+      })
+      .slice(0, 5);
+    return { topDomains, recent };
   }, [registrations]);
 
   const capacityPct = capacity ? Math.min((stats.confirmed / capacity) * 100, 100) : null;
 
-  const updateStatus = async (
-    registrationId: string,
-    status: 'confirmed' | 'cancelled' | 'waitlist'
-  ) => {
+  const updateStatus = async (registrationId: string, status: RegistrationStatus) => {
     if (!ensureCanManage('update registration status')) return;
     setActionLoadingId(registrationId);
     try {
@@ -164,6 +241,133 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
     } finally {
       setActionLoadingId(null);
     }
+  };
+
+  const updatePaymentStatus = async (
+    registrationId: string,
+    status: RegistrationPaymentStatus,
+    amount?: number
+  ) => {
+    if (!ensureCanManage('update payment status')) return;
+    setActionLoadingId(registrationId);
+    try {
+      const { data, error } = await registrationsApi.updatePaymentStatus(
+        registrationId,
+        status,
+        amount
+      );
+      if (error) throw error;
+
+      setRegistrations((prev) =>
+        prev.map((r) =>
+          r.id === registrationId
+            ? ({
+                ...r,
+                payment_status: status,
+                amount_paid:
+                  amount !== undefined
+                    ? amount
+                    : ((data as EventRegistration | null)?.amount_paid ?? r.amount_paid),
+              } as EventRegistration)
+            : r
+        )
+      );
+      toast({ title: 'Payment updated', description: `Payment marked as ${status}.` });
+    } catch (err: any) {
+      toast({
+        title: 'Payment update failed',
+        description: err.message || 'Could not update payment status.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const createManualRegistration = async () => {
+    if (!ensureCanManage('add registrations')) return;
+    if (!eventId) {
+      toast({
+        title: 'Missing event',
+        description: 'No event is selected for this registration.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!manualForm.name.trim() || !manualForm.email.trim()) {
+      toast({
+        title: 'Missing details',
+        description: 'Name and email are required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const amount = Number(manualForm.amount_paid || '0');
+    if (Number.isNaN(amount) || amount < 0) {
+      toast({
+        title: 'Invalid amount',
+        description: 'Please enter a valid non-negative amount.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCreatingRegistration(true);
+    try {
+      const { data, error } = await registrationsApi.createManualRegistration({
+        event_id: eventId,
+        name: manualForm.name.trim(),
+        email: manualForm.email.trim().toLowerCase(),
+        phone: manualForm.phone.trim() || undefined,
+        status: manualForm.status,
+        payment_status: manualForm.payment_status,
+        amount_paid: amount,
+        metadata: { source: 'admin_manual' },
+      });
+      if (error) throw error;
+
+      const created = data as EventRegistration;
+      setRegistrations((prev) => [created, ...prev]);
+      setShowCreateDialog(false);
+      setManualForm(defaultManualForm);
+
+      if (manualForm.status === 'confirmed' && created.status === 'waitlist') {
+        toast({
+          title: 'Added to waitlist',
+          description: 'Event capacity is full, so this attendee was placed on waitlist.',
+        });
+      } else {
+        toast({ title: 'Registration created', description: `${created.name} was added.` });
+      }
+    } catch (err: any) {
+      const message =
+        err?.message?.toLowerCase().includes('duplicate') ||
+        err?.message?.toLowerCase().includes('unique')
+          ? 'This email is already registered for the event.'
+          : err.message || 'Could not create registration.';
+      toast({
+        title: 'Create failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setCreatingRegistration(false);
+    }
+  };
+
+  const saveDetailsPayment = async () => {
+    if (!selectedRegistration) return;
+    const amount = Number(detailAmountPaid || '0');
+    if (Number.isNaN(amount) || amount < 0) {
+      toast({
+        title: 'Invalid amount',
+        description: 'Please enter a valid non-negative amount.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await updatePaymentStatus(selectedRegistration.id, detailPaymentStatus, amount);
   };
 
   const deleteRegistration = async (registrationId: string) => {
@@ -192,7 +396,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
       r.email,
       r.phone || '',
       r.status,
-      r.payment_status,
+      r.payment_status || 'not_required',
       (r.amount_paid || 0).toFixed(2),
       new Date(r.registered_at).toISOString(),
     ]);
@@ -221,10 +425,13 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
           <p className="text-muted-foreground">
             {eventTitle
               ? `Live registrations for ${eventTitle}`
-              : 'Manage capacity, forms, and attendee lists.'}
+              : 'Manage capacity, forms, payments, and attendee lists.'}
           </p>
         </div>
         <div className="flex gap-3">
+          <Button variant="outline" onClick={openCreateRegistrationDialog} disabled={authzLoading}>
+            <Plus className="h-4 w-4 mr-2" /> Add Registration
+          </Button>
           <Button variant="outline" onClick={openFormBuilder} disabled={authzLoading}>
             <Settings className="h-4 w-4 mr-2" /> Form Designer
           </Button>
@@ -263,7 +470,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
             Pending / Waitlist
           </span>
           <div className="flex items-end justify-between">
-            <span className="text-3xl font-black">{stats.pending}</span>
+            <span className="text-3xl font-black">{stats.waitlist}</span>
             <Clock className="h-4 w-4 text-orange-400" />
           </div>
           <p className="text-xs text-muted-foreground">{stats.cancelled} cancelled</p>
@@ -276,6 +483,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
             <span className="text-3xl font-black">GHS {stats.revenue.toFixed(2)}</span>
             <PieChart className="h-4 w-4 text-emerald-500" />
           </div>
+          <p className="text-xs text-muted-foreground">{stats.paid} paid registrations</p>
         </Card>
       </div>
 
@@ -300,12 +508,48 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
             </Button>
           </div>
           <div className="flex gap-2 items-center">
-            <input
+            <Input
               placeholder="Search attendees..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 w-64 rounded-md border text-sm px-3 bg-muted/30 focus:bg-white transition-colors"
+              className="h-9 w-64 bg-muted/30"
             />
+            {view === 'registrants' && (
+              <>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => setStatusFilter(value as 'all' | RegistrationStatus)}
+                >
+                  <SelectTrigger className="h-9 w-36">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All status</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="waitlist">Waitlist</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={paymentFilter}
+                  onValueChange={(value) =>
+                    setPaymentFilter(value as 'all' | RegistrationPaymentStatus)
+                  }
+                >
+                  <SelectTrigger className="h-9 w-40">
+                    <SelectValue placeholder="Payment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All payments</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="partially_paid">Partially paid</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="not_required">Not required</SelectItem>
+                    <SelectItem value="refunded">Refunded</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -372,7 +616,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
                       )}
                     </div>
                     <div className="col-span-2 text-muted-foreground text-xs">
-                      <div>{reg.payment_status}</div>
+                      <div>{reg.payment_status || 'not_required'}</div>
                       <div>GHS {(reg.amount_paid || 0).toFixed(2)}</div>
                     </div>
                     <div className="col-span-2 text-right flex justify-end">
@@ -392,9 +636,8 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />{' '}
-                            {new Date(reg.registered_at).toLocaleString()}
+                          <DropdownMenuItem onClick={() => openRegistrationDetails(reg)}>
+                            <Eye className="mr-2 h-4 w-4" /> View details
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -419,6 +662,32 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
+                            onClick={() => updatePaymentStatus(reg.id, 'paid')}
+                            disabled={authzLoading || !canManageRegistrations}
+                          >
+                            <CreditCard className="mr-2 h-4 w-4 text-emerald-600" /> Mark Paid
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => updatePaymentStatus(reg.id, 'partially_paid')}
+                            disabled={authzLoading || !canManageRegistrations}
+                          >
+                            <CreditCard className="mr-2 h-4 w-4 text-amber-600" /> Mark Partially
+                            Paid
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => updatePaymentStatus(reg.id, 'pending')}
+                            disabled={authzLoading || !canManageRegistrations}
+                          >
+                            <CreditCard className="mr-2 h-4 w-4 text-blue-600" /> Mark Pending
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => updatePaymentStatus(reg.id, 'refunded')}
+                            disabled={authzLoading || !canManageRegistrations}
+                          >
+                            <CreditCard className="mr-2 h-4 w-4 text-violet-600" /> Mark Refunded
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => deleteRegistration(reg.id)}
                             disabled={authzLoading || !canDeleteRegistrations}
@@ -434,16 +703,296 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
-            <FileText className="h-16 w-16 opacity-20 mb-2" />
-            <h3 className="text-lg font-semibold">Live Summary</h3>
-            <p className="text-sm opacity-70">Confirmed: {stats.confirmed}</p>
-            <p className="text-sm opacity-70">Waitlist: {stats.pending}</p>
-            <p className="text-sm opacity-70">Cancelled: {stats.cancelled}</p>
-            <p className="text-sm opacity-70">Revenue: GHS {stats.revenue.toFixed(2)}</p>
+          <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="p-4">
+              <h3 className="text-sm font-semibold mb-3">Status Breakdown</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Confirmed</span>
+                  <span className="font-semibold">{stats.confirmed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Waitlist</span>
+                  <span className="font-semibold">{stats.waitlist}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Cancelled</span>
+                  <span className="font-semibold">{stats.cancelled}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Conversion</span>
+                  <span className="font-semibold">
+                    {stats.total === 0
+                      ? '0%'
+                      : `${Math.round((stats.confirmed / stats.total) * 100)}%`}
+                  </span>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <h3 className="text-sm font-semibold mb-3">Payment Summary</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Total Revenue</span>
+                  <span className="font-semibold">GHS {stats.revenue.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Paid Registrations</span>
+                  <span className="font-semibold">{stats.paid}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Pending Payments</span>
+                  <span className="font-semibold">
+                    {registrations.filter((r) => r.payment_status === 'pending').length}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Partially Paid</span>
+                  <span className="font-semibold">
+                    {registrations.filter((r) => r.payment_status === 'partially_paid').length}
+                  </span>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <h3 className="text-sm font-semibold mb-3">Top Email Domains</h3>
+              <div className="space-y-2 text-sm">
+                {reportSlices.topDomains.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">No data yet.</p>
+                ) : (
+                  reportSlices.topDomains.map(([domain, count]) => (
+                    <div key={domain} className="flex justify-between">
+                      <span className="truncate">{domain}</span>
+                      <span className="font-semibold">{count}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+            <Card className="p-4 lg:col-span-3">
+              <h3 className="text-sm font-semibold mb-3">Recent Registrations</h3>
+              <div className="divide-y">
+                {reportSlices.recent.length === 0 ? (
+                  <p className="text-muted-foreground text-xs py-2">No recent registrations.</p>
+                ) : (
+                  reportSlices.recent.map((reg) => (
+                    <div key={reg.id} className="py-2 flex justify-between gap-3 text-sm">
+                      <div>
+                        <div className="font-medium">{reg.name}</div>
+                        <div className="text-xs text-muted-foreground">{reg.email}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs font-medium">{reg.status}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(reg.registered_at).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
           </div>
         )}
       </Card>
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Registration</DialogTitle>
+            <DialogDescription>
+              Add a guest or member registration manually for this event.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="manual-name">Name</Label>
+              <Input
+                id="manual-name"
+                value={manualForm.name}
+                onChange={(e) => setManualForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Full name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manual-email">Email</Label>
+              <Input
+                id="manual-email"
+                type="email"
+                value={manualForm.email}
+                onChange={(e) => setManualForm((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="email@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manual-phone">Phone</Label>
+              <Input
+                id="manual-phone"
+                value={manualForm.phone}
+                onChange={(e) => setManualForm((prev) => ({ ...prev, phone: e.target.value }))}
+                placeholder="+233..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={manualForm.status}
+                  onValueChange={(value) =>
+                    setManualForm((prev) => ({ ...prev, status: value as RegistrationStatus }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="waitlist">Waitlist</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Status</Label>
+                <Select
+                  value={manualForm.payment_status}
+                  onValueChange={(value) =>
+                    setManualForm((prev) => ({
+                      ...prev,
+                      payment_status: value as RegistrationPaymentStatus,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not_required">Not required</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="partially_paid">Partially paid</SelectItem>
+                    <SelectItem value="refunded">Refunded</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manual-amount">Amount Paid (GHS)</Label>
+              <Input
+                id="manual-amount"
+                type="number"
+                min={0}
+                step="0.01"
+                value={manualForm.amount_paid}
+                onChange={(e) =>
+                  setManualForm((prev) => ({ ...prev, amount_paid: e.target.value }))
+                }
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateDialog(false)}
+                disabled={creatingRegistration}
+              >
+                Cancel
+              </Button>
+              <Button onClick={createManualRegistration} disabled={creatingRegistration}>
+                {creatingRegistration && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Create Registration
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Registration Details</DialogTitle>
+            <DialogDescription>
+              Review attendee details and update payment for this registration.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRegistration ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground text-xs uppercase">Name</p>
+                  <p className="font-medium">{selectedRegistration.name}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs uppercase">Email</p>
+                  <p className="font-medium break-all">{selectedRegistration.email}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs uppercase">Phone</p>
+                  <p className="font-medium">{selectedRegistration.phone || '--'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs uppercase">Type</p>
+                  <p className="font-medium">
+                    {selectedRegistration.member_id ? 'Member' : 'Guest'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs uppercase">Status</p>
+                  <p className="font-medium">{selectedRegistration.status}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs uppercase">Registered</p>
+                  <p className="font-medium">
+                    {new Date(selectedRegistration.registered_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Payment Status</Label>
+                  <Select
+                    value={detailPaymentStatus}
+                    onValueChange={(value) =>
+                      setDetailPaymentStatus(value as RegistrationPaymentStatus)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="not_required">Not required</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="partially_paid">Partially paid</SelectItem>
+                      <SelectItem value="refunded">Refunded</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Amount Paid (GHS)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={detailAmountPaid}
+                    onChange={(e) => setDetailAmountPaid(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
+                  Close
+                </Button>
+                <Button
+                  onClick={saveDetailsPayment}
+                  disabled={authzLoading || !canManageRegistrations}
+                >
+                  Save Payment
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showFormBuilder} onOpenChange={setShowFormBuilder}>
         <DialogContent className="max-w-[90vw] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">

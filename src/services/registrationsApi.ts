@@ -17,6 +17,14 @@ export interface EventRegistration {
   updated_at: string;
 }
 
+export type RegistrationStatus = 'confirmed' | 'cancelled' | 'waitlist';
+export type RegistrationPaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'not_required'
+  | 'partially_paid'
+  | 'refunded';
+
 export interface CreateRegistrationPayload {
   event_id: string;
   name: string;
@@ -25,12 +33,44 @@ export interface CreateRegistrationPayload {
   metadata?: any;
 }
 
+export interface CreateManualRegistrationPayload extends CreateRegistrationPayload {
+  status?: RegistrationStatus;
+  payment_status?: RegistrationPaymentStatus;
+  amount_paid?: number;
+  member_id?: string | null;
+}
+
+const getCapacityAwareStatus = async (eventId: string, requestedStatus: RegistrationStatus) => {
+  if (requestedStatus !== 'confirmed') return requestedStatus;
+
+  const { data: event } = await (supabase as any)
+    .from('events')
+    .select('capacity')
+    .eq('id', eventId)
+    .single();
+  const capacity = event?.capacity;
+  if (!capacity || Number(capacity) <= 0) return requestedStatus;
+
+  const { count } = await (supabase as any)
+    .from('event_registrations')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+    .eq('status', 'confirmed');
+
+  if ((count || 0) >= Number(capacity)) {
+    return 'waitlist';
+  }
+
+  return requestedStatus;
+};
+
 export const registrationsApi = {
   /**
    * Register for an event
    */
   async registerForEvent(payload: CreateRegistrationPayload, options?: { fee?: number }) {
     const { data: user } = await supabase.auth.getUser();
+    const status = await getCapacityAwareStatus(payload.event_id, 'confirmed');
 
     const record: any = {
       event_id: payload.event_id,
@@ -39,7 +79,7 @@ export const registrationsApi = {
       phone: payload.phone || null,
       metadata: payload.metadata || null,
       member_id: user.user?.id || null,
-      status: 'confirmed',
+      status,
       payment_status: options?.fee && options.fee > 0 ? 'pending' : 'not_required',
       amount_paid: 0,
     };
@@ -113,12 +153,31 @@ export const registrationsApi = {
   },
 
   /**
+   * Create a registration from admin/organizer interface
+   */
+  async createManualRegistration(payload: CreateManualRegistrationPayload) {
+    const requestedStatus = payload.status || 'confirmed';
+    const status = await getCapacityAwareStatus(payload.event_id, requestedStatus);
+
+    const record: any = {
+      event_id: payload.event_id,
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone || null,
+      metadata: payload.metadata || null,
+      member_id: payload.member_id || null,
+      status,
+      payment_status: payload.payment_status || 'not_required',
+      amount_paid: payload.amount_paid ?? 0,
+    };
+
+    return (supabase as any).from('event_registrations').insert(record).select().single();
+  },
+
+  /**
    * Update registration status (admin only)
    */
-  async updateRegistrationStatus(
-    registrationId: string,
-    status: 'confirmed' | 'cancelled' | 'waitlist'
-  ) {
+  async updateRegistrationStatus(registrationId: string, status: RegistrationStatus) {
     const updates: any = { status };
     if (status === 'cancelled') {
       updates.cancelled_at = new Date().toISOString();
@@ -142,7 +201,11 @@ export const registrationsApi = {
   /**
    * Update payment status (admin only)
    */
-  async updatePaymentStatus(registrationId: string, status: string, amount?: number) {
+  async updatePaymentStatus(
+    registrationId: string,
+    status: RegistrationPaymentStatus,
+    amount?: number
+  ) {
     const updates: any = { payment_status: status };
     if (amount !== undefined) updates.amount_paid = amount;
 

@@ -289,6 +289,27 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.queryByText('Form Builder Mock')).not.toBeInTheDocument();
   });
 
+  it('blocks opening manual registration dialog for unauthorized users', async () => {
+    const toastSpy = vi.fn();
+    mockUseToast.mockReturnValue({ toast: toastSpy });
+
+    render(<RegistrationManagerModule eventId="event-1" eventTitle="Sunday Service" />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /add registration/i })).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /add registration/i }));
+
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Permission denied',
+        variant: 'destructive',
+      })
+    );
+    expect(screen.queryByRole('button', { name: /create registration/i })).not.toBeInTheDocument();
+  });
+
   it('allows authorized users to create a queue', async () => {
     mockUseAuthz.mockReturnValue({
       hasRole: () => false,
