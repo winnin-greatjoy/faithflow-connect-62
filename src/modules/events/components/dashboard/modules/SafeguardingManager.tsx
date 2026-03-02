@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ShieldCheck,
   FileCheck,
@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { ClearanceRecord } from '@/modules/events/types/safety';
+import { toast } from 'sonner';
+import { useAuthz } from '@/hooks/useAuthz';
 
 // Mock Data
 const MOCK_CLEARANCE: ClearanceRecord[] = [
@@ -60,6 +62,23 @@ const MOCK_CLEARANCE: ClearanceRecord[] = [
 
 export const SafeguardingManagerModule = () => {
   const [activeTab, setActiveTab] = useState('compliance');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageSafeguarding = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageSafeguarding;
+
+  const handleNewCheck = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to create safeguarding checks.');
+      return;
+    }
+    toast.success('Safeguarding check workflow coming soon');
+  };
 
   const ComplianceView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -78,7 +97,11 @@ export const SafeguardingManagerModule = () => {
           >
             <Filter className="h-4 w-4 mr-2 opacity-60" /> Filter
           </Button>
-          <Button className="h-12 px-6 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest">
+          <Button
+            onClick={handleNewCheck}
+            disabled={actionsDisabled}
+            className="h-12 px-6 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest"
+          >
             New Check
           </Button>
         </div>

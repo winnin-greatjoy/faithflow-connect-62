@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Heart,
   Activity,
@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { ChildCheckIn } from '@/modules/events/types/safety';
+import { toast } from 'sonner';
+import { useAuthz } from '@/hooks/useAuthz';
 
 // Mock Data
 const MOCK_CHECKINS: ChildCheckIn[] = [
@@ -72,6 +74,23 @@ const MOCK_CHECKINS: ChildCheckIn[] = [
 
 export const ChildSafetyManagerModule = () => {
   const [activeTab, setActiveTab] = useState('active');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageChildSafety = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageChildSafety;
+
+  const handleNewCheckIn = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to create child check-ins.');
+      return;
+    }
+    toast.success('Child check-in flow coming soon');
+  };
 
   const ActiveListView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -90,7 +109,11 @@ export const ChildSafetyManagerModule = () => {
           >
             <Filter className="h-4 w-4 mr-2 opacity-60" /> Filter
           </Button>
-          <Button className="h-12 px-6 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest">
+          <Button
+            onClick={handleNewCheckIn}
+            disabled={actionsDisabled}
+            className="h-12 px-6 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest"
+          >
             New Check-In
           </Button>
         </div>
@@ -116,7 +139,7 @@ export const ChildSafetyManagerModule = () => {
                   {checkin.childName}
                 </h5>
                 <p className="text-xs font-bold text-muted-foreground mt-1">
-                  Age: {checkin.age} • {checkin.location}
+                  Age: {checkin.age} - {checkin.location}
                 </p>
               </div>
             </div>

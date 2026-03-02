@@ -7,6 +7,8 @@ import { RegistrationManagerModule } from './RegistrationManager';
 import { AccommodationManagerModule } from './AccommodationManager';
 import { WorshipPlannerModule } from './WorshipPlanner';
 import { HealthcareManagerModule } from './HealthcareManager';
+import { ChildSafetyManagerModule } from './ChildSafetyManager';
+import { SafeguardingManagerModule } from './SafeguardingManager';
 
 const mockUseParams = vi.fn();
 const mockUseAuthz = vi.fn();
@@ -619,5 +621,17 @@ describe('Event Modules Permission Guarding', () => {
 
     expect(screen.getByRole('button', { name: /global alert/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /log incident/i })).toBeDisabled();
+  });
+
+  it('disables child safety action controls for unauthorized users', () => {
+    render(<ChildSafetyManagerModule />);
+
+    expect(screen.getByRole('button', { name: /new check-in/i })).toBeDisabled();
+  });
+
+  it('disables safeguarding action controls for unauthorized users', () => {
+    render(<SafeguardingManagerModule />);
+
+    expect(screen.getByRole('button', { name: /new check/i })).toBeDisabled();
   });
 });
