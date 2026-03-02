@@ -1003,7 +1003,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 bg-background overflow-hidden">
-            <FormBuilder />
+            <FormBuilder eventId={eventId} eventTitle={eventTitle} />
           </div>
         </DialogContent>
       </Dialog>

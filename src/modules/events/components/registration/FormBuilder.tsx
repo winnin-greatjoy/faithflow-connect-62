@@ -1,12 +1,9 @@
-import React, { useState } from 'react';
-import { DndContext, DragOverlay, useDraggable, useDroppable, DragEndEvent } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Type,
   Mail,
@@ -22,9 +19,30 @@ import {
   Trash2,
   Plus,
   Settings,
+  Loader2,
+  Save,
 } from 'lucide-react';
-import { FieldType, FormField, RegistrationFormSchema } from '../../types/registration';
+import { FieldType, FormField } from '../../types/registration';
 import { toast } from 'sonner';
+import { eventsApi } from '@/services/eventsApi';
+
+interface FormBuilderProps {
+  eventId?: string | null;
+  eventTitle?: string;
+}
+
+interface StoredFormSchema {
+  version: 1;
+  title: string;
+  description?: string;
+  fields: FormField[];
+  settings: {
+    waitlistEnabled: boolean;
+    allowGuestRegistration: boolean;
+    closeDate?: string | null;
+  };
+  updatedAt: string;
+}
 
 // --- Field Palette ---
 const FIELD_TYPES: { type: FieldType; label: string; icon: React.ReactNode }[] = [
@@ -62,10 +80,73 @@ const DraggableField = ({
   );
 };
 
+const defaultStoredSchema = (eventTitle?: string): StoredFormSchema => ({
+  version: 1,
+  title: eventTitle ? `${eventTitle} Registration Form` : 'Registration Form',
+  description: '',
+  fields: [],
+  settings: {
+    waitlistEnabled: true,
+    allowGuestRegistration: true,
+    closeDate: null,
+  },
+  updatedAt: new Date().toISOString(),
+});
+
 // --- Main Form Builder ---
-export const FormBuilder = () => {
+export const FormBuilder: React.FC<FormBuilderProps> = ({ eventId, eventTitle }) => {
+  const [loading, setLoading] = useState(Boolean(eventId));
+  const [saving, setSaving] = useState(false);
+  const [eventMetadata, setEventMetadata] = useState<Record<string, any>>({});
+  const [formTitle, setFormTitle] = useState(
+    eventTitle ? `${eventTitle} Registration Form` : 'Registration Form'
+  );
+  const [formDescription, setFormDescription] = useState('');
+  const [waitlistEnabled, setWaitlistEnabled] = useState(true);
+  const [allowGuestRegistration, setAllowGuestRegistration] = useState(true);
+  const [closeDate, setCloseDate] = useState('');
   const [fields, setFields] = useState<FormField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSchema = async () => {
+      if (!eventId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data, error } = await eventsApi.getEvent(eventId);
+        if (error) throw error;
+        const metadata = ((data as any)?.metadata || {}) as Record<string, any>;
+        setEventMetadata(metadata);
+
+        const rawSchema = metadata?.registration_form_schema as StoredFormSchema | undefined;
+        if (rawSchema && Array.isArray(rawSchema.fields)) {
+          setFields(rawSchema.fields);
+          setFormTitle(rawSchema.title || defaultStoredSchema(eventTitle).title);
+          setFormDescription(rawSchema.description || '');
+          setWaitlistEnabled(rawSchema.settings?.waitlistEnabled ?? true);
+          setAllowGuestRegistration(rawSchema.settings?.allowGuestRegistration ?? true);
+          setCloseDate(rawSchema.settings?.closeDate || '');
+        } else {
+          const initial = defaultStoredSchema(eventTitle);
+          setFields(initial.fields);
+          setFormTitle(initial.title);
+          setFormDescription(initial.description || '');
+          setWaitlistEnabled(initial.settings.waitlistEnabled);
+          setAllowGuestRegistration(initial.settings.allowGuestRegistration);
+          setCloseDate(initial.settings.closeDate || '');
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to load form schema');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSchema();
+  }, [eventId, eventTitle]);
 
   const handleAddField = (type: FieldType) => {
     const newField: FormField = {
@@ -90,7 +171,56 @@ export const FormBuilder = () => {
     toast.error('Field removed');
   };
 
+  const handleSaveSchema = async () => {
+    if (!eventId) {
+      toast.error('Event context is required to save form schema');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const schema: StoredFormSchema = {
+        version: 1,
+        title: formTitle.trim() || defaultStoredSchema(eventTitle).title,
+        description: formDescription.trim(),
+        fields,
+        settings: {
+          waitlistEnabled,
+          allowGuestRegistration,
+          closeDate: closeDate || null,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+
+      const nextMetadata = {
+        ...eventMetadata,
+        registration_form_schema: schema,
+      };
+
+      const { error } = await eventsApi.updateEvent(eventId, {
+        metadata: nextMetadata,
+      });
+
+      if (error) throw error;
+      setEventMetadata(nextMetadata);
+      toast.success('Registration form saved');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save form schema');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const selectedField = fields.find((f) => f.id === selectedFieldId);
+  const fieldCount = useMemo(() => fields.length, [fields.length]);
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-6">
@@ -174,10 +304,42 @@ export const FormBuilder = () => {
       {/* Right: Properties */}
       <Card className="w-80 flex flex-col border-l overflow-y-auto">
         <div className="p-4 border-b bg-muted/30">
-          <h3 className="font-bold">Field Properties</h3>
+          <h3 className="font-bold">Form Properties</h3>
+        </div>
+        <div className="p-6 space-y-6 border-b">
+          <div className="space-y-2">
+            <Label>Form Title</Label>
+            <Input value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Input value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
+          </div>
+          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+            <Label>Enable Waitlist</Label>
+            <Switch checked={waitlistEnabled} onCheckedChange={setWaitlistEnabled} />
+          </div>
+          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+            <Label>Allow Guests</Label>
+            <Switch checked={allowGuestRegistration} onCheckedChange={setAllowGuestRegistration} />
+          </div>
+          <div className="space-y-2">
+            <Label>Close Date</Label>
+            <Input type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} />
+          </div>
+          <div className="text-xs text-muted-foreground">Custom fields: {fieldCount}</div>
+          <Button onClick={handleSaveSchema} disabled={saving || !eventId} className="w-full">
+            {saving ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Save Form
+          </Button>
         </div>
         {selectedField ? (
           <div className="p-6 space-y-6">
+            <h4 className="text-sm font-semibold">Selected Field</h4>
             <div className="space-y-2">
               <Label>Field Label</Label>
               <Input

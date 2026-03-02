@@ -40,7 +40,11 @@ export interface CreateManualRegistrationPayload extends CreateRegistrationPaylo
   member_id?: string | null;
 }
 
-const getCapacityAwareStatus = async (eventId: string, requestedStatus: RegistrationStatus) => {
+const getCapacityAwareStatus = async (
+  eventId: string,
+  requestedStatus: RegistrationStatus,
+  allowWaitlist: boolean = true
+) => {
   if (requestedStatus !== 'confirmed') return requestedStatus;
 
   const { data: event } = await (supabase as any)
@@ -58,6 +62,9 @@ const getCapacityAwareStatus = async (eventId: string, requestedStatus: Registra
     .eq('status', 'confirmed');
 
   if ((count || 0) >= Number(capacity)) {
+    if (!allowWaitlist) {
+      throw new Error('Event capacity reached');
+    }
     return 'waitlist';
   }
 
@@ -68,9 +75,16 @@ export const registrationsApi = {
   /**
    * Register for an event
    */
-  async registerForEvent(payload: CreateRegistrationPayload, options?: { fee?: number }) {
+  async registerForEvent(
+    payload: CreateRegistrationPayload,
+    options?: { fee?: number; waitlistEnabled?: boolean }
+  ) {
     const { data: user } = await supabase.auth.getUser();
-    const status = await getCapacityAwareStatus(payload.event_id, 'confirmed');
+    const status = await getCapacityAwareStatus(
+      payload.event_id,
+      'confirmed',
+      options?.waitlistEnabled !== false
+    );
 
     const record: any = {
       event_id: payload.event_id,

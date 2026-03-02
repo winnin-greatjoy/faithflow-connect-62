@@ -84,6 +84,9 @@ export const PublicRegistrationPage = () => {
     if (!event?.capacity) return null;
     return Math.max(0, event.capacity - registrationCount);
   }, [event?.capacity, registrationCount]);
+  const waitlistEnabled =
+    ((event?.metadata as any)?.registration_form_schema?.settings?.waitlistEnabled ?? true) ===
+    true;
 
   const coverImage = useMemo(() => {
     const fromMetadata = (event?.metadata as any)?.cover_image;
@@ -209,7 +212,9 @@ export const PublicRegistrationPage = () => {
                 <p className="text-xs text-orange-600 mt-2 font-medium flex items-center">
                   <Clock className="h-3 w-3 mr-1" />
                   {spotsLeft === 0
-                    ? 'Event is full'
+                    ? waitlistEnabled
+                      ? 'Event is full, waitlist open'
+                      : 'Event is full'
                     : `${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} remaining`}
                 </p>
               </>
@@ -236,9 +241,13 @@ export const PublicRegistrationPage = () => {
               size="lg"
               className="w-full h-14 text-lg font-bold rounded-xl"
               onClick={() => setIsRegistering(true)}
-              disabled={event.capacity ? registrationCount >= event.capacity : false}
+              disabled={
+                event.capacity ? registrationCount >= event.capacity && !waitlistEnabled : false
+              }
             >
-              Register Now
+              {event.capacity && registrationCount >= event.capacity && waitlistEnabled
+                ? 'Join Waitlist'
+                : 'Register Now'}
             </Button>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1 rounded-xl" onClick={shareEvent}>
