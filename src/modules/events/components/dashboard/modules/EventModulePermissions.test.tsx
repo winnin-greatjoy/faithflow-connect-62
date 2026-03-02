@@ -14,6 +14,8 @@ import { FinanceReportingModule } from './FinanceReporting';
 import { PrayerManagerModule } from './PrayerManager';
 import { AttendanceManagerModule } from './AttendanceManager';
 import { AssetManagerModule } from './AssetManager';
+import { GrowthPathwaysModule } from './GrowthPathways';
+import { StaffChatModule } from './StaffChat';
 
 const mockUseParams = vi.fn();
 const mockUseAuthz = vi.fn();
@@ -720,5 +722,20 @@ describe('Event Modules Permission Guarding', () => {
 
     expect(screen.getByRole('button', { name: /new asset/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /check out/i })).toBeDisabled();
+  });
+
+  it('disables growth pathways action controls for unauthorized users', () => {
+    render(<GrowthPathwaysModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^members$/i }));
+    expect(screen.getByRole('button', { name: /manage enrollments/i })).toBeDisabled();
+  });
+
+  it('disables staff chat action controls for unauthorized users', () => {
+    render(<StaffChatModule />);
+
+    expect(screen.getByRole('button', { name: /emergency broadcast/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /attach file/i })).toBeDisabled();
   });
 });

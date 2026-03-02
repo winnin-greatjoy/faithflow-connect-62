@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Target,
   Users,
@@ -18,6 +18,8 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Milestone } from '@/modules/events/types/engagement';
+import { toast } from 'sonner';
+import { useAuthz } from '@/hooks/useAuthz';
 
 // Mock Data
 const MOCK_MILESTONES: Milestone[] = [
@@ -57,6 +59,23 @@ const MOCK_MILESTONES: Milestone[] = [
 
 export const GrowthPathwaysModule = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageGrowth = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageGrowth;
+
+  const guardAction = (message: string) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to manage growth pathways.');
+      return;
+    }
+    toast.success(message);
+  };
 
   const FunnelView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -120,7 +139,13 @@ export const GrowthPathwaysModule = () => {
                     </span>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={actionsDisabled}
+                  onClick={() => guardAction(`Opened milestone: ${milestone.name}`)}
+                  className="opacity-0 group-hover:opacity-100"
+                >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -198,7 +223,12 @@ export const GrowthPathwaysModule = () => {
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground animate-in fade-in">
             <Users className="h-12 w-12 mb-4 opacity-20" />
             <p className="font-medium">Member roster view</p>
-            <Button variant="link" className="text-xs">
+            <Button
+              variant="link"
+              disabled={actionsDisabled}
+              onClick={() => guardAction('Enrollment management flow coming soon')}
+              className="text-xs"
+            >
               Manage Enrollments
             </Button>
           </div>

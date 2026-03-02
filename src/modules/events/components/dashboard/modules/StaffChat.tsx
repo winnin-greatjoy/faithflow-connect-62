@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Send, MessageSquare, Shield, Smile, Paperclip, MoreVertical } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { useAuthz } from '@/hooks/useAuthz';
 
 export const StaffChatModule = () => {
   const [activeChannel, setActiveChannel] = useState('general');
+  const { hasRole, can, loading: authzLoading } = useAuthz();
+  const canManageChat = useMemo(
+    () =>
+      hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
+      can('events', 'manage') ||
+      can('events', 'update'),
+    [can, hasRole]
+  );
+  const actionsDisabled = authzLoading || !canManageChat;
+
+  const guardAction = (message: string) => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to manage staff chat actions.');
+      return;
+    }
+    toast.success(message);
+  };
 
   const channels = [
     { id: 'general', name: 'Command & Dispatch', icon: Shield, unread: 2 },
@@ -150,6 +169,9 @@ export const StaffChatModule = () => {
             <Button
               variant="ghost"
               size="icon"
+              disabled={actionsDisabled}
+              onClick={() => guardAction('Attachment flow coming soon')}
+              aria-label="Attach file"
               className="h-10 w-10 rounded-2xl text-muted-foreground hover:bg-neutral-200"
             >
               <Paperclip className="h-4 w-4" />
@@ -158,7 +180,12 @@ export const StaffChatModule = () => {
               placeholder="Message team..."
               className="border-none bg-transparent shadow-none focus-visible:ring-0 font-bold h-10 text-xs px-2"
             />
-            <Button className="h-10 w-10 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 hover:scale-105 transition-transform active:scale-95 flex items-center justify-center p-0">
+            <Button
+              disabled={actionsDisabled}
+              onClick={() => guardAction('Message dispatch flow coming soon')}
+              aria-label="Send message"
+              className="h-10 w-10 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 hover:scale-105 transition-transform active:scale-95 flex items-center justify-center p-0"
+            >
               <Send className="h-4 w-4 ml-0.5" />
             </Button>
           </div>
@@ -169,6 +196,8 @@ export const StaffChatModule = () => {
       <div className="shrink-0">
         <Button
           variant="destructive"
+          disabled={actionsDisabled}
+          onClick={() => guardAction('Emergency broadcast flow coming soon')}
           className="w-full h-10 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-destructive/20 bg-destructive/90 hover:bg-destructive text-white border-white/10"
         >
           <Shield className="h-3 w-3 mr-2" />
