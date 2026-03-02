@@ -50,6 +50,26 @@ export const TransferRequestForm: React.FC<TransferRequestFormProps> = ({
 
   const canSubmit = Boolean(targetBranchId) && !submitting;
 
+  const resolveMemberId = async (userId: string, email?: string | null) => {
+    const { data: memberByProfile } = await supabase
+      .from('members')
+      .select('id')
+      .eq('profile_id', userId)
+      .maybeSingle();
+    if (memberByProfile?.id) return memberByProfile.id;
+
+    if (email) {
+      const { data: memberByEmail } = await supabase
+        .from('members')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      if (memberByEmail?.id) return memberByEmail.id;
+    }
+
+    return null;
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -70,6 +90,17 @@ export const TransferRequestForm: React.FC<TransferRequestFormProps> = ({
         toast({
           title: 'Not signed in',
           description: 'Please sign in to submit a transfer request.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const resolvedMemberId = await resolveMemberId(userRes.user.id, userRes.user.email);
+      if (!resolvedMemberId) {
+        toast({
+          title: 'Member profile not linked',
+          description:
+            'We could not find your member record. Contact an admin to link your account.',
           variant: 'destructive',
         });
         return;
