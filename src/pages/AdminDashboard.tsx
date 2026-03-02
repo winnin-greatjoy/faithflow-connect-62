@@ -29,6 +29,10 @@ import { DistrictManagement } from '@/components/admin/superadmin/DistrictManage
 import { DistrictDashboard } from '@/components/admin/district/DistrictDashboard';
 import { GeminiAIReportModule } from '../components/admin/GeminiAIReportModule';
 import { SuperadminTransferManagement } from '@/components/admin/superadmin/SuperadminTransferManagement';
+import MensMinistryDashboard from '@/components/ministry/MensMinistryDashboard';
+import WomensMinistryDashboard from '@/components/ministry/WomensMinistryDashboard';
+import YouthMinistryDashboard from '@/components/ministry/YouthMinistryDashboard';
+import ChildrensMinistryDashboard from '@/components/ministry/ChildrenMinistryDashboard';
 import { useSuperadmin } from '@/hooks/useSuperadmin';
 import { useAuthz } from '@/hooks/useAuthz';
 import { AdminProvider, useAdminContext } from '@/context/AdminContext';
@@ -95,6 +99,11 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
 
   const renderActiveModule = () => {
     const isGlobalView = isSuperadmin && !selectedBranchId;
+    const canViewDepartments = can('departments', 'view') || isSuperadmin;
+    const ministryUserRole =
+      hasRole('super_admin', 'admin', 'pastor') || isSuperadmin ? 'head' : 'member';
+    const childrensMinistryUserRole =
+      hasRole('super_admin', 'admin', 'pastor') || isSuperadmin ? 'head' : 'observer';
 
     const denied = (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8">
@@ -144,6 +153,24 @@ const DashboardContent = ({ isPortalMode = false }: { isPortalMode?: boolean }) 
         return can('bible_school', 'view') || isSuperadmin ? <BibleSchoolPage /> : denied;
       case 'departments':
         return can('departments', 'view') || isSuperadmin ? <DepartmentsModule /> : denied;
+      case 'mens-ministry':
+        return canViewDepartments ? <MensMinistryDashboard /> : denied;
+      case 'womens-ministry':
+        return canViewDepartments ? (
+          <WomensMinistryDashboard userRole={ministryUserRole} />
+        ) : (
+          denied
+        );
+      case 'youth-ministry':
+        return canViewDepartments ? <YouthMinistryDashboard userRole={ministryUserRole} /> : denied;
+      case 'childrens-ministry':
+        return canViewDepartments ? (
+          <ChildrensMinistryDashboard userRole={childrensMinistryUserRole} />
+        ) : (
+          denied
+        );
+      case 'ministries':
+        return canViewDepartments ? <Navigate to="/admin/departments" replace /> : denied;
       case 'events':
         return can('events', 'view') || isSuperadmin ? <EventsModule /> : denied;
       case 'finance':
