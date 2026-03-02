@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -23,7 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Calendar as CalendarIcon, Clock, MapPin, Users } from 'lucide-react';
 import { format } from 'date-fns';
-import FullCalendar from '@fullcalendar/react';
+import SafeFullCalendar from '@/components/shared/SafeFullCalendar';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -55,11 +55,7 @@ export const EvangelismSchedule: React.FC<EvangelismScheduleProps> = ({ ministry
     start: new Date().toISOString().split('T')[0],
   });
 
-  useEffect(() => {
-    fetchEvents();
-  }, [ministryId]);
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -91,7 +87,11 @@ export const EvangelismSchedule: React.FC<EvangelismScheduleProps> = ({ ministry
     } finally {
       setLoading(false);
     }
-  };
+  }, [ministryId, toast]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   const getEventColor = (type: string) => {
     switch (type) {
@@ -213,7 +213,7 @@ export const EvangelismSchedule: React.FC<EvangelismScheduleProps> = ({ ministry
           </CardHeader>
           <CardContent>
             <div className="h-[600px]">
-              <FullCalendar
+              <SafeFullCalendar
                 plugins={[dayGridPlugin]}
                 initialView="dayGridMonth"
                 events={events}

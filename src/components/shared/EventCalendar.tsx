@@ -21,8 +21,10 @@ import {
 import { CalendarCreateButton } from './calendar/CalendarCreateButton';
 import './calendar/calendar.css';
 
-// Lazy load FullCalendar
-const FullCalendar = lazy(() => import('@fullcalendar/react'));
+// Lazy load FullCalendar wrapper that strips injected metadata props.
+const FullCalendar = lazy(() =>
+  import('@/components/shared/SafeFullCalendar').then((module) => ({ default: module.default }))
+);
 
 import { useNavigate } from 'react-router-dom';
 import { useEvents } from '@/modules/events/hooks/useEvents';
