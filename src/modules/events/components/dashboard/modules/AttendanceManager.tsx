@@ -22,12 +22,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { toast } from 'sonner';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useParams } from 'react-router-dom';
 
 export const AttendanceManagerModule = ({ event }: { event?: any }) => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [view, setView] = useState<'console' | 'monitor' | 'logs'>('console');
   const [activeKiosk, setActiveKiosk] = useState(false);
   const [selectedSession, setSelectedSession] = useState('Morning Service');
   const { hasRole, can, loading: authzLoading } = useAuthz();
+  const hasEventContext = Boolean(event?.id || eventId);
   const canManageAttendance = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -35,9 +38,13 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
       can('events', 'update'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManageAttendance;
+  const actionsDisabled = authzLoading || !canManageAttendance || !hasEventContext;
 
   const guardAction = (action: () => void, deniedMessage: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open this module from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error(deniedMessage);
       return;
@@ -90,7 +97,11 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
               </div>
               <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
                 <Calendar className="h-3 w-3" />
-                Jan 7, 2026
+                {new Date().toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
               </div>
             </div>
           </div>
@@ -142,6 +153,7 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
               key={tab.id}
               variant="ghost"
               onClick={() => setView(tab.id as any)}
+              disabled={!hasEventContext}
               className={cn(
                 'h-10 md:h-12 px-5 md:px-8 rounded-[22px] font-black text-[9px] md:text-[10px] uppercase tracking-[0.15em] transition-all flex-none',
                 view === tab.id

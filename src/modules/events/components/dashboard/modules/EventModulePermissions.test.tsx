@@ -754,6 +754,21 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /export attendance/i })).toBeDisabled();
   });
 
+  it('disables attendance actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
+    render(<AttendanceManagerModule />);
+
+    expect(screen.getByRole('button', { name: /kiosk mode/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /dispatch/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /export attendance/i })).toBeDisabled();
+  });
+
   it('disables asset manager action controls for unauthorized users', () => {
     mockUseAdminContext.mockReturnValue({
       selectedBranchId: 'branch-1',
