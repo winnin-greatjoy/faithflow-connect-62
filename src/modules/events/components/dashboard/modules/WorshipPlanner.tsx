@@ -61,6 +61,7 @@ export const WorshipPlannerModule = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const { selectedBranchId, loading: branchLoading } = useAdminContext();
   const { hasRole, can, loading: authzLoading } = useAuthz();
+  const hasEventContext = Boolean(eventId);
   const canManage = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -72,7 +73,7 @@ export const WorshipPlannerModule = () => {
     () => hasRole('super_admin', 'admin') || can('events', 'delete'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManage;
+  const actionsDisabled = authzLoading || !canManage || !hasEventContext;
 
   const [tab, setTab] = useState<'setlist' | 'songs' | 'team'>('setlist');
   const [itemOpen, setItemOpen] = useState(false);
@@ -114,6 +115,7 @@ export const WorshipPlannerModule = () => {
   );
 
   const openNewItem = () => {
+    if (!hasEventContext) return toast.error('Missing event context for worship planning.');
     if (actionsDisabled) return toast.error('You do not have permission to manage setlist items.');
     setEditingItem(null);
     setItemType('song');
@@ -122,6 +124,7 @@ export const WorshipPlannerModule = () => {
 
   const saveItem = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!hasEventContext) return toast.error('Missing event context for worship planning.');
     if (actionsDisabled) return toast.error('You do not have permission to manage setlist items.');
     if (!eventId) return;
     const f = new FormData(e.currentTarget);
@@ -149,6 +152,7 @@ export const WorshipPlannerModule = () => {
   };
 
   const addSongToSet = async (song: SongRecord) => {
+    if (!hasEventContext) return toast.error('Missing event context for worship planning.');
     if (actionsDisabled) return toast.error('You do not have permission to manage setlist items.');
     if (!eventId) return;
     await addItem.mutateAsync({
@@ -172,23 +176,58 @@ export const WorshipPlannerModule = () => {
       </div>
     );
 
+  const handleDeleteSetlistItem = async (item: ServiceItemRecord) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context for setlist deletion.');
+      return;
+    }
+    if (authzLoading || !canDelete) {
+      toast.error('You do not have permission to delete setlist items.');
+      return;
+    }
+    if (!window.confirm(`Remove "${item.title}" from setlist?`)) return;
+    await deleteItem.mutateAsync(item.id);
+  };
+
+  const handleDeleteSong = async (song: SongRecord) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context for song deletion.');
+      return;
+    }
+    if (authzLoading || !canDelete) {
+      toast.error('You do not have permission to delete songs.');
+      return;
+    }
+    if (!window.confirm(`Delete "${song.title}" from song library?`)) return;
+    await deleteSong.mutateAsync(song.id);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-3xl font-serif font-black tracking-tight text-primary">
           Worship Planner
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant={tab === 'setlist' ? 'default' : 'outline'}
             onClick={() => setTab('setlist')}
+            disabled={!hasEventContext}
           >
             Setlist
           </Button>
-          <Button variant={tab === 'songs' ? 'default' : 'outline'} onClick={() => setTab('songs')}>
+          <Button
+            variant={tab === 'songs' ? 'default' : 'outline'}
+            onClick={() => setTab('songs')}
+            disabled={!hasEventContext}
+          >
             Songs
           </Button>
-          <Button variant={tab === 'team' ? 'default' : 'outline'} onClick={() => setTab('team')}>
+          <Button
+            variant={tab === 'team' ? 'default' : 'outline'}
+            onClick={() => setTab('team')}
+            disabled={!hasEventContext}
+          >
             Team
           </Button>
         </div>
@@ -285,7 +324,7 @@ export const WorshipPlannerModule = () => {
                       <Input name="notes" defaultValue={editingItem?.notes || ''} />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={actionsDisabled}>
                     {editingItem ? 'Save Changes' : 'Add Item'}
                   </Button>
                 </form>
@@ -326,10 +365,9 @@ export const WorshipPlannerModule = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={async () => {
-                        if (!window.confirm(`Remove "${item.title}" from setlist?`)) return;
-                        await deleteItem.mutateAsync(item.id);
-                      }}
+                      aria-label={`Remove setlist item ${item.title}`}
+                      onClick={() => void handleDeleteSetlistItem(item)}
+                      disabled={deleteItem.isPending || authzLoading || !canDelete}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -351,7 +389,7 @@ export const WorshipPlannerModule = () => {
             <div className="text-sm text-muted-foreground">Select a branch to manage songs.</div>
           ) : (
             <>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -445,7 +483,11 @@ export const WorshipPlannerModule = () => {
                         <Label>Tags</Label>
                         <Input name="tags" placeholder="Worship, Anthem" />
                       </div>
-                      <Button type="submit" className="w-full">
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={actionsDisabled || createSong.isPending}
+                      >
                         Save Song
                       </Button>
                     </form>
@@ -491,11 +533,9 @@ export const WorshipPlannerModule = () => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={async () => {
-                              if (!window.confirm(`Delete "${song.title}" from song library?`))
-                                return;
-                              await deleteSong.mutateAsync(song.id);
-                            }}
+                            aria-label={`Delete song ${song.title}`}
+                            onClick={() => void handleDeleteSong(song)}
+                            disabled={deleteSong.isPending || authzLoading || !canDelete}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -519,7 +559,7 @@ export const WorshipPlannerModule = () => {
             </h4>
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" disabled={actionsDisabled}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Member
                 </Button>
@@ -532,6 +572,10 @@ export const WorshipPlannerModule = () => {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (actionsDisabled) {
+                      toast.error('You do not have permission to manage worship team members.');
+                      return;
+                    }
                     const f = new FormData(e.currentTarget);
                     const name = String(f.get('name') || '').trim();
                     if (!name) return;
@@ -571,7 +615,7 @@ export const WorshipPlannerModule = () => {
                       <Input name="instrument" />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={actionsDisabled}>
                     Save
                   </Button>
                 </form>
@@ -596,6 +640,8 @@ export const WorshipPlannerModule = () => {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={`Remove team member ${m.name}`}
+                    disabled={actionsDisabled}
                     onClick={() => setTeam((prev) => prev.filter((x) => x.id !== m.id))}
                   >
                     <Trash2 className="h-4 w-4" />

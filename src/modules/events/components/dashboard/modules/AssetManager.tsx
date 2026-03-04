@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { Asset, AssetStatus } from '@/modules/events/types/assets';
 import { useAdminContext } from '@/context/AdminContext';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useParams } from 'react-router-dom';
 import {
   useAssets,
   useCreateAsset,
@@ -37,10 +38,12 @@ import {
 } from '@/hooks/useEventModules';
 
 export const AssetManagerModule = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [activeTab, setActiveTab] = useState('inventory');
   const [searchQuery, setSearchQuery] = useState('');
   const { selectedBranchId, branchName, loading: branchLoading } = useAdminContext();
   const { hasRole, can, loading: authzLoading } = useAuthz();
+  const hasEventContext = Boolean(eventId);
   const canManageAssets = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -48,7 +51,7 @@ export const AssetManagerModule = () => {
       can('events', 'update'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManageAssets;
+  const actionsDisabled = authzLoading || !canManageAssets || !hasEventContext;
 
   const {
     data: backendAssets = [],
@@ -96,6 +99,10 @@ export const AssetManagerModule = () => {
   /* Handlers */
   const handleSaveAsset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Asset Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to manage assets.');
       return;
@@ -128,6 +135,10 @@ export const AssetManagerModule = () => {
   };
 
   const handleStatusChange = async (id: string, newStatus: AssetStatus, _assignedTo?: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Asset Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to update asset status.');
       return;
@@ -151,6 +162,10 @@ export const AssetManagerModule = () => {
   };
 
   const openAddDialog = () => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Asset Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to create assets.');
       return;
@@ -164,6 +179,10 @@ export const AssetManagerModule = () => {
   };
 
   const openEditDialog = (asset: Asset) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Asset Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to edit assets.');
       return;
@@ -496,6 +515,14 @@ export const AssetManagerModule = () => {
     );
   }
 
+  if (!hasEventContext) {
+    return (
+      <Card className="p-8 rounded-[24px] border border-destructive/20 bg-destructive/5 text-center text-destructive">
+        Missing event context. Open this module from an event dashboard route.
+      </Card>
+    );
+  }
+
   if (!selectedBranchId) {
     return (
       <Card className="p-8 rounded-[24px] border border-dashed border-primary/20 bg-white text-center text-muted-foreground">
@@ -522,7 +549,7 @@ export const AssetManagerModule = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-serif font-black tracking-tight text-primary">
             Asset Manager
@@ -531,16 +558,18 @@ export const AssetManagerModule = () => {
             Inventory & Resource Tracking
           </p>
         </div>
-        <div className="flex bg-muted/30 p-1 rounded-xl">
+        <div className="flex flex-wrap bg-muted/30 p-1 rounded-xl">
           {['inventory', 'maintenance', 'movements'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
+              disabled={!hasEventContext}
               className={cn(
                 'px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all',
                 activeTab === tab
                   ? 'bg-white text-primary shadow-sm'
-                  : 'text-muted-foreground hover:text-primary'
+                  : 'text-muted-foreground hover:text-primary',
+                !hasEventContext && 'cursor-not-allowed opacity-60'
               )}
             >
               {tab}

@@ -663,6 +663,33 @@ describe('Event Modules Permission Guarding', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^songs$/i }));
     expect(screen.getByRole('button', { name: /add song/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^team$/i }));
+    expect(screen.getByRole('button', { name: /add member/i })).toBeDisabled();
+    const removeButtons = screen.getAllByRole('button', { name: /remove team member/i });
+    removeButtons.forEach((button) => expect(button).toBeDisabled());
+  });
+
+  it('shows invalid worship state when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+    mockUseAdminContext.mockReturnValue({
+      selectedBranchId: 'branch-1',
+      setSelectedBranchId: vi.fn(),
+      branchName: 'Main Branch',
+      loading: false,
+    });
+    mockUseSongs.mockReturnValue({ data: [], isLoading: false });
+    mockUseSetlist.mockReturnValue({ data: [], isLoading: false });
+
+    render(<WorshipPlannerModule />);
+
+    expect(screen.getByText(/invalid event context/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /add item/i })).not.toBeInTheDocument();
   });
 
   it('allows authorized worship users to create songs', async () => {
@@ -844,6 +871,33 @@ describe('Event Modules Permission Guarding', () => {
 
     expect(screen.getByRole('button', { name: /new asset/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /check out/i })).toBeDisabled();
+  });
+
+  it('shows asset manager context warning when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+    mockUseAdminContext.mockReturnValue({
+      selectedBranchId: 'branch-1',
+      setSelectedBranchId: vi.fn(),
+      branchName: 'Main Branch',
+      loading: false,
+    });
+    mockUseAssets.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<AssetManagerModule />);
+
+    expect(screen.getByText(/missing event context/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /new asset/i })).not.toBeInTheDocument();
   });
 
   it('disables growth pathways action controls for unauthorized users', () => {
