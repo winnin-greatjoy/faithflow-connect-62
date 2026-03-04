@@ -7,10 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useParams } from 'react-router-dom';
 
 export const StaffChatModule = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [activeChannel, setActiveChannel] = useState('general');
   const { hasRole, can, loading: authzLoading } = useAuthz();
+  const hasEventContext = Boolean(eventId);
   const canManageChat = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -18,9 +21,13 @@ export const StaffChatModule = () => {
       can('events', 'update'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManageChat;
+  const actionsDisabled = authzLoading || !canManageChat || !hasEventContext;
 
   const guardAction = (message: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Staff Chat from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to manage staff chat actions.');
       return;
@@ -43,11 +50,13 @@ export const StaffChatModule = () => {
           <button
             key={channel.id}
             onClick={() => setActiveChannel(channel.id)}
+            disabled={!hasEventContext}
             className={cn(
               'flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all whitespace-nowrap min-w-fit',
               activeChannel === channel.id
                 ? 'bg-primary border-transparent text-white shadow-lg shadow-primary/20'
-                : 'bg-white border-primary/5 text-muted-foreground hover:border-primary/20'
+                : 'bg-white border-primary/5 text-muted-foreground hover:border-primary/20',
+              !hasEventContext && 'cursor-not-allowed opacity-60'
             )}
           >
             <div

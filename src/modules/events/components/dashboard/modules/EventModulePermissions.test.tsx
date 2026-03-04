@@ -853,9 +853,44 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /manage enrollments/i })).toBeDisabled();
   });
 
+  it('disables growth pathways actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
+    render(<GrowthPathwaysModule />);
+
+    expect(screen.getByRole('button', { name: /^overview$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^members$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^curriculum$/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /manage enrollments/i })).not.toBeInTheDocument();
+  });
+
   it('disables staff chat action controls for unauthorized users', () => {
     render(<StaffChatModule />);
 
+    expect(screen.getByRole('button', { name: /emergency broadcast/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /attach file/i })).toBeDisabled();
+  });
+
+  it('disables staff chat actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
+    render(<StaffChatModule />);
+
+    expect(screen.getByRole('button', { name: /command & dispatch/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /security protocol/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /crowd control/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /medical & support/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /emergency broadcast/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /attach file/i })).toBeDisabled();
