@@ -774,6 +774,23 @@ describe('Event Modules Permission Guarding', () => {
     });
   });
 
+  it('disables prayer manager actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
+    render(<PrayerManagerModule />);
+
+    expect(screen.getByRole('button', { name: /share testimony/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /post request/i })).toBeDisabled();
+    screen.getAllByRole('button', { name: /pray now/i }).forEach((button) => {
+      expect(button).toBeDisabled();
+    });
+  });
+
   it('disables attendance action controls for unauthorized users', () => {
     render(<AttendanceManagerModule />);
 

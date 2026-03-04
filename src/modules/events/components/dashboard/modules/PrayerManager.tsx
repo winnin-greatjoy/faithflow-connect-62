@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { PrayerRequest } from '@/modules/events/types/engagement';
 import { toast } from 'sonner';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useParams } from 'react-router-dom';
 
 // Mock Data
 const MOCK_REQUESTS: PrayerRequest[] = [
@@ -66,9 +67,11 @@ const MOCK_REQUESTS: PrayerRequest[] = [
 ];
 
 export const PrayerManagerModule = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [activeTab, setActiveTab] = useState('wall');
   const [message, setMessage] = useState('');
   const { hasRole, can, loading: authzLoading } = useAuthz();
+  const hasEventContext = Boolean(eventId);
   const canManagePrayer = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -76,9 +79,13 @@ export const PrayerManagerModule = () => {
       can('events', 'update'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManagePrayer;
+  const actionsDisabled = authzLoading || !canManagePrayer || !hasEventContext;
 
   const guardAction = (message: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Prayer Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to manage prayer actions.');
       return;
@@ -88,8 +95,8 @@ export const PrayerManagerModule = () => {
 
   const PrayerWallView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="relative w-full md:flex-1 md:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-40" />
           <Input
             placeholder="Search prayer requests..."
@@ -99,7 +106,7 @@ export const PrayerManagerModule = () => {
         <Button
           disabled={actionsDisabled}
           onClick={() => guardAction('Testimony sharing flow coming soon')}
-          className="h-11 px-6 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest"
+          className="h-11 px-6 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 font-black text-[10px] uppercase tracking-widest w-full md:w-auto"
         >
           <Sparkles className="h-4 w-4 mr-2" /> Share Testimony
         </Button>
@@ -170,11 +177,12 @@ export const PrayerManagerModule = () => {
             Intercession & Testimonies
           </p>
         </div>
-        <div className="flex bg-muted/30 p-1 rounded-xl">
+        <div className="flex flex-wrap bg-muted/30 p-1 rounded-xl">
           {['wall', 'my-requests', 'intercessors'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
+              disabled={!hasEventContext}
               className={cn(
                 'px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all',
                 activeTab === tab
