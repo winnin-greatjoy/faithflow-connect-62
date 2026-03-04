@@ -737,16 +737,64 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /log incident/i })).toBeDisabled();
   });
 
+  it('disables healthcare actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
+    render(<HealthcareManagerModule />);
+
+    expect(screen.getByRole('button', { name: /global alert/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /log incident/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^incidents$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^first-aid$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^schedule$/i })).toBeDisabled();
+  });
+
   it('disables child safety action controls for unauthorized users', () => {
     render(<ChildSafetyManagerModule />);
 
     expect(screen.getByRole('button', { name: /new check-in/i })).toBeDisabled();
   });
 
+  it('disables child safety actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
+    render(<ChildSafetyManagerModule />);
+
+    expect(screen.getByRole('button', { name: /new check-in/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^active$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^history$/i })).toBeDisabled();
+  });
+
   it('disables safeguarding action controls for unauthorized users', () => {
     render(<SafeguardingManagerModule />);
 
     expect(screen.getByRole('button', { name: /new check/i })).toBeDisabled();
+  });
+
+  it('disables safeguarding actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
+    render(<SafeguardingManagerModule />);
+
+    expect(screen.getByRole('button', { name: /new check/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^compliance$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^reports$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^settings$/i })).toBeDisabled();
   });
 
   it('disables giving action controls for unauthorized users', () => {

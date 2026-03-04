@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { IncidentReport } from '@/modules/events/types/safety';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useParams } from 'react-router-dom';
 
 // Mock Data
 const MOCK_INCIDENTS: IncidentReport[] = [
@@ -79,8 +80,10 @@ const MOCK_INCIDENTS: IncidentReport[] = [
 ];
 
 export const HealthcareManagerModule = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [activeTab, setActiveTab] = useState('incidents');
   const { hasRole, can, loading: authzLoading } = useAuthz();
+  const hasEventContext = Boolean(eventId);
   const canManageHealthcare = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -88,9 +91,13 @@ export const HealthcareManagerModule = () => {
       can('events', 'update'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManageHealthcare;
+  const actionsDisabled = authzLoading || !canManageHealthcare || !hasEventContext;
 
   const handleTriggerAlert = () => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Healthcare Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to trigger medical alerts.');
       return;
@@ -102,6 +109,10 @@ export const HealthcareManagerModule = () => {
   };
 
   const handleLogIncident = () => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Healthcare Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to log incidents.');
       return;
@@ -299,11 +310,13 @@ export const HealthcareManagerModule = () => {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
+                disabled={!hasEventContext}
                 className={cn(
                   'px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all',
                   activeTab === tab
                     ? 'bg-white text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-primary'
+                    : 'text-muted-foreground hover:text-primary',
+                  !hasEventContext && 'cursor-not-allowed opacity-60'
                 )}
               >
                 {tab}
