@@ -730,7 +730,35 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /view register/i })).toBeDisabled();
   });
 
+  it('disables giving actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
+    render(<GivingManagerModule />);
+
+    expect(screen.getByRole('button', { name: /copy link/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /manual entry/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /view register/i })).toBeDisabled();
+  });
+
   it('disables finance reporting action controls for unauthorized users', () => {
+    render(<FinanceReportingModule />);
+
+    expect(screen.getByRole('button', { name: /export/i })).toBeDisabled();
+  });
+
+  it('disables finance reporting actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+
     render(<FinanceReportingModule />);
 
     expect(screen.getByRole('button', { name: /export/i })).toBeDisabled();

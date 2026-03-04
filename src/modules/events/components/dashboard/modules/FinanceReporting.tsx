@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { BudgetCategory, FinancialSummary } from '@/modules/events/types/finance';
 import { toast } from 'sonner';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useParams } from 'react-router-dom';
 
 // Mock Data
 const MOCK_BUDGET: BudgetCategory[] = [
@@ -57,8 +58,10 @@ const MOCK_BUDGET: BudgetCategory[] = [
 ];
 
 export const FinanceReportingModule = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [activeTab, setActiveTab] = useState('budget');
   const { hasRole, can, loading: authzLoading } = useAuthz();
+  const hasEventContext = Boolean(eventId);
   const canManageFinance = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -66,9 +69,13 @@ export const FinanceReportingModule = () => {
       can('events', 'update'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManageFinance;
+  const actionsDisabled = authzLoading || !canManageFinance || !hasEventContext;
 
   const handleExport = () => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Finance Reporting from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to export finance reports.');
       return;
@@ -154,12 +161,13 @@ export const FinanceReportingModule = () => {
             Budget vs Actuals & Yield Analysis
           </p>
         </div>
-        <div className="flex gap-2">
-          <div className="flex bg-muted/30 p-1 rounded-xl mr-2">
+        <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap bg-muted/30 p-1 rounded-xl">
             {['budget', 'income', 'projections'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
+                disabled={!hasEventContext}
                 className={cn(
                   'px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all',
                   activeTab === tab

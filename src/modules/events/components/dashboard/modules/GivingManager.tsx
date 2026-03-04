@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { Transaction } from '@/modules/events/types/finance';
 import { toast } from 'sonner';
 import { useAuthz } from '@/hooks/useAuthz';
+import { useParams } from 'react-router-dom';
 
 // Mock Data
 const MOCK_TRANSACTIONS: Transaction[] = [
@@ -67,8 +68,10 @@ const MOCK_TRANSACTIONS: Transaction[] = [
 ];
 
 export const GivingManagerModule = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const [activeTab, setActiveTab] = useState('transactions');
   const { hasRole, can, loading: authzLoading } = useAuthz();
+  const hasEventContext = Boolean(eventId);
   const canManageGiving = useMemo(
     () =>
       hasRole('super_admin', 'district_admin', 'admin', 'pastor') ||
@@ -76,9 +79,13 @@ export const GivingManagerModule = () => {
       can('events', 'update'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManageGiving;
+  const actionsDisabled = authzLoading || !canManageGiving || !hasEventContext;
 
   const guardAction = (message: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Giving Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to manage giving actions.');
       return;
@@ -136,11 +143,12 @@ export const GivingManagerModule = () => {
             Donation Tracking & Reports
           </p>
         </div>
-        <div className="flex bg-muted/30 p-1 rounded-xl">
+        <div className="flex flex-wrap bg-muted/30 p-1 rounded-xl">
           {['transactions', 'campaigns', 'settings'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
+              disabled={!hasEventContext}
               className={cn(
                 'px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all',
                 activeTab === tab
@@ -198,14 +206,14 @@ export const GivingManagerModule = () => {
       </div>
 
       <Card className="p-8 bg-white rounded-[32px] border-none shadow-2xl shadow-primary/5">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
           <div>
             <h4 className="text-xl font-serif font-black">Transaction Stream</h4>
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
               Real-time giving updates
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               disabled={actionsDisabled}
