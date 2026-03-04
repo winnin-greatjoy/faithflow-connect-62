@@ -238,6 +238,7 @@ describe('Event Modules Permission Guarding', () => {
     render(<QueueManagerModule />);
 
     expect(screen.getByRole('button', { name: /operator mode/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /kiosk display/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /new queue/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /manage/i })).toBeDisabled();
   });
@@ -264,6 +265,7 @@ describe('Event Modules Permission Guarding', () => {
     render(<RosterManagerModule />);
 
     expect(screen.getByRole('button', { name: /add shift/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /export schedule/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /manage/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /fill slot/i })).toBeDisabled();
   });

@@ -99,7 +99,9 @@ export const RosterManagerModule = () => {
     () => hasRole('super_admin', 'admin') || can('events', 'delete'),
     [can, hasRole]
   );
+  const hasEventContext = Boolean(eventId);
   const actionsDisabled = authzLoading || !canManageRoster;
+  const exportDisabled = actionsDisabled || !hasEventContext || shiftsData.length === 0;
 
   const { members, loading: membersLoading } = useMembers({
     search: staffSearch,
@@ -138,6 +140,14 @@ export const RosterManagerModule = () => {
   );
 
   const exportScheduleCsv = () => {
+    if (!hasEventContext) {
+      toast.error('No event selected for export.');
+      return;
+    }
+    if (actionsDisabled) {
+      toast.error('You do not have permission to export the roster schedule.');
+      return;
+    }
     const rows = shifts.map((s) => [
       s.role,
       s.notes || `${s.role} Shift`,
@@ -558,7 +568,7 @@ export const RosterManagerModule = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h4 className="text-3xl font-serif font-black tracking-tight text-primary">
             Roster Manager
@@ -567,8 +577,8 @@ export const RosterManagerModule = () => {
             Staffing & Volunteer Coordination
           </p>
         </div>
-        <div className="flex gap-3">
-          <div className="flex bg-muted/30 p-1 rounded-xl mr-4">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex bg-muted/30 p-1 rounded-xl">
             {(['schedule', 'directory'] as const).map((tab) => (
               <button
                 key={tab}
@@ -588,7 +598,7 @@ export const RosterManagerModule = () => {
             variant="outline"
             className="rounded-xl border-primary/10 font-bold text-xs h-10"
             onClick={exportScheduleCsv}
-            disabled={shifts.length === 0}
+            disabled={exportDisabled}
           >
             <Download className="h-4 w-4 mr-2" /> Export Schedule
           </Button>

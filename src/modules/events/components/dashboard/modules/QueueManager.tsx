@@ -247,6 +247,14 @@ export const QueueManagerModule = () => {
     setViewMode('OPERATOR');
   };
 
+  const openKioskMode = () => {
+    if (actionsDisabled) {
+      toast.error('You do not have permission to open kiosk display.');
+      return;
+    }
+    setViewMode('KIOSK');
+  };
+
   const openCreateQueue = () => {
     if (actionsDisabled) {
       toast.error('You do not have permission to create queues.');
@@ -265,18 +273,18 @@ export const QueueManagerModule = () => {
 
   const AdminView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-serif font-black">Queue Operations</h2>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
             Manage flow and service lines
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={openOperatorMode} disabled={actionsDisabled}>
             Operator Mode
           </Button>
-          <Button variant="outline" onClick={() => setViewMode('KIOSK')}>
+          <Button variant="outline" onClick={openKioskMode} disabled={actionsDisabled}>
             Kiosk Display
           </Button>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -527,8 +535,8 @@ export const QueueManagerModule = () => {
   );
 
   const OperatorView = () => (
-    <div className="h-[700px] flex overflow-hidden bg-muted/10 rounded-[40px] border border-primary/5 animate-in slide-in-from-right duration-500">
-      <div className="w-80 bg-white border-r border-primary/5 p-6 flex flex-col gap-6">
+    <div className="min-h-[700px] flex flex-col xl:flex-row overflow-hidden bg-muted/10 rounded-[40px] border border-primary/5 animate-in slide-in-from-right duration-500">
+      <div className="xl:w-80 bg-white border-b xl:border-b-0 xl:border-r border-primary/5 p-6 flex flex-col gap-6">
         <div>
           <Button
             variant="ghost"
@@ -578,7 +586,7 @@ export const QueueManagerModule = () => {
           </Button>
         </div>
 
-        <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+        <div className="space-y-4 flex-1 overflow-y-auto pr-0 xl:pr-2">
           {queues.map((q) => {
             const queueCount = q.tickets.filter((t) =>
               ACTIVE_TICKET_STATUSES.includes(t.status)
@@ -615,7 +623,7 @@ export const QueueManagerModule = () => {
         </div>
       </div>
 
-      <div className="flex-1 p-8 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white via-muted/20 to-muted/20">
+      <div className="flex-1 p-4 md:p-8 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white via-muted/20 to-muted/20">
         {selectedQueue ? (
           <div className="w-full max-w-md space-y-8">
             <div className="text-center space-y-2">
@@ -645,7 +653,7 @@ export const QueueManagerModule = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Button
                 onClick={handleCallAgain}
                 disabled={!currentTicket || updateTicket.isPending || actionsDisabled}
@@ -667,7 +675,7 @@ export const QueueManagerModule = () => {
                 disabled={
                   callNext.isPending || selectedQueue.status !== 'active' || actionsDisabled
                 }
-                className="h-20 col-span-2 rounded-[32px] bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3"
+                className="h-20 sm:col-span-2 rounded-[32px] bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3"
               >
                 {callNext.isPending ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -739,7 +747,7 @@ export const QueueManagerModule = () => {
       : [];
 
     return (
-      <div className="fixed inset-0 bg-black text-white z-[100] flex flex-col items-center justify-center p-8">
+      <div className="fixed inset-0 bg-black text-white z-[100] flex flex-col items-center justify-center p-4 md:p-8">
         <Button
           variant="ghost"
           className="absolute top-8 right-8 text-white/20 hover:text-white"
@@ -748,7 +756,7 @@ export const QueueManagerModule = () => {
           <XCircle className="h-8 w-8" />
         </Button>
 
-        <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+        <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-24 items-center">
           <div className="text-center lg:text-left space-y-8">
             <Badge
               variant="outline"
@@ -757,19 +765,19 @@ export const QueueManagerModule = () => {
               Now Serving
             </Badge>
             <div className="space-y-4">
-              <h1 className="text-[8rem] leading-none font-black font-serif text-emerald-400">
+              <h1 className="text-[4rem] sm:text-[6rem] lg:text-[8rem] leading-none font-black font-serif text-emerald-400">
                 {nowServing?.ticket_number || '--'}
               </h1>
-              <h2 className="text-4xl font-bold tracking-tight">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight break-words">
                 {nowServing?.guest_name || nowServing?.member_id || 'No current call'}
               </h2>
-              <p className="text-2xl text-white/60 font-medium">
+              <p className="text-lg sm:text-xl lg:text-2xl text-white/60 font-medium break-words">
                 {queue ? `Please proceed to ${queue.name}` : 'No active queue selected'}
               </p>
             </div>
           </div>
 
-          <div className="bg-white/5 rounded-[48px] p-12 border border-white/10 backdrop-blur-sm">
+          <div className="bg-white/5 rounded-[32px] md:rounded-[48px] p-6 md:p-12 border border-white/10 backdrop-blur-sm">
             <h3 className="text-2xl font-black uppercase tracking-widest text-white/40 mb-8 border-b border-white/10 pb-4">
               Up Next
             </h3>
