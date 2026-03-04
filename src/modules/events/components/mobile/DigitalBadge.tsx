@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { QrCode, CheckCircle2, ShieldCheck, Utensils } from 'lucide-react';
+import { QrCode, CheckCircle2, ShieldCheck, Utensils, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { EventRecord } from '@/services/eventsApi';
 import type { EventRegistration } from '@/services/registrationsApi';
 import { QRCodeSVG } from 'qrcode.react';
+import {
+  buildEventRegistrationCredential,
+  encodeEventRegistrationCredential,
+} from '@/modules/events/utils/CredentialGenerator';
+import eventCredentialsApi from '@/services/eventCredentialsApi';
 
 interface DigitalBadgeProps {
   event: EventRecord | null;
@@ -21,15 +26,58 @@ const getInitials = (name?: string | null) =>
     .join('') || 'FF';
 
 export const DigitalBadge: React.FC<DigitalBadgeProps> = ({ event, registration }) => {
+  const [signedCredentialToken, setSignedCredentialToken] = useState<string | null>(null);
+  const [isSigningCredential, setIsSigningCredential] = useState(false);
   const attendeeName = registration?.name || 'Guest User';
   const roleText = registration?.member_id ? 'Registered Member' : 'Guest Registration';
   const registrationStatus = registration?.status || 'not_registered';
-  const qrValue = JSON.stringify({
-    event_id: event?.id || null,
-    registration_id: registration?.id || null,
-    name: attendeeName,
-    status: registrationStatus,
-  });
+
+  const fallbackCredential = useMemo(
+    () =>
+      event && registration
+        ? encodeEventRegistrationCredential(
+            buildEventRegistrationCredential({
+              event_id: event.id,
+              registration_id: registration.id,
+              member_id: registration.member_id || null,
+              name: attendeeName,
+              status: registrationStatus,
+              issued_at: registration.updated_at || registration.created_at || undefined,
+            })
+          )
+        : '',
+    [attendeeName, event, registration, registrationStatus]
+  );
+
+  useEffect(() => {
+    let active = true;
+    const issueSignedCredential = async () => {
+      if (!event?.id || !registration?.id) {
+        if (active) {
+          setSignedCredentialToken(null);
+          setIsSigningCredential(false);
+        }
+        return;
+      }
+
+      setIsSigningCredential(true);
+      const { data, error } = await eventCredentialsApi.issueCredential({
+        eventId: event.id,
+        registrationId: registration.id,
+      });
+
+      if (!active) return;
+      setSignedCredentialToken(!error && data?.token ? data.token : null);
+      setIsSigningCredential(false);
+    };
+
+    void issueSignedCredential();
+    return () => {
+      active = false;
+    };
+  }, [event?.id, registration?.id]);
+
+  const qrValue = signedCredentialToken || fallbackCredential;
 
   return (
     <div className="p-6 pb-24 flex flex-col items-center justify-center min-h-[70vh]">
@@ -86,15 +134,21 @@ export const DigitalBadge: React.FC<DigitalBadgeProps> = ({ event, registration 
 
               {/* QR Code Placeholder */}
               <div className="bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-200 mx-auto w-48 h-48 flex items-center justify-center group-hover:border-primary/20 transition-colors">
-                {registration ? (
+                {registration && qrValue ? (
                   <QRCodeSVG value={qrValue} size={128} />
+                ) : isSigningCredential ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-primary/60" />
                 ) : (
                   <QrCode className="h-32 w-32 text-gray-900 opacity-40" />
                 )}
               </div>
 
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                {registration ? 'Scan for Access' : 'Registration Required'}
+                {registration
+                  ? signedCredentialToken
+                    ? 'Signed pass ready'
+                    : 'Scan for Access'
+                  : 'Registration Required'}
               </p>
             </div>
 

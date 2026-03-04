@@ -31,6 +31,20 @@ export interface EventRecord extends EventPayload {
   updated_at: string;
 }
 
+export interface CheckInRegistrationRecord {
+  id: string;
+  event_id: string;
+  member_id: string | null;
+  name: string;
+  email: string;
+  status: 'confirmed' | 'cancelled' | 'waitlist';
+}
+
+export interface CheckInResolution {
+  registration: CheckInRegistrationRecord;
+  attendance_member_id: string | null;
+}
+
 // Get profile for current user
 async function getProfileForCurrentUser() {
   const { data: userRes } = await supabase.auth.getUser();
@@ -309,6 +323,50 @@ export const eventsApi = {
       })
       .select()
       .single();
+  },
+
+  async resolveRegistrationForCheckIn(payload: { event_id: string; registration_id: string }) {
+    const { data, error } = await (supabase as any)
+      .from('event_registrations')
+      .select('id, event_id, member_id, name, email, status')
+      .eq('id', payload.registration_id)
+      .eq('event_id', payload.event_id)
+      .maybeSingle();
+
+    if (error) return { data: null, error };
+    if (!data) {
+      return { data: null, error: new Error('Registration not found for this event.') };
+    }
+
+    const registration = data as CheckInRegistrationRecord;
+    if (registration.status !== 'confirmed') {
+      return {
+        data: null,
+        error: new Error(
+          `Registration status is ${registration.status}. Only confirmed attendees can check in.`
+        ),
+      };
+    }
+
+    let attendanceMemberId: string | null = null;
+    if (registration.member_id) {
+      const { data: memberData, error: memberError } = await (supabase as any)
+        .from('members')
+        .select('id')
+        .eq('profile_id', registration.member_id)
+        .maybeSingle();
+
+      if (memberError) return { data: null, error: memberError };
+      attendanceMemberId = memberData?.id ?? null;
+    }
+
+    return {
+      data: {
+        registration,
+        attendance_member_id: attendanceMemberId,
+      } as CheckInResolution,
+      error: null,
+    };
   },
 
   async getAttendanceLogs(eventId: string, limit = 50) {
