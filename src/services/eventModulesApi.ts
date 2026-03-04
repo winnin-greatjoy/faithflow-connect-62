@@ -250,6 +250,28 @@ export const attendanceApi = {
     return data as EventZone;
   },
 
+  async updateZone(
+    zoneId: string,
+    updates: Partial<Pick<EventZone, 'name' | 'capacity' | 'zone_type'>>
+  ) {
+    const { data, error } = await (supabase as any)
+      .from('event_zones')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', zoneId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as EventZone;
+  },
+
+  async deleteZone(zoneId: string) {
+    const { error } = await (supabase as any).from('event_zones').delete().eq('id', zoneId);
+    if (error) throw error;
+  },
+
   async updateZoneOccupancy(zoneId: string, delta: number) {
     const { data, error } = await (supabase as any).rpc('increment_zone_occupancy', {
       zone_id: zoneId,
