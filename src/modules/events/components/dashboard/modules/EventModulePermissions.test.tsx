@@ -268,46 +268,41 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /fill slot/i })).toBeDisabled();
   });
 
-  it('blocks opening form designer for unauthorized users', async () => {
-    const toastSpy = vi.fn();
-    mockUseToast.mockReturnValue({ toast: toastSpy });
-
+  it('disables registration create/export controls for unauthorized users', async () => {
     render(<RegistrationManagerModule eventId="event-1" eventTitle="Sunday Service" />);
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /form designer/i })).toBeInTheDocument()
-    );
+    const addRegistrationButton = await screen.findByRole('button', { name: /add registration/i });
+    const formDesignerButton = screen.getByRole('button', { name: /form designer/i });
+    const exportButton = screen.getByRole('button', { name: /export/i });
 
-    fireEvent.click(screen.getByRole('button', { name: /form designer/i }));
-
-    expect(toastSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Permission denied',
-        variant: 'destructive',
-      })
-    );
+    expect(addRegistrationButton).toBeDisabled();
+    expect(formDesignerButton).toBeDisabled();
+    expect(exportButton).toBeDisabled();
     expect(screen.queryByText('Form Builder Mock')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /create registration/i })).not.toBeInTheDocument();
   });
 
-  it('blocks opening manual registration dialog for unauthorized users', async () => {
-    const toastSpy = vi.fn();
-    mockUseToast.mockReturnValue({ toast: toastSpy });
-
+  it('disables registration update and delete actions for unauthorized users', async () => {
     render(<RegistrationManagerModule eventId="event-1" eventTitle="Sunday Service" />);
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /add registration/i })).toBeInTheDocument()
-    );
+    await screen.findByText('Guest One');
+    const trigger = screen.getByRole('button', { name: /registration actions for guest one/i });
+    fireEvent.pointerDown(trigger, { button: 0 });
 
-    fireEvent.click(screen.getByRole('button', { name: /add registration/i }));
+    const markConfirmed = await screen.findByText(/mark confirmed/i);
+    const markPaid = await screen.findByText(/mark paid/i);
+    const deleteItem = await screen.findByText(/^delete$/i);
 
-    expect(toastSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Permission denied',
-        variant: 'destructive',
-      })
-    );
-    expect(screen.queryByRole('button', { name: /create registration/i })).not.toBeInTheDocument();
+    expect(markConfirmed).toHaveAttribute('aria-disabled', 'true');
+    expect(markPaid).toHaveAttribute('aria-disabled', 'true');
+    expect(deleteItem).toHaveAttribute('aria-disabled', 'true');
+
+    fireEvent.click(markConfirmed);
+    fireEvent.click(markPaid);
+    fireEvent.click(deleteItem);
+
+    expect(mockUpdateRegistrationStatus).not.toHaveBeenCalled();
+    expect(mockDeleteRegistration).not.toHaveBeenCalled();
   });
 
   it('allows authorized users to create a queue', async () => {

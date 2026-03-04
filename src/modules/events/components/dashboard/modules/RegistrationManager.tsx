@@ -109,12 +109,26 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
     () => hasRole('super_admin', 'admin') || can('events', 'delete'),
     [can, hasRole]
   );
+  const hasEventContext = Boolean(eventId);
+  const actionsDisabled = authzLoading || !canManageRegistrations || !hasEventContext;
 
   const ensureCanManage = (action: string) => {
     if (authzLoading || !canManageRegistrations) {
       toast({
         title: 'Permission denied',
         description: `You do not have permission to ${action}.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const ensureEventContext = (action: string) => {
+    if (!eventId) {
+      toast({
+        title: 'Missing event context',
+        description: `Unable to ${action} because no event is selected.`,
         variant: 'destructive',
       });
       return false;
@@ -135,11 +149,13 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
   };
 
   const openFormBuilder = () => {
+    if (!ensureEventContext('manage registration forms')) return;
     if (!ensureCanManage('manage registration forms')) return;
     setShowFormBuilder(true);
   };
 
   const openCreateRegistrationDialog = () => {
+    if (!ensureEventContext('add registrations')) return;
     if (!ensureCanManage('add registrations')) return;
     setShowCreateDialog(true);
   };
@@ -391,6 +407,8 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
   };
 
   const exportCsv = () => {
+    if (!ensureEventContext('export registrations')) return;
+    if (!ensureCanManage('export registrations')) return;
     const rows = filteredRegistrations.map((r) => [
       r.name,
       r.email,
@@ -419,7 +437,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
 
   return (
     <div className="h-full flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between shrink-0 gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Registration Manager</h2>
           <p className="text-muted-foreground">
@@ -428,14 +446,22 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
               : 'Manage capacity, forms, payments, and attendee lists.'}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={openCreateRegistrationDialog} disabled={authzLoading}>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={openCreateRegistrationDialog}
+            disabled={actionsDisabled}
+          >
             <Plus className="h-4 w-4 mr-2" /> Add Registration
           </Button>
-          <Button variant="outline" onClick={openFormBuilder} disabled={authzLoading}>
+          <Button variant="outline" onClick={openFormBuilder} disabled={actionsDisabled}>
             <Settings className="h-4 w-4 mr-2" /> Form Designer
           </Button>
-          <Button variant="outline" onClick={fetchRegistrations} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={fetchRegistrations}
+            disabled={loading || !hasEventContext}
+          >
             <RefreshCw className="h-4 w-4 mr-2" /> Refresh
           </Button>
         </div>
@@ -488,7 +514,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
       </div>
 
       <Card className="flex-1 border p-6 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-6 gap-4">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg">
             <Button
               variant={view === 'registrants' ? 'secondary' : 'ghost'}
@@ -507,12 +533,12 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
               <FileText className="h-4 w-4 mr-2" /> Reports
             </Button>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center">
             <Input
               placeholder="Search attendees..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 w-64 bg-muted/30"
+              className="h-9 w-full sm:w-64 bg-muted/30"
             />
             {view === 'registrants' && (
               <>
@@ -554,7 +580,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
               variant="outline"
               size="sm"
               onClick={exportCsv}
-              disabled={filteredRegistrations.length === 0}
+              disabled={actionsDisabled || filteredRegistrations.length === 0}
             >
               <Download className="h-4 w-4 mr-2" /> Export
             </Button>
@@ -563,143 +589,149 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
 
         {view === 'registrants' ? (
           <>
-            <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-muted/40 font-semibold text-xs text-muted-foreground uppercase tracking-wider rounded-t-lg">
-              <div className="col-span-4">Name / Contact</div>
-              <div className="col-span-2">Registration</div>
-              <div className="col-span-2">Status</div>
-              <div className="col-span-2">Payment</div>
-              <div className="col-span-2 text-right">Actions</div>
-            </div>
+            <div className="flex-1 overflow-auto">
+              <div className="min-w-[860px]">
+                <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-muted/40 font-semibold text-xs text-muted-foreground uppercase tracking-wider rounded-t-lg">
+                  <div className="col-span-4">Name / Contact</div>
+                  <div className="col-span-2">Registration</div>
+                  <div className="col-span-2">Status</div>
+                  <div className="col-span-2">Payment</div>
+                  <div className="col-span-2 text-right">Actions</div>
+                </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {loading ? (
-                <div className="h-full flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : filteredRegistrations.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-muted-foreground">
-                  No registrations found.
-                </div>
-              ) : (
-                filteredRegistrations.map((reg) => (
-                  <div
-                    key={reg.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-4 border-b hover:bg-muted/50 transition-colors items-center text-sm"
-                  >
-                    <div className="col-span-4 flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                        {reg.name.charAt(0).toUpperCase()}
+                <div>
+                  {loading ? (
+                    <div className="h-[320px] flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : filteredRegistrations.length === 0 ? (
+                    <div className="h-[320px] flex items-center justify-center text-muted-foreground">
+                      No registrations found.
+                    </div>
+                  ) : (
+                    filteredRegistrations.map((reg) => (
+                      <div
+                        key={reg.id}
+                        className="grid grid-cols-12 gap-4 px-4 py-4 border-b hover:bg-muted/50 transition-colors items-center text-sm"
+                      >
+                        <div className="col-span-4 flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                            {reg.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-foreground">{reg.name}</span>
+                            <span className="text-[10px] text-muted-foreground">{reg.email}</span>
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <Badge variant="secondary" className="font-normal text-xs">
+                            {reg.member_id ? 'Member' : 'Guest'}
+                          </Badge>
+                        </div>
+                        <div className="col-span-2 flex items-center gap-2">
+                          {reg.status === 'confirmed' ? (
+                            <span className="flex items-center text-emerald-600 text-xs font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                              <CheckCircle2 className="h-3 w-3 mr-1" /> Confirmed
+                            </span>
+                          ) : reg.status === 'waitlist' ? (
+                            <span className="flex items-center text-orange-600 text-xs font-medium bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">
+                              <AlertCircle className="h-3 w-3 mr-1" /> Waitlist
+                            </span>
+                          ) : (
+                            <span className="flex items-center text-rose-600 text-xs font-medium bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
+                              <AlertCircle className="h-3 w-3 mr-1" /> Cancelled
+                            </span>
+                          )}
+                        </div>
+                        <div className="col-span-2 text-muted-foreground text-xs">
+                          <div>{reg.payment_status || 'not_required'}</div>
+                          <div>GHS {(reg.amount_paid || 0).toFixed(2)}</div>
+                        </div>
+                        <div className="col-span-2 text-right flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8"
+                                aria-label={`Registration actions for ${reg.name}`}
+                                disabled={actionLoadingId === reg.id}
+                              >
+                                {actionLoadingId === reg.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <MoreVertical className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openRegistrationDetails(reg)}>
+                                <Eye className="mr-2 h-4 w-4" /> View details
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => updateStatus(reg.id, 'confirmed')}
+                                disabled={actionsDisabled}
+                              >
+                                <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" /> Mark
+                                Confirmed
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => updateStatus(reg.id, 'waitlist')}
+                                disabled={actionsDisabled}
+                              >
+                                <Clock className="mr-2 h-4 w-4 text-amber-600" /> Move to Waitlist
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => updateStatus(reg.id, 'cancelled')}
+                                disabled={actionsDisabled}
+                              >
+                                <AlertCircle className="mr-2 h-4 w-4 text-rose-600" /> Cancel
+                                Registration
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => updatePaymentStatus(reg.id, 'paid')}
+                                disabled={actionsDisabled}
+                              >
+                                <CreditCard className="mr-2 h-4 w-4 text-emerald-600" /> Mark Paid
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => updatePaymentStatus(reg.id, 'partially_paid')}
+                                disabled={actionsDisabled}
+                              >
+                                <CreditCard className="mr-2 h-4 w-4 text-amber-600" /> Mark
+                                Partially Paid
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => updatePaymentStatus(reg.id, 'pending')}
+                                disabled={actionsDisabled}
+                              >
+                                <CreditCard className="mr-2 h-4 w-4 text-blue-600" /> Mark Pending
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => updatePaymentStatus(reg.id, 'refunded')}
+                                disabled={actionsDisabled}
+                              >
+                                <CreditCard className="mr-2 h-4 w-4 text-violet-600" /> Mark
+                                Refunded
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => deleteRegistration(reg.id)}
+                                disabled={authzLoading || !canDeleteRegistrations}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-foreground">{reg.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{reg.email}</span>
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <Badge variant="secondary" className="font-normal text-xs">
-                        {reg.member_id ? 'Member' : 'Guest'}
-                      </Badge>
-                    </div>
-                    <div className="col-span-2 flex items-center gap-2">
-                      {reg.status === 'confirmed' ? (
-                        <span className="flex items-center text-emerald-600 text-xs font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> Confirmed
-                        </span>
-                      ) : reg.status === 'waitlist' ? (
-                        <span className="flex items-center text-orange-600 text-xs font-medium bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">
-                          <AlertCircle className="h-3 w-3 mr-1" /> Waitlist
-                        </span>
-                      ) : (
-                        <span className="flex items-center text-rose-600 text-xs font-medium bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
-                          <AlertCircle className="h-3 w-3 mr-1" /> Cancelled
-                        </span>
-                      )}
-                    </div>
-                    <div className="col-span-2 text-muted-foreground text-xs">
-                      <div>{reg.payment_status || 'not_required'}</div>
-                      <div>GHS {(reg.amount_paid || 0).toFixed(2)}</div>
-                    </div>
-                    <div className="col-span-2 text-right flex justify-end">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8"
-                            disabled={actionLoadingId === reg.id}
-                          >
-                            {actionLoadingId === reg.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <MoreVertical className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openRegistrationDetails(reg)}>
-                            <Eye className="mr-2 h-4 w-4" /> View details
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => updateStatus(reg.id, 'confirmed')}
-                            disabled={authzLoading || !canManageRegistrations}
-                          >
-                            <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" /> Mark
-                            Confirmed
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => updateStatus(reg.id, 'waitlist')}
-                            disabled={authzLoading || !canManageRegistrations}
-                          >
-                            <Clock className="mr-2 h-4 w-4 text-amber-600" /> Move to Waitlist
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => updateStatus(reg.id, 'cancelled')}
-                            disabled={authzLoading || !canManageRegistrations}
-                          >
-                            <AlertCircle className="mr-2 h-4 w-4 text-rose-600" /> Cancel
-                            Registration
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => updatePaymentStatus(reg.id, 'paid')}
-                            disabled={authzLoading || !canManageRegistrations}
-                          >
-                            <CreditCard className="mr-2 h-4 w-4 text-emerald-600" /> Mark Paid
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => updatePaymentStatus(reg.id, 'partially_paid')}
-                            disabled={authzLoading || !canManageRegistrations}
-                          >
-                            <CreditCard className="mr-2 h-4 w-4 text-amber-600" /> Mark Partially
-                            Paid
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => updatePaymentStatus(reg.id, 'pending')}
-                            disabled={authzLoading || !canManageRegistrations}
-                          >
-                            <CreditCard className="mr-2 h-4 w-4 text-blue-600" /> Mark Pending
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => updatePaymentStatus(reg.id, 'refunded')}
-                            disabled={authzLoading || !canManageRegistrations}
-                          >
-                            <CreditCard className="mr-2 h-4 w-4 text-violet-600" /> Mark Refunded
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => deleteRegistration(reg.id)}
-                            disabled={authzLoading || !canDeleteRegistrations}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))
-              )}
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </>
         ) : (
@@ -982,10 +1014,7 @@ export const RegistrationManagerModule: React.FC<RegistrationManagerModuleProps>
                 <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
                   Close
                 </Button>
-                <Button
-                  onClick={saveDetailsPayment}
-                  disabled={authzLoading || !canManageRegistrations}
-                >
+                <Button onClick={saveDetailsPayment} disabled={actionsDisabled}>
                   Save Payment
                 </Button>
               </div>
