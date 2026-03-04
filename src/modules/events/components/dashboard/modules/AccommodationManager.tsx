@@ -244,9 +244,14 @@ export const AccommodationManagerModule = () => {
     () => hasRole('super_admin', 'admin') || can('events', 'delete'),
     [can, hasRole]
   );
-  const actionsDisabled = authzLoading || !canManageAccommodation;
+  const hasEventContext = Boolean(eventId);
+  const actionsDisabled = authzLoading || !canManageAccommodation || !hasEventContext;
 
   const ensureCanManage = (action: string) => {
+    if (!hasEventContext) {
+      toast.error(`Unable to ${action} because no event context is selected.`);
+      return false;
+    }
     if (actionsDisabled) {
       toast.error(`You do not have permission to ${action}.`);
       return false;
@@ -390,6 +395,10 @@ export const AccommodationManagerModule = () => {
   };
 
   const handleDeleteRoom = async (roomId: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context for room deletion.');
+      return;
+    }
     if (!canDeleteAccommodation || authzLoading) {
       toast.error('You do not have permission to delete rooms.');
       return;
@@ -399,6 +408,10 @@ export const AccommodationManagerModule = () => {
   };
 
   const handleDeleteBooking = async (bookingId: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context for booking deletion.');
+      return;
+    }
     if (!canDeleteAccommodation || authzLoading) {
       toast.error('You do not have permission to delete bookings.');
       return;
@@ -409,7 +422,7 @@ export const AccommodationManagerModule = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-serif font-black tracking-tight text-primary">
             Accommodation
@@ -418,7 +431,7 @@ export const AccommodationManagerModule = () => {
             Manage Housing & Hospitality
           </p>
         </div>
-        <div className="flex bg-muted/30 p-1 rounded-xl">
+        <div className="flex flex-wrap bg-muted/30 p-1 rounded-xl">
           {(['dashboard', 'rooms', 'bookings', 'guests'] as Tab[]).map((tab) => (
             <button
               key={tab}
@@ -491,14 +504,15 @@ export const AccommodationManagerModule = () => {
 
       {activeTab === 'rooms' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
             <Input
               value={roomSearch}
               onChange={(e) => setRoomSearch(e.target.value)}
               placeholder="Search rooms..."
+              className="w-full md:flex-1"
             />
             <Select value={roomFilter} onValueChange={setRoomFilter}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full md:w-[140px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -510,7 +524,7 @@ export const AccommodationManagerModule = () => {
               </SelectContent>
             </Select>
             <Select value={buildingFilter} onValueChange={setBuildingFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full md:w-[160px]">
                 <SelectValue placeholder="Building" />
               </SelectTrigger>
               <SelectContent>
@@ -522,7 +536,7 @@ export const AccommodationManagerModule = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={openNewRoomDialog}>
+            <Button onClick={openNewRoomDialog} disabled={actionsDisabled} className="md:ml-auto">
               <Plus className="h-4 w-4 mr-2" />
               Add Room
             </Button>
@@ -619,6 +633,7 @@ export const AccommodationManagerModule = () => {
                       size="icon"
                       variant="ghost"
                       className="h-8 w-8"
+                      aria-label={`Edit room ${room.room_number}`}
                       onClick={() => openEditRoomDialog(room.id)}
                       disabled={isRoomMutating || actionsDisabled}
                     >
@@ -628,6 +643,7 @@ export const AccommodationManagerModule = () => {
                       size="icon"
                       variant="ghost"
                       className="h-8 w-8 text-destructive hover:text-destructive"
+                      aria-label={`Delete room ${room.room_number}`}
                       onClick={() => handleDeleteRoom(room.id)}
                       disabled={isRoomMutating || !canDeleteAccommodation || authzLoading}
                     >
@@ -643,7 +659,7 @@ export const AccommodationManagerModule = () => {
 
       {activeTab === 'bookings' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -653,7 +669,11 @@ export const AccommodationManagerModule = () => {
                 placeholder="Search bookings..."
               />
             </div>
-            <Button onClick={openNewBookingDialog}>
+            <Button
+              onClick={openNewBookingDialog}
+              disabled={actionsDisabled}
+              className="md:ml-auto"
+            >
               <Plus className="h-4 w-4 mr-2" />
               New Booking
             </Button>
@@ -821,6 +841,7 @@ export const AccommodationManagerModule = () => {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
+                              aria-label={`Edit booking ${booking.member?.full_name || booking.guest_name || 'guest'}`}
                               onClick={() => openEditBookingDialog(booking)}
                               disabled={isBookingMutating || actionsDisabled}
                             >
@@ -830,6 +851,7 @@ export const AccommodationManagerModule = () => {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-destructive hover:text-destructive"
+                              aria-label={`Delete booking ${booking.member?.full_name || booking.guest_name || 'guest'}`}
                               onClick={() => handleDeleteBooking(booking.id)}
                               disabled={
                                 isBookingMutating || !canDeleteAccommodation || authzLoading

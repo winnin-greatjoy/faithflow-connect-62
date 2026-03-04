@@ -458,6 +458,53 @@ describe('Event Modules Permission Guarding', () => {
     expect(mockDeleteRegistration).not.toHaveBeenCalled();
   });
 
+  it('disables accommodation action controls for unauthorized users', async () => {
+    mockUseAccommodationRooms.mockReturnValue({
+      data: [
+        {
+          id: 'room-1',
+          event_id: 'event-1',
+          room_number: '101',
+          building: 'Block A',
+          floor: 1,
+          room_type: 'standard',
+          capacity: 2,
+          status: 'available',
+          amenities: ['WiFi'],
+          notes: '',
+        },
+      ],
+      isLoading: false,
+    });
+    mockUseAccommodationBookings.mockReturnValue({
+      data: [
+        {
+          id: 'booking-1',
+          event_id: 'event-1',
+          room_id: null,
+          guest_name: 'Guest One',
+          check_in_date: '2026-02-25',
+          check_out_date: '2026-02-27',
+          status: 'pending',
+          special_requests: '',
+          room: null,
+          member: null,
+        },
+      ],
+      isLoading: false,
+    });
+
+    render(<AccommodationManagerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /rooms/i }));
+    expect(screen.getByRole('button', { name: /add room/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /edit room 101/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /delete room 101/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /bookings/i }));
+    expect(screen.getByRole('button', { name: /new booking/i })).toBeDisabled();
+  });
+
   it('enables room management but disables delete when only manage is permitted in accommodation', async () => {
     mockUseAuthz.mockReturnValue({
       hasRole: () => false,
@@ -489,10 +536,7 @@ describe('Event Modules Permission Guarding', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /rooms/i }));
     expect(screen.getByRole('button', { name: /add room/i })).toBeEnabled();
-
-    const deleteButtons = document.querySelectorAll('button.text-destructive');
-    expect(deleteButtons.length).toBeGreaterThan(0);
-    const deleteRoomButton = deleteButtons[0] as HTMLButtonElement;
+    const deleteRoomButton = screen.getByRole('button', { name: /delete room 101/i });
     expect(deleteRoomButton).toBeDisabled();
 
     fireEvent.click(deleteRoomButton);
