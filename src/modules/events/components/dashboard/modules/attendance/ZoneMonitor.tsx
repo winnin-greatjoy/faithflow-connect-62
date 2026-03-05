@@ -8,13 +8,18 @@ import {
   Activity,
   ArrowRight,
   RefreshCw,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import eventsApi from '@/services/eventsApi';
 import { attendanceApi, type EventZone } from '@/services/eventModulesApi';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 type ZoneStatus = 'critical' | 'high' | 'optimal' | 'low';
 
@@ -41,6 +46,7 @@ export const ZoneMonitor = () => {
   const [zones, setZones] = useState<EventZone[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!eventId) return;
@@ -60,14 +66,119 @@ export const ZoneMonitor = () => {
     }
   }, [eventId]);
 
+  // Initial load
   useEffect(() => {
     if (!eventId) return;
     void loadData();
-    const timer = window.setInterval(() => {
-      void loadData();
-    }, 30000);
-    return () => window.clearInterval(timer);
   }, [eventId, loadData]);
+
+  // Supabase Realtime subscriptions
+  useEffect(() => {
+    if (!eventId) return;
+
+    const channel = supabase
+      .channel(`zone-monitor-${eventId}`)
+      // Listen for zone changes (INSERT/UPDATE/DELETE on event_zones)
+      .on(
+        'postgres_changes' as any,
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_zones',
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload: any) => {
+          const { eventType, new: newRow, old: oldRow } = payload;
+
+          if (eventType === 'INSERT') {
+            setZones((prev) => [...prev, newRow as EventZone]);
+          } else if (eventType === 'UPDATE') {
+            setZones((prev) =>
+              prev.map((z) => (z.id === newRow.id ? { ...z, ...newRow } : z))
+            );
+          } else if (eventType === 'DELETE') {
+            setZones((prev) => prev.filter((z) => z.id !== oldRow.id));
+          }
+        }
+      )
+      // Listen for attendance changes (INSERT/UPDATE on event_attendance)
+      .on(
+        'postgres_changes' as any,
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'event_attendance',
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload: any) => {
+          const row = payload.new;
+          let parsedNotes: any = null;
+          if (row.notes) {
+            try { parsedNotes = JSON.parse(row.notes); } catch { /* ignore */ }
+          }
+          const isCheckout = row.status === 'checked_out';
+          const normalized = {
+            ...row,
+            type: isCheckout ? 'out' : 'in',
+            method: parsedNotes?.method || 'MANUAL',
+            timestamp: isCheckout && row.checked_out_at ? row.checked_out_at : row.checked_in_at,
+            zone_id: parsedNotes?.zone_label || row.zone_id || 'Unknown Zone',
+            metadata: parsedNotes?.metadata || null,
+          };
+          setLogs((prev) => [normalized, ...prev]);
+
+          // Update zone occupancy locally
+          if (row.zone_id) {
+            setZones((prev) =>
+              prev.map((z) => {
+                if (z.id !== row.zone_id) return z;
+                const delta = isCheckout ? -1 : 1;
+                return {
+                  ...z,
+                  current_occupancy: Math.max(0, (z.current_occupancy ?? 0) + delta),
+                };
+              })
+            );
+          }
+        }
+      )
+      .on(
+        'postgres_changes' as any,
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'event_attendance',
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload: any) => {
+          const row = payload.new;
+          const oldRow = payload.old;
+          // Handle checkout updates
+          if (row.status === 'checked_out' && oldRow?.status !== 'checked_out' && row.zone_id) {
+            setZones((prev) =>
+              prev.map((z) => {
+                if (z.id !== row.zone_id) return z;
+                return {
+                  ...z,
+                  current_occupancy: Math.max(0, (z.current_occupancy ?? 0) - 1),
+                };
+              })
+            );
+          }
+        }
+      )
+      .subscribe((status: string) => {
+        setRealtimeConnected(status === 'SUBSCRIBED');
+        if (status === 'SUBSCRIBED') {
+          toast.success('Zone Monitor connected to live updates', { duration: 2000 });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+      setRealtimeConnected(false);
+    };
+  }, [eventId]);
 
   const zonesByLogDelta = useMemo(() => {
     const byZone = new Map<string, number>();
@@ -143,7 +254,7 @@ export const ZoneMonitor = () => {
           <Users className="absolute -right-8 -bottom-8 h-40 w-40 md:h-48 md:w-48 text-white opacity-5 group-hover:scale-110 transition-transform duration-700" />
         </Card>
 
-        <Card className="h-full p-6 md:p-8 bg-white border border-primary/5 rounded-[32px] shadow-2xl shadow-primary/5 flex flex-col justify-center">
+        <Card className="h-full p-6 md:p-8 bg-background border border-primary/5 rounded-[32px] shadow-2xl shadow-primary/5 flex flex-col justify-center">
           <div className="flex items-center gap-4 mb-4">
             <div className="h-12 w-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
               <AlertTriangle className="h-6 w-6 text-amber-500" />
@@ -168,7 +279,7 @@ export const ZoneMonitor = () => {
           </p>
         </Card>
 
-        <Card className="h-full p-6 md:p-8 bg-white border border-primary/5 rounded-[32px] shadow-2xl shadow-primary/5">
+        <Card className="h-full p-6 md:p-8 bg-background border border-primary/5 rounded-[32px] shadow-2xl shadow-primary/5">
           <div className="flex items-center justify-between mb-6">
             <h5 className="font-serif font-black">Flow Velocity</h5>
             <Activity className="h-5 w-5 text-primary animate-pulse" />
@@ -186,7 +297,25 @@ export const ZoneMonitor = () => {
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <h4 className="font-serif font-black text-lg">Zone Occupancy</h4>
+        <div className="flex items-center gap-3">
+          <h4 className="font-serif font-black text-lg">Zone Occupancy</h4>
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-[8px] font-black uppercase tracking-widest py-0.5 px-2 border-none',
+              realtimeConnected
+                ? 'bg-emerald-500/10 text-emerald-600'
+                : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {realtimeConnected ? (
+              <Wifi className="h-3 w-3 mr-1" />
+            ) : (
+              <WifiOff className="h-3 w-3 mr-1" />
+            )}
+            {realtimeConnected ? 'LIVE' : 'POLLING'}
+          </Badge>
+        </div>
         <Button
           type="button"
           variant="outline"
@@ -203,7 +332,7 @@ export const ZoneMonitor = () => {
         {zoneViews.map((zone) => (
           <Card
             key={zone.id}
-            className="h-full bg-white rounded-[28px] border-none shadow-xl shadow-primary/5 overflow-hidden flex flex-col group hover:shadow-2xl transition-all duration-500"
+            className="h-full bg-background rounded-[28px] border-none shadow-xl shadow-primary/5 overflow-hidden flex flex-col group hover:shadow-2xl transition-all duration-500"
           >
             <div className="p-5 md:p-6 pb-4">
               <div className="flex items-center justify-between mb-5">
@@ -211,7 +340,7 @@ export const ZoneMonitor = () => {
                   className={cn(
                     'h-10 w-10 rounded-xl flex items-center justify-center transition-all',
                     zone.status === 'critical'
-                      ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                      ? 'bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20'
                       : zone.status === 'high'
                         ? 'bg-amber-500/15 text-amber-600'
                         : 'bg-muted text-primary'
@@ -239,7 +368,7 @@ export const ZoneMonitor = () => {
                     className={cn(
                       'text-xs font-black',
                       zone.status === 'critical'
-                        ? 'text-red-500'
+                        ? 'text-destructive'
                         : zone.status === 'high'
                           ? 'text-amber-500'
                           : 'text-primary'
@@ -253,7 +382,7 @@ export const ZoneMonitor = () => {
                   className={cn(
                     'h-1.5',
                     zone.status === 'critical'
-                      ? 'bg-red-500/10'
+                      ? 'bg-destructive/10'
                       : zone.status === 'high'
                         ? 'bg-amber-500/10'
                         : 'bg-primary/10'
