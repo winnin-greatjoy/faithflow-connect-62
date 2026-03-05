@@ -155,7 +155,7 @@ vi.mock('@/components/admin/superadmin/SuperadminTransferManagement', () => ({
 }));
 
 vi.mock('@/components/ministry/MensMinistryDashboard', () => ({
-  default: (props: unknown) => mockMensDashboard(props),
+  default: () => mockMensDashboard(),
 }));
 
 vi.mock('@/components/ministry/WomensMinistryDashboard', () => ({

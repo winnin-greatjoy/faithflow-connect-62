@@ -208,7 +208,7 @@ export const GrowthPathwaysModule = () => {
                   variant="ghost"
                   size="icon"
                   disabled={actionsDisabled}
-                  onClick={() => guardAction(`Opened milestone: ${milestone.name}`)}
+                  onClick={() => ensureActionAllowed() && toast.info(`Opened milestone: ${milestone.name}`)}
                   className="opacity-0 group-hover:opacity-100"
                 >
                   <ChevronRight className="h-4 w-4" />
