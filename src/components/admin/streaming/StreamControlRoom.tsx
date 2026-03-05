@@ -184,7 +184,7 @@ export default function StreamControlRoom({ streamId }: Props) {
   }
 
   async function handleDeleteQA(qaId: string) {
-    const { error } = await supabase.from('stream_qa').delete().eq('id', qaId);
+    const { error } = await supabase.from('stream_qa' as any).delete().eq('id', qaId);
     if (error) toast.error(error.message);
     else setQuestions((prev) => prev.filter((q) => q.id !== qaId));
   }

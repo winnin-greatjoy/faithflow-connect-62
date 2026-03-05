@@ -192,7 +192,7 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({
     <div className="h-full w-full relative bg-white dark:bg-slate-950">
       <Suspense fallback={<Skeleton className="w-full h-full" />}>
         <FullCalendar
-          ref={calendarRef}
+          {...{ ref: calendarRef } as any}
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView={view}
           headerToolbar={false} // Custom header

@@ -341,7 +341,7 @@ export const EventRegistrationForm: React.FC<EventRegistrationFormProps> = ({
             : `You've been registered for ${eventTitle}`,
       });
 
-      if (onSuccess && (data as any)?.status === 'confirmed') onSuccess();
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Registration error:', err);
       toast({
