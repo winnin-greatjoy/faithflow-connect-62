@@ -305,7 +305,7 @@ export const HealthcareManagerModule = () => {
           >
             <AlertTriangle className="h-4 w-4 mr-2" /> Global Alert
           </Button>
-          <div className="flex bg-muted/30 p-1 rounded-xl">
+          <div className="flex flex-wrap bg-muted/30 p-1 rounded-xl">
             {['incidents', 'first-aid', 'schedule'].map((tab) => (
               <button
                 key={tab}

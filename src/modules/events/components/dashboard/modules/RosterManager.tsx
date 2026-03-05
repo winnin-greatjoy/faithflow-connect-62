@@ -100,7 +100,7 @@ export const RosterManagerModule = () => {
     [can, hasRole]
   );
   const hasEventContext = Boolean(eventId);
-  const actionsDisabled = authzLoading || !canManageRoster;
+  const actionsDisabled = authzLoading || !canManageRoster || !hasEventContext;
   const exportDisabled = actionsDisabled || !hasEventContext || shiftsData.length === 0;
 
   const { members, loading: membersLoading } = useMembers({
@@ -174,6 +174,10 @@ export const RosterManagerModule = () => {
 
   const handleAddShift = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Roster Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to create shifts.');
       return;
@@ -197,6 +201,10 @@ export const RosterManagerModule = () => {
   };
 
   const handleAssignStaff = async (memberId: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Roster Manager from an event dashboard.');
+      return;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to assign staff.');
       return;
@@ -211,6 +219,10 @@ export const RosterManagerModule = () => {
   };
 
   const openAssignDialog = (shiftId: string) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Roster Manager from an event dashboard.');
+      return false;
+    }
     if (actionsDisabled) {
       toast.error('You do not have permission to manage assignments.');
       return false;
@@ -220,6 +232,10 @@ export const RosterManagerModule = () => {
   };
 
   const handleDeleteShift = async (shift: ShiftWithAssignments) => {
+    if (!hasEventContext) {
+      toast.error('Missing event context. Open Roster Manager from an event dashboard.');
+      return;
+    }
     if (authzLoading || !canDeleteRoster) {
       toast.error('You do not have permission to delete shifts.');
       return;

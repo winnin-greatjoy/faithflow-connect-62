@@ -270,6 +270,39 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /fill slot/i })).toBeDisabled();
   });
 
+  it('disables roster actions when event context is missing', () => {
+    mockUseParams.mockReturnValue({});
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => true,
+      can: () => true,
+      loading: false,
+    });
+    mockUseEventShifts.mockReturnValue({
+      data: [
+        {
+          id: 'shift-1',
+          event_id: 'event-1',
+          role: 'Security',
+          department: 'Gate A',
+          start_time: '2026-02-25T09:00:00.000Z',
+          end_time: '2026-02-25T11:00:00.000Z',
+          max_volunteers: 2,
+          notes: 'Main Entrance',
+          assignments: [],
+        },
+      ],
+      isLoading: false,
+    });
+    mockUseMembers.mockReturnValue({ members: [], loading: false });
+
+    render(<RosterManagerModule />);
+
+    expect(screen.getByRole('button', { name: /add shift/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /export schedule/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /manage/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /fill slot/i })).toBeDisabled();
+  });
+
   it('disables registration create/export controls for unauthorized users', async () => {
     render(<RegistrationManagerModule eventId="event-1" eventTitle="Sunday Service" />);
 

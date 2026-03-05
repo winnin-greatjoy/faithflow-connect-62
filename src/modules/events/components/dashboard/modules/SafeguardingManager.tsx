@@ -185,7 +185,7 @@ export const SafeguardingManagerModule = () => {
             Compliance & Vetting Management
           </p>
         </div>
-        <div className="flex bg-muted/30 p-1 rounded-xl">
+        <div className="flex flex-wrap bg-muted/30 p-1 rounded-xl">
           {['compliance', 'reports', 'settings'].map((tab) => (
             <button
               key={tab}

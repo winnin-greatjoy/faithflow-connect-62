@@ -204,7 +204,7 @@ export const ChildSafetyManagerModule = () => {
             Guardian Check-in & Security
           </p>
         </div>
-        <div className="flex bg-muted/30 p-1 rounded-xl">
+        <div className="flex flex-wrap bg-muted/30 p-1 rounded-xl">
           {['active', 'history', 'kiosk-mode'].map((tab) => (
             <button
               key={tab}
