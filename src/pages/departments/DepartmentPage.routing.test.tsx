@@ -42,7 +42,7 @@ const mockTaskBoard = vi.fn(
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
-    from: (...args: [string]) => mockFrom(...args),
+    from: (table: string) => mockFrom(table),
   },
 }));
 
