@@ -128,11 +128,12 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
 
   const handleDispatch = () => {
     void guardAction(
-      () =>
+      () => {
         toast.success('Medical Dispatch Activated', {
           description: 'Emergency response team has been notified and is en route to Sanctuary.',
           icon: <Stethoscope className="h-4 w-4 text-emerald-500" />,
-        }),
+        });
+      },
       'You do not have permission to dispatch emergency teams.'
     );
   };

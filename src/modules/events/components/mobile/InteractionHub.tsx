@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ThumbsUp, MessageSquare, BarChart2, Send, CheckCircle2 } from 'lucide-react';
+import { ThumbsUp, MessageSquare, BarChart2, Send, CheckCircle2, Radio } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { streamingApi, type StreamQA, type StreamPoll } from '@/services/streaming/streamingApi';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Props {

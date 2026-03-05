@@ -685,7 +685,7 @@ export const CheckInConsole = () => {
                     </div>
                   </div>
 
-                  <div className="grid flex-1 grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6">
+                  <div className="grid flex-1 grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="flex flex-col gap-4">
                       <div className="rounded-2xl border border-white/15 bg-white/5 p-4 space-y-3">
                         <div className="flex items-center justify-between gap-2">

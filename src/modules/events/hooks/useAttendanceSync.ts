@@ -11,6 +11,7 @@ interface PendingRecord {
     type: 'in' | 'out';
     method: 'QR' | 'NFC' | 'MANUAL' | 'ID-SCAN';
     timestamp: string;
+    metadata?: Record<string, unknown>;
   };
   attempts: number;
 }
