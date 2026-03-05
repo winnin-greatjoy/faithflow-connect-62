@@ -58,6 +58,7 @@ const mockUseToast = vi.fn();
 const mockGetEventRegistrations = vi.fn();
 const mockUpdateRegistrationStatus = vi.fn();
 const mockDeleteRegistration = vi.fn();
+const mockAttendanceApiGetAttendance = vi.fn();
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -129,6 +130,12 @@ vi.mock('@/services/registrationsApi', () => ({
     getEventRegistrations: (...args: unknown[]) => mockGetEventRegistrations(...args),
     updateRegistrationStatus: (...args: unknown[]) => mockUpdateRegistrationStatus(...args),
     deleteRegistration: (...args: unknown[]) => mockDeleteRegistration(...args),
+  },
+}));
+
+vi.mock('@/services/eventModulesApi', () => ({
+  attendanceApi: {
+    getAttendance: (...args: unknown[]) => mockAttendanceApiGetAttendance(...args),
   },
 }));
 
@@ -216,6 +223,7 @@ describe('Event Modules Permission Guarding', () => {
     });
     mockUpdateRegistrationStatus.mockResolvedValue({ error: null });
     mockDeleteRegistration.mockResolvedValue({ error: null });
+    mockAttendanceApiGetAttendance.mockResolvedValue([]);
   });
 
   it('disables queue management controls for unauthorized users', () => {
@@ -770,6 +778,30 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /log incident/i })).toBeDisabled();
   });
 
+  it('allows authorized users to log healthcare incidents', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    render(<HealthcareManagerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /log incident/i }));
+    fireEvent.change(screen.getByLabelText(/incident location/i), {
+      target: { value: 'Prayer Hall' },
+    });
+    fireEvent.change(screen.getByLabelText(/incident description/i), {
+      target: { value: 'Member reported chest discomfort.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save incident/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/member reported chest discomfort/i)).toBeInTheDocument()
+    );
+    expect(mockToastSuccess).toHaveBeenCalledWith('Incident logged successfully');
+  });
+
   it('disables healthcare actions when event context is missing', () => {
     mockUseParams.mockReturnValue({});
     mockUseAuthz.mockReturnValue({
@@ -793,6 +825,43 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /new check-in/i })).toBeDisabled();
   });
 
+  it('allows authorized users to create child check-ins', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    render(<ChildSafetyManagerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /new check-in/i }));
+
+    fireEvent.change(screen.getByLabelText(/child name/i), {
+      target: { value: 'Daniel Mensah' },
+    });
+    fireEvent.change(screen.getByLabelText(/^age$/i), {
+      target: { value: '7' },
+    });
+    fireEvent.change(screen.getByLabelText(/parent name/i), {
+      target: { value: 'Grace Mensah' },
+    });
+    fireEvent.change(screen.getByLabelText(/parent phone/i), {
+      target: { value: '0550001111' },
+    });
+    fireEvent.change(screen.getByLabelText(/location/i), {
+      target: { value: 'Kings Kids' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create check-in/i }));
+
+    await waitFor(() => expect(screen.getByText('Daniel Mensah')).toBeInTheDocument());
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      'Child checked in successfully',
+      expect.objectContaining({
+        description: expect.stringMatching(/^Pickup code: \d{4}$/),
+      })
+    );
+  });
+
   it('disables child safety actions when event context is missing', () => {
     mockUseParams.mockReturnValue({});
     mockUseAuthz.mockReturnValue({
@@ -812,6 +881,31 @@ describe('Event Modules Permission Guarding', () => {
     render(<SafeguardingManagerModule />);
 
     expect(screen.getByRole('button', { name: /new check/i })).toBeDisabled();
+  });
+
+  it('allows authorized users to create safeguarding checks', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    render(<SafeguardingManagerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /new check/i }));
+    fireEvent.change(screen.getByLabelText(/staff name/i), {
+      target: { value: 'Grace Ofori' },
+    });
+    fireEvent.change(screen.getByLabelText(/check type/i), {
+      target: { value: 'Training' },
+    });
+    fireEvent.change(screen.getByLabelText(/initial status/i), {
+      target: { value: 'cleared' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save check/i }));
+
+    await waitFor(() => expect(screen.getByText('Grace Ofori')).toBeInTheDocument());
+    expect(mockToastSuccess).toHaveBeenCalledWith('Safeguarding check created successfully');
   });
 
   it('disables safeguarding actions when event context is missing', () => {
@@ -838,6 +932,34 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /view register/i })).toBeDisabled();
   });
 
+  it('allows authorized users to add manual giving entries', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    render(<GivingManagerModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /manual entry/i }));
+    fireEvent.change(screen.getByLabelText(/donor name/i), {
+      target: { value: 'Martha Doe' },
+    });
+    fireEvent.change(screen.getByLabelText(/^amount$/i), {
+      target: { value: '320' },
+    });
+    fireEvent.change(screen.getByLabelText(/campaign/i), {
+      target: { value: 'Offering' },
+    });
+    fireEvent.change(screen.getByLabelText(/method/i), {
+      target: { value: 'card' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save entry/i }));
+
+    await waitFor(() => expect(screen.getByText('Martha Doe')).toBeInTheDocument());
+    expect(mockToastSuccess).toHaveBeenCalledWith('Manual giving entry added');
+  });
+
   it('disables giving actions when event context is missing', () => {
     mockUseParams.mockReturnValue({});
     mockUseAuthz.mockReturnValue({
@@ -857,6 +979,31 @@ describe('Event Modules Permission Guarding', () => {
     render(<FinanceReportingModule />);
 
     expect(screen.getByRole('button', { name: /export/i })).toBeDisabled();
+  });
+
+  it('exports finance report for authorized users', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:finance');
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<FinanceReportingModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
+
+    await waitFor(() => expect(createObjectUrlSpy).toHaveBeenCalledTimes(1));
+    expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:finance');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(mockToastSuccess).toHaveBeenCalledWith('Finance report export started');
+
+    clickSpy.mockRestore();
+    createObjectUrlSpy.mockRestore();
+    revokeObjectUrlSpy.mockRestore();
   });
 
   it('disables finance reporting actions when event context is missing', () => {
@@ -880,6 +1027,32 @@ describe('Event Modules Permission Guarding', () => {
     screen.getAllByRole('button', { name: /pray now/i }).forEach((button) => {
       expect(button).toBeDisabled();
     });
+  });
+
+  it('allows authorized users to post prayer requests', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    render(<PrayerManagerModule />);
+
+    fireEvent.change(screen.getByLabelText(/prayer request message/i), {
+      target: { value: 'Please pray for my family this week.' },
+    });
+    fireEvent.change(screen.getByLabelText(/requestor name/i), {
+      target: { value: 'Nana K.' },
+    });
+    fireEvent.change(screen.getByLabelText(/request category/i), {
+      target: { value: 'family' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /post request/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/please pray for my family this week/i)).toBeInTheDocument()
+    );
+    expect(mockToastSuccess).toHaveBeenCalledWith('Prayer request posted');
   });
 
   it('disables prayer manager actions when event context is missing', () => {
@@ -920,6 +1093,48 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /kiosk mode/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /dispatch/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /export attendance/i })).toBeDisabled();
+  });
+
+  it('exports attendance records for authorized users', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+    mockAttendanceApiGetAttendance.mockResolvedValue([
+      {
+        member: { full_name: 'John Doe' },
+        member_id: 'member-1',
+        zone: { name: 'Main Hall' },
+        status: 'checked_in',
+        checked_in_at: '2026-03-01T09:10:00.000Z',
+        checked_out_at: null,
+        notes: 'On time',
+      },
+    ]);
+
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:attendance');
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<AttendanceManagerModule event={{ id: 'event-1', title: 'Sunday Service' }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /export attendance/i }));
+
+    await waitFor(() => expect(mockAttendanceApiGetAttendance).toHaveBeenCalledWith('event-1'));
+    expect(createObjectUrlSpy).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:attendance');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      'Attendance export started',
+      expect.objectContaining({
+        description: '1 record(s) downloaded.',
+      })
+    );
+
+    clickSpy.mockRestore();
+    createObjectUrlSpy.mockRestore();
+    revokeObjectUrlSpy.mockRestore();
   });
 
   it('disables asset manager action controls for unauthorized users', () => {

@@ -1,22 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import {
-  BarChart3,
-  PieChart,
-  TrendingUp,
-  Download,
-  Calendar,
-  Filter,
-  FileText,
-  ArrowRight,
-  DollarSign,
-} from 'lucide-react';
+import { PieChart, TrendingUp, Download } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { BudgetCategory, FinancialSummary } from '@/modules/events/types/finance';
+import { BudgetCategory } from '@/modules/events/types/finance';
 import { toast } from 'sonner';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useParams } from 'react-router-dom';
@@ -60,6 +49,7 @@ const MOCK_BUDGET: BudgetCategory[] = [
 export const FinanceReportingModule = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [activeTab, setActiveTab] = useState('budget');
+  const [budgetItems] = useState<BudgetCategory[]>(MOCK_BUDGET);
   const { hasRole, can, loading: authzLoading } = useAuthz();
   const hasEventContext = Boolean(eventId);
   const canManageFinance = useMemo(
@@ -71,6 +61,21 @@ export const FinanceReportingModule = () => {
   );
   const actionsDisabled = authzLoading || !canManageFinance || !hasEventContext;
 
+  const totalAllocated = useMemo(
+    () => budgetItems.reduce((sum, item) => sum + item.allocated, 0),
+    [budgetItems]
+  );
+  const totalSpent = useMemo(
+    () => budgetItems.reduce((sum, item) => sum + item.spent, 0),
+    [budgetItems]
+  );
+  const totalRemaining = useMemo(
+    () => budgetItems.reduce((sum, item) => sum + item.remaining, 0),
+    [budgetItems]
+  );
+
+  const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
   const handleExport = () => {
     if (!hasEventContext) {
       toast.error('Missing event context. Open Finance Reporting from an event dashboard.');
@@ -80,13 +85,45 @@ export const FinanceReportingModule = () => {
       toast.error('You do not have permission to export finance reports.');
       return;
     }
-    toast.success('Finance report export coming soon');
+
+    const headers = ['Category', 'Allocated', 'Spent', 'Remaining', 'Status'];
+    const rows = budgetItems.map((item) => [
+      item.name,
+      item.allocated,
+      item.spent,
+      item.remaining,
+      item.status,
+    ]);
+
+    const csv = [
+      ['Event ID', eventId || 'unknown'],
+      ['Total Allocated', totalAllocated],
+      ['Total Spent', totalSpent],
+      ['Total Remaining', totalRemaining],
+      [],
+      headers,
+      ...rows,
+    ]
+      .map((row) => row.map(escapeCsv).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `finance-report-${eventId || 'unknown'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success('Finance report export started');
   };
 
   const BudgetView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {MOCK_BUDGET.map((item, i) => {
+        {budgetItems.map((item) => {
           const progress = (item.spent / item.allocated) * 100;
           return (
             <Card

@@ -23,6 +23,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useParams } from 'react-router-dom';
+import { attendanceApi } from '@/services/eventModulesApi';
+
+const sanitizeFileName = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
 export const AttendanceManagerModule = ({ event }: { event?: any }) => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -40,7 +49,9 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
   );
   const actionsDisabled = authzLoading || !canManageAttendance || !hasEventContext;
 
-  const guardAction = (action: () => void, deniedMessage: string) => {
+  const activeEventId = event?.id || eventId;
+
+  const guardAction = async (action: () => void | Promise<void>, deniedMessage: string) => {
     if (!hasEventContext) {
       toast.error('Missing event context. Open this module from an event dashboard.');
       return;
@@ -49,20 +60,74 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
       toast.error(deniedMessage);
       return;
     }
-    action();
+    await action();
   };
 
-  const handleOpenKiosk = () =>
-    guardAction(() => setActiveKiosk(true), 'You do not have permission to open kiosk mode.');
+  const handleOpenKiosk = () => {
+    void guardAction(() => setActiveKiosk(true), 'You do not have permission to open kiosk mode.');
+  };
 
-  const handleExportAttendance = () =>
-    guardAction(
-      () => toast.success('Attendance export flow coming soon'),
-      'You do not have permission to export attendance.'
-    );
+  const handleExportAttendance = () => {
+    void guardAction(async () => {
+      if (!activeEventId) {
+        toast.error('Missing event context. Open this module from an event dashboard.');
+        return;
+      }
+
+      try {
+        const records = await attendanceApi.getAttendance(activeEventId);
+        if (!records || records.length === 0) {
+          toast.info('No attendance records available to export yet.');
+          return;
+        }
+
+        const headers = [
+          'Name',
+          'Member ID',
+          'Zone',
+          'Status',
+          'Checked In At',
+          'Checked Out At',
+          'Notes',
+        ];
+
+        const rows = records.map((record: any) => [
+          record.member?.full_name || 'Guest',
+          record.member_id || '',
+          record.zone?.name || '',
+          record.status || '',
+          record.checked_in_at ? new Date(record.checked_in_at).toLocaleString() : '',
+          record.checked_out_at ? new Date(record.checked_out_at).toLocaleString() : '',
+          record.notes || '',
+        ]);
+
+        const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const fileNameBase = sanitizeFileName(event?.title || selectedSession || 'attendance');
+        const fileName = `${fileNameBase || 'attendance'}-${activeEventId}.csv`;
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast.success('Attendance export started', {
+          description: `${records.length} record(s) downloaded.`,
+        });
+      } catch (error: any) {
+        toast.error('Failed to export attendance', {
+          description: error?.message || 'Please try again.',
+        });
+      }
+    }, 'You do not have permission to export attendance.');
+  };
 
   const handleDispatch = () => {
-    guardAction(
+    void guardAction(
       () =>
         toast.success('Medical Dispatch Activated', {
           description: 'Emergency response team has been notified and is en route to Sanctuary.',

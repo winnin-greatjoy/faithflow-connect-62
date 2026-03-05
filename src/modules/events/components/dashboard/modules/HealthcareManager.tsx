@@ -1,17 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Stethoscope,
   AlertTriangle,
-  Plus,
   Activity,
-  MapPin,
   Package,
-  Shield,
-  FileText,
   UserCheck,
   Search,
   Filter,
-  ChevronDown,
   MoreHorizontal,
   HeartPulse,
 } from 'lucide-react';
@@ -21,7 +15,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { IncidentReport } from '@/modules/events/types/safety';
 import { useAuthz } from '@/hooks/useAuthz';
@@ -82,6 +84,16 @@ const MOCK_INCIDENTS: IncidentReport[] = [
 export const HealthcareManagerModule = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [activeTab, setActiveTab] = useState('incidents');
+  const [incidents, setIncidents] = useState<IncidentReport[]>(MOCK_INCIDENTS);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showIncidentDialog, setShowIncidentDialog] = useState(false);
+  const [incidentForm, setIncidentForm] = useState({
+    type: 'medical' as IncidentReport['type'],
+    severity: 'low' as IncidentReport['severity'],
+    location: '',
+    affectedPerson: '',
+    description: '',
+  });
   const { hasRole, can, loading: authzLoading } = useAuthz();
   const hasEventContext = Boolean(eventId);
   const canManageHealthcare = useMemo(
@@ -93,13 +105,30 @@ export const HealthcareManagerModule = () => {
   );
   const actionsDisabled = authzLoading || !canManageHealthcare || !hasEventContext;
 
-  const handleTriggerAlert = () => {
+  const ensureActionAllowed = (deniedMessage: string) => {
     if (!hasEventContext) {
       toast.error('Missing event context. Open Healthcare Manager from an event dashboard.');
-      return;
+      return false;
     }
     if (actionsDisabled) {
-      toast.error('You do not have permission to trigger medical alerts.');
+      toast.error(deniedMessage);
+      return false;
+    }
+    return true;
+  };
+
+  const resetIncidentForm = () => {
+    setIncidentForm({
+      type: 'medical',
+      severity: 'low',
+      location: '',
+      affectedPerson: '',
+      description: '',
+    });
+  };
+
+  const handleTriggerAlert = () => {
+    if (!ensureActionAllowed('You do not have permission to trigger medical alerts.')) {
       return;
     }
     toast.error('Global Medical Alert Triggered', {
@@ -109,16 +138,56 @@ export const HealthcareManagerModule = () => {
   };
 
   const handleLogIncident = () => {
-    if (!hasEventContext) {
-      toast.error('Missing event context. Open Healthcare Manager from an event dashboard.');
+    if (!ensureActionAllowed('You do not have permission to log incidents.')) {
       return;
     }
-    if (actionsDisabled) {
-      toast.error('You do not have permission to log incidents.');
-      return;
-    }
-    toast.success('Incident logging flow coming soon');
+    setShowIncidentDialog(true);
   };
+
+  const handleCreateIncident = () => {
+    if (!ensureActionAllowed('You do not have permission to log incidents.')) {
+      return;
+    }
+
+    if (!incidentForm.location.trim() || !incidentForm.description.trim()) {
+      toast.error('Location and incident description are required.');
+      return;
+    }
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const newIncident: IncidentReport = {
+      id: `incident-${Date.now()}`,
+      eventId: eventId || 'unknown-event',
+      type: incidentForm.type,
+      severity: incidentForm.severity,
+      description: incidentForm.description.trim(),
+      affectedPerson: incidentForm.affectedPerson.trim() || undefined,
+      location: incidentForm.location.trim(),
+      status: 'open',
+      reportedBy: 'current-user',
+      timestamp,
+    };
+
+    setIncidents((prev) => [newIncident, ...prev]);
+    setShowIncidentDialog(false);
+    resetIncidentForm();
+    toast.success('Incident logged successfully');
+  };
+
+  const filteredIncidents = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return incidents;
+
+    return incidents.filter((incident) =>
+      [incident.type, incident.affectedPerson, incident.location, incident.description]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(query))
+    );
+  }, [incidents, searchQuery]);
+
+  const activeIncidentsCount = incidents.filter(
+    (incident) => incident.status === 'open' || incident.status === 'investigating'
+  ).length;
 
   const IncidentsView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -126,6 +195,8 @@ export const HealthcareManagerModule = () => {
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-40" />
           <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search incidents by type, patient, or location..."
             className="pl-12 h-12 rounded-2xl border-primary/5 bg-white shadow-sm font-medium"
           />
@@ -148,7 +219,7 @@ export const HealthcareManagerModule = () => {
       </div>
 
       <div className="space-y-4">
-        {MOCK_INCIDENTS.map((incident, i) => (
+        {filteredIncidents.map((incident) => (
           <div
             key={incident.id}
             className="flex flex-col md:flex-row md:items-center justify-between p-5 rounded-3xl border border-primary/5 hover:border-primary/20 transition-all bg-white shadow-sm group"
@@ -331,7 +402,7 @@ export const HealthcareManagerModule = () => {
         {[
           {
             label: 'Active Incidents',
-            value: '2',
+            value: String(activeIncidentsCount),
             icon: AlertTriangle,
             color: 'text-red-500',
             bg: 'bg-red-500/10',
@@ -385,6 +456,103 @@ export const HealthcareManagerModule = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={showIncidentDialog} onOpenChange={setShowIncidentDialog}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Log New Incident</DialogTitle>
+            <DialogDescription>
+              Record medical incidents so response and follow-up stay auditable.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 py-2">
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Type
+              </label>
+              <select
+                aria-label="Incident type"
+                value={incidentForm.type}
+                onChange={(event) =>
+                  setIncidentForm((prev) => ({
+                    ...prev,
+                    type: event.target.value as IncidentReport['type'],
+                  }))
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="medical">Medical</option>
+                <option value="injury">Injury</option>
+                <option value="security">Security</option>
+                <option value="lost_child">Lost Child</option>
+                <option value="facility">Facility</option>
+                <option value="fire">Fire</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Severity
+              </label>
+              <select
+                aria-label="Incident severity"
+                value={incidentForm.severity}
+                onChange={(event) =>
+                  setIncidentForm((prev) => ({
+                    ...prev,
+                    severity: event.target.value as IncidentReport['severity'],
+                  }))
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <Input
+              aria-label="Incident location"
+              placeholder="Location"
+              value={incidentForm.location}
+              onChange={(event) =>
+                setIncidentForm((prev) => ({ ...prev, location: event.target.value }))
+              }
+            />
+            <Input
+              aria-label="Affected person"
+              placeholder="Affected person (optional)"
+              value={incidentForm.affectedPerson}
+              onChange={(event) =>
+                setIncidentForm((prev) => ({ ...prev, affectedPerson: event.target.value }))
+              }
+            />
+          </div>
+
+          <Textarea
+            aria-label="Incident description"
+            placeholder="Describe what happened..."
+            value={incidentForm.description}
+            onChange={(event) =>
+              setIncidentForm((prev) => ({ ...prev, description: event.target.value }))
+            }
+          />
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowIncidentDialog(false);
+                resetIncidentForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateIncident}>Save Incident</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
