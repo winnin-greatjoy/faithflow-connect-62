@@ -2,20 +2,26 @@ import React, { useMemo, useState } from 'react';
 import {
   Target,
   Users,
-  MapPin,
   CheckCircle2,
   Star,
   Timer,
   ChevronRight,
   GraduationCap,
   ArrowUpRight,
-  Filter,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { Milestone } from '@/modules/events/types/engagement';
 import { toast } from 'sonner';
@@ -58,9 +64,29 @@ const MOCK_MILESTONES: Milestone[] = [
   },
 ];
 
+type EnrollmentStatus = 'active' | 'graduated' | 'at_risk';
+type Enrollment = {
+  id: string;
+  memberName: string;
+  milestoneId: string;
+  status: EnrollmentStatus;
+};
+
+const MOCK_ENROLLMENTS: Enrollment[] = [
+  { id: 'e1', memberName: 'Amina K.', milestoneId: 'm1', status: 'active' },
+  { id: 'e2', memberName: 'Kwesi T.', milestoneId: 'm2', status: 'at_risk' },
+  { id: 'e3', memberName: 'Isaac B.', milestoneId: 'm3', status: 'graduated' },
+];
+
 export const GrowthPathwaysModule = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [activeTab, setActiveTab] = useState('overview');
+  const [enrollments, setEnrollments] = useState<Enrollment[]>(MOCK_ENROLLMENTS);
+  const [showEnrollmentDialog, setShowEnrollmentDialog] = useState(false);
+  const [enrollmentForm, setEnrollmentForm] = useState({
+    memberName: '',
+    milestoneId: MOCK_MILESTONES[0]?.id || '',
+  });
   const { hasRole, can, loading: authzLoading } = useAuthz();
   const hasEventContext = Boolean(eventId);
   const canManageGrowth = useMemo(
@@ -72,17 +98,49 @@ export const GrowthPathwaysModule = () => {
   );
   const actionsDisabled = authzLoading || !canManageGrowth || !hasEventContext;
 
-  const guardAction = (message: string) => {
+  const ensureActionAllowed = () => {
     if (!hasEventContext) {
       toast.error('Missing event context. Open Growth Pathways from an event dashboard.');
-      return;
+      return false;
     }
     if (actionsDisabled) {
       toast.error('You do not have permission to manage growth pathways.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleOpenEnrollments = () => {
+    if (!ensureActionAllowed()) return;
+    setShowEnrollmentDialog(true);
+  };
+
+  const handleCreateEnrollment = () => {
+    if (!ensureActionAllowed()) return;
+
+    if (!enrollmentForm.memberName.trim() || !enrollmentForm.milestoneId) {
+      toast.error('Member name and milestone are required.');
       return;
     }
-    toast.success(message);
+
+    const newEnrollment: Enrollment = {
+      id: `enroll-${Date.now()}`,
+      memberName: enrollmentForm.memberName.trim(),
+      milestoneId: enrollmentForm.milestoneId,
+      status: 'active',
+    };
+
+    setEnrollments((prev) => [newEnrollment, ...prev]);
+    setEnrollmentForm((prev) => ({ ...prev, memberName: '' }));
+    setShowEnrollmentDialog(false);
+    toast.success('Enrollment added');
   };
+
+  const totalEnrolled = enrollments.length;
+  const totalGraduated = enrollments.filter((item) => item.status === 'graduated').length;
+  const totalAtRisk = enrollments.filter((item) => item.status === 'at_risk').length;
+  const conversionRate =
+    totalEnrolled > 0 ? `${Math.round((totalGraduated / totalEnrolled) * 100)}%` : '0%';
 
   const FunnelView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -199,10 +257,20 @@ export const GrowthPathwaysModule = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Enrolled', count: 189, icon: Users, color: 'text-primary' },
-          { label: 'Graduated', count: 42, icon: GraduationCap, color: 'text-emerald-500' },
-          { label: 'At Risk', count: 15, icon: Timer, color: 'text-destructive' },
-          { label: 'Conversion Rate', count: '68%', icon: ArrowUpRight, color: 'text-blue-500' },
+          { label: 'Total Enrolled', count: totalEnrolled, icon: Users, color: 'text-primary' },
+          {
+            label: 'Graduated',
+            count: totalGraduated,
+            icon: GraduationCap,
+            color: 'text-emerald-500',
+          },
+          { label: 'At Risk', count: totalAtRisk, icon: Timer, color: 'text-destructive' },
+          {
+            label: 'Conversion Rate',
+            count: conversionRate,
+            icon: ArrowUpRight,
+            color: 'text-blue-500',
+          },
         ].map((stat, i) => (
           <Card
             key={i}
@@ -235,7 +303,7 @@ export const GrowthPathwaysModule = () => {
             <Button
               variant="link"
               disabled={actionsDisabled}
-              onClick={() => guardAction('Enrollment management flow coming soon')}
+              onClick={handleOpenEnrollments}
               className="text-xs"
             >
               Manage Enrollments
@@ -249,6 +317,81 @@ export const GrowthPathwaysModule = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={showEnrollmentDialog} onOpenChange={setShowEnrollmentDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Enrollments</DialogTitle>
+            <DialogDescription>Add members to growth milestones for this event.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <Input
+              aria-label="Member name"
+              placeholder="Member name"
+              value={enrollmentForm.memberName}
+              onChange={(event) =>
+                setEnrollmentForm((prev) => ({ ...prev, memberName: event.target.value }))
+              }
+            />
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Milestone
+              </label>
+              <select
+                aria-label="Milestone"
+                value={enrollmentForm.milestoneId}
+                onChange={(event) =>
+                  setEnrollmentForm((prev) => ({ ...prev, milestoneId: event.target.value }))
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                {MOCK_MILESTONES.map((milestone) => (
+                  <option key={milestone.id} value={milestone.id}>
+                    {milestone.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="border rounded-xl max-h-48 overflow-auto">
+            {enrollments.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground">No enrollments yet.</div>
+            ) : (
+              <ul className="divide-y">
+                {enrollments.map((item) => (
+                  <li key={item.id} className="p-3 flex items-center justify-between text-sm">
+                    <div>
+                      <p className="font-semibold">{item.memberName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {MOCK_MILESTONES.find((m) => m.id === item.milestoneId)?.name ||
+                          'Milestone'}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] uppercase tracking-widest">
+                      {item.status.replace('_', ' ')}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEnrollmentDialog(false);
+                setEnrollmentForm((prev) => ({ ...prev, memberName: '' }));
+              }}
+            >
+              Close
+            </Button>
+            <Button onClick={handleCreateEnrollment}>Add Enrollment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

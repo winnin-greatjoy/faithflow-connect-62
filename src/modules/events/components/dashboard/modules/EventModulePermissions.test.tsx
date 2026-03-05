@@ -1203,6 +1203,29 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /manage enrollments/i })).toBeDisabled();
   });
 
+  it('allows authorized users to add growth pathway enrollments', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    render(<GrowthPathwaysModule />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^members$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /manage enrollments/i }));
+
+    fireEvent.change(screen.getByLabelText(/member name/i), {
+      target: { value: 'Felicia Doe' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add enrollment/i }));
+
+    expect(mockToastSuccess).toHaveBeenCalledWith('Enrollment added');
+
+    fireEvent.click(screen.getByRole('button', { name: /manage enrollments/i }));
+    await waitFor(() => expect(screen.getByText('Felicia Doe')).toBeInTheDocument());
+  });
+
   it('disables growth pathways actions when event context is missing', () => {
     mockUseParams.mockReturnValue({});
     mockUseAuthz.mockReturnValue({
@@ -1225,6 +1248,26 @@ describe('Event Modules Permission Guarding', () => {
     expect(screen.getByRole('button', { name: /emergency broadcast/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /attach file/i })).toBeDisabled();
+  });
+
+  it('allows authorized users to send staff chat messages', async () => {
+    mockUseAuthz.mockReturnValue({
+      hasRole: () => false,
+      can: (moduleSlug: string) => moduleSlug === 'events',
+      loading: false,
+    });
+
+    render(<StaffChatModule />);
+
+    fireEvent.change(screen.getByPlaceholderText(/message team/i), {
+      target: { value: 'Team Alpha, hold position at Gate B.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/team alpha, hold position at gate b/i)).toBeInTheDocument()
+    );
+    expect(mockToastSuccess).toHaveBeenCalledWith('Message dispatched');
   });
 
   it('disables staff chat actions when event context is missing', () => {
