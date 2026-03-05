@@ -9,7 +9,7 @@ const mockToast = vi.fn();
 const mockMaybeSingle = vi.fn();
 const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
 const mockSelect = vi.fn(() => ({ eq: mockEq }));
-const mockFrom = vi.fn(() => ({ select: mockSelect }));
+const mockFrom = vi.fn((_table?: string) => ({ select: mockSelect }));
 
 const mockGenericDashboard = vi.fn(({ departmentId }: { departmentId: string }) => (
   <div>Generic Department Dashboard:{departmentId}</div>
