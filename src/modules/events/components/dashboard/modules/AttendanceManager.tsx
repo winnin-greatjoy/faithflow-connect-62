@@ -254,14 +254,15 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
               <div className="flex items-center gap-1.5">
                 <Button
                   onClick={handleDispatch}
-                  disabled={actionsDisabled}
+                  disabled={authzLoading}
                   className="h-9 px-3 sm:px-4 rounded-full bg-destructive text-white hover:bg-destructive/90 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-destructive/20 border-none transition-all active:scale-95"
                 >
                   Dispatch
                 </Button>
                 <Button
                   variant="ghost"
-                  disabled={actionsDisabled}
+                  onClick={handleDispatch}
+                  disabled={authzLoading}
                   className="h-9 w-9 rounded-full bg-white/50 border border-destructive/10 text-destructive flex items-center justify-center hover:bg-white transition-all"
                 >
                   <Stethoscope className="h-4 w-4" />

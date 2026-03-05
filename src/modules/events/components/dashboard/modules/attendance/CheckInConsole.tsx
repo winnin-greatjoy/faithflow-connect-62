@@ -15,6 +15,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useMembers } from '@/modules/members/hooks/useMembers';
 import { useAttendanceSync } from '@/modules/events/hooks/useAttendanceSync';
 import { PersonDetailDrawer } from './PersonDetailDrawer';
@@ -53,6 +61,12 @@ export const CheckInConsole = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [avgProcessingMs, setAvgProcessingMs] = useState<number | null>(null);
+  const [showManualRegistration, setShowManualRegistration] = useState(false);
+  const [manualRegistrationForm, setManualRegistrationForm] = useState({
+    fullName: '',
+    phone: '',
+  });
+  const [isSavingManualRegistration, setIsSavingManualRegistration] = useState(false);
   const [cameraState, setCameraState] = useState<
     'idle' | 'starting' | 'active' | 'unsupported' | 'error'
   >('idle');
@@ -75,6 +89,8 @@ export const CheckInConsole = () => {
     message: string;
     timestamp: string;
   } | null>(null);
+
+  const hasEventContext = Boolean(eventId);
 
   const { bufferSize, isOnline, isSyncing, recordAttendance } = useAttendanceSync(eventId || '');
 
@@ -446,7 +462,7 @@ export const CheckInConsole = () => {
     if (!eventId || !trimmedName) {
       showScanResult({
         success: false,
-        message: 'Provide a zone name before creating.',
+        message: eventId ? 'Provide a zone name before creating.' : 'Event context missing.',
       });
       return;
     }
@@ -545,6 +561,60 @@ export const CheckInConsole = () => {
     }
   };
 
+  const resetManualRegistration = () => {
+    setManualRegistrationForm({ fullName: '', phone: '' });
+  };
+
+  const handleManualRegistration = async () => {
+    const trimmedName = manualRegistrationForm.fullName.trim();
+    if (!trimmedName) {
+      showScanResult({
+        success: false,
+        message: 'Attendee name is required.',
+      });
+      return;
+    }
+    if (!eventId) {
+      showScanResult({
+        success: false,
+        message: 'Event context missing.',
+      });
+      return;
+    }
+
+    setIsSavingManualRegistration(true);
+    try {
+      const result = await recordAttendance({
+        event_id: eventId,
+        member_id: null,
+        zone_id: activeZone,
+        type: 'in',
+        method: 'MANUAL',
+        metadata: {
+          attendee_name: trimmedName,
+          phone: manualRegistrationForm.phone.trim() || null,
+          registration_source: 'manual_attendance',
+        },
+      });
+
+      showScanResult({
+        success: true,
+        name: trimmedName,
+        message: result.offline ? 'Offline check-in saved.' : 'Manual attendee registered.',
+      });
+      setShowManualRegistration(false);
+      resetManualRegistration();
+      void refreshAttendanceMetrics();
+    } catch (err: any) {
+      showScanResult({
+        success: false,
+        message: err?.message || 'Manual registration failed.',
+      });
+    } finally {
+      setIsSavingManualRegistration(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
       {/* Primary Interaction Zone */}
@@ -575,7 +645,7 @@ export const CheckInConsole = () => {
         </div>
 
         {mode === 'scan' ? (
-          <Card className="aspect-square lg:aspect-video rounded-[40px] border-none bg-neutral-900 shadow-2xl relative overflow-hidden flex flex-col items-center justify-center text-white ring-8 ring-primary/5">
+          <Card className="min-h-[520px] rounded-[40px] border-none bg-neutral-900 shadow-2xl relative overflow-hidden text-white ring-8 ring-primary/5">
             <div className="absolute inset-0 opacity-20 pointer-events-none">
               <div className="absolute top-0 w-full h-1 bg-primary/40 animate-scan" />
             </div>
@@ -586,7 +656,7 @@ export const CheckInConsole = () => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="text-center space-y-4"
+                  className="text-center space-y-4 h-full w-full flex flex-col items-center justify-center"
                 >
                   <Loader2 className="h-16 w-16 text-primary animate-spin mx-auto" />
                   <p className="text-xs font-black uppercase tracking-widest opacity-60">
@@ -597,296 +667,333 @@ export const CheckInConsole = () => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex flex-col items-center space-y-8"
+                  className="relative z-10 flex h-full flex-col gap-6 px-6 py-6 sm:px-8 sm:py-8"
                 >
-                  <div className="relative">
-                    <div className="absolute -inset-4 bg-primary/20 blur-xl rounded-full" />
-                    <QrCode className="h-32 w-32 relative text-primary" />
-                    <div className="absolute top-0 right-0 h-4 w-4 bg-emerald-500 rounded-full border-4 border-neutral-900" />
-                  </div>
-                  <div className="text-center space-y-2">
-                    <h4 className="text-xl font-serif font-black">Scanner Active</h4>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
-                      Position QR code within the frame for <br /> instant verification
-                    </p>
-                  </div>
-                  <div className="w-full max-w-md px-4 space-y-3">
-                    <div className="rounded-2xl border border-white/15 bg-white/5 p-3 sm:p-4 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-white/50">
-                          Scanner Zone
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <div className="absolute -inset-3 bg-primary/20 blur-xl rounded-full" />
+                        <QrCode className="h-14 w-14 sm:h-16 sm:w-16 relative text-primary" />
+                        <div className="absolute top-0 right-0 h-3 w-3 bg-emerald-500 rounded-full border-[3px] border-neutral-900" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-serif font-black">Scanner Active</h4>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
+                          Align a QR code inside the camera frame for instant verification.
                         </p>
-                        <Badge className="bg-white/10 text-white/70 border-none text-[8px] font-black tracking-widest py-1">
-                          {activeZoneLabel.toUpperCase()}
-                        </Badge>
                       </div>
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <select
-                          aria-label="Active zone selector"
-                          value={activeZone}
-                          onChange={(e) => setActiveZone(e.target.value)}
-                          disabled={zonesLoading}
-                          className="h-10 w-full rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold text-white outline-none disabled:opacity-60"
-                        >
-                          {zoneOptions.map((zone) => (
-                            <option key={zone.value} value={zone.value} className="text-black">
-                              {zone.label}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="h-10 w-full sm:w-auto px-3 rounded-xl text-[9px] font-black uppercase tracking-widest"
-                          onClick={() => setZonesPanelOpen((open) => !open)}
-                        >
-                          {zonesPanelOpen ? 'Close' : 'Manage'}
-                        </Button>
-                      </div>
-                      {zonesPanelOpen && (
-                        <div className="rounded-xl border border-white/15 bg-white/5 p-3 space-y-2">
-                          <div className="space-y-1">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
-                              Add New Zone
-                            </p>
-                            <Input
-                              value={newZoneName}
-                              onChange={(e) => setNewZoneName(e.target.value)}
-                              placeholder="Zone name"
-                              className="h-9 rounded-lg border-white/20 bg-white/10 text-white placeholder:text-white/40"
-                            />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    </div>
+                  </div>
+
+                  <div className="grid flex-1 grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6">
+                    <div className="flex flex-col gap-4">
+                      <div className="rounded-2xl border border-white/15 bg-white/5 p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-white/50">
+                            Scanner Zone
+                          </p>
+                          <Badge className="bg-white/10 text-white/70 border-none text-[8px] font-black tracking-widest py-1">
+                            {activeZoneLabel.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                          <select
+                            aria-label="Active zone selector"
+                            value={activeZone}
+                            onChange={(e) => setActiveZone(e.target.value)}
+                            disabled={zonesLoading}
+                            className="h-10 w-full rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold text-white outline-none disabled:opacity-60"
+                          >
+                            {zoneOptions.map((zone) => (
+                              <option key={zone.value} value={zone.value} className="text-black">
+                                {zone.label}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="h-10 w-full sm:w-auto px-4 rounded-xl text-[9px] font-black uppercase tracking-widest"
+                            disabled={!hasEventContext || zonesLoading}
+                            onClick={() => {
+                              if (!hasEventContext) {
+                                showScanResult({
+                                  success: false,
+                                  message: 'Event context missing.',
+                                });
+                                return;
+                              }
+                              setZonesPanelOpen((open) => !open);
+                            }}
+                          >
+                            {zonesPanelOpen ? 'Close' : 'Manage'}
+                          </Button>
+                        </div>
+                        {zonesPanelOpen && (
+                          <div className="rounded-xl border border-white/15 bg-white/5 p-3 space-y-2">
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
+                                Add New Zone
+                              </p>
                               <Input
-                                type="number"
-                                min={1}
-                                value={newZoneCapacity}
-                                onChange={(e) => setNewZoneCapacity(e.target.value)}
-                                placeholder="Capacity"
+                                value={newZoneName}
+                                onChange={(e) => setNewZoneName(e.target.value)}
+                                placeholder="Zone name"
                                 className="h-9 rounded-lg border-white/20 bg-white/10 text-white placeholder:text-white/40"
                               />
-                              <select
-                                value={newZoneType}
-                                onChange={(e) => setNewZoneType(e.target.value)}
-                                className="h-9 rounded-lg border border-white/20 bg-white/10 px-2 text-xs font-bold text-white outline-none"
-                              >
-                                <option value="ENTRY" className="text-black">
-                                  ENTRY
-                                </option>
-                                <option value="HALL" className="text-black">
-                                  HALL
-                                </option>
-                                <option value="ROOM" className="text-black">
-                                  ROOM
-                                </option>
-                                <option value="CLINIC" className="text-black">
-                                  CLINIC
-                                </option>
-                              </select>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={newZoneCapacity}
+                                  onChange={(e) => setNewZoneCapacity(e.target.value)}
+                                  placeholder="Capacity"
+                                  className="h-9 rounded-lg border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                                />
+                                <select
+                                  value={newZoneType}
+                                  onChange={(e) => setNewZoneType(e.target.value)}
+                                  className="h-9 rounded-lg border border-white/20 bg-white/10 px-2 text-xs font-bold text-white outline-none"
+                                >
+                                  <option value="ENTRY" className="text-black">
+                                    ENTRY
+                                  </option>
+                                  <option value="HALL" className="text-black">
+                                    HALL
+                                  </option>
+                                  <option value="ROOM" className="text-black">
+                                    ROOM
+                                  </option>
+                                  <option value="CLINIC" className="text-black">
+                                    CLINIC
+                                  </option>
+                                </select>
+                              </div>
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="h-8 px-3 text-[9px] font-black uppercase tracking-widest text-white/70 hover:text-white"
+                                  disabled={!hasEventContext || zonesLoading}
+                                  onClick={() => {
+                                    if (!hasEventContext) {
+                                      showScanResult({
+                                        success: false,
+                                        message: 'Event context missing.',
+                                      });
+                                      return;
+                                    }
+                                    void refreshZones();
+                                  }}
+                                >
+                                  Refresh
+                                </Button>
+                                <Button
+                                  type="button"
+                                  className="h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest"
+                                  onClick={() => void handleCreateZone()}
+                                  disabled={
+                                    isCreatingZone ||
+                                    !hasEventContext ||
+                                    newZoneName.trim().length === 0
+                                  }
+                                >
+                                  {isCreatingZone ? 'Saving...' : 'Create Zone'}
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                className="h-8 px-3 text-[9px] font-black uppercase tracking-widest text-white/70 hover:text-white"
-                                onClick={() => void refreshZones()}
-                              >
-                                Refresh
-                              </Button>
-                              <Button
-                                type="button"
-                                className="h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest"
-                                onClick={() => void handleCreateZone()}
-                                disabled={isCreatingZone}
-                              >
-                                {isCreatingZone ? 'Saving...' : 'Create Zone'}
-                              </Button>
-                            </div>
-                          </div>
 
-                          <div className="pt-2 border-t border-white/10 space-y-2">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
-                              Existing Zones
-                            </p>
-                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                              {eventZones.length === 0 ? (
-                                <p className="text-[10px] text-white/50">
-                                  No zones configured yet.
-                                </p>
-                              ) : (
-                                eventZones.map((zone) => (
-                                  <div
-                                    key={zone.id}
-                                    className="rounded-lg border border-white/10 bg-black/20 p-2 space-y-2"
-                                  >
-                                    {editingZoneId === zone.id ? (
-                                      <>
-                                        <Input
-                                          value={editZoneName}
-                                          onChange={(e) => setEditZoneName(e.target.value)}
-                                          placeholder="Edit zone name"
-                                          className="h-8 rounded-md border-white/20 bg-white/10 text-white placeholder:text-white/40"
-                                        />
-                                        <div className="grid grid-cols-2 gap-2">
+                            <div className="pt-2 border-t border-white/10 space-y-2">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
+                                Existing Zones
+                              </p>
+                              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                {eventZones.length === 0 ? (
+                                  <p className="text-[10px] text-white/50">
+                                    No zones configured yet.
+                                  </p>
+                                ) : (
+                                  eventZones.map((zone) => (
+                                    <div
+                                      key={zone.id}
+                                      className="rounded-lg border border-white/10 bg-black/20 p-2 space-y-2"
+                                    >
+                                      {editingZoneId === zone.id ? (
+                                        <>
                                           <Input
-                                            type="number"
-                                            min={1}
-                                            value={editZoneCapacity}
-                                            onChange={(e) => setEditZoneCapacity(e.target.value)}
-                                            placeholder="Edit capacity"
+                                            value={editZoneName}
+                                            onChange={(e) => setEditZoneName(e.target.value)}
+                                            placeholder="Edit zone name"
                                             className="h-8 rounded-md border-white/20 bg-white/10 text-white placeholder:text-white/40"
                                           />
-                                          <select
-                                            value={editZoneType}
-                                            onChange={(e) => setEditZoneType(e.target.value)}
-                                            className="h-8 rounded-md border border-white/20 bg-white/10 px-2 text-[10px] font-bold text-white outline-none"
-                                          >
-                                            <option value="ENTRY" className="text-black">
-                                              ENTRY
-                                            </option>
-                                            <option value="HALL" className="text-black">
-                                              HALL
-                                            </option>
-                                            <option value="ROOM" className="text-black">
-                                              ROOM
-                                            </option>
-                                            <option value="CLINIC" className="text-black">
-                                              CLINIC
-                                            </option>
-                                          </select>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <Input
+                                              type="number"
+                                              min={1}
+                                              value={editZoneCapacity}
+                                              onChange={(e) => setEditZoneCapacity(e.target.value)}
+                                              placeholder="Edit capacity"
+                                              className="h-8 rounded-md border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                                            />
+                                            <select
+                                              value={editZoneType}
+                                              onChange={(e) => setEditZoneType(e.target.value)}
+                                              className="h-8 rounded-md border border-white/20 bg-white/10 px-2 text-[10px] font-bold text-white outline-none"
+                                            >
+                                              <option value="ENTRY" className="text-black">
+                                                ENTRY
+                                              </option>
+                                              <option value="HALL" className="text-black">
+                                                HALL
+                                              </option>
+                                              <option value="ROOM" className="text-black">
+                                                ROOM
+                                              </option>
+                                              <option value="CLINIC" className="text-black">
+                                                CLINIC
+                                              </option>
+                                            </select>
+                                          </div>
+                                          <div className="flex items-center justify-end gap-2">
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-white/70"
+                                              onClick={cancelEditZone}
+                                            >
+                                              Cancel
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              className="h-7 px-2 rounded-md text-[9px] font-black uppercase tracking-widest"
+                                              onClick={() => void handleUpdateZone(zone.id)}
+                                              disabled={isUpdatingZone}
+                                            >
+                                              {isUpdatingZone ? 'Saving...' : 'Save'}
+                                            </Button>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="min-w-0">
+                                            <p className="text-[10px] font-black text-white truncate">
+                                              {zone.name}
+                                            </p>
+                                            <p className="text-[9px] text-white/50 uppercase tracking-widest">
+                                              {(zone.zone_type || 'ZONE').toUpperCase()} � cap{' '}
+                                              {zone.capacity || '--'}
+                                            </p>
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-white/70"
+                                              onClick={() => startEditZone(zone)}
+                                            >
+                                              Edit
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-red-300 hover:text-red-200"
+                                              onClick={() => void handleDeleteZone(zone.id)}
+                                              disabled={deletingZoneId === zone.id}
+                                            >
+                                              {deletingZoneId === zone.id ? '...' : 'Delete'}
+                                            </Button>
+                                          </div>
                                         </div>
-                                        <div className="flex items-center justify-end gap-2">
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-white/70"
-                                            onClick={cancelEditZone}
-                                          >
-                                            Cancel
-                                          </Button>
-                                          <Button
-                                            type="button"
-                                            className="h-7 px-2 rounded-md text-[9px] font-black uppercase tracking-widest"
-                                            onClick={() => void handleUpdateZone(zone.id)}
-                                            disabled={isUpdatingZone}
-                                          >
-                                            {isUpdatingZone ? 'Saving...' : 'Save'}
-                                          </Button>
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="min-w-0">
-                                          <p className="text-[10px] font-black text-white truncate">
-                                            {zone.name}
-                                          </p>
-                                          <p className="text-[9px] text-white/50 uppercase tracking-widest">
-                                            {(zone.zone_type || 'ZONE').toUpperCase()} · cap{' '}
-                                            {zone.capacity || '--'}
-                                          </p>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-white/70"
-                                            onClick={() => startEditZone(zone)}
-                                          >
-                                            Edit
-                                          </Button>
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-red-300 hover:text-red-200"
-                                            onClick={() => void handleDeleteZone(zone.id)}
-                                            disabled={deletingZoneId === zone.id}
-                                          >
-                                            {deletingZoneId === zone.id ? '...' : 'Delete'}
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))
-                              )}
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="rounded-2xl border border-white/20 bg-black/60 overflow-hidden">
-                      {cameraState === 'active' ? (
-                        <video
-                          ref={videoRef}
-                          muted
-                          playsInline
-                          autoPlay
-                          className="w-full h-44 object-cover"
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <Input
+                          value={scanPayload}
+                          onChange={(e) => setScanPayload(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isScanning) {
+                              void handleProcessScan();
+                            }
+                          }}
+                          placeholder="Paste scanned QR payload and press Enter"
+                          className="h-11 rounded-xl border-white/20 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-primary"
                         />
-                      ) : (
-                        <div className="h-44 flex flex-col items-center justify-center gap-2 text-white/60 p-4 text-center">
-                          <QrCode className="h-8 w-8 text-white/50" />
-                          <p className="text-[10px] font-black uppercase tracking-widest">
-                            {cameraState === 'unsupported'
-                              ? 'Camera scanner unsupported'
-                              : cameraState === 'starting'
-                                ? 'Starting camera...'
-                                : cameraState === 'error'
-                                  ? 'Camera unavailable'
-                                  : 'Camera preview is off'}
-                          </p>
-                        </div>
+                        <Button
+                          onClick={handleProcessScan}
+                          disabled={isScanning}
+                          className="h-11 w-full rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest"
+                        >
+                          Validate QR Data
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div className="rounded-2xl border border-white/20 bg-black/60 overflow-hidden aspect-video">
+                        {cameraState === 'active' ? (
+                          <video
+                            ref={videoRef}
+                            muted
+                            playsInline
+                            autoPlay
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full flex flex-col items-center justify-center gap-2 text-white/60 p-4 text-center">
+                            <QrCode className="h-8 w-8 text-white/50" />
+                            <p className="text-[10px] font-black uppercase tracking-widest">
+                              {cameraState === 'unsupported'
+                                ? 'Camera scanner unsupported'
+                                : cameraState === 'starting'
+                                  ? 'Starting camera...'
+                                  : cameraState === 'error'
+                                    ? 'Camera unavailable'
+                                    : 'Camera preview is off'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <Button
+                          onClick={() => {
+                            if (cameraState === 'active' || cameraState === 'starting') {
+                              stopCameraScanner();
+                            } else {
+                              void startCameraScanner();
+                            }
+                          }}
+                          disabled={cameraState === 'starting'}
+                          variant="secondary"
+                          className="h-10 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest"
+                        >
+                          {cameraState === 'active' || cameraState === 'starting'
+                            ? 'Stop Camera'
+                            : 'Start Camera'}
+                        </Button>
+                        <Badge className="bg-white/10 text-white/70 border-none text-[8px] font-black tracking-widest py-1">
+                          {cameraState.toUpperCase()}
+                        </Badge>
+                      </div>
+                      {cameraError && (
+                        <p className="text-[10px] text-red-300 font-bold leading-relaxed">
+                          {cameraError}
+                        </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={() => {
-                          if (cameraState === 'active' || cameraState === 'starting') {
-                            stopCameraScanner();
-                          } else {
-                            void startCameraScanner();
-                          }
-                        }}
-                        disabled={cameraState === 'starting'}
-                        variant="secondary"
-                        className="h-10 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest"
-                      >
-                        {cameraState === 'active' || cameraState === 'starting'
-                          ? 'Stop Camera'
-                          : 'Start Camera'}
-                      </Button>
-                      <Badge className="bg-white/10 text-white/70 border-none text-[8px] font-black tracking-widest py-1">
-                        {cameraState.toUpperCase()}
-                      </Badge>
-                    </div>
-                    {cameraError && (
-                      <p className="text-[10px] text-red-300 font-bold leading-relaxed">
-                        {cameraError}
-                      </p>
-                    )}
-                    <Input
-                      value={scanPayload}
-                      onChange={(e) => setScanPayload(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !isScanning) {
-                          void handleProcessScan();
-                        }
-                      }}
-                      placeholder="Paste scanned QR payload and press Enter"
-                      className="h-11 rounded-xl border-white/20 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-primary"
-                    />
-                    <Button
-                      onClick={handleProcessScan}
-                      disabled={isScanning}
-                      className="h-11 w-full rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest"
-                    >
-                      Validate QR Data
-                    </Button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div className="absolute bottom-6 left-6 flex items-center gap-2">
+            <div className="absolute bottom-5 left-5 flex items-center gap-2">
               <Badge
                 className={cn(
                   'border-none text-[8px] font-black tracking-widest py-1',
@@ -902,13 +1009,13 @@ export const CheckInConsole = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-6 right-6 text-white/40 hover:text-white transition-all"
+              className="absolute top-5 right-5 text-white/40 hover:text-white transition-all"
             >
               <Maximize2 className="h-5 w-5" />
             </Button>
           </Card>
         ) : (
-          <Card className="p-8 pb-4 rounded-[40px] border-none bg-white shadow-2xl flex flex-col h-[500px]">
+          <Card className="p-8 pb-4 rounded-[40px] border-none bg-white shadow-2xl flex flex-col min-h-[520px]">
             <div className="relative mb-6">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground opacity-40" />
               <Input
@@ -1009,6 +1116,7 @@ export const CheckInConsole = () => {
             <div className="mt-4 pt-4 border-t border-primary/5">
               <Button
                 variant="ghost"
+                onClick={() => setShowManualRegistration(true)}
                 className="w-full text-primary font-black text-[10px] uppercase tracking-widest h-10 rounded-xl"
               >
                 Register New Attendee
@@ -1141,12 +1249,61 @@ export const CheckInConsole = () => {
           />
         </Card>
       </div>
-
       <PersonDetailDrawer
         isOpen={!!selectedPerson}
         onClose={() => setSelectedPerson(null)}
         person={selectedPerson}
       />
+
+      <Dialog open={showManualRegistration} onOpenChange={setShowManualRegistration}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Register New Attendee</DialogTitle>
+            <DialogDescription>
+              Capture a walk-in attendee and add them to the attendance stream immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Full Name</label>
+              <Input
+                value={manualRegistrationForm.fullName}
+                onChange={(event) =>
+                  setManualRegistrationForm((prev) => ({ ...prev, fullName: event.target.value }))
+                }
+                placeholder="e.g. Grace Johnson"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Phone (optional)</label>
+              <Input
+                value={manualRegistrationForm.phone}
+                onChange={(event) =>
+                  setManualRegistrationForm((prev) => ({ ...prev, phone: event.target.value }))
+                }
+                placeholder="e.g. +1 555 123 4567"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowManualRegistration(false);
+                resetManualRegistration();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleManualRegistration()}
+              disabled={isSavingManualRegistration}
+            >
+              {isSavingManualRegistration ? 'Saving...' : 'Register & Check-In'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <style>{`
         @keyframes scan {
