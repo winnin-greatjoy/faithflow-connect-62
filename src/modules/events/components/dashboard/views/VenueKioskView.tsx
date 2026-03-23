@@ -31,6 +31,7 @@ import {
 import eventsApi from '@/services/eventsApi';
 import eventCredentialsApi from '@/services/eventCredentialsApi';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { ReportEmergencyDialog } from '@/modules/events/components/dashboard/modules/dispatch/ReportEmergencyDialog';
 
 // Sound effect for successful scans
 const playSuccessSound = () => {
@@ -89,6 +90,7 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
   // We need an invisible input buffer for hardware scanners that just type
   const [hwBuffer, setHwBuffer] = useState('');
   const hwTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [emergencyDialogOpen, setEmergencyDialogOpen] = useState(false);
 
   // --- Real-time Stats & Feed ---
   const refreshAttendanceMetrics = useCallback(async () => {
@@ -121,41 +123,6 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
       capacity,
     };
   }, [attendanceLogs]);
-
-  // --- Hardware Scanner Listener ---
-  // Any keystroke on the kiosk screen goes into a buffer. If standard prefix/suffix, auto submit.
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ignore if we are in search mode (they are typing a name)
-      if (searchMode) return;
-
-      // Ignore modifier keys
-      if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
-
-      if (e.key === 'Enter') {
-        if (hwBuffer.length > 5 && !scanInFlightRef.current) {
-          void processScan(hwBuffer, 'hw-scanner');
-        }
-        setHwBuffer('');
-        if (hwTimeoutRef.current) clearTimeout(hwTimeoutRef.current);
-        return;
-      }
-
-      setHwBuffer((prev) => prev + e.key);
-
-      // Auto clear buffer after 500ms of inactivity
-      if (hwTimeoutRef.current) clearTimeout(hwTimeoutRef.current);
-      hwTimeoutRef.current = setTimeout(() => {
-        if (hwBuffer.length > 5 && !scanInFlightRef.current) {
-          void processScan(hwBuffer, 'hw-scanner');
-        }
-        setHwBuffer('');
-      }, 500);
-    };
-
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [hwBuffer, searchMode, processScan]);
 
   // --- Scan Processor ---
   const processScan = useCallback(
@@ -254,6 +221,41 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
     },
     [eventId, recordAttendance, refreshAttendanceMetrics, members]
   );
+
+  // --- Hardware Scanner Listener ---
+  // Any keystroke on the kiosk screen goes into a buffer. If standard prefix/suffix, auto submit.
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if we are in search mode (they are typing a name)
+      if (searchMode) return;
+
+      // Ignore modifier keys
+      if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
+
+      if (e.key === 'Enter') {
+        if (hwBuffer.length > 5 && !scanInFlightRef.current) {
+          void processScan(hwBuffer, 'hw-scanner');
+        }
+        setHwBuffer('');
+        if (hwTimeoutRef.current) clearTimeout(hwTimeoutRef.current);
+        return;
+      }
+
+      setHwBuffer((prev) => prev + e.key);
+
+      // Auto clear buffer after 500ms of inactivity
+      if (hwTimeoutRef.current) clearTimeout(hwTimeoutRef.current);
+      hwTimeoutRef.current = setTimeout(() => {
+        if (hwBuffer.length > 5 && !scanInFlightRef.current) {
+          void processScan(hwBuffer, 'hw-scanner');
+        }
+        setHwBuffer('');
+      }, 500);
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [hwBuffer, searchMode, processScan]);
 
   // --- Camera Management ---
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
@@ -426,6 +428,17 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
               <div className="col-span-1 md:col-span-2 text-center text-white/40 pt-2 text-sm uppercase tracking-widest font-bold">
                 Holding a badge? Just hold it up to the scanner light below!
               </div>
+
+              {/* Emergency Button */}
+              <button
+                onClick={() => setEmergencyDialogOpen(true)}
+                className="col-span-1 md:col-span-2 group relative h-16 rounded-2xl bg-red-950/50 border border-red-500/30 hover:bg-red-900/50 hover:border-red-500/50 transition-all active:scale-[0.98] overflow-hidden flex items-center justify-center gap-3"
+              >
+                <AlertTriangle className="h-5 w-5 text-red-500 group-hover:animate-pulse" />
+                <span className="text-sm font-bold uppercase tracking-[0.2em] text-red-400 group-hover:text-red-300">
+                  🚨 Emergency Assistance
+                </span>
+              </button>
             </motion.div>
           )}
 
@@ -724,6 +737,16 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
       `}</style>
+
+      {/* Emergency Report Dialog */}
+      {eventId && (
+        <ReportEmergencyDialog
+          open={emergencyDialogOpen}
+          onClose={() => setEmergencyDialogOpen(false)}
+          eventId={eventId}
+          kioskMode={true}
+        />
+      )}
     </div>
   );
 };

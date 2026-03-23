@@ -83,15 +83,16 @@ import { DashboardCustomizer } from '@/components/layout/DashboardCustomizer';
 import { GlobalAnalyticsDashboard } from '@/modules/events/components/dashboard/analytics/GlobalAnalyticsDashboard';
 
 import { useMembers } from '@/modules/members/hooks/useMembers';
+import { DispatchDashboardView } from '@/modules/events/components/dashboard/views/DispatchDashboardView';
 
 export default function EventDashboardPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'library' | 'team'>(
-    'overview'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'analytics' | 'dispatch' | 'team' | 'library'
+  >('overview');
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -430,6 +431,7 @@ export default function EventDashboardPage() {
             {[
               { id: 'overview', label: 'Dashboard', icon: LayoutGrid },
               { id: 'analytics', label: 'Analytics', icon: BarChartIcon },
+              { id: 'dispatch', label: 'Dispatch', icon: ShieldCheck },
               { id: 'team', label: 'Command Team', icon: Users },
               { id: 'library', label: 'Audit Log', icon: ClipboardList },
             ].map((tab) => (
@@ -613,6 +615,12 @@ export default function EventDashboardPage() {
               {activeTab === 'analytics' && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                   <GlobalAnalyticsDashboard />
+                </motion.div>
+              )}
+
+              {activeTab === 'dispatch' && eventId && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                  <DispatchDashboardView eventId={eventId} />
                 </motion.div>
               )}
 
