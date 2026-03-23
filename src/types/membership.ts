@@ -60,6 +60,9 @@ export interface Member {
   prayerNeeds: string;
   pastoralNotes: string;
 
+  // Skills & Talents
+  skills?: string[];
+
   // Metadata
   lastAttendance: string;
   createdAt: string;

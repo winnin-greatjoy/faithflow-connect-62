@@ -33,6 +33,8 @@ interface ReportEmergencyDialogProps {
   reporterId?: string;
   /** If true, uses a dark theme suitable for kiosk mode */
   kioskMode?: boolean;
+  /** List of available event zones */
+  zones?: any[];
 }
 
 const EMERGENCY_TYPES: {
@@ -48,14 +50,26 @@ const EMERGENCY_TYPES: {
     color: 'border-red-500 bg-red-500/10 text-red-600 hover:bg-red-500/20',
   },
   {
+    value: 'fire',
+    label: 'Fire',
+    icon: <AlertTriangle className="h-6 w-6" />,
+    color: 'border-orange-600 bg-orange-600/10 text-orange-600 hover:bg-orange-600/20',
+  },
+  {
     value: 'security',
     label: 'Security',
     icon: <ShieldAlert className="h-6 w-6" />,
     color: 'border-indigo-500 bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20',
   },
   {
+    value: 'crowd_control',
+    label: 'Crowd',
+    icon: <ShieldAlert className="h-6 w-6" />,
+    color: 'border-purple-500 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20',
+  },
+  {
     value: 'maintenance',
-    label: 'Maintenance',
+    label: 'Facility',
     icon: <Wrench className="h-6 w-6" />,
     color: 'border-amber-500 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20',
   },
@@ -80,6 +94,7 @@ export const ReportEmergencyDialog = ({
   eventId,
   reporterId,
   kioskMode = false,
+  zones = [],
 }: ReportEmergencyDialogProps) => {
   const [selectedType, setSelectedType] = useState<IncidentType | null>(null);
   const [severity, setSeverity] = useState<IncidentSeverity>('medium');
@@ -87,6 +102,29 @@ export const ReportEmergencyDialog = ({
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+
+  const handleDetectLocation = () => {
+    setDetectingLocation(true);
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      setDetectingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setLocation(`GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        setDetectingLocation(false);
+        toast.success('Location detected');
+      },
+      (error) => {
+        toast.error('Could not detect location: ' + error.message);
+        setDetectingLocation(false);
+      }
+    );
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -227,17 +265,58 @@ export const ReportEmergencyDialog = ({
                     kioskMode && 'text-slate-300'
                   )}
                 >
-                  <MapPin className="h-3.5 w-3.5 inline mr-1" /> Location (Optional)
+                  <MapPin className="h-3.5 w-3.5 inline mr-1" /> Location
                 </Label>
-                <Input
-                  id="location"
-                  placeholder="e.g. Main Hall, Near Exit B, Parking Lot..."
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className={cn(
-                    kioskMode && 'bg-white/5 border-white/10 text-white placeholder:text-slate-500'
+
+                {/* Quick Zone Picker */}
+                {zones.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {zones.slice(0, 6).map((z) => (
+                      <button
+                        key={z.id}
+                        type="button"
+                        onClick={() => setLocation(z.name)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-wider transition-all',
+                          location === z.name
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-secondary/50 text-muted-foreground hover:bg-secondary border-transparent'
+                        )}
+                      >
+                        {z.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    id="location"
+                    placeholder="e.g. Main Hall, Near Exit B..."
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className={cn(
+                      'flex-1',
+                      kioskMode &&
+                        'bg-white/5 border-white/10 text-white placeholder:text-slate-500'
+                    )}
+                  />
+                  {!kioskMode && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleDetectLocation}
+                      disabled={detectingLocation}
+                      title="Detect my GPS location"
+                    >
+                      {detectingLocation ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MapPin className="h-4 w-4" />
+                      )}
+                    </Button>
                   )}
-                />
+                </div>
               </div>
 
               {/* Description */}

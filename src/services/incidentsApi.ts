@@ -1,9 +1,30 @@
 import { supabase } from '@/integrations/supabase/client';
 
 // Helper types from the SQL schema
-export type IncidentType = 'medical' | 'security' | 'maintenance' | 'other';
+export type IncidentType =
+  | 'medical'
+  | 'security'
+  | 'maintenance'
+  | 'fire'
+  | 'crowd_control'
+  | 'other';
 export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type IncidentStatus = 'open' | 'dispatched' | 'resolved' | 'false_alarm';
+export type ResponderStatus = 'assigned' | 'en_route' | 'arrived' | 'completed';
+
+export interface IncidentReporter {
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+}
+
+export interface IncidentStaff {
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  profile_photo?: string;
+  skills?: string[];
+}
 
 export interface EventIncident {
   id: string;
@@ -18,8 +39,20 @@ export interface EventIncident {
   resolved_at: string | null;
   created_at: string;
   // Payload joined data
-  reporter?: { full_name: string } | null;
-  assignees?: { id: string; full_name: string }[];
+  reporter?: IncidentReporter | null;
+  responders?: IncidentResponder[];
+}
+
+export interface IncidentResponder {
+  id: string;
+  incident_id: string;
+  staff_id: string;
+  status: ResponderStatus;
+  assigned_at: string;
+  en_route_at?: string;
+  arrived_at?: string;
+  completed_at?: string;
+  staff?: IncidentStaff;
 }
 
 export const incidentsApi = {
@@ -34,7 +67,7 @@ export const incidentsApi = {
     location_details?: string;
     description: string;
   }) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('event_incidents')
       .insert({
         event_id: payload.event_id,
@@ -52,39 +85,27 @@ export const incidentsApi = {
   },
 
   /**
-   * Fetch active incidents for an event
-   */
-  async getActiveIncidents(eventId: string) {
-    const { data, error } = await supabase
-      .from('event_incidents')
-      .select(
-        `
-        *,
-        reporter:reporter_id (
-          full_name
-        )
-      `
-      )
-      .eq('event_id', eventId)
-      .neq('status', 'resolved')
-      .neq('status', 'false_alarm')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data as any[];
-  },
-
-  /**
-   * Fetch all incidents for a dashboard timeline
+   * Alias for getActiveIncidents (backward compatibility)
    */
   async getAllIncidents(eventId: string) {
-    const { data, error } = await supabase
+    return this.getActiveIncidents(eventId);
+  },
+
+  /**
+   * Fetch active incidents for an event with responders
+   */
+  async getActiveIncidents(eventId: string) {
+    const { data, error } = await (supabase as any)
       .from('event_incidents')
       .select(
         `
         *,
         reporter:reporter_id (
-          full_name
+          *
+        ),
+        responders:event_incident_responders(
+          *,
+          staff:staff_id(*)
         )
       `
       )
@@ -96,18 +117,76 @@ export const incidentsApi = {
   },
 
   /**
-   * Update incident status
+   * Backward compatibility alias for assignResponder or bulk assignment
    */
-  async updateIncidentStatus(incidentId: string, status: IncidentStatus) {
-    const updatePayload: any = { status };
-    if (status === 'resolved' || status === 'false_alarm') {
-      updatePayload.resolved_at = new Date().toISOString();
+  async assignStaff(incidentId: string, staffIds: string | string[]) {
+    const ids = Array.isArray(staffIds) ? staffIds : [staffIds];
+
+    // Update the legacy array field
+    const { error } = await (supabase as any)
+      .from('event_incidents')
+      .update({
+        assigned_to: ids,
+        status: 'dispatched',
+      })
+      .eq('id', incidentId);
+
+    if (error) throw error;
+
+    // Ensure the latest responder is also in the new relationship table
+    const latestStaffId = ids[ids.length - 1];
+    if (latestStaffId) {
+      await this.assignResponder(incidentId, latestStaffId);
     }
 
-    const { data, error } = await supabase
+    return true;
+  },
+
+  /**
+   * Assign a responder to an incident (New Relationship Table)
+   */
+  async assignResponder(incidentId: string, staffId: string) {
+    // Create responder entry in the specialized table
+    const { error: respError } = await (supabase as any).from('event_incident_responders').upsert(
+      {
+        incident_id: incidentId,
+        staff_id: staffId,
+        status: 'assigned',
+        assigned_at: new Date().toISOString(),
+      },
+      { onConflict: 'incident_id,staff_id' }
+    );
+
+    if (respError) throw respError;
+
+    // Update parent incident status to 'dispatched'
+    const { error: statusError } = await (supabase as any)
       .from('event_incidents')
-      .update(updatePayload)
+      .update({ status: 'dispatched' })
       .eq('id', incidentId)
+      .eq('status', 'open'); // Only update if it's currently open
+
+    if (statusError) {
+      console.warn('Failed to update incident status to dispatched:', statusError);
+      // We don't throw here because the responder was already assigned
+    }
+
+    return true;
+  },
+
+  /**
+   * Update responder status
+   */
+  async updateResponderStatus(responderId: string, status: ResponderStatus) {
+    const updatePayload: any = { status };
+    if (status === 'en_route') updatePayload.en_route_at = new Date().toISOString();
+    if (status === 'arrived') updatePayload.arrived_at = new Date().toISOString();
+    if (status === 'completed') updatePayload.completed_at = new Date().toISOString();
+
+    const { data, error } = await (supabase as any)
+      .from('event_incident_responders')
+      .update(updatePayload)
+      .eq('id', responderId)
       .select()
       .single();
 
@@ -116,15 +195,17 @@ export const incidentsApi = {
   },
 
   /**
-   * Assign staff to an incident
+   * Update incident status (toplevel)
    */
-  async assignStaff(incidentId: string, staffIds: string[]) {
-    const { data, error } = await supabase
+  async updateIncidentStatus(incidentId: string, status: IncidentStatus) {
+    const updatePayload: any = { status };
+    if (status === 'resolved' || status === 'false_alarm') {
+      updatePayload.resolved_at = new Date().toISOString();
+    }
+
+    const { data, error } = await (supabase as any)
       .from('event_incidents')
-      .update({
-        assigned_to: staffIds,
-        status: 'dispatched', // Auto update status when assigning
-      })
+      .update(updatePayload)
       .eq('id', incidentId)
       .select()
       .single();

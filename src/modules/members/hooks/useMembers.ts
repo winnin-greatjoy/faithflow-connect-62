@@ -86,6 +86,7 @@ export function useMembers(filters?: Partial<MemberFilters>): UseMembersResult {
             prayerNeeds: row.prayer_needs || '',
             pastoralNotes: row.pastoral_notes || '',
             lastAttendance: row.last_attendance || '',
+            skills: row.skills || [],
             createdAt: row.created_at || '',
             updatedAt: row.updated_at || '',
           } as Member;

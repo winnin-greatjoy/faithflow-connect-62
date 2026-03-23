@@ -12,3 +12,13 @@ export { prayerTeamApi } from './departments/prayerTeamApi';
 export { evangelismApi } from './departments/evangelismApi';
 export { financeApi } from './departments/financeApi';
 export { technicalApi } from './departments/technicalApi';
+export { incidentsApi } from './incidentsApi';
+export type {
+  EventIncident,
+  IncidentStatus,
+  IncidentType,
+  IncidentSeverity,
+  IncidentReporter,
+  IncidentResponder,
+  ResponderStatus,
+} from './incidentsApi';

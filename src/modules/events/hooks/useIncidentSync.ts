@@ -31,8 +31,8 @@ export const useIncidentSync = (eventId: string | undefined) => {
 
     if (!eventId) return;
 
-    // Set up Realtime Subscription
-    const subscription = supabase
+    // Set up Incident Subscription
+    const incidentSub = supabase
       .channel(`event_incidents_${eventId}`)
       .on(
         'postgres_changes',
@@ -42,20 +42,9 @@ export const useIncidentSync = (eventId: string | undefined) => {
           table: 'event_incidents',
           filter: `event_id=eq.${eventId}`,
         },
-        (payload) => {
+        async (payload) => {
           if (payload.eventType === 'INSERT') {
-            const newIncident = payload.new as EventIncident;
-            setIncidents((prev) => [newIncident, ...prev]);
-
-            // Visual/audio cue for critical incidents
-            if (newIncident.severity === 'critical' || newIncident.severity === 'high') {
-              toast.error(`🚨 New ${newIncident.severity.toUpperCase()} Emergency!`, {
-                description: `${newIncident.type.toUpperCase()} reported. Check Dispatch Dashboard immediately.`,
-                duration: 10000,
-              });
-            } else {
-              toast.info(`New ${newIncident.type} reported.`);
-            }
+            await fetchIncidents(); // Refetch to get joined reporter
           } else if (payload.eventType === 'UPDATE') {
             setIncidents((prev) =>
               prev.map((inc) => (inc.id === payload.new.id ? { ...inc, ...payload.new } : inc))
@@ -67,8 +56,26 @@ export const useIncidentSync = (eventId: string | undefined) => {
       )
       .subscribe();
 
+    // Set up Responders Subscription
+    const responderSub = supabase
+      .channel(`event_responders_${eventId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_incident_responders',
+        },
+        async () => {
+          // Simplest way to handle joined updates is a refetch
+          await fetchIncidents();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(incidentSub);
+      supabase.removeChannel(responderSub);
     };
   }, [eventId, fetchIncidents]);
 

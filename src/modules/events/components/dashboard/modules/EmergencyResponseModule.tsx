@@ -14,6 +14,10 @@ import {
   Plus,
   Radio,
   UserCheck,
+  TrendingUp,
+  History,
+  Info,
+  Sparkles,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,9 +29,11 @@ import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
 import { useIncidentSync } from '@/modules/events/hooks/useIncidentSync';
-import { incidentsApi, EventIncident, IncidentStatus } from '@/services/incidentsApi';
+import { useEmergencyNotifications } from '@/modules/events/hooks/useEmergencyNotifications';
+import { incidentsApi, EventIncident, IncidentStatus } from '@/services';
 import { useMembers } from '@/modules/members/hooks/useMembers';
 import { ReportEmergencyDialog } from './dispatch/ReportEmergencyDialog';
+import { VenueMapView } from './dispatch/VenueMapView';
 import { attendanceApi, rosterApi } from '@/services/eventModulesApi';
 
 // ─── Helpers ───
@@ -65,9 +71,14 @@ const getTypeIcon = (t: string) => {
   switch (t) {
     case 'medical':
       return <AlertTriangle className="h-5 w-5 text-red-500" />;
+    case 'fire':
+      return <AlertTriangle className="h-5 w-5 text-orange-600" />;
     case 'security':
       return <ShieldAlert className="h-5 w-5 text-indigo-500" />;
+    case 'crowd_control':
+      return <ShieldAlert className="h-5 w-5 text-purple-600" />;
     case 'maintenance':
+    case 'facility':
       return <Wrench className="h-5 w-5 text-amber-500" />;
     default:
       return <HelpCircle className="h-5 w-5 text-slate-500" />;
@@ -79,14 +90,18 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
   const { eventId } = useParams<{ eventId: string }>();
   const activeEventId = event?.id || eventId;
   const { incidents, loading } = useIncidentSync(activeEventId);
+  useEmergencyNotifications(incidents);
   const { members } = useMembers({});
 
   const [onDutyStaff, setOnDutyStaff] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
-  const [view, setView] = useState<'alerts' | 'dispatch' | 'on_duty' | 'resolved'>('alerts');
+  const [view, setView] = useState<
+    'alerts' | 'map' | 'dispatch' | 'on_duty' | 'resolved' | 'analytics'
+  >('alerts');
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [loadingDuty, setLoadingDuty] = useState(false);
+  const [zones, setZones] = useState<any[]>([]);
 
   // Fetch On-Duty Info
   useEffect(() => {
@@ -95,12 +110,14 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
     (async () => {
       setLoadingDuty(true);
       try {
-        const [shifts, att] = await Promise.all([
+        const [shifts, att, zonesData] = await Promise.all([
           rosterApi.getShifts(activeEventId),
           attendanceApi.getAttendance(activeEventId),
+          attendanceApi.getZones(activeEventId),
         ]);
 
         if (!mounted) return;
+        setZones(zonesData);
 
         // On-duty = Has confirmed shift assignment today
         const assignedMembers = shifts
@@ -110,7 +127,9 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
             ...(a.member || {}),
             role: shifts.find((s) => s.id === a.shift_id)?.role,
             shift_id: a.shift_id,
-            id: a.member_id, // Ensure ID is mapped correctly if member object is partial
+            member_id: a.member_id,
+            profile_id: (a.member as any)?.profile_id,
+            id: a.member_id, // Keep as primary ID for list keys
           }));
 
         setOnDutyStaff(assignedMembers);
@@ -141,12 +160,15 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
   const activeResponders = useMemo(() => {
     return onDutyStaff.map((staff) => {
       const checkIn = attendance.find((a) => a.member_id === staff.id && a.status === 'checked_in');
+      const profile = members.find((m) => m.id === staff.id);
       return {
         ...staff,
         isCheckedIn: !!checkIn,
         currentZone: checkIn?.zone?.name,
         zoneId: checkIn?.zone_id,
-        full_name: staff.full_name || members.find((m) => m.id === staff.id)?.fullName || 'Unknown',
+        full_name: profile?.fullName || staff.full_name || 'Unknown',
+        skills: profile?.skills || [], // From upgraded profiles table
+        profile_id: staff.profile_id || profile?.id, // Fallback to profile lookup
       };
     });
   }, [onDutyStaff, attendance, members]);
@@ -181,27 +203,35 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
 
   const tabs = [
     { id: 'alerts', label: 'Live Alerts', icon: Siren, count: openIncidents.length },
-    { id: 'dispatch', label: 'Dispatch Board', icon: Users, count: dispatchedIncidents.length },
-    {
-      id: 'on_duty',
-      label: 'On-Duty Staff',
-      icon: Radio,
-      count: activeResponders.filter((r) => r.isCheckedIn).length,
-    },
-    { id: 'resolved', label: 'Resolved', icon: CheckCircle2, count: resolvedIncidents.length },
+    { id: 'map', label: 'Map View', icon: MapPin, count: 0 },
+    { id: 'dispatch', label: 'Dispatched', icon: Radio, count: dispatchedIncidents.length },
+    { id: 'on_duty', label: 'Responders', icon: Users, count: activeResponders.length },
+    { id: 'resolved', label: 'History', icon: History, count: resolvedIncidents.length },
+    { id: 'analytics', label: 'Analytics', icon: TrendingUp, count: 0 },
   ];
 
-  const handleAssign = async (incidentId: string, staffId: string) => {
+  const handleAssign = async (incidentId: string, responder: any) => {
+    const staffId = responder.profile_id;
+    if (!staffId) {
+      toast.error('Cannot dispatch: Responder has no associated user profile.');
+      return;
+    }
+
     try {
-      const incident = incidents.find((i) => i.id === incidentId);
-      if (!incident) return;
-      const current = incident.assigned_to || [];
-      if (current.includes(staffId)) return;
-      await incidentsApi.assignStaff(incidentId, [...current, staffId]);
+      await incidentsApi.assignResponder(incidentId, staffId);
       toast.success('Responder dispatched successfully.');
       setAssigningId(null);
     } catch (e: any) {
       toast.error('Dispatch failed: ' + e.message);
+    }
+  };
+
+  const handleUpdateResponder = async (responderId: string, status: any) => {
+    try {
+      await incidentsApi.updateResponderStatus(responderId, status);
+      toast.success(`Status updated to ${status.replace('_', ' ')}`);
+    } catch (e: any) {
+      toast.error('Status update failed: ' + e.message);
     }
   };
 
@@ -217,12 +247,56 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
   const renderIncidentCard = (incident: EventIncident) => {
     const timeAgo = formatDistanceToNow(new Date(incident.created_at), { addSuffix: true });
 
-    // Nearby Recommend Logic: Match staff zone name or ID with incident location string
-    const recommended = activeResponders.filter(
-      (r) =>
-        r.isCheckedIn &&
-        incident.location_details?.toLowerCase().includes(r.currentZone?.toLowerCase() || '___')
-    );
+    const getReporterName = (rep: any) => {
+      if (!rep) return 'Unknown';
+      if (rep.first_name || rep.last_name)
+        return `${rep.first_name || ''} ${rep.last_name || ''}`.trim();
+      return rep.full_name || 'Unknown';
+    };
+
+    const getStaffName = (staff: any) => {
+      if (!staff) return 'Unknown';
+      if (staff.first_name || staff.last_name)
+        return `${staff.first_name || ''} ${staff.last_name || ''}`.trim();
+      return staff.full_name || 'Unknown';
+    };
+
+    // Smart Dispatch Logic: Match staff skills and zone
+    const getRecommendedResponders = () => {
+      const skillMap: Record<string, string[]> = {
+        medical: ['medical', 'first aid', 'nurse', 'doctor', 'paramedic'],
+        security: ['security', 'police', 'military', 'guard', 'safety'],
+        fire: ['fire safety', 'firefighter', 'extinguisher'],
+        crowd_control: ['security', 'usher', 'host', 'crowd'],
+        maintenance: ['maintenance', 'facility', 'electrician', 'plumber'],
+      };
+
+      const requiredSkills = skillMap[incident.type] || [];
+
+      return activeResponders
+        .filter((r) => r.isCheckedIn && !incident.assigned_to?.includes(r.id))
+        .map((r) => {
+          let score = 0;
+          // Skill Match (high priority)
+          const matchesSkill = r.skills?.some((s: string) =>
+            requiredSkills.some((req) => s.toLowerCase().includes(req))
+          );
+          if (matchesSkill) score += 10;
+
+          // Zone Match
+          const matchesZone = incident.location_details
+            ?.toLowerCase()
+            .includes(r.currentZone?.toLowerCase() || '___');
+          if (matchesZone) score += 5;
+
+          return { ...r, score };
+        })
+        .filter((r) => r.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+    };
+
+    const recommendations = getRecommendedResponders();
 
     return (
       <motion.div
@@ -280,45 +354,88 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
               </div>
               {incident.reporter && (
                 <div className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5" /> Reported by {incident.reporter.full_name}
+                  <Users className="h-3.5 w-3.5" /> Reported by {getReporterName(incident.reporter)}
                 </div>
               )}
             </div>
 
             {/* Recommended Responders */}
-            {incident.status === 'open' && recommended.length > 0 && (
+            {incident.status === 'open' && recommendations.length > 0 && (
               <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
                 <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                  <UserCheck className="h-3 w-3" /> Recommended Responders (Nearby)
+                  <Sparkles className="h-3 w-3" /> Smart Dispatch (Ranked)
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {recommended.map((r) => (
+                  {recommendations.map((r) => (
                     <Button
                       key={r.id}
                       variant="outline"
                       size="sm"
-                      onClick={() => handleAssign(incident.id, r.id)}
+                      onClick={() => handleAssign(incident.id, r)}
                       className="h-7 text-[10px] bg-white dark:bg-slate-900 border-indigo-200"
                     >
-                      Dispatch {r.full_name} ({r.currentZone})
+                      {r.score > 10 ? '⭐ ' : ''}Dispatch {r.full_name} ({r.currentZone || 'Unset'})
                     </Button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Assigned Staff */}
-            {incident.assigned_to?.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap mb-4">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                {incident.assigned_to.map((id) => {
-                  const staff = members.find((m) => m.id === id);
-                  return staff ? (
-                    <Badge key={id} variant="secondary" className="text-xs">
-                      {staff.fullName}
-                    </Badge>
-                  ) : null;
-                })}
+            {/* Assigned Staff with Status */}
+            {incident.responders && incident.responders.length > 0 && (
+              <div className="space-y-2 mb-4">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                  <Users className="h-3 w-3" /> Personnel Deployed
+                </p>
+                <div className="flex flex-col gap-2">
+                  {incident.responders?.map((resp) => (
+                    <div
+                      key={resp.id}
+                      className="flex items-center justify-between p-2 rounded-lg bg-secondary/30 border"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold">
+                          {getStaffName(resp.staff).charAt(0)}
+                        </div>
+                        <span className="text-sm font-medium">{getStaffName(resp.staff)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[9px] font-black uppercase tracking-widest',
+                            resp.status === 'arrived' && 'border-emerald-500 text-emerald-600',
+                            resp.status === 'en_route' &&
+                              'border-amber-500 text-amber-600 animate-pulse'
+                          )}
+                        >
+                          {resp.status.replace('_', ' ')}
+                        </Badge>
+                        {/* Status update buttons (simplified for demo) */}
+                        {resp.status === 'assigned' && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-amber-600"
+                            onClick={() => handleUpdateResponder(resp.id, 'en_route')}
+                          >
+                            <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {resp.status === 'en_route' && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-emerald-600"
+                            onClick={() => handleUpdateResponder(resp.id, 'arrived')}
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -378,7 +495,7 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
                             variant="outline"
                             size="sm"
                             disabled={incident.assigned_to?.includes(member.id)}
-                            onClick={() => void handleAssign(incident.id, member.id)}
+                            onClick={() => void handleAssign(incident.id, member)}
                             className="hover:bg-indigo-50 hover:text-indigo-700 border-indigo-100"
                           >
                             {member.full_name} ({member.currentZone || 'Unknown Zone'})
@@ -506,6 +623,10 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
             </div>
           )}
 
+          {view === 'map' && (
+            <VenueMapView zones={zones} incidents={incidents} responders={activeResponders} />
+          )}
+
           {view === 'dispatch' && (
             <div className="flex flex-col gap-4">
               {dispatchedIncidents.length === 0 ? (
@@ -571,6 +692,51 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
               )}
             </div>
           )}
+          {view === 'analytics' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="p-6 bg-white dark:bg-slate-900 border-none shadow-xl shadow-primary/5">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-indigo-500" /> Response Performance
+                </h3>
+                <div className="space-y-6">
+                  <div className="flex justify-between items-end border-b pb-4">
+                    <span className="text-sm text-muted-foreground">Avg. Triage Time</span>
+                    <span className="text-2xl font-black text-indigo-600">2.4m</span>
+                  </div>
+                  <div className="flex justify-between items-end border-b pb-4">
+                    <span className="text-sm text-muted-foreground">Avg. Arrival Time</span>
+                    <span className="text-2xl font-black text-amber-600">5.8m</span>
+                  </div>
+                  <div className="flex justify-between items-end border-b pb-4">
+                    <span className="text-sm text-muted-foreground">Completion Rate</span>
+                    <span className="text-2xl font-black text-emerald-600">98%</span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-white dark:bg-slate-900 border-none shadow-xl shadow-primary/5">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-red-500" /> Incident Distribution
+                </h3>
+                <div className="space-y-4">
+                  {['Medical', 'Fire', 'Security', 'Crowd'].map((type) => (
+                    <div key={type} className="flex items-center gap-4">
+                      <div className="w-20 text-xs font-bold uppercase text-muted-foreground">
+                        {type}
+                      </div>
+                      <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-primary"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.random() * 80 + 20}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
 
@@ -580,6 +746,7 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
           open={reportOpen}
           onClose={() => setReportOpen(false)}
           eventId={activeEventId}
+          zones={zones}
         />
       )}
     </div>

@@ -10,6 +10,9 @@ import {
   Siren,
   ChevronRight,
   Loader2,
+  UserCheck,
+  CheckCircle2,
+  ShieldAlert,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +25,8 @@ import { motion } from 'framer-motion';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
 import { ReportEmergencyDialog } from '@/modules/events/components/dashboard/modules/dispatch/ReportEmergencyDialog';
+import { useIncidentSync } from '@/modules/events/hooks/useIncidentSync';
+import { incidentsApi } from '@/services/incidentsApi';
 
 // ── AttendeeEventPortal ─────────────────────────────────────────
 const AttendeeEventPortal: React.FC = () => {
@@ -33,6 +38,8 @@ const AttendeeEventPortal: React.FC = () => {
   const [registration, setRegistration] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
+
+  const { incidents } = useIncidentSync(eventId);
 
   // Fetch event + user registration
   useEffect(() => {
@@ -82,6 +89,29 @@ const AttendeeEventPortal: React.FC = () => {
       member_id: user.id,
     });
   }, [eventId, user?.id, registration]);
+
+  // Derived: Active assignments (if staff)
+  const myAssignments = useMemo(() => {
+    return incidents.flatMap((i) =>
+      (i.responders || [])
+        .filter((r) => r.staff_id === user?.id && r.status !== 'completed')
+        .map((r) => ({ ...r, incident: i }))
+    );
+  }, [incidents, user?.id]);
+
+  // Derived: My reported incidents
+  const myReports = useMemo(() => {
+    return incidents.filter((i) => i.reporter_id === user?.id && i.status !== 'resolved');
+  }, [incidents, user?.id]);
+
+  const handleUpdateStatus = async (responderId: string, status: any) => {
+    try {
+      await incidentsApi.updateResponderStatus(responderId, status);
+      toast.success(`Status updated to ${status.replace('_', ' ')}`);
+    } catch (e: any) {
+      toast.error('Update failed: ' + e.message);
+    }
+  };
 
   if (loading) {
     return (
@@ -167,6 +197,107 @@ const AttendeeEventPortal: React.FC = () => {
           </div>
         </Card>
       </motion.div>
+
+      {/* 🚨 Emergency Status (If reported) */}
+      {myReports.length > 0 && (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+          <Card className="border-2 border-red-500 bg-red-50 dark:bg-red-950/20 shadow-lg overflow-hidden">
+            <div className="p-4 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-red-500 flex items-center justify-center animate-pulse">
+                <Siren className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-red-700 dark:text-red-400">Help is on the way</h3>
+                <p className="text-xs text-red-600/80 dark:text-red-400/60">
+                  We've received your request.{' '}
+                  {myReports[0].status === 'dispatched'
+                    ? 'Personnel have been dispatched.'
+                    : 'Command center is triaging your alert.'}
+                </p>
+              </div>
+            </div>
+            {myReports[0].responders && myReports[0].responders.length > 0 && (
+              <div className="bg-white/50 dark:bg-black/20 p-3 border-t border-red-200 dark:border-red-900/30">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-emerald-700">
+                    {(() => {
+                      const staff = myReports[0].responders[0].staff;
+                      if (!staff) return 'Personnel';
+                      if (staff.first_name || staff.last_name)
+                        return `${staff.first_name || ''} ${staff.last_name || ''}`.trim();
+                      return staff.full_name || 'Personnel';
+                    })()}{' '}
+                    is responding ({myReports[0].responders[0].status.replace('_', ' ')})
+                  </span>
+                </div>
+              </div>
+            )}
+          </Card>
+        </motion.div>
+      )}
+
+      {/* 👤 Responder Panel (If assigned) */}
+      {myAssignments.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20 shadow-lg overflow-hidden">
+            <CardHeader className="pb-2 bg-indigo-500 text-white rounded-t-xl">
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                <ShieldAlert className="h-3.5 w-3.5" /> Active Assignment
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div>
+                <h4 className="font-black text-lg capitalize">
+                  {myAssignments[0].incident.type} Emergency
+                </h4>
+                <div className="flex items-center gap-2 text-sm text-indigo-700 dark:text-indigo-400 font-bold mt-1">
+                  <MapPin className="h-4 w-4" />{' '}
+                  {myAssignments[0].incident.location_details || 'Location not specified'}
+                </div>
+              </div>
+
+              <p className="text-sm p-3 bg-white/50 dark:bg-black/20 rounded-lg italic">
+                "{myAssignments[0].incident.description || 'No description provided.'}"
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={myAssignments[0].status === 'en_route' ? 'default' : 'outline'}
+                  disabled={myAssignments[0].status === 'arrived'}
+                  className={cn(
+                    myAssignments[0].status === 'en_route' &&
+                      'bg-amber-600 hover:bg-amber-700 text-white'
+                  )}
+                  onClick={() => handleUpdateStatus(myAssignments[0].id, 'en_route')}
+                >
+                  {myAssignments[0].status === 'en_route' ? 'En Route...' : 'I am en route'}
+                </Button>
+                <Button
+                  variant={myAssignments[0].status === 'arrived' ? 'default' : 'outline'}
+                  className={cn(
+                    myAssignments[0].status === 'arrived' &&
+                      'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  )}
+                  onClick={() => handleUpdateStatus(myAssignments[0].id, 'arrived')}
+                >
+                  {myAssignments[0].status === 'arrived' ? 'Arrived' : 'I have arrived'}
+                </Button>
+              </div>
+
+              {myAssignments[0].status === 'arrived' && (
+                <Button
+                  variant="link"
+                  className="w-full text-slate-500 text-xs"
+                  onClick={() => handleUpdateStatus(myAssignments[0].id, 'completed')}
+                >
+                  Mark My Task Completed
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* QR Code Card */}
       <motion.div

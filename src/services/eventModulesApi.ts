@@ -341,7 +341,7 @@ export const rosterApi = {
         *,
         assignments:event_shift_assignments(
           *,
-          member:members(id, full_name, avatar_url)
+          member:members(id, full_name, avatar_url, profile_id)
         )
       `
       )
