@@ -89,24 +89,15 @@ export const ReportEmergencyDialog = ({
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async () => {
-    if (!selectedType) {
-      toast.error('Please select the type of emergency.');
-      return;
-    }
-    if (!description.trim()) {
-      toast.error('Please give a brief description of the situation.');
-      return;
-    }
-
     setSubmitting(true);
     try {
       await incidentsApi.reportIncident({
         event_id: eventId,
         reporter_id: reporterId,
-        type: selectedType,
+        type: selectedType || 'other',
         severity,
         location_details: location.trim() || undefined,
-        description: description.trim(),
+        description: description.trim() || 'Urgent assistance requested. No details provided.',
       });
       setSubmitted(true);
       setTimeout(() => {

@@ -82,6 +82,7 @@ const PublicRegistrationPage = lazy(() =>
   }))
 );
 const MobileEventApp = lazy(() => import('./pages/public/MobileEventApp'));
+const AttendeeEventPortal = lazy(() => import('./pages/portal/AttendeeEventPortal'));
 
 const queryClient = new QueryClient();
 
@@ -191,6 +192,7 @@ const App = () => (
                 <Route path="change-password" element={<ChangePasswordPage />} />
                 <Route path="directory-settings" element={<DirectorySettingsPage />} />
                 <Route path="edit-account" element={<EditAccountInfoPage />} />
+                <Route path="events/:eventId" element={<AttendeeEventPortal />} />
                 <Route path="transfers" element={<MemberTransfersPage />} />
               </Route>
               <Route

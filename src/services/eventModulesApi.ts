@@ -43,6 +43,14 @@ export type ShiftAssignment = Pick<
   'id' | 'shift_id' | 'member_id' | 'status' | 'assigned_at' | 'confirmed_at'
 >;
 
+export type ShiftAssignmentWithMember = ShiftAssignment & {
+  member: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  } | null;
+};
+
 export type Song = Pick<
   TableRow<'songs'>,
   | 'id'
@@ -340,7 +348,7 @@ export const rosterApi = {
       .eq('event_id', eventId)
       .order('start_time');
     if (error) throw error;
-    return data as (EventShift & { assignments: ShiftAssignment[] })[];
+    return data as (EventShift & { assignments: ShiftAssignmentWithMember[] })[];
   },
 
   async createShift(shift: Omit<EventShift, 'id' | 'created_at' | 'updated_at'>) {
