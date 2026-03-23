@@ -9,7 +9,12 @@ import {
   Loader2,
   Keyboard,
   Scan,
-  Maximize2,
+  Settings,
+  AlertCircle,
+  PowerOff,
+  UserCheck,
+  UserMinus,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,53 +40,71 @@ import {
 import eventsApi from '@/services/eventsApi';
 import eventCredentialsApi from '@/services/eventCredentialsApi';
 import { attendanceApi, type EventZone } from '@/services/eventModulesApi';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+
+// Sound effect for successful scans
+const playSuccessSound = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(800, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.2);
+};
 
 export const CheckInConsole = () => {
   const DUPLICATE_SCAN_WINDOW_MS = 8000;
-  const CAMERA_DUPLICATE_PAYLOAD_WINDOW_MS = 1500;
-  const CAMERA_DETECTION_INTERVAL_MS = 400;
   const { eventId } = useParams<{ eventId: string }>();
-  const [mode, setMode] = useState<'scan' | 'manual'>('scan');
+  const [mode, setMode] = useState<'scan' | 'hw-scanner' | 'manual'>('scan');
   const [searchQuery, setSearchQuery] = useState('');
   const [scanPayload, setScanPayload] = useState('');
   const [activeZone, setActiveZone] = useState('zone-main');
   const [eventZones, setEventZones] = useState<EventZone[]>([]);
   const [zonesLoading, setZonesLoading] = useState(false);
   const [zonesPanelOpen, setZonesPanelOpen] = useState(false);
+
+  // Advanced Configuration States
+  const [hwConfig, setHwConfig] = useState({
+    submitMode: 'enter',
+    delayMs: 300,
+    stripWhitespace: true,
+  });
+  const [showHwConfig, setShowHwConfig] = useState(false);
+  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
+  const [staffSearchQuery, setStaffSearchQuery] = useState('');
+
+  // Zone Management State
   const [newZoneName, setNewZoneName] = useState('');
   const [newZoneCapacity, setNewZoneCapacity] = useState('100');
-  const [newZoneType, setNewZoneType] = useState('ENTRY');
+  const [newZoneType, setNewZoneType] = useState('main_hall');
   const [isCreatingZone, setIsCreatingZone] = useState(false);
-  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
-  const [editZoneName, setEditZoneName] = useState('');
-  const [editZoneCapacity, setEditZoneCapacity] = useState('100');
-  const [editZoneType, setEditZoneType] = useState('ENTRY');
-  const [isUpdatingZone, setIsUpdatingZone] = useState(false);
-  const [deletingZoneId, setDeletingZoneId] = useState<string | null>(null);
+
   const [isScanning, setIsScanning] = useState(false);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [avgProcessingMs, setAvgProcessingMs] = useState<number | null>(null);
+
+  // Manual Registration State
   const [showManualRegistration, setShowManualRegistration] = useState(false);
-  const [manualRegistrationForm, setManualRegistrationForm] = useState({
-    fullName: '',
-    phone: '',
-  });
+  const [manualRegistrationForm, setManualRegistrationForm] = useState({ fullName: '', phone: '' });
   const [isSavingManualRegistration, setIsSavingManualRegistration] = useState(false);
-  const [cameraState, setCameraState] = useState<
-    'idle' | 'starting' | 'active' | 'unsupported' | 'error'
-  >('idle');
+
+  // Camera State
+  const [cameraState, setCameraState] = useState<'idle' | 'starting' | 'active' | 'error'>('idle');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+
   const recentScanByRegistrationRef = useRef<Record<string, number>>({});
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const detectorRef = useRef<{
-    detect: (input: any) => Promise<Array<{ rawValue?: string }>>;
-  } | null>(null);
-  const cameraStreamRef = useRef<MediaStream | null>(null);
-  const cameraFrameRef = useRef<number | null>(null);
   const scanInFlightRef = useRef(false);
-  const lastDetectionAtRef = useRef(0);
   const processingDurationsRef = useRef<number[]>([]);
-  const lastCameraPayloadRef = useRef<{ value: string; at: number } | null>(null);
+  const hwAutoSubmitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [lastScanResult, setLastScanResult] = useState<{
     success: boolean;
@@ -91,42 +114,45 @@ export const CheckInConsole = () => {
   } | null>(null);
 
   const hasEventContext = Boolean(eventId);
-
   const { bufferSize, isOnline, isSyncing, recordAttendance } = useAttendanceSync(eventId || '');
 
+  // Member Hooks
   const { members, loading: membersLoading } = useMembers({ search: searchQuery });
-  const cameraSupported =
-    typeof window !== 'undefined' &&
-    typeof navigator !== 'undefined' &&
-    !!navigator.mediaDevices?.getUserMedia &&
-    typeof (window as any).BarcodeDetector !== 'undefined';
+  const { members: staffCandidates, loading: staffLoading } = useMembers({
+    search: staffSearchQuery,
+  });
 
   useEffect(() => {
     scanInFlightRef.current = isScanning;
   }, [isScanning]);
 
-  const stopCameraScanner = useCallback((nextState: 'idle' | 'error' = 'idle') => {
-    if (cameraFrameRef.current !== null) {
-      cancelAnimationFrame(cameraFrameRef.current);
-      cameraFrameRef.current = null;
-    }
-    if (cameraStreamRef.current) {
-      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
-      cameraStreamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+  const stopCameraScanner = useCallback(async (nextState: 'idle' | 'error' = 'idle') => {
+    if (
+      html5QrCodeRef.current &&
+      (html5QrCodeRef.current.getState() === 2 /* SCANNING */ ||
+        html5QrCodeRef.current.getState() === 3) /* PAUSED */
+    ) {
+      try {
+        await html5QrCodeRef.current.stop();
+      } catch (err) {
+        console.error('Failed to stop scanner', err);
+      }
     }
     setCameraState(nextState);
   }, []);
 
   useEffect(() => {
     if (mode !== 'scan') {
-      stopCameraScanner();
+      void stopCameraScanner();
     }
   }, [mode, stopCameraScanner]);
 
-  useEffect(() => () => stopCameraScanner(), [stopCameraScanner]);
+  useEffect(
+    () => () => {
+      void stopCameraScanner();
+    },
+    [stopCameraScanner]
+  );
 
   const showScanResult = (payload: {
     success: boolean;
@@ -138,7 +164,11 @@ export const CheckInConsole = () => {
       ...payload,
       timestamp: payload.timestamp || new Date().toLocaleTimeString(),
     });
-    setTimeout(() => setLastScanResult(null), 3500);
+    if (payload.success) playSuccessSound();
+
+    setTimeout(() => {
+      setLastScanResult(null);
+    }, 4000);
   };
 
   const refreshZones = useCallback(async () => {
@@ -162,7 +192,7 @@ export const CheckInConsole = () => {
         setAttendanceLogs(data);
       }
     } catch {
-      // Keep UI stable even when attendance logs are unavailable.
+      // Keep UI stable
     }
   }, [eventId]);
 
@@ -182,24 +212,11 @@ export const CheckInConsole = () => {
     eventZones.forEach((zone) => {
       options.set(zone.id, zone.name);
     });
-    attendanceLogs.forEach((log) => {
-      const zoneValue =
-        typeof log?.zone_id === 'string' && log.zone_id.trim().length > 0 ? log.zone_id.trim() : '';
-      if (zoneValue && !options.has(zoneValue)) options.set(zoneValue, zoneValue);
-    });
     if (!options.has(activeZone)) {
       options.set(activeZone, activeZone);
     }
     return Array.from(options.entries()).map(([value, label]) => ({ value, label }));
-  }, [activeZone, attendanceLogs, eventZones]);
-
-  useEffect(() => {
-    if (zoneOptions.length === 0) return;
-    const hasCurrent = zoneOptions.some((zone) => zone.value === activeZone);
-    if (!hasCurrent) {
-      setActiveZone(zoneOptions[0].value);
-    }
-  }, [activeZone, zoneOptions]);
+  }, [activeZone, eventZones]);
 
   const activeZoneLabel = useMemo(() => {
     const found = zoneOptions.find((zone) => zone.value === activeZone);
@@ -230,19 +247,12 @@ export const CheckInConsole = () => {
 
   const processScanPayload = useCallback(
     async (inputPayload: string, source: 'manual' | 'camera' = 'manual') => {
+      if (scanInFlightRef.current) return;
       const rawPayload = inputPayload.trim();
-      if (!rawPayload) {
-        showScanResult({
-          success: false,
-          message: 'Paste or scan a QR payload to continue.',
-        });
-        return;
-      }
+      if (!rawPayload) return;
+
       if (!eventId) {
-        showScanResult({
-          success: false,
-          message: 'Missing event context. Refresh and retry.',
-        });
+        showScanResult({ success: false, message: 'Missing event context. Refresh and retry.' });
         return;
       }
 
@@ -261,9 +271,7 @@ export const CheckInConsole = () => {
             token: rawPayload,
             eventId,
           });
-          if (error || !data) {
-            throw error || new Error('Signed credential verification failed.');
-          }
+          if (error || !data) throw error || new Error('Signed credential verification failed.');
           resolution = {
             registration: data.registration,
             attendance_member_id: data.attendance_member_id,
@@ -275,21 +283,15 @@ export const CheckInConsole = () => {
           };
         } else {
           const { credential, error: parseError } = parseEventRegistrationCredential(rawPayload);
-          if (!credential) {
-            throw new Error(parseError || 'Invalid QR payload.');
-          }
-
-          if (credential.event_id !== eventId) {
-            throw new Error('This QR code belongs to another event.');
-          }
+          if (!credential) throw new Error(parseError || 'Invalid QR payload.');
+          if (credential.event_id !== eventId) throw new Error('QR belongs to another event.');
 
           const { data, error } = await eventsApi.resolveRegistrationForCheckIn({
             event_id: eventId,
             registration_id: credential.registration_id,
           });
-          if (error || !data) {
-            throw error || new Error('Could not resolve registration.');
-          }
+          if (error || !data) throw error || new Error('Could not resolve registration.');
+
           resolution = data;
           credentialMeta = {
             type: credential.t,
@@ -300,14 +302,10 @@ export const CheckInConsole = () => {
 
         const now = Date.now();
         const registrationId = resolution.registration.id;
-        Object.keys(recentScanByRegistrationRef.current).forEach((id) => {
-          if (now - recentScanByRegistrationRef.current[id] > DUPLICATE_SCAN_WINDOW_MS) {
-            delete recentScanByRegistrationRef.current[id];
-          }
-        });
+
         const lastProcessedAt = recentScanByRegistrationRef.current[registrationId];
         if (lastProcessedAt && now - lastProcessedAt < DUPLICATE_SCAN_WINDOW_MS) {
-          throw new Error('Duplicate scan blocked. This pass was already processed moments ago.');
+          throw new Error('Duplicate scan blocked. Already processed recently.');
         }
 
         const attendance = await recordAttendance({
@@ -315,276 +313,148 @@ export const CheckInConsole = () => {
           member_id: resolution.attendance_member_id,
           zone_id: activeZone,
           type: 'in',
-          method: 'QR',
+          method: source === 'camera' ? 'QR' : 'MANUAL',
           metadata: {
             registration_id: resolution.registration.id,
             registration_status: resolution.registration.status,
             attendee_name: resolution.registration.name,
             credential_type: credentialMeta?.type || 'unknown',
-            credential_version: credentialMeta?.version || 1,
-            credential_issued_at: credentialMeta?.issued_at || new Date().toISOString(),
-            credential_signed: credentialMeta?.type === 'event_registration_signed',
             scan_source: source,
+            assigned_staff_ids: assignedStaffIds.length > 0 ? assignedStaffIds : undefined,
           },
         });
-        recentScanByRegistrationRef.current[registrationId] = now;
 
+        recentScanByRegistrationRef.current[registrationId] = now;
         showScanResult({
           success: true,
           name: resolution.registration.name,
-          message: attendance.offline ? 'Offline check-in saved.' : 'Check-in successful. Welcome!',
+          message: attendance.offline
+            ? 'Offline check-in saved. Welcome!'
+            : 'Check-in successful. Welcome!',
         });
-        const durationMs = performance.now() - startedAt;
-        processingDurationsRef.current = [...processingDurationsRef.current.slice(-24), durationMs];
+
         const avg =
-          processingDurationsRef.current.reduce((sum, value) => sum + value, 0) /
-          processingDurationsRef.current.length;
+          [...processingDurationsRef.current.slice(-24), performance.now() - startedAt].reduce(
+            (s, v) => s + v,
+            0
+          ) /
+          (processingDurationsRef.current.length + 1);
         setAvgProcessingMs(avg);
         void refreshAttendanceMetrics();
       } catch (err: any) {
-        showScanResult({
-          success: false,
-          message: err?.message || 'QR validation failed.',
-        });
+        showScanResult({ success: false, message: err?.message || 'QR validation failed.' });
       } finally {
         scanInFlightRef.current = false;
         setScanPayload('');
         setIsScanning(false);
-      }
-    },
-    [activeZone, eventId, recordAttendance, refreshAttendanceMetrics]
-  );
-
-  const handleProcessScan = async () => {
-    const rawPayload = scanPayload.trim();
-    if (!rawPayload) {
-      await processScanPayload(rawPayload, 'manual');
-      return;
-    }
-    await processScanPayload(rawPayload, 'manual');
-  };
-
-  const runCameraScanFrame = useCallback(async () => {
-    if (cameraState !== 'active') return;
-    if (!videoRef.current || !detectorRef.current || !cameraStreamRef.current) {
-      cameraFrameRef.current = requestAnimationFrame(() => {
-        void runCameraScanFrame();
-      });
-      return;
-    }
-    try {
-      const now = Date.now();
-      if (now - lastDetectionAtRef.current < CAMERA_DETECTION_INTERVAL_MS) {
-        cameraFrameRef.current = requestAnimationFrame(() => {
-          void runCameraScanFrame();
-        });
-        return;
-      }
-      lastDetectionAtRef.current = now;
-
-      if (!scanInFlightRef.current) {
-        const detections = await detectorRef.current.detect(videoRef.current);
-        const payload = detections
-          .map((d) => (typeof d.rawValue === 'string' ? d.rawValue.trim() : ''))
-          .find((value) => value.length > 0);
-        if (payload) {
-          const now = Date.now();
-          const lastPayload = lastCameraPayloadRef.current;
-          if (
-            !lastPayload ||
-            lastPayload.value !== payload ||
-            now - lastPayload.at > CAMERA_DUPLICATE_PAYLOAD_WINDOW_MS
-          ) {
-            lastCameraPayloadRef.current = { value: payload, at: now };
-            setScanPayload(payload);
-            await processScanPayload(payload, 'camera');
+        // Pause camera briefly
+        if (source === 'camera' && html5QrCodeRef.current) {
+          try {
+            if (html5QrCodeRef.current.getState() === 2) {
+              html5QrCodeRef.current.pause();
+              setTimeout(() => {
+                if (html5QrCodeRef.current?.getState() === 3 /* PAUSED */) {
+                  html5QrCodeRef.current.resume();
+                }
+              }, 2500);
+            }
+          } catch (e) {
+            console.debug('Failed to pause camera', e);
           }
         }
       }
-    } catch (err: any) {
-      if (err?.name !== 'NotSupportedError' && err?.name !== 'InvalidStateError') {
-        setCameraError(err?.message || 'Camera scan failed.');
-      }
-    } finally {
-      cameraFrameRef.current = requestAnimationFrame(() => {
-        void runCameraScanFrame();
-      });
+    },
+    [activeZone, eventId, recordAttendance, refreshAttendanceMetrics, assignedStaffIds]
+  );
+
+  // Hardware Scanner Auto-Submit Effect
+  useEffect(() => {
+    if (mode === 'hw-scanner' && hwConfig.submitMode === 'delay' && scanPayload.length > 0) {
+      if (hwAutoSubmitTimeoutRef.current) clearTimeout(hwAutoSubmitTimeoutRef.current);
+      hwAutoSubmitTimeoutRef.current = setTimeout(() => {
+        let finalPayload = scanPayload;
+        if (hwConfig.stripWhitespace) finalPayload = finalPayload.replace(/\n|\r/g, '').trim();
+        if (finalPayload.length > 0 && !isScanning) {
+          void processScanPayload(finalPayload, 'manual');
+        }
+      }, hwConfig.delayMs);
     }
-  }, [CAMERA_DUPLICATE_PAYLOAD_WINDOW_MS, cameraState, processScanPayload]);
+    return () => {
+      if (hwAutoSubmitTimeoutRef.current) clearTimeout(hwAutoSubmitTimeoutRef.current);
+    };
+  }, [scanPayload, mode, hwConfig, isScanning, processScanPayload]);
 
   const startCameraScanner = useCallback(async () => {
-    if (!cameraSupported) {
-      setCameraState('unsupported');
-      setCameraError('Camera scanning is not supported in this browser.');
-      return;
-    }
-    if (cameraState === 'starting' || cameraState === 'active') {
-      return;
-    }
-
+    if (cameraState === 'starting' || cameraState === 'active') return;
     setCameraError(null);
     setCameraState('starting');
+
     try {
-      const BarcodeDetectorCtor = (window as any).BarcodeDetector as
-        | (new (options?: { formats?: string[] }) => {
-            detect: (input: any) => Promise<Array<{ rawValue?: string }>>;
-          })
-        | undefined;
-      if (!BarcodeDetectorCtor) {
-        throw new Error('Barcode detector is unavailable.');
-      }
-      if (!detectorRef.current) {
-        detectorRef.current = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+      if (!html5QrCodeRef.current) {
+        html5QrCodeRef.current = new Html5Qrcode('qr-reader-container', {
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+          verbose: false,
+        });
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false,
-      });
-      cameraStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
+      await html5QrCodeRef.current.start(
+        { facingMode: 'environment' },
+        {
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minEdgePercentage = 0.7; // 70% of screen
+            const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+            return { width: qrboxSize, height: qrboxSize };
+          },
+          aspectRatio: 1.0,
+        },
+        (decodedText) => {
+          if (!scanInFlightRef.current) {
+            void processScanPayload(decodedText, 'camera');
+          }
+        },
+        () => {
+          /* ignore read errors */
+        }
+      );
       setCameraState('active');
-      cameraFrameRef.current = requestAnimationFrame(() => {
-        void runCameraScanFrame();
-      });
     } catch (err: any) {
-      setCameraError(err?.message || 'Unable to start camera scanner.');
-      stopCameraScanner('error');
+      console.error(err);
+      setCameraError(err?.message || 'Unable to access camera.');
+      void stopCameraScanner('error');
     }
-  }, [cameraState, cameraSupported, runCameraScanFrame, stopCameraScanner]);
+  }, [cameraState, processScanPayload, stopCameraScanner]);
 
   const handleCreateZone = async () => {
     const trimmedName = newZoneName.trim();
-    if (!eventId || !trimmedName) {
-      showScanResult({
-        success: false,
-        message: eventId ? 'Provide a zone name before creating.' : 'Event context missing.',
-      });
-      return;
-    }
-
+    if (!eventId || !trimmedName) return;
     setIsCreatingZone(true);
     try {
       const createdZone = await attendanceApi.createZone({
         event_id: eventId,
         name: trimmedName,
-        capacity: Number(newZoneCapacity) > 0 ? Number(newZoneCapacity) : 100,
+        capacity: Number(newZoneCapacity) || 100,
         current_occupancy: 0,
         zone_type: newZoneType,
       });
       setEventZones((prev) => [...prev, createdZone]);
       setActiveZone(createdZone.id);
       setNewZoneName('');
-      setNewZoneCapacity('100');
-      setNewZoneType('ENTRY');
       setZonesPanelOpen(false);
     } catch (err: any) {
-      showScanResult({
-        success: false,
-        message: err?.message || 'Failed to create zone.',
-      });
+      alert(err.message || 'Failed to create zone.');
     } finally {
       setIsCreatingZone(false);
     }
   };
 
-  const startEditZone = (zone: EventZone) => {
-    setEditingZoneId(zone.id);
-    setEditZoneName(zone.name || '');
-    setEditZoneCapacity(String(zone.capacity ?? 100));
-    setEditZoneType(zone.zone_type || 'ENTRY');
-  };
-
-  const cancelEditZone = () => {
-    setEditingZoneId(null);
-    setEditZoneName('');
-    setEditZoneCapacity('100');
-    setEditZoneType('ENTRY');
-  };
-
-  const handleUpdateZone = async (zoneId: string) => {
-    const trimmedName = editZoneName.trim();
-    if (!trimmedName) {
-      showScanResult({
-        success: false,
-        message: 'Zone name is required.',
-      });
-      return;
-    }
-
-    setIsUpdatingZone(true);
-    try {
-      const updated = await attendanceApi.updateZone(zoneId, {
-        name: trimmedName,
-        capacity: Number(editZoneCapacity) > 0 ? Number(editZoneCapacity) : 100,
-        zone_type: editZoneType,
-      });
-      setEventZones((prev) => prev.map((zone) => (zone.id === zoneId ? updated : zone)));
-      cancelEditZone();
-    } catch (err: any) {
-      showScanResult({
-        success: false,
-        message: err?.message || 'Failed to update zone.',
-      });
-    } finally {
-      setIsUpdatingZone(false);
-    }
-  };
-
-  const handleDeleteZone = async (zoneId: string) => {
-    const canDelete =
-      typeof window === 'undefined'
-        ? true
-        : window.confirm('Delete this zone? This cannot be undone.');
-    if (!canDelete) return;
-    setDeletingZoneId(zoneId);
-    try {
-      await attendanceApi.deleteZone(zoneId);
-      setEventZones((prev) => prev.filter((zone) => zone.id !== zoneId));
-      if (activeZone === zoneId) {
-        setActiveZone('zone-main');
-      }
-      if (editingZoneId === zoneId) {
-        cancelEditZone();
-      }
-    } catch (err: any) {
-      showScanResult({
-        success: false,
-        message: err?.message || 'Failed to delete zone.',
-      });
-    } finally {
-      setDeletingZoneId(null);
-    }
-  };
-
-  const resetManualRegistration = () => {
-    setManualRegistrationForm({ fullName: '', phone: '' });
-  };
-
   const handleManualRegistration = async () => {
     const trimmedName = manualRegistrationForm.fullName.trim();
-    if (!trimmedName) {
-      showScanResult({
-        success: false,
-        message: 'Attendee name is required.',
-      });
-      return;
-    }
-    if (!eventId) {
-      showScanResult({
-        success: false,
-        message: 'Event context missing.',
-      });
-      return;
-    }
-
+    if (!trimmedName || !eventId) return;
     setIsSavingManualRegistration(true);
     try {
-      const result = await recordAttendance({
+      await recordAttendance({
         event_id: eventId,
         member_id: null,
         zone_id: activeZone,
@@ -593,23 +463,14 @@ export const CheckInConsole = () => {
         metadata: {
           attendee_name: trimmedName,
           phone: manualRegistrationForm.phone.trim() || null,
-          registration_source: 'manual_attendance',
+          assigned_staff_ids: assignedStaffIds.length > 0 ? assignedStaffIds : undefined,
         },
       });
-
-      showScanResult({
-        success: true,
-        name: trimmedName,
-        message: result.offline ? 'Offline check-in saved.' : 'Manual attendee registered.',
-      });
       setShowManualRegistration(false);
-      resetManualRegistration();
+      setManualRegistrationForm({ fullName: '', phone: '' });
       void refreshAttendanceMetrics();
     } catch (err: any) {
-      showScanResult({
-        success: false,
-        message: err?.message || 'Manual registration failed.',
-      });
+      alert(err.message || 'Registration failed.');
     } finally {
       setIsSavingManualRegistration(false);
     }
@@ -617,494 +478,393 @@ export const CheckInConsole = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-      {/* Primary Interaction Zone */}
-      <div className="space-y-6">
-        <div className="flex gap-2 p-1 bg-muted/40 rounded-2xl border border-primary/5 w-fit">
+      {/* Interaction Column */}
+      <div className="space-y-6 flex flex-col">
+        {/* Sleek Header Toggles */}
+        <div className="flex items-center justify-between p-2 bg-muted/40 rounded-2xl border border-primary/5">
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setMode('scan')}
+              className={cn(
+                'h-10 px-5 rounded-xl font-bold text-xs transition-all',
+                mode === 'scan'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'text-muted-foreground hover:bg-white/50'
+              )}
+            >
+              <QrCode className="h-4 w-4 mr-2" /> Camera
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setMode('hw-scanner')}
+              className={cn(
+                'h-10 px-5 rounded-xl font-bold text-xs transition-all',
+                mode === 'hw-scanner'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'text-muted-foreground hover:bg-white/50'
+              )}
+            >
+              <Scan className="h-4 w-4 mr-2" /> Scanner
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setMode('manual')}
+              className={cn(
+                'h-10 px-5 rounded-xl font-bold text-xs transition-all',
+                mode === 'manual'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'text-muted-foreground hover:bg-white/50'
+              )}
+            >
+              <Search className="h-4 w-4 mr-2" /> Search
+            </Button>
+          </div>
           <Button
             variant="ghost"
-            onClick={() => setMode('scan')}
-            className={cn(
-              'h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all',
-              mode === 'scan' ? 'bg-white text-primary shadow-sm' : 'text-muted-foreground'
-            )}
+            size="icon"
+            onClick={() => setZonesPanelOpen(true)}
+            className="rounded-xl text-primary/70 hover:bg-primary/10"
           >
-            <Scan className="h-3.5 w-3.5 mr-2" />
-            Scanner Mode
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setMode('manual')}
-            className={cn(
-              'h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all',
-              mode === 'manual' ? 'bg-white text-primary shadow-sm' : 'text-muted-foreground'
-            )}
-          >
-            <Keyboard className="h-3.5 w-3.5 mr-2" />
-            Manual Search
+            <Settings className="h-5 w-5" />
           </Button>
         </div>
 
-        {mode === 'scan' ? (
-          <Card className="min-h-[520px] rounded-[40px] border-none bg-neutral-900 shadow-2xl relative overflow-hidden text-white ring-8 ring-primary/5">
-            <div className="absolute inset-0 opacity-20 pointer-events-none">
-              <div className="absolute top-0 w-full h-1 bg-primary/40 animate-scan" />
+        {/* Camera Scanner Mode */}
+        {mode === 'scan' && (
+          <Card className="flex-1 rounded-[40px] border border-primary/10 bg-black shadow-2xl relative overflow-hidden flex flex-col justify-center min-h-[500px]">
+            {/* Premium Overlay Elements */}
+            <div className="absolute top-6 left-6 z-20 flex gap-2">
+              <Badge className="bg-black/40 backdrop-blur-md text-white border border-white/10 px-3 py-1 text-[10px] uppercase tracking-widest font-black">
+                {activeZoneLabel}
+              </Badge>
+              {assignedStaffIds.length > 0 && (
+                <Badge className="bg-primary/80 backdrop-blur-md text-white border border-white/10 px-3 py-1 text-[10px] uppercase tracking-widest font-black">
+                  {assignedStaffIds.length} Staff Assigned
+                </Badge>
+              )}
             </div>
 
-            <AnimatePresence mode="wait">
-              {isScanning ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="text-center space-y-4 h-full w-full flex flex-col items-center justify-center"
-                >
-                  <Loader2 className="h-16 w-16 text-primary animate-spin mx-auto" />
-                  <p className="text-xs font-black uppercase tracking-widest opacity-60">
-                    Validating Token...
+            {/* Feature 1: Camera Stop Control */}
+            {cameraState === 'active' && (
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-6 right-6 z-20 rounded-full h-10 w-10 shadow-lg shadow-black/50 hover:scale-105 active:scale-95 transition-transform"
+                onClick={() => void stopCameraScanner()}
+                title="Stop Camera"
+              >
+                <PowerOff className="h-4 w-4" />
+              </Button>
+            )}
+
+            {/* Camera Container */}
+            <div className="relative w-full h-full flex flex-col items-center justify-center">
+              {cameraState !== 'active' && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950 p-6 text-center">
+                  <QrCode className="h-16 w-16 text-white/20 mb-4" />
+                  <h3 className="text-white font-serif text-2xl mb-2">Camera Off</h3>
+                  <p className="text-white/50 text-sm mb-6 max-w-xs">
+                    {cameraError || 'Activate the camera to begin scanning attendee credentials.'}
                   </p>
-                </motion.div>
-              ) : (
+                  <Button
+                    onClick={startCameraScanner}
+                    disabled={cameraState === 'starting'}
+                    className="rounded-full px-8 font-bold bg-white text-black hover:bg-white/90"
+                  >
+                    {cameraState === 'starting' ? 'Initializing...' : 'Turn On Camera'}
+                  </Button>
+                </div>
+              )}
+
+              <div
+                id="qr-reader-container"
+                className="w-full h-full [&>img]:hidden [&>video]:object-cover [&>video]:!h-full [&>video]:!w-full border-none"
+              />
+
+              {/* Targeting Reticle Overlay */}
+              {cameraState === 'active' && !lastScanResult && (
+                <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
+                  <div className="relative w-64 h-64 sm:w-80 sm:h-80 opacity-70">
+                    <svg
+                      width="100%"
+                      height="100%"
+                      viewBox="0 0 100 100"
+                      className="drop-shadow-lg"
+                    >
+                      <path d="M 25 2 L 2 2 L 2 25" fill="none" stroke="white" strokeWidth="4" />
+                      <path d="M 75 2 L 98 2 L 98 25" fill="none" stroke="white" strokeWidth="4" />
+                      <path d="M 25 98 L 2 98 L 2 75" fill="none" stroke="white" strokeWidth="4" />
+                      <path
+                        d="M 75 98 L 98 98 L 98 75"
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="4"
+                      />
+                    </svg>
+                    <div className="absolute top-1/2 left-0 w-full h-[2px] bg-primary/80 blur-[1px] shadow-[0_0_15px_rgba(var(--primary),1)] animate-scan-beam" />
+                  </div>
+                </div>
+              )}
+
+              {isScanning && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="relative z-10 flex h-full flex-col gap-6 px-6 py-6 sm:px-8 sm:py-8"
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-300"
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <div className="absolute -inset-3 bg-primary/20 blur-xl rounded-full" />
-                        <QrCode className="h-14 w-14 sm:h-16 sm:w-16 relative text-primary" />
-                        <div className="absolute top-0 right-0 h-3 w-3 bg-emerald-500 rounded-full border-[3px] border-neutral-900" />
-                      </div>
-                      <div>
-                        <h4 className="text-xl font-serif font-black">Scanner Active</h4>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
-                          Align a QR code inside the camera frame for instant verification.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid flex-1 grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="flex flex-col gap-4">
-                      <div className="rounded-2xl border border-white/15 bg-white/5 p-4 space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-white/50">
-                            Scanner Zone
-                          </p>
-                          <Badge className="bg-white/10 text-white/70 border-none text-[8px] font-black tracking-widest py-1">
-                            {activeZoneLabel.toUpperCase()}
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                          <select
-                            aria-label="Active zone selector"
-                            value={activeZone}
-                            onChange={(e) => setActiveZone(e.target.value)}
-                            disabled={zonesLoading}
-                            className="h-10 w-full rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold text-white outline-none disabled:opacity-60"
-                          >
-                            {zoneOptions.map((zone) => (
-                              <option key={zone.value} value={zone.value} className="text-black">
-                                {zone.label}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="h-10 w-full sm:w-auto px-4 rounded-xl text-[9px] font-black uppercase tracking-widest"
-                            disabled={!hasEventContext || zonesLoading}
-                            onClick={() => {
-                              if (!hasEventContext) {
-                                showScanResult({
-                                  success: false,
-                                  message: 'Event context missing.',
-                                });
-                                return;
-                              }
-                              setZonesPanelOpen((open) => !open);
-                            }}
-                          >
-                            {zonesPanelOpen ? 'Close' : 'Manage'}
-                          </Button>
-                        </div>
-                        {zonesPanelOpen && (
-                          <div className="rounded-xl border border-white/15 bg-white/5 p-3 space-y-2">
-                            <div className="space-y-1">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
-                                Add New Zone
-                              </p>
-                              <Input
-                                value={newZoneName}
-                                onChange={(e) => setNewZoneName(e.target.value)}
-                                placeholder="Zone name"
-                                className="h-9 rounded-lg border-white/20 bg-white/10 text-white placeholder:text-white/40"
-                              />
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  value={newZoneCapacity}
-                                  onChange={(e) => setNewZoneCapacity(e.target.value)}
-                                  placeholder="Capacity"
-                                  className="h-9 rounded-lg border-white/20 bg-white/10 text-white placeholder:text-white/40"
-                                />
-                                <select
-                                  value={newZoneType}
-                                  onChange={(e) => setNewZoneType(e.target.value)}
-                                  className="h-9 rounded-lg border border-white/20 bg-white/10 px-2 text-xs font-bold text-white outline-none"
-                                >
-                                  <option value="ENTRY" className="text-black">
-                                    ENTRY
-                                  </option>
-                                  <option value="HALL" className="text-black">
-                                    HALL
-                                  </option>
-                                  <option value="ROOM" className="text-black">
-                                    ROOM
-                                  </option>
-                                  <option value="CLINIC" className="text-black">
-                                    CLINIC
-                                  </option>
-                                </select>
-                              </div>
-                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  className="h-8 px-3 text-[9px] font-black uppercase tracking-widest text-white/70 hover:text-white"
-                                  disabled={!hasEventContext || zonesLoading}
-                                  onClick={() => {
-                                    if (!hasEventContext) {
-                                      showScanResult({
-                                        success: false,
-                                        message: 'Event context missing.',
-                                      });
-                                      return;
-                                    }
-                                    void refreshZones();
-                                  }}
-                                >
-                                  Refresh
-                                </Button>
-                                <Button
-                                  type="button"
-                                  className="h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest"
-                                  onClick={() => void handleCreateZone()}
-                                  disabled={
-                                    isCreatingZone ||
-                                    !hasEventContext ||
-                                    newZoneName.trim().length === 0
-                                  }
-                                >
-                                  {isCreatingZone ? 'Saving...' : 'Create Zone'}
-                                </Button>
-                              </div>
-                            </div>
-
-                            <div className="pt-2 border-t border-white/10 space-y-2">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
-                                Existing Zones
-                              </p>
-                              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                {eventZones.length === 0 ? (
-                                  <p className="text-[10px] text-white/50">
-                                    No zones configured yet.
-                                  </p>
-                                ) : (
-                                  eventZones.map((zone) => (
-                                    <div
-                                      key={zone.id}
-                                      className="rounded-lg border border-white/10 bg-black/20 p-2 space-y-2"
-                                    >
-                                      {editingZoneId === zone.id ? (
-                                        <>
-                                          <Input
-                                            value={editZoneName}
-                                            onChange={(e) => setEditZoneName(e.target.value)}
-                                            placeholder="Edit zone name"
-                                            className="h-8 rounded-md border-white/20 bg-white/10 text-white placeholder:text-white/40"
-                                          />
-                                          <div className="grid grid-cols-2 gap-2">
-                                            <Input
-                                              type="number"
-                                              min={1}
-                                              value={editZoneCapacity}
-                                              onChange={(e) => setEditZoneCapacity(e.target.value)}
-                                              placeholder="Edit capacity"
-                                              className="h-8 rounded-md border-white/20 bg-white/10 text-white placeholder:text-white/40"
-                                            />
-                                            <select
-                                              value={editZoneType}
-                                              onChange={(e) => setEditZoneType(e.target.value)}
-                                              className="h-8 rounded-md border border-white/20 bg-white/10 px-2 text-[10px] font-bold text-white outline-none"
-                                            >
-                                              <option value="ENTRY" className="text-black">
-                                                ENTRY
-                                              </option>
-                                              <option value="HALL" className="text-black">
-                                                HALL
-                                              </option>
-                                              <option value="ROOM" className="text-black">
-                                                ROOM
-                                              </option>
-                                              <option value="CLINIC" className="text-black">
-                                                CLINIC
-                                              </option>
-                                            </select>
-                                          </div>
-                                          <div className="flex items-center justify-end gap-2">
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-white/70"
-                                              onClick={cancelEditZone}
-                                            >
-                                              Cancel
-                                            </Button>
-                                            <Button
-                                              type="button"
-                                              className="h-7 px-2 rounded-md text-[9px] font-black uppercase tracking-widest"
-                                              onClick={() => void handleUpdateZone(zone.id)}
-                                              disabled={isUpdatingZone}
-                                            >
-                                              {isUpdatingZone ? 'Saving...' : 'Save'}
-                                            </Button>
-                                          </div>
-                                        </>
-                                      ) : (
-                                        <div className="flex items-center justify-between gap-2">
-                                          <div className="min-w-0">
-                                            <p className="text-[10px] font-black text-white truncate">
-                                              {zone.name}
-                                            </p>
-                                            <p className="text-[9px] text-white/50 uppercase tracking-widest">
-                                              {(zone.zone_type || 'ZONE').toUpperCase()} � cap{' '}
-                                              {zone.capacity || '--'}
-                                            </p>
-                                          </div>
-                                          <div className="flex items-center gap-1">
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-white/70"
-                                              onClick={() => startEditZone(zone)}
-                                            >
-                                              Edit
-                                            </Button>
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-red-300 hover:text-red-200"
-                                              onClick={() => void handleDeleteZone(zone.id)}
-                                              disabled={deletingZoneId === zone.id}
-                                            >
-                                              {deletingZoneId === zone.id ? '...' : 'Delete'}
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-3">
-                        <Input
-                          value={scanPayload}
-                          onChange={(e) => setScanPayload(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !isScanning) {
-                              void handleProcessScan();
-                            }
-                          }}
-                          placeholder="Paste scanned QR payload and press Enter"
-                          className="h-11 rounded-xl border-white/20 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-primary"
-                        />
-                        <Button
-                          onClick={handleProcessScan}
-                          disabled={isScanning}
-                          className="h-11 w-full rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest"
-                        >
-                          Validate QR Data
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                      <div className="rounded-2xl border border-white/20 bg-black/60 overflow-hidden aspect-video">
-                        {cameraState === 'active' ? (
-                          <video
-                            ref={videoRef}
-                            muted
-                            playsInline
-                            autoPlay
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-full flex flex-col items-center justify-center gap-2 text-white/60 p-4 text-center">
-                            <QrCode className="h-8 w-8 text-white/50" />
-                            <p className="text-[10px] font-black uppercase tracking-widest">
-                              {cameraState === 'unsupported'
-                                ? 'Camera scanner unsupported'
-                                : cameraState === 'starting'
-                                  ? 'Starting camera...'
-                                  : cameraState === 'error'
-                                    ? 'Camera unavailable'
-                                    : 'Camera preview is off'}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <Button
-                          onClick={() => {
-                            if (cameraState === 'active' || cameraState === 'starting') {
-                              stopCameraScanner();
-                            } else {
-                              void startCameraScanner();
-                            }
-                          }}
-                          disabled={cameraState === 'starting'}
-                          variant="secondary"
-                          className="h-10 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest"
-                        >
-                          {cameraState === 'active' || cameraState === 'starting'
-                            ? 'Stop Camera'
-                            : 'Start Camera'}
-                        </Button>
-                        <Badge className="bg-white/10 text-white/70 border-none text-[8px] font-black tracking-widest py-1">
-                          {cameraState.toUpperCase()}
-                        </Badge>
-                      </div>
-                      {cameraError && (
-                        <p className="text-[10px] text-red-300 font-bold leading-relaxed">
-                          {cameraError}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+                  <p className="text-white font-black tracking-widest uppercase text-xs">
+                    Verifying Pass
+                  </p>
                 </motion.div>
               )}
-            </AnimatePresence>
 
-            <div className="absolute bottom-5 left-5 flex items-center gap-2">
-              <Badge
-                className={cn(
-                  'border-none text-[8px] font-black tracking-widest py-1',
-                  isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+              <AnimatePresence>
+                {lastScanResult && (
+                  <motion.div
+                    key="scan-result"
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    className={cn(
+                      'absolute inset-4 z-30 rounded-[32px] overflow-hidden flex flex-col items-center justify-center p-8 text-center backdrop-blur-xl border',
+                      lastScanResult.success
+                        ? 'bg-emerald-950/80 border-emerald-500/30'
+                        : 'bg-red-950/80 border-red-500/30'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'h-24 w-24 rounded-full flex items-center justify-center mb-6 shadow-2xl',
+                        lastScanResult.success
+                          ? 'bg-emerald-500 text-white shadow-emerald-500/50'
+                          : 'bg-red-500 text-white shadow-red-500/50'
+                      )}
+                    >
+                      {lastScanResult.success ? (
+                        <CheckCircle2 className="h-12 w-12" />
+                      ) : (
+                        <XCircle className="h-12 w-12" />
+                      )}
+                    </div>
+                    <h3 className="text-white text-3xl font-serif font-black mb-2 leading-tight">
+                      {lastScanResult.name || 'Unknown'}
+                    </h3>
+                    <p className="text-white/80 font-bold text-sm tracking-wide bg-black/20 px-4 py-2 rounded-xl">
+                      {lastScanResult.message}
+                    </p>
+                  </motion.div>
                 )}
-              >
-                {isOnline ? 'DEVICE CONNECTED' : 'OFFLINE MODE ACTIVE'}
-              </Badge>
-              <Badge className="bg-white/10 text-white/40 border-none text-[8px] font-black tracking-widest py-1">
-                LOGS ENCRYPTED
-              </Badge>
+              </AnimatePresence>
             </div>
+          </Card>
+        )}
+
+        {/* Hardware Scanner Mode */}
+        {mode === 'hw-scanner' && (
+          <Card className="flex-1 rounded-[40px] border border-primary/10 bg-white shadow-2xl p-8 flex flex-col justify-between min-h-[500px]">
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-5 right-5 text-white/40 hover:text-white transition-all"
+              className="absolute top-6 right-6 z-20 hover:bg-primary/5 text-muted-foreground hover:text-primary"
+              onClick={() => setShowHwConfig(!showHwConfig)}
             >
-              <Maximize2 className="h-5 w-5" />
+              <SlidersHorizontal className="h-5 w-5" />
             </Button>
+
+            {!showHwConfig ? (
+              <div className="max-w-md mx-auto w-full text-center space-y-8 flex-1 flex flex-col justify-center">
+                <div className="h-24 w-24 bg-primary/10 rounded-3xl mx-auto flex items-center justify-center">
+                  <Scan className="h-10 w-10 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-serif font-black mb-2">Hardware Scanner</h3>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    Ensure cursor is in the box below. Scan a QR code with your USB scanner.
+                    {hwConfig.submitMode === 'delay'
+                      ? ' It will auto-submit after scan.'
+                      : ' Press enter to submit.'}
+                  </p>
+                </div>
+                <div className="relative">
+                  <Input
+                    autoFocus
+                    value={scanPayload}
+                    onChange={(e) => setScanPayload(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !isScanning && hwConfig.submitMode === 'enter') {
+                        let finalPayload = scanPayload;
+                        if (hwConfig.stripWhitespace)
+                          finalPayload = finalPayload.replace(/\n|\r/g, '').trim();
+                        void processScanPayload(finalPayload, 'manual');
+                      }
+                    }}
+                    placeholder="Scan payload will appear here..."
+                    className="h-14 bg-muted/50 border-primary/20 rounded-2xl text-center font-mono opacity-50 focus:opacity-100 transition-opacity"
+                    disabled={isScanning}
+                  />
+                  {isScanning && (
+                    <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-primary" />
+                  )}
+                </div>
+                <AnimatePresence>
+                  {lastScanResult && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={cn(
+                        'p-4 rounded-xl text-sm font-bold',
+                        lastScanResult.success
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-red-100 text-red-800'
+                      )}
+                    >
+                      {lastScanResult.message}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              // Feature 3: Hardware Configuration Screen
+              <div className="flex-1 flex flex-col justify-center space-y-6">
+                <div>
+                  <h3 className="font-serif font-black text-xl mb-1 flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-primary" /> Hardware Config
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    Tune your hardware scanner input behaviors.
+                  </p>
+                </div>
+
+                <div className="space-y-4 bg-muted/30 p-6 rounded-3xl border border-primary/5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-widest opacity-70">
+                      Submit Mode
+                    </label>
+                    <select
+                      value={hwConfig.submitMode}
+                      onChange={(e) => setHwConfig((p) => ({ ...p, submitMode: e.target.value }))}
+                      className="w-full h-10 rounded-xl border border-primary/20 bg-background px-4 font-bold outline-none text-sm"
+                    >
+                      <option value="enter">Require Enter Key</option>
+                      <option value="delay">Auto-Detect Complete Scan (Delay)</option>
+                    </select>
+                  </div>
+
+                  {hwConfig.submitMode === 'delay' && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-black uppercase tracking-widest opacity-70">
+                        Auto-Submit Delay (ms)
+                      </label>
+                      <Input
+                        type="number"
+                        value={hwConfig.delayMs}
+                        onChange={(e) =>
+                          setHwConfig((p) => ({ ...p, delayMs: Number(e.target.value) || 300 }))
+                        }
+                        className="h-10 rounded-xl"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Wait time after last keystroke before submitting payload.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="text-xs font-black uppercase tracking-widest opacity-70">
+                      Strip Whitespace/Enter
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={hwConfig.stripWhitespace}
+                      onChange={(e) =>
+                        setHwConfig((p) => ({ ...p, stripWhitespace: e.target.checked }))
+                      }
+                      className="h-4 w-4 bg-primary text-primary border-primary/20 rounded"
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setShowHwConfig(false)}
+                  className="w-full rounded-xl font-bold"
+                >
+                  Done
+                </Button>
+              </div>
+            )}
           </Card>
-        ) : (
-          <Card className="p-8 pb-4 rounded-[40px] border-none bg-white shadow-2xl flex flex-col min-h-[520px]">
+        )}
+
+        {/* Manual Search Mode */}
+        {mode === 'manual' && (
+          <Card className="flex-1 p-8 rounded-[40px] border border-primary/10 bg-white shadow-2xl flex flex-col min-h-[500px]">
+            {/* Same as before... */}
             <div className="relative mb-6">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground opacity-40" />
               <Input
                 placeholder="Search by name, phone, or membership ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-14 pl-12 rounded-2xl border-primary/5 bg-muted/30 focus:bg-background transition-all font-bold"
+                className="h-14 pl-12 rounded-2xl border-primary/10 bg-muted/30 focus:bg-background font-bold text-base"
               />
             </div>
-
             <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
               {membersLoading ? (
-                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-40">
+                <div className="flex flex-col items-center justify-center p-12 opacity-40">
                   <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">
-                    Searching Records...
-                  </p>
                 </div>
               ) : members.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-40">
+                <div className="flex flex-col items-center justify-center p-12 opacity-40 text-center">
                   <UserPlus className="h-12 w-12 mb-4" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">
-                    No matching members
-                  </p>
+                  <p className="text-sm font-bold uppercase tracking-widest">No matching records</p>
                 </div>
               ) : (
                 members.map((member) => (
                   <div
                     key={member.id}
-                    onClick={() =>
-                      setSelectedPerson({
-                        id: member.id,
-                        fullName: member.fullName,
-                        role: 'ATTENDEE',
-                        status: 'ACTIVE',
-                        currentZone: 'Main Entrance',
-                        phone: member.phone,
-                      })
-                    }
-                    className="flex items-center justify-between p-4 rounded-2xl border border-transparent hover:border-primary/10 hover:bg-primary/5 transition-all group cursor-pointer"
+                    className="flex items-center justify-between p-4 rounded-2xl border border-transparent hover:border-primary/10 hover:bg-primary/5 transition-all group"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center font-black text-xs text-primary shadow-inner">
+                    <div
+                      className="flex items-center gap-4 cursor-pointer"
+                      onClick={() => setSelectedPerson(member)}
+                    >
+                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center font-black text-primary">
                         {member.fullName.charAt(0)}
                       </div>
                       <div>
-                        <h5 className="text-sm font-black text-foreground">{member.fullName}</h5>
-                        <p className="text-[10px] font-bold text-muted-foreground opacity-60 uppercase tracking-widest">
-                          {member.phone || 'No Phone Registered'}
+                        <h5 className="font-black text-foreground">{member.fullName}</h5>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                          {member.phone || 'No Phone'}
                         </p>
                       </div>
                     </div>
                     <Button
-                      variant="ghost"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (!eventId) {
-                          showScanResult({
-                            success: false,
-                            name: member.fullName,
-                            message: 'Event context missing.',
-                          });
-                          return;
-                        }
+                      onClick={async () => {
+                        if (!eventId) return;
                         try {
-                          const result = await recordAttendance({
+                          await recordAttendance({
                             event_id: eventId,
                             member_id: member.id,
                             zone_id: activeZone,
                             type: 'in',
                             method: 'MANUAL',
+                            metadata: {
+                              assigned_staff_ids:
+                                assignedStaffIds.length > 0 ? assignedStaffIds : undefined,
+                            },
                           });
                           showScanResult({
                             success: true,
                             name: member.fullName,
-                            message: result.offline
-                              ? 'Offline check-in saved.'
-                              : 'Manual check-in confirmed.',
+                            message: 'Manual check-in confirmed.',
                           });
-                          void refreshAttendanceMetrics();
                         } catch (err: any) {
-                          showScanResult({
-                            success: false,
-                            name: member.fullName,
-                            message: err?.message || 'Manual check-in failed.',
-                          });
+                          alert(err.message || 'Check-in failed');
                         }
                       }}
-                      className="h-9 px-4 rounded-lg bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all"
+                      className="px-6 rounded-xl font-bold uppercase tracking-widest text-[10px]"
                     >
                       Check-In
                     </Button>
@@ -1112,219 +872,301 @@ export const CheckInConsole = () => {
                 ))
               )}
             </div>
-
             <div className="mt-4 pt-4 border-t border-primary/5">
               <Button
                 variant="ghost"
                 onClick={() => setShowManualRegistration(true)}
-                className="w-full text-primary font-black text-[10px] uppercase tracking-widest h-10 rounded-xl"
+                className="w-full text-primary font-black text-[10px] uppercase tracking-widest h-12 rounded-xl"
               >
-                Register New Attendee
+                Register Walk-in Attendee
               </Button>
             </div>
           </Card>
         )}
       </div>
 
-      {/* Real-time Feedback & Metrics */}
+      {/* Analytics Column */}
       <div className="space-y-6">
-        <AnimatePresence>
-          {lastScanResult && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className={cn(
-                'p-8 rounded-[40px] flex items-center gap-6 shadow-2xl relative overflow-hidden',
-                lastScanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-              )}
-            >
-              <div className="h-20 w-20 rounded-[28px] bg-white/20 flex items-center justify-center shrink-0">
-                {lastScanResult.success ? (
-                  <CheckCircle2 className="h-10 w-10 text-white" />
-                ) : (
-                  <XCircle className="h-10 w-10 text-white" />
-                )}
-              </div>
-              <div>
-                <h3 className="text-2xl font-serif font-black leading-tight">
-                  {lastScanResult.name || 'Access Denied'}
-                </h3>
-                <p className="text-sm font-bold opacity-80 mt-1">{lastScanResult.message}</p>
-                <div className="mt-4 flex items-center gap-2">
-                  <Badge className="bg-white/20 border-none text-[8px] font-black tracking-widest py-1">
-                    TIME: {lastScanResult.timestamp}
-                  </Badge>
-                  {lastScanResult.success && (
-                    <Badge className="bg-white/20 border-none text-[8px] font-black tracking-widest py-1">
-                      ZONE: {activeZoneLabel.toUpperCase()}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <div className="absolute -right-6 -bottom-6 opacity-10">
-                {lastScanResult.success ? <CheckCircle2 size={160} /> : <XCircle size={160} />}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <Card className="p-8 rounded-[40px] border border-primary/5 bg-white shadow-2xl shadow-primary/5">
-          <h4 className="text-xl font-serif font-black mb-6">Session Metrics</h4>
+        <Card className="p-8 rounded-[40px] border border-primary/5 bg-white shadow-2xl flex flex-col justify-center min-h-[500px]">
+          <h4 className="text-3xl font-serif font-black mb-8 text-neutral-900 leading-tight">
+            Session Check-In
+            <br />
+            Metrics Dashboard
+          </h4>
           <div className="grid grid-cols-2 gap-4">
             {[
               { label: 'Total Scans', value: String(metrics.totalScans), color: 'text-primary' },
-              { label: 'Wait Time', value: metrics.avgWaitLabel, color: 'text-emerald-500' },
-              { label: 'Manual Hits', value: String(metrics.manualHits), color: 'text-amber-500' },
-              { label: 'Re-entries', value: String(metrics.reEntries), color: 'text-primary' },
+              { label: 'Avg Verify Time', value: metrics.avgWaitLabel, color: 'text-emerald-500' },
+              {
+                label: 'Manual Entries',
+                value: String(metrics.manualHits),
+                color: 'text-amber-500',
+              },
+              {
+                label: 'Duplicate Prevented',
+                value: String(metrics.reEntries),
+                color: 'text-neutral-500',
+              },
             ].map((m, i) => (
-              <div key={i} className="p-4 rounded-3xl bg-muted/30 border border-primary/5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60 mb-1">
+              <div
+                key={i}
+                className="p-6 rounded-3xl bg-neutral-50 border border-neutral-100 hover:shadow-sm transition-all text-center"
+              >
+                <p className={cn('text-3xl font-black mb-2', m.color)}>{m.value}</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">
                   {m.label}
                 </p>
-                <p className={cn('text-xl font-black', m.color)}>{m.value}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 pt-6 border-t border-primary/5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Sync Pipeline
-              </span>
-              <span
-                className={cn(
-                  'text-[10px] font-black uppercase tracking-widest',
-                  isSyncing
-                    ? 'text-primary animate-pulse'
-                    : bufferSize > 0
-                      ? 'text-amber-500'
-                      : 'text-emerald-500'
+          <div className="mt-10 p-6 rounded-3xl bg-neutral-900 text-white shadow-inner flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">
+                Data Pipeline
+              </p>
+              <h5 className="font-serif text-lg font-black flex items-center gap-2">
+                {isOnline ? (
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
                 )}
-              >
-                {isSyncing
-                  ? 'Synchronizing...'
-                  : bufferSize > 0
-                    ? `${bufferSize} Pending`
-                    : 'Synchronized'}
-              </span>
+                {isOnline ? 'Online Sync Active' : 'Offline Buffer Mode'}
+              </h5>
             </div>
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-              <motion.div
-                className={cn(
-                  'h-full transition-all duration-1000',
-                  isSyncing ? 'bg-primary' : bufferSize > 0 ? 'bg-amber-500' : 'bg-emerald-500'
-                )}
-                animate={{ width: bufferSize > 0 ? '60%' : '100%' }}
-              />
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">
+                Queue Size
+              </p>
+              <p className="font-mono text-xl font-bold">{bufferSize}</p>
             </div>
           </div>
-        </Card>
-
-        <Card className="p-8 rounded-[40px] border border-primary/5 bg-white shadow-2xl shadow-primary/5 relative overflow-hidden group">
-          <div className="relative z-10">
-            <h5 className="font-serif font-black mb-4">Offline Buffer</h5>
-            <p className="text-xs text-muted-foreground font-medium leading-relaxed mb-6">
-              {bufferSize > 0
-                ? `There are ${bufferSize} records currently buffered. They will be pushed to the server as soon as connection is stable.`
-                : 'No pending records. Your device is communicating directly with the Supabase Real-time cluster.'}
-            </p>
-            <div className="flex items-center gap-3">
-              <div
-                className={cn(
-                  'h-3 w-3 rounded-full',
-                  isOnline ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
-                )}
-              />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                {isOnline ? 'Service Reachable' : 'Local Buffer Active'}
-              </span>
-            </div>
-          </div>
-          <Loader2
-            className={cn(
-              'absolute -right-4 -bottom-4 h-32 w-32 text-primary opacity-5 transition-transform duration-[2000ms]',
-              isSyncing && 'animate-spin'
-            )}
-          />
         </Card>
       </div>
+
+      {/* Configuration & Assignment Modal */}
+      <Dialog open={zonesPanelOpen} onOpenChange={setZonesPanelOpen}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <DialogHeader>
+            <DialogTitle>Scanner System Settings</DialogTitle>
+            <DialogDescription>Setup your target zone and assign scanning staff.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <label className="text-xs font-black uppercase tracking-widest opacity-70">
+                Active Zone Target
+              </label>
+              <select
+                value={activeZone}
+                onChange={(e) => setActiveZone(e.target.value)}
+                className="w-full h-12 rounded-xl border border-primary/20 bg-background px-4 font-bold outline-none ring-primary transition-all focus:ring-2"
+              >
+                {zoneOptions.map((zone) => (
+                  <option key={zone.value} value={zone.value}>
+                    {zone.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Feature 2: Staff Assignment */}
+            <div className="pt-4 border-t border-border space-y-3">
+              <label className="text-xs font-black uppercase tracking-widest opacity-70 flex items-center justify-between">
+                <span>Assigned Station Staff</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {assignedStaffIds.length} Assigned
+                </Badge>
+              </label>
+
+              <div className="flex flex-col gap-2 p-3 bg-muted/40 rounded-2xl border border-primary/5 min-h-[60px]">
+                {assignedStaffIds.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    No staff assigned.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {assignedStaffIds.map((id) => (
+                      <Badge
+                        key={id}
+                        className="pl-3 pr-1 py-1 font-bold bg-white text-black border border-primary/20 shadow-sm flex items-center gap-2"
+                      >
+                        ID: {id.slice(0, 6)}...
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 rounded-full hover:bg-red-100 hover:text-red-600 ml-1"
+                          onClick={() =>
+                            setAssignedStaffIds((prev) => prev.filter((s) => s !== id))
+                          }
+                        >
+                          <XCircle className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
+                <Input
+                  placeholder="Search members to assign..."
+                  value={staffSearchQuery}
+                  onChange={(e) => setStaffSearchQuery(e.target.value)}
+                  className="pl-9 h-10 rounded-xl"
+                />
+              </div>
+
+              {staffSearchQuery && (
+                <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar border rounded-xl p-1 bg-background shadow-sm">
+                  {staffLoading ? (
+                    <div className="p-4 text-center text-xs opacity-50">
+                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    </div>
+                  ) : staffCandidates.length === 0 ? (
+                    <div className="p-4 text-center text-xs opacity-50">No results.</div>
+                  ) : (
+                    staffCandidates.map((candidate) => {
+                      const isAssigned = assignedStaffIds.includes(candidate.id);
+                      return (
+                        <div
+                          key={candidate.id}
+                          className="flex flex-row items-center justify-between p-2 hover:bg-muted/50 rounded-lg group text-sm"
+                        >
+                          <div className="font-bold flex items-center gap-2">
+                            {isAssigned ? (
+                              <UserCheck className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <UserMinus className="h-4 w-4 text-muted-foreground opacity-50" />
+                            )}
+                            {candidate.fullName}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              'h-7 px-3 text-[10px] uppercase font-black',
+                              isAssigned
+                                ? 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                                : 'text-primary hover:bg-primary/10'
+                            )}
+                            onClick={() => {
+                              if (isAssigned) {
+                                setAssignedStaffIds((prev) =>
+                                  prev.filter((id) => id !== candidate.id)
+                                );
+                              } else {
+                                setAssignedStaffIds((prev) => [...prev, candidate.id]);
+                              }
+                            }}
+                          >
+                            {isAssigned ? 'Remove' : 'Assign'}
+                          </Button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-border space-y-4">
+              <label className="text-xs font-black uppercase tracking-widest opacity-70 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Quick Create Zone
+              </label>
+              <Input
+                value={newZoneName}
+                onChange={(e) => setNewZoneName(e.target.value)}
+                placeholder="Zone Name (e.g., VIP Balcony)"
+                className="h-10 rounded-xl"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  type="number"
+                  value={newZoneCapacity}
+                  onChange={(e) => setNewZoneCapacity(e.target.value)}
+                  placeholder="Capacity"
+                  className="h-10 rounded-xl"
+                />
+                <select
+                  value={newZoneType}
+                  onChange={(e) => setNewZoneType(e.target.value)}
+                  className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+                >
+                  <option value="main_hall">Main Hall</option>
+                  <option value="overflow">Overflow</option>
+                  <option value="outdoor">Outdoor</option>
+                  <option value="children">Children's Area</option>
+                  <option value="vip">VIP</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <Button
+                onClick={handleCreateZone}
+                disabled={isCreatingZone || !newZoneName.trim()}
+                className="w-full font-bold h-10 rounded-xl"
+              >
+                {isCreatingZone ? 'Creating...' : 'Create & Select'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ... Manul registration ... */}
+      <Dialog open={showManualRegistration} onOpenChange={setShowManualRegistration}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Register Walk-in Attendee</DialogTitle>
+            <DialogDescription>
+              Capture a walk-in attendee and check them in instantly.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Input
+              placeholder="Full Name"
+              value={manualRegistrationForm.fullName}
+              onChange={(e) =>
+                setManualRegistrationForm((p) => ({ ...p, fullName: e.target.value }))
+              }
+            />
+            <Input
+              placeholder="Phone (Optional)"
+              value={manualRegistrationForm.phone}
+              onChange={(e) => setManualRegistrationForm((p) => ({ ...p, phone: e.target.value }))}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowManualRegistration(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleManualRegistration} disabled={isSavingManualRegistration}>
+              Register & Check-In
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <PersonDetailDrawer
         isOpen={!!selectedPerson}
         onClose={() => setSelectedPerson(null)}
         person={selectedPerson}
       />
 
-      <Dialog open={showManualRegistration} onOpenChange={setShowManualRegistration}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Register New Attendee</DialogTitle>
-            <DialogDescription>
-              Capture a walk-in attendee and add them to the attendance stream immediately.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-foreground">Full Name</label>
-              <Input
-                value={manualRegistrationForm.fullName}
-                onChange={(event) =>
-                  setManualRegistrationForm((prev) => ({ ...prev, fullName: event.target.value }))
-                }
-                placeholder="e.g. Grace Johnson"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-foreground">Phone (optional)</label>
-              <Input
-                value={manualRegistrationForm.phone}
-                onChange={(event) =>
-                  setManualRegistrationForm((prev) => ({ ...prev, phone: event.target.value }))
-                }
-                placeholder="e.g. +1 555 123 4567"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowManualRegistration(false);
-                resetManualRegistration();
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => void handleManualRegistration()}
-              disabled={isSavingManualRegistration}
-            >
-              {isSavingManualRegistration ? 'Saving...' : 'Register & Check-In'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <style>{`
-        @keyframes scan {
-          from { top: 0; }
-          to { top: 100%; }
+        @keyframes scan-beam {
+          0% { top: 0; opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
         }
-        .animate-scan {
-          animation: scan 3s linear infinite;
-          position: absolute;
-          z-index: 5;
+        .animate-scan-beam {
+          animation: scan-beam 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(var(--primary), 0.1);
-          border-radius: 10px;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
       `}</style>
     </div>
   );
