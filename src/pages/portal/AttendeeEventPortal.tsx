@@ -38,6 +38,7 @@ const AttendeeEventPortal: React.FC = () => {
   const [registration, setRegistration] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
+  const [noteText, setNoteText] = useState('');
 
   const { incidents } = useIncidentSync(eventId);
 
@@ -104,10 +105,11 @@ const AttendeeEventPortal: React.FC = () => {
     return incidents.filter((i) => i.reporter_id === user?.id && i.status !== 'resolved');
   }, [incidents, user?.id]);
 
-  const handleUpdateStatus = async (responderId: string, status: any) => {
+  const handleUpdateStatus = async (responderId: string, status: any, notes?: string) => {
     try {
-      await incidentsApi.updateResponderStatus(responderId, status);
+      await incidentsApi.updateResponderStatus(responderId, status, notes);
       toast.success(`Status updated to ${status.replace('_', ' ')}`);
+      setNoteText('');
     } catch (e: any) {
       toast.error('Update failed: ' + e.message);
     }
@@ -267,7 +269,7 @@ const AttendeeEventPortal: React.FC = () => {
                   disabled={myAssignments[0].status === 'arrived'}
                   className={cn(
                     myAssignments[0].status === 'en_route' &&
-                      'bg-amber-600 hover:bg-amber-700 text-white'
+                      'bg-amber-600 hover:bg-amber-700 text-white font-bold'
                   )}
                   onClick={() => handleUpdateStatus(myAssignments[0].id, 'en_route')}
                 >
@@ -277,11 +279,32 @@ const AttendeeEventPortal: React.FC = () => {
                   variant={myAssignments[0].status === 'arrived' ? 'default' : 'outline'}
                   className={cn(
                     myAssignments[0].status === 'arrived' &&
-                      'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      'bg-emerald-600 hover:bg-emerald-700 text-white font-bold'
                   )}
                   onClick={() => handleUpdateStatus(myAssignments[0].id, 'arrived')}
                 >
                   {myAssignments[0].status === 'arrived' ? 'Arrived' : 'I have arrived'}
+                </Button>
+              </div>
+
+              {/* Responder Notes */}
+              <div className="space-y-2">
+                <textarea
+                  className="w-full text-sm p-3 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]"
+                  placeholder="Add on-scene notes (e.g. status details, immediate needs)..."
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="w-full text-indigo-600 font-bold"
+                  disabled={!noteText.trim()}
+                  onClick={() =>
+                    handleUpdateStatus(myAssignments[0].id, myAssignments[0].status, noteText)
+                  }
+                >
+                  Send Situational Note
                 </Button>
               </div>
 

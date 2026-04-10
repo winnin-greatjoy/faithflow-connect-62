@@ -93,15 +93,22 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
   useEmergencyNotifications(incidents);
   const { members } = useMembers({});
 
-  const [onDutyStaff, setOnDutyStaff] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
+  const [now, setNow] = useState(new Date());
+  const [reportOpen, setReportOpen] = useState(false);
+  const [loadingDuty, setLoadingDuty] = useState(true);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [zones, setZones] = useState<any[]>([]);
   const [view, setView] = useState<
     'alerts' | 'map' | 'dispatch' | 'on_duty' | 'resolved' | 'analytics'
   >('alerts');
-  const [assigningId, setAssigningId] = useState<string | null>(null);
-  const [reportOpen, setReportOpen] = useState(false);
-  const [loadingDuty, setLoadingDuty] = useState(false);
-  const [zones, setZones] = useState<any[]>([]);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [onDutyStaff, setOnDutyStaff] = useState<any[]>([]);
+
+  // Update timer for SLA checks every 10s
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Fetch On-Duty Info
   useEffect(() => {
@@ -298,6 +305,12 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
 
     const recommendations = getRecommendedResponders();
 
+    // SLA Assessment (2 minute threshold for unaddressed alerts)
+    const isLate =
+      incident.status === 'open' &&
+      now.getTime() - new Date(incident.created_at).getTime() > 120000;
+    const isCritical = incident.severity === 'critical' || incident.severity === 'high';
+
     return (
       <motion.div
         layout
@@ -309,10 +322,10 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
         <Card
           className={cn(
             'overflow-hidden border-2 transition-all',
-            incident.status === 'open' &&
-              (incident.severity === 'critical' || incident.severity === 'high')
+            incident.status === 'open' && isCritical
               ? 'border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.12)] bg-red-50/30 dark:bg-red-950/20'
-              : 'border-transparent hover:border-border'
+              : 'border-transparent hover:border-border',
+            isLate && 'ring-2 ring-red-600 ring-offset-2 animate-pulse'
           )}
         >
           <div className="p-5">
@@ -341,6 +354,11 @@ export const EmergencyResponseModule = ({ event }: { event?: any }) => {
                 >
                   {incident.severity.toUpperCase()}
                 </Badge>
+                {isLate && (
+                  <Badge className="bg-red-600 text-white animate-bounce text-[9px] font-black">
+                    LATE RESPONSE
+                  </Badge>
+                )}
               </div>
             </div>
 

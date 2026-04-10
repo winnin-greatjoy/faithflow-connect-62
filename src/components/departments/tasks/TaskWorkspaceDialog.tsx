@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -183,6 +184,9 @@ export const TaskWorkspaceDialog: React.FC<TaskWorkspaceDialogProps> = ({
           <div className="flex justify-between items-start gap-4">
             <div>
               <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
+              <DialogDescription className="sr-only">
+                Task details and workspace for {task.title}
+              </DialogDescription>
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant={task.status === 'done' ? 'default' : 'secondary'}>
                   {task.status.replace('_', ' ')}

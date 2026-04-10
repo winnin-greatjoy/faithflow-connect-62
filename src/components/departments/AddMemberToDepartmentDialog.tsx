@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -134,6 +135,7 @@ export const AddMemberToDepartmentDialog: React.FC<Props> = ({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Add Members to Department</DialogTitle>
+          <DialogDescription>Select baptized members to add to this department.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

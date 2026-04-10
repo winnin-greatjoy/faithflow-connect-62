@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -288,6 +289,9 @@ export const DepartmentTaskBoard: React.FC<Props> = ({ departmentId, branchId, c
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Task</DialogTitle>
+            <DialogDescription>
+              Create a new task for this department. Fill in the details below.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">

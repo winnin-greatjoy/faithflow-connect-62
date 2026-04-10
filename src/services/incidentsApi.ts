@@ -57,6 +57,36 @@ export interface IncidentResponder {
 
 export const incidentsApi = {
   /**
+   * Fetch activity logs for an incident
+   */
+  async getIncidentLogs(incidentId: string) {
+    const { data, error } = await (supabase as any)
+      .from('event_incident_logs')
+      .select('*')
+      .eq('incident_id', incidentId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Add a log entry for an incident
+   */
+  async addLog(incidentId: string, action: string, details?: string) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from('event_incident_logs').insert({
+      incident_id: incidentId,
+      action,
+      details,
+      actor_id: user?.id,
+    });
+    if (error) console.error('Logging failed:', error);
+  },
+
+  /**
    * Report a new incident
    */
   async reportIncident(payload: {
@@ -81,6 +111,14 @@ export const incidentsApi = {
       .single();
 
     if (error) throw error;
+
+    // Log the report
+    this.addLog(
+      data.id,
+      'reported',
+      `Incident reported at ${payload.location_details || 'unknown location'}`
+    );
+
     return data;
   },
 
@@ -92,7 +130,7 @@ export const incidentsApi = {
   },
 
   /**
-   * Fetch active incidents for an event with responders
+   * Fetch active incidents for an event with responders and logs
    */
   async getActiveIncidents(eventId: string) {
     const { data, error } = await (supabase as any)
@@ -106,7 +144,8 @@ export const incidentsApi = {
         responders:event_incident_responders(
           *,
           staff:staff_id(*)
-        )
+        ),
+        logs:event_incident_logs(*)
       `
       )
       .eq('event_id', eventId)
@@ -159,6 +198,9 @@ export const incidentsApi = {
 
     if (respError) throw respError;
 
+    // Log assignment
+    this.addLog(incidentId, 'dispatched', `Staff member assigned to incident`);
+
     // Update parent incident status to 'dispatched'
     const { error: statusError } = await (supabase as any)
       .from('event_incidents')
@@ -168,17 +210,17 @@ export const incidentsApi = {
 
     if (statusError) {
       console.warn('Failed to update incident status to dispatched:', statusError);
-      // We don't throw here because the responder was already assigned
     }
 
     return true;
   },
 
   /**
-   * Update responder status
+   * Update responder status and notes
    */
-  async updateResponderStatus(responderId: string, status: ResponderStatus) {
+  async updateResponderStatus(responderId: string, status: ResponderStatus, notes?: string) {
     const updatePayload: any = { status };
+    if (notes) updatePayload.notes = notes;
     if (status === 'en_route') updatePayload.en_route_at = new Date().toISOString();
     if (status === 'arrived') updatePayload.arrived_at = new Date().toISOString();
     if (status === 'completed') updatePayload.completed_at = new Date().toISOString();
@@ -191,6 +233,11 @@ export const incidentsApi = {
       .single();
 
     if (error) throw error;
+
+    // Log responder status change
+    this.addLog(data.incident_id, status, `Responder status updated to ${status}`);
+    if (notes) this.addLog(data.incident_id, 'note_added', `Note: ${notes}`);
+
     return data;
   },
 
@@ -211,6 +258,10 @@ export const incidentsApi = {
       .single();
 
     if (error) throw error;
+
+    // Log resolution
+    this.addLog(incidentId, status, `Incident marked as ${status}`);
+
     return data;
   },
 };

@@ -39,7 +39,18 @@ export class TechnicalApiService extends BaseApiService {
 
       // Apply sorting
       if (request?.sort) {
-        query = query.order(request.sort.field, { ascending: request.sort.direction === 'asc' });
+        // Handle sorting on joined tables (e.g., member.full_name)
+        if (request.sort.field.includes('.')) {
+          const [table, field] = request.sort.field.split('.');
+          query = query.order(field, {
+            referencedTable: table,
+            ascending: request.sort.direction === 'asc',
+          });
+        } else {
+          query = query.order(request.sort.field, {
+            ascending: request.sort.direction === 'asc',
+          });
+        }
       } else {
         query = query.order('assigned_date', { ascending: false });
       }
