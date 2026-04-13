@@ -153,7 +153,7 @@ export const PublicRegistrationPage = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
         <img src={coverImage} alt="Event Cover" className="w-full h-full object-cover opacity-80" />
         <div className="absolute bottom-8 left-8 z-20 text-white p-4">
-          <Badge className="mb-4 bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-md">
+          <Badge className="mb-4 bg-white/20 hover:bg-white/30 text-white border-none">
             Featured Event
           </Badge>
           <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight mb-4">

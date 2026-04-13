@@ -535,11 +535,11 @@ export const CheckInConsole = () => {
           <Card className="flex-1 rounded-[40px] border border-primary/10 bg-black shadow-2xl relative overflow-hidden flex flex-col justify-center min-h-[500px]">
             {/* Premium Overlay Elements */}
             <div className="absolute top-6 left-6 z-20 flex gap-2">
-              <Badge className="bg-black/40 backdrop-blur-md text-white border border-white/10 px-3 py-1 text-[10px] uppercase tracking-widest font-black">
+              <Badge className="bg-black text-white border border-white/10 px-3 py-1 text-[10px] uppercase tracking-widest font-black">
                 {activeZoneLabel}
               </Badge>
               {assignedStaffIds.length > 0 && (
-                <Badge className="bg-primary/80 backdrop-blur-md text-white border border-white/10 px-3 py-1 text-[10px] uppercase tracking-widest font-black">
+                <Badge className="bg-primary text-white border border-white/10 px-3 py-1 text-[10px] uppercase tracking-widest font-black">
                   {assignedStaffIds.length} Staff Assigned
                 </Badge>
               )}
@@ -612,7 +612,7 @@ export const CheckInConsole = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-300"
+                  className="absolute inset-0 z-20 bg-black/80 flex flex-col items-center justify-center transition-all duration-300"
                 >
                   <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
                   <p className="text-white font-black tracking-widest uppercase text-xs">
@@ -629,7 +629,7 @@ export const CheckInConsole = () => {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
                     className={cn(
-                      'absolute inset-4 z-30 rounded-[32px] overflow-hidden flex flex-col items-center justify-center p-8 text-center backdrop-blur-xl border',
+                      'absolute inset-4 z-30 rounded-[32px] overflow-hidden flex flex-col items-center justify-center p-8 text-center bg-white border',
                       lastScanResult.success
                         ? 'bg-emerald-950/80 border-emerald-500/30'
                         : 'bg-red-950/80 border-red-500/30'
@@ -830,7 +830,7 @@ export const CheckInConsole = () => {
                       className="flex items-center gap-4 cursor-pointer"
                       onClick={() => setSelectedPerson(member)}
                     >
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center font-black text-primary">
+                      <div className="h-20 w-20 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white flex items-center justify-center -mb-10 relative z-10 mx-auto">
                         {member.fullName.charAt(0)}
                       </div>
                       <div>
@@ -910,7 +910,7 @@ export const CheckInConsole = () => {
             ].map((m, i) => (
               <div
                 key={i}
-                className="p-6 rounded-3xl bg-neutral-50 border border-neutral-100 hover:shadow-sm transition-all text-center"
+                className="mx-8 bg-white rounded-2xl p-6 shadow-md border border-slate-100 flex flex-col items-center text-center relative z-0"
               >
                 <p className={cn('text-3xl font-black mb-2', m.color)}>{m.value}</p>
                 <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">

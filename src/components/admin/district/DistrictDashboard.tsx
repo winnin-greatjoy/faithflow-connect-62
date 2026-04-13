@@ -282,8 +282,8 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
     <AdminProvider>
       <div className="min-h-screen bg-background flex w-full relative overflow-hidden">
         {/* Modern Background Accents */}
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-50">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5" />
+        <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10 bg-slate-50">
+          <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-primary/5 rounded-full blur-3xl opacity-50 translate-x-1/3 -translate-y-1/3" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/5" />
         </div>
 
@@ -306,7 +306,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
           onMouseLeave={() => setIsHovered(false)}
         >
           <div className="flex flex-col h-full">
-            <div className="pt-6 p-5 border-b border-primary/5 sticky top-0 bg-transparent z-10 backdrop-blur-xl">
+            <div className="pt-6 p-5 border-b border-primary/5 sticky top-0 bg-background z-10">
               {isSuperadmin && (
                 <Button
                   variant="ghost"
@@ -377,7 +377,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
               </nav>
             </ScrollArea>
 
-            <div className="p-4 border-t border-primary/5 bg-transparent backdrop-blur-xl space-y-2">
+            <div className="p-4 border-t border-primary/5 bg-background space-y-2">
               <Button
                 variant="ghost"
                 className="w-full h-10 flex items-center justify-center rounded-xl bg-primary/5 hover:bg-primary/10 text-primary transition-all hidden lg:flex"
@@ -406,7 +406,7 @@ export const DistrictDashboard: React.FC<DistrictDashboardProps> = ({ districtId
 
         {/* Content Wrapper */}
         <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:ml-0 h-screen">
-          <header className="sticky top-0 z-30 bg-background border-b border-primary/10 px-6 py-4 backdrop-blur-2xl flex justify-between items-center shrink-0 shadow-sm">
+          <header className="sticky top-0 z-30 bg-background border-b border-primary/10 px-6 py-4 flex justify-between items-center shrink-0 shadow-sm">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"

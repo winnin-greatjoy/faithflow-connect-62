@@ -777,7 +777,7 @@ export const QueueManagerModule = () => {
             </div>
           </div>
 
-          <div className="bg-white/5 rounded-[32px] md:rounded-[48px] p-6 md:p-12 border border-white/10 backdrop-blur-sm">
+          <div className="bg-white/5 rounded-[32px] md:rounded-[48px] p-6 md:p-12 border border-white/10">
             <h3 className="text-2xl font-black uppercase tracking-widest text-white/40 mb-8 border-b border-white/10 pb-4">
               Up Next
             </h3>

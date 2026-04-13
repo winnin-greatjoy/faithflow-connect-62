@@ -40,10 +40,30 @@ const MinistriesSection = () => {
           console.error('Error fetching ministries:', error);
           // Fallback to default ministries for public display
           setMinistries([
-            { id: '1', name: "Men's Ministry", description: 'Building godly men who lead with integrity and purpose.', is_active: true },
-            { id: '2', name: "Women's Ministry", description: 'Empowering women to grow in faith and serve the community.', is_active: true },
-            { id: '3', name: "Youth Ministry", description: 'Helping young people discover their faith and purpose in life.', is_active: true },
-            { id: '4', name: "Children's Ministry", description: 'Nurturing children in love and faith through fun activities.', is_active: true },
+            {
+              id: '1',
+              name: "Men's Ministry",
+              description: 'Building godly men who lead with integrity and purpose.',
+              is_active: true,
+            },
+            {
+              id: '2',
+              name: "Women's Ministry",
+              description: 'Empowering women to grow in faith and serve the community.',
+              is_active: true,
+            },
+            {
+              id: '3',
+              name: 'Youth Ministry',
+              description: 'Helping young people discover their faith and purpose in life.',
+              is_active: true,
+            },
+            {
+              id: '4',
+              name: "Children's Ministry",
+              description: 'Nurturing children in love and faith through fun activities.',
+              is_active: true,
+            },
           ]);
         } else {
           setMinistries(data || []);
@@ -52,10 +72,30 @@ const MinistriesSection = () => {
         console.error('Error fetching ministries:', error);
         // Use fallback data on error
         setMinistries([
-          { id: '1', name: "Men's Ministry", description: 'Building godly men who lead with integrity and purpose.', is_active: true },
-          { id: '2', name: "Women's Ministry", description: 'Empowering women to grow in faith and serve the community.', is_active: true },
-          { id: '3', name: "Youth Ministry", description: 'Helping young people discover their faith and purpose in life.', is_active: true },
-          { id: '4', name: "Children's Ministry", description: 'Nurturing children in love and faith through fun activities.', is_active: true },
+          {
+            id: '1',
+            name: "Men's Ministry",
+            description: 'Building godly men who lead with integrity and purpose.',
+            is_active: true,
+          },
+          {
+            id: '2',
+            name: "Women's Ministry",
+            description: 'Empowering women to grow in faith and serve the community.',
+            is_active: true,
+          },
+          {
+            id: '3',
+            name: 'Youth Ministry',
+            description: 'Helping young people discover their faith and purpose in life.',
+            is_active: true,
+          },
+          {
+            id: '4',
+            name: "Children's Ministry",
+            description: 'Nurturing children in love and faith through fun activities.',
+            is_active: true,
+          },
         ]);
       } finally {
         setLoading(false);
@@ -69,11 +109,10 @@ const MinistriesSection = () => {
     <section className="py-16 lg:py-24 bg-secondary/30">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-5xl font-serif font-bold mb-6">
-            Our Ministries
-          </h2>
+          <h2 className="text-3xl lg:text-5xl font-serif font-bold mb-6">Our Ministries</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Discover meaningful ways to grow in faith, connect with others, and make a difference in our community.
+            Discover meaningful ways to grow in faith, connect with others, and make a difference in
+            our community.
           </p>
         </div>
 
@@ -90,7 +129,10 @@ const MinistriesSection = () => {
             {ministries.map((ministry) => {
               const Icon = getMinistryIcon(ministry.name);
               return (
-                <Card key={ministry.id} className="group hover:shadow-lg transition-all duration-300 border-0 bg-card/50 backdrop-blur">
+                <Card
+                  key={ministry.id}
+                  className="group hover:shadow-lg transition-all duration-300 border-0 bg-card/50"
+                >
                   <CardHeader className="text-center">
                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
                       <Icon className="h-8 w-8 text-primary" />
@@ -99,10 +141,15 @@ const MinistriesSection = () => {
                   </CardHeader>
                   <CardContent className="text-center">
                     <CardDescription className="mb-4">
-                      {ministry.description || 'Empowering our community to grow in faith and serve with purpose.'}
+                      {ministry.description ||
+                        'Empowering our community to grow in faith and serve with purpose.'}
                     </CardDescription>
                     <Button variant="outline" size="sm" asChild>
-                      <Link to={`/admin/${ministry.name.toLowerCase().replace(/['\s&]+/g, '-')}-ministry`}>Learn More</Link>
+                      <Link
+                        to={`/admin/${ministry.name.toLowerCase().replace(/['\s&]+/g, '-')}-ministry`}
+                      >
+                        Learn More
+                      </Link>
                     </Button>
                   </CardContent>
                 </Card>

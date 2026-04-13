@@ -766,7 +766,7 @@ export default function EventDashboardPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsChatOpen(false)}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60]"
+              className="fixed inset-0 bg-black/50 z-[60]"
             />
             <motion.div
               initial={{ x: '100%' }}

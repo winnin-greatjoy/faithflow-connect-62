@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
@@ -16,7 +15,7 @@ const ChurchNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <nav className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b border-border/40">
+    <nav className="bg-background sticky top-0 z-50 w-full border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -27,8 +26,12 @@ const ChurchNavbar = () => {
               className="w-16 h-16 rounded-sm"
             />
             <div>
-              <div className="font-serif font-bold text-primary text-lg leading-tight">Faith Healing</div>
-              <div className="font-serif font-bold text-primary text-base leading-tight">Bible Church</div>
+              <div className="font-serif font-bold text-primary text-lg leading-tight">
+                Faith Healing
+              </div>
+              <div className="font-serif font-bold text-primary text-base leading-tight">
+                Bible Church
+              </div>
               <div className="text-xs text-muted-foreground">Beccle St Branch</div>
             </div>
           </Link>
@@ -41,17 +44,32 @@ const ChurchNavbar = () => {
                   <NavigationMenuTrigger>About</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid gap-3 p-6 w-[400px]">
-                      <Link to="/about" className="block p-3 space-y-1 hover:bg-accent/50 rounded-md">
+                      <Link
+                        to="/about"
+                        className="block p-3 space-y-1 hover:bg-accent/50 rounded-md"
+                      >
                         <div className="text-sm font-medium">Our Story</div>
-                        <p className="text-sm text-muted-foreground">Learn about our church history and mission</p>
+                        <p className="text-sm text-muted-foreground">
+                          Learn about our church history and mission
+                        </p>
                       </Link>
-                      <Link to="/leadership" className="block p-3 space-y-1 hover:bg-accent/50 rounded-md">
+                      <Link
+                        to="/leadership"
+                        className="block p-3 space-y-1 hover:bg-accent/50 rounded-md"
+                      >
                         <div className="text-sm font-medium">Leadership</div>
-                        <p className="text-sm text-muted-foreground">Meet our pastoral team and leaders</p>
+                        <p className="text-sm text-muted-foreground">
+                          Meet our pastoral team and leaders
+                        </p>
                       </Link>
-                      <Link to="/beliefs" className="block p-3 space-y-1 hover:bg-accent/50 rounded-md">
+                      <Link
+                        to="/beliefs"
+                        className="block p-3 space-y-1 hover:bg-accent/50 rounded-md"
+                      >
                         <div className="text-sm font-medium">What We Believe</div>
-                        <p className="text-sm text-muted-foreground">Our statement of faith and core beliefs</p>
+                        <p className="text-sm text-muted-foreground">
+                          Our statement of faith and core beliefs
+                        </p>
                       </Link>
                     </div>
                   </NavigationMenuContent>
@@ -61,28 +79,47 @@ const ChurchNavbar = () => {
                   <NavigationMenuTrigger>Ministries</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid gap-3 p-6 w-[400px]">
-                      <Link to="/ministries/mens" className="block p-3 space-y-1 hover:bg-accent/50 rounded-md">
+                      <Link
+                        to="/ministries/mens"
+                        className="block p-3 space-y-1 hover:bg-accent/50 rounded-md"
+                      >
                         <div className="text-sm font-medium">Men's Ministry</div>
-                        <p className="text-sm text-muted-foreground">Fellowship and growth for men</p>
+                        <p className="text-sm text-muted-foreground">
+                          Fellowship and growth for men
+                        </p>
                       </Link>
-                      <Link to="/ministries/womens" className="block p-3 space-y-1 hover:bg-accent/50 rounded-md">
+                      <Link
+                        to="/ministries/womens"
+                        className="block p-3 space-y-1 hover:bg-accent/50 rounded-md"
+                      >
                         <div className="text-sm font-medium">Women's Ministry</div>
                         <p className="text-sm text-muted-foreground">Empowering women in faith</p>
                       </Link>
-                      <Link to="/ministries/youth" className="block p-3 space-y-1 hover:bg-accent/50 rounded-md">
+                      <Link
+                        to="/ministries/youth"
+                        className="block p-3 space-y-1 hover:bg-accent/50 rounded-md"
+                      >
                         <div className="text-sm font-medium">Youth & Young Adults</div>
                         <p className="text-sm text-muted-foreground">Ages 13-30 ministry</p>
                       </Link>
-                      <Link to="/ministries/children" className="block p-3 space-y-1 hover:bg-accent/50 rounded-md">
+                      <Link
+                        to="/ministries/children"
+                        className="block p-3 space-y-1 hover:bg-accent/50 rounded-md"
+                      >
                         <div className="text-sm font-medium">Children's Ministry</div>
-                        <p className="text-sm text-muted-foreground">Building faith in young hearts</p>
+                        <p className="text-sm text-muted-foreground">
+                          Building faith in young hearts
+                        </p>
                       </Link>
                     </div>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
 
                 <NavigationMenuItem>
-                  <Link to="/events" className="text-foreground hover:text-primary transition-colors">
+                  <Link
+                    to="/events"
+                    className="text-foreground hover:text-primary transition-colors"
+                  >
                     Events
                   </Link>
                 </NavigationMenuItem>
@@ -94,7 +131,10 @@ const ChurchNavbar = () => {
                 </NavigationMenuItem>
 
                 <NavigationMenuItem>
-                  <Link to="/contact" className="text-foreground hover:text-primary transition-colors">
+                  <Link
+                    to="/contact"
+                    className="text-foreground hover:text-primary transition-colors"
+                  >
                     Contact
                   </Link>
                 </NavigationMenuItem>
@@ -119,14 +159,26 @@ const ChurchNavbar = () => {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-border/40">
+          <div className="md:hidden py-4 border-t border-border bg-background">
             <div className="flex flex-col space-y-4">
-              <Link to="/" className="text-foreground hover:text-primary">Home</Link>
-              <Link to="/about" className="text-foreground hover:text-primary">About</Link>
-              <Link to="/ministries" className="text-foreground hover:text-primary">Ministries</Link>
-              <Link to="/events" className="text-foreground hover:text-primary">Events</Link>
-              <Link to="/give" className="text-foreground hover:text-primary">Give</Link>
-              <Link to="/contact" className="text-foreground hover:text-primary">Contact</Link>
+              <Link to="/" className="text-foreground hover:text-primary">
+                Home
+              </Link>
+              <Link to="/about" className="text-foreground hover:text-primary">
+                About
+              </Link>
+              <Link to="/ministries" className="text-foreground hover:text-primary">
+                Ministries
+              </Link>
+              <Link to="/events" className="text-foreground hover:text-primary">
+                Events
+              </Link>
+              <Link to="/give" className="text-foreground hover:text-primary">
+                Give
+              </Link>
+              <Link to="/contact" className="text-foreground hover:text-primary">
+                Contact
+              </Link>
               <Button asChild className="w-fit">
                 <Link to="/admin">Dashboard</Link>
               </Button>

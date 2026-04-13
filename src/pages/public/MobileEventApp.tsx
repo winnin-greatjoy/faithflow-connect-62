@@ -211,7 +211,7 @@ export default function MobileEventApp() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto relative shadow-2xl border-x border-gray-100">
       {/* Dynamic Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 h-14 flex items-center justify-between px-4 max-w-md mx-auto">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 h-14 flex items-center justify-between px-4 max-w-md mx-auto">
         <h1 className="font-serif font-bold text-base text-primary truncate max-w-[210px]">
           {event.title}
         </h1>

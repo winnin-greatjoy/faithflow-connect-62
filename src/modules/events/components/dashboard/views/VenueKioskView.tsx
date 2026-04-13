@@ -318,7 +318,7 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-slate-950/50 to-slate-950 pointer-events-none" />
 
       {/* Kiosk Header */}
-      <div className="h-16 md:h-20 px-4 md:px-8 flex items-center justify-between border-b border-white/5 bg-slate-950/50 backdrop-blur-xl shrink-0 z-10">
+      <div className="h-16 md:h-20 px-4 md:px-8 flex items-center justify-between border-b border-white/5 bg-slate-900 shrink-0 z-10">
         <div className="flex items-center gap-3 md:gap-4">
           <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Activity className="h-5 w-5 md:h-6 md:w-6 text-white" />
@@ -390,8 +390,8 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
                 <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors" />
 
-                <div className="h-full w-full rounded-[20px] bg-indigo-600/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4 border border-white/10">
-                  <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition-transform duration-300">
+                <div className="h-full w-full rounded-[20px] bg-indigo-600 flex flex-col items-center justify-center gap-4 border border-white/10">
+                  <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <Scan className="h-8 w-8 md:h-10 md:w-10 text-white" />
                   </div>
                   <div className="text-center space-y-1">
@@ -453,13 +453,13 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
                 variant="ghost"
                 size="icon"
                 onClick={stopCamera}
-                className="absolute top-4 right-4 z-30 h-10 w-10 bg-black/50 hover:bg-red-500/80 rounded-full backdrop-blur-md"
+                className="absolute top-4 right-4 z-30 h-10 w-10 bg-black hover:bg-red-500/80 rounded-full"
               >
                 <PowerOff className="h-4 w-4" />
               </Button>
 
               {cameraState === 'starting' && (
-                <div className="absolute inset-0 flex flex-col justify-center items-center z-20 bg-black/50 backdrop-blur-sm">
+                <div className="absolute inset-0 flex flex-col justify-center items-center z-20 bg-black/80">
                   <Loader2 className="h-12 w-12 text-indigo-500 animate-spin mb-4" />
                   <p className="text-xl font-serif">Starting Camera...</p>
                 </div>
@@ -474,7 +474,7 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
               {/* Target Overlay */}
               {cameraState === 'active' && (
                 <div className="absolute inset-0 pointer-events-none z-10 flex flex-col items-center justify-center">
-                  <p className="bg-black/50 text-white px-6 py-2 rounded-full backdrop-blur-md mb-8 font-bold text-lg tracking-wide border border-white/10">
+                  <p className="bg-black text-white px-6 py-2 rounded-full mb-8 font-bold text-lg tracking-wide border border-white/10">
                     Show your Phone or Printed QR Ticket
                   </p>
                   <div className="relative w-64 h-64 sm:w-80 sm:h-80 opacity-70">
@@ -509,7 +509,7 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
                 className={cn(
-                  'absolute inset-0 z-40 rounded-[40px] flex flex-col items-center justify-center p-8 text-center backdrop-blur-2xl border-2 overflow-hidden shadow-2xl',
+                  'absolute inset-0 z-40 rounded-[40px] flex flex-col items-center justify-center p-8 text-center bg-slate-900 border-2 overflow-hidden shadow-2xl',
                   lastScanResult.success
                     ? 'bg-emerald-950/90 border-emerald-500/50'
                     : 'bg-red-950/90 border-red-500/50'
@@ -538,10 +538,10 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
           </AnimatePresence>
 
           {/* Stats Card */}
-          <Card className="flex-1 min-h-[180px] rounded-3xl border-white/5 bg-slate-900/50 backdrop-blur-md p-6 md:p-8 flex flex-col justify-between relative overflow-hidden mt-auto">
-            <div className="absolute top-0 right-0 p-32 bg-indigo-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+          <Card className="rounded-3xl border-white/5 bg-slate-800 overflow-hidden flex flex-col h-full relative">
+            <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
 
-            <div className="flex justify-between items-start relative z-10">
+            <div className="flex justify-between items-start relative z-10 p-6 md:p-8">
               <div className="space-y-1">
                 <p className="text-xs font-bold uppercase tracking-widest text-indigo-400">
                   Total Attendees Scanned
@@ -562,7 +562,7 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
               </div>
             </div>
 
-            <div className="w-full bg-slate-800/50 rounded-full h-4 p-1 mt-6 border border-white/5">
+            <div className="w-full bg-slate-950/50 rounded-full h-4 p-1 mt-6 border border-white/5 mx-6 w-[calc(100%-48px)]">
               <motion.div
                 className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.3)]"
                 initial={{ width: 0 }}
@@ -576,7 +576,7 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
         {/* Right: Sidebar */}
         <div className="lg:col-span-4 flex flex-col gap-4 lg:gap-6">
           {/* Real Feed */}
-          <Card className="flex-1 rounded-3xl bg-slate-900/50 border border-white/5 p-5 md:p-6 flex flex-col min-h-[300px] overflow-hidden">
+          <Card className="flex-1 rounded-3xl bg-slate-900 border border-white/5 p-5 md:p-6 flex flex-col min-h-[300px] overflow-hidden">
             <div className="flex items-center justify-between mb-6">
               <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">
                 Recent Scans
@@ -633,7 +633,7 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
       </div>
 
       {/* Kiosk Footer */}
-      <div className="h-12 border-t border-white/5 bg-slate-950/80 backdrop-blur items-center px-6 md:px-8 flex justify-between shrink-0 text-[10px] font-medium text-slate-500 uppercase tracking-widest z-10">
+      <div className="h-12 border-t border-white/5 bg-slate-900 items-center px-6 md:px-8 flex justify-between shrink-0 text-[10px] font-medium text-slate-500 uppercase tracking-widest z-10">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Wifi className={cn('h-3 w-3', isOnline ? 'text-emerald-500' : 'text-amber-500')} />
@@ -655,10 +655,10 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
       <AnimatePresence>
         {searchMode && (
           <motion.div
-            initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-            animate={{ opacity: 1, backdropFilter: 'blur(12px)' }}
-            exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-            className="fixed inset-0 z-[120] bg-slate-950/80 p-6 md:p-12 overflow-y-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-slate-950 p-6 md:p-12 overflow-y-auto"
           >
             <div className="max-w-4xl mx-auto space-y-8">
               <div className="flex items-center justify-between">
@@ -673,6 +673,7 @@ export const VenueKioskView = ({ eventName, onExit }: VenueKioskViewProps) => {
               </div>
 
               <div className="relative">
+                <div className="absolute left-1/2 -bottom-2 -translate-x-1/2 h-4 w-12 bg-white/20 rounded-full" />
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-500" />
                 <input
                   autoFocus

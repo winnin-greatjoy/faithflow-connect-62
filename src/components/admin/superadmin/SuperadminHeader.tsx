@@ -37,8 +37,8 @@ export const SuperadminHeader: React.FC<SuperadminHeaderProps> = ({ onMenuToggle
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-background border-b border-primary/10 px-6 py-4 backdrop-blur-2xl flex justify-between items-center shrink-0 shadow-sm">
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-40 bg-background border-b border-border">
+      <div className="flex h-16 items-center px-6 gap-4">
         <Button
           variant="ghost"
           size="icon"

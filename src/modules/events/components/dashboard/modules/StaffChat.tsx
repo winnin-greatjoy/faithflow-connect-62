@@ -200,7 +200,7 @@ export const StaffChatModule = () => {
       {/* Chat Area */}
       <Card className="flex-1 bg-white rounded-[32px] border-none shadow-xl flex flex-col relative overflow-hidden ring-1 ring-primary/5">
         {/* Chat Header */}
-        <div className="p-4 border-b border-primary/5 flex items-center justify-between bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="p-4 border-b border-primary/5 flex items-center justify-between bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Shield className="h-5 w-5 text-primary" />
@@ -270,7 +270,7 @@ export const StaffChatModule = () => {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 pt-2 bg-white/80 backdrop-blur-md">
+        <div className="p-4 pt-2 bg-white">
           <div className="bg-muted/30 rounded-[24px] border border-primary/5 p-1.5 flex items-center gap-1 shadow-inner focus-within:bg-white focus-within:shadow-xl focus-within:border-primary/20 transition-all duration-300">
             <Button
               variant="ghost"

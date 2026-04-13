@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Calendar, MapPin, Clock } from 'lucide-react';
@@ -15,8 +14,8 @@ const ChurchHero = () => {
                 Welcome to Faith Healing Bible Church
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed">
-                A place where faith comes alive, healing flows, and community thrives. 
-                Join us in experiencing God's love and transforming power.
+                A place where faith comes alive, healing flows, and community thrives. Join us in
+                experiencing God's love and transforming power.
               </p>
             </div>
 
@@ -33,7 +32,7 @@ const ChurchHero = () => {
             </div>
 
             {/* Service Times */}
-            <div className="bg-card/50 backdrop-blur rounded-lg p-6 space-y-4 border border-primary/20">
+            <div className="bg-card rounded-lg p-6 space-y-4 border border-primary/20">
               <h3 className="font-serif font-semibold text-lg text-primary">Join Us This Sunday</h3>
               <div className="grid sm:grid-cols-3 gap-4 text-sm">
                 <div className="flex items-center space-x-2">
@@ -60,7 +59,7 @@ const ChurchHero = () => {
                 className="w-48 h-48 object-contain"
               />
             </div>
-            
+
             {/* Floating cards */}
             <div className="absolute -bottom-6 -left-6 bg-card p-4 rounded-lg shadow-lg border border-primary/20">
               <div className="text-center">
@@ -68,7 +67,7 @@ const ChurchHero = () => {
                 <div className="text-sm text-muted-foreground">Members</div>
               </div>
             </div>
-            
+
             <div className="absolute -top-6 -right-6 bg-card p-4 rounded-lg shadow-lg border border-secondary/20">
               <div className="text-center">
                 <div className="text-2xl font-bold text-secondary">3</div>

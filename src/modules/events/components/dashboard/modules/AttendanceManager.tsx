@@ -127,15 +127,12 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
   };
 
   const handleDispatch = () => {
-    void guardAction(
-      () => {
-        toast.success('Medical Dispatch Activated', {
-          description: 'Emergency response team has been notified and is en route to Sanctuary.',
-          icon: <Stethoscope className="h-4 w-4 text-emerald-500" />,
-        });
-      },
-      'You do not have permission to dispatch emergency teams.'
-    );
+    void guardAction(() => {
+      toast.success('Medical Dispatch Activated', {
+        description: 'Emergency response team has been notified and is en route to Sanctuary.',
+        icon: <Stethoscope className="h-4 w-4 text-emerald-500" />,
+      });
+    }, 'You do not have permission to dispatch emergency teams.');
   };
 
   const tabs = [
@@ -240,7 +237,7 @@ export const AttendanceManagerModule = ({ event }: { event?: any }) => {
             animate={{ opacity: 1, x: 0 }}
             className="w-full md:w-auto md:min-w-[360px]"
           >
-            <div className="bg-destructive/10 border border-destructive/20 p-1.5 pl-4 pr-1.5 rounded-xl md:rounded-full flex items-center justify-between gap-3 md:gap-4 backdrop-blur-sm group hover:bg-destructive/15 transition-all shadow-lg shadow-destructive/5">
+            <div className="bg-destructive/10 border border-destructive/20 p-1.5 pl-4 pr-1.5 rounded-xl md:rounded-full flex items-center justify-between gap-3 md:gap-4 group hover:bg-destructive/15 transition-all shadow-lg shadow-destructive/5">
               <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
                 <div className="h-2 w-2 rounded-full bg-destructive animate-ping shrink-0" />
                 <div className="flex items-center gap-2 truncate">

@@ -101,7 +101,7 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={onToggle}
           />
         )}
@@ -123,7 +123,7 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-6 border-b border-primary/5 sticky top-0 bg-transparent z-10 backdrop-blur-xl">
+          <div className="p-6 border-b border-primary/5 sticky top-0 bg-background z-10">
             <div className="flex items-center gap-3">
               <motion.div
                 layout
@@ -208,7 +208,7 @@ export const SuperadminSidebar: React.FC<SuperadminSidebarProps> = ({
           </SidebarContent>
 
           {/* Footer Toggle */}
-          <div className="p-4 border-t border-primary/5 bg-transparent backdrop-blur-xl">
+          <div className="p-4 border-t border-primary/5 bg-background">
             <Button
               variant="ghost"
               className="w-full h-12 flex items-center justify-center rounded-xl bg-primary/5 hover:bg-primary/10 text-primary transition-all hidden lg:flex"
