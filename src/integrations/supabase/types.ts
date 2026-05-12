@@ -4649,6 +4649,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_member_id: { Args: never; Returns: string }
       get_student_attendance_percentage: {
         Args: { student_id: string }
         Returns: {
@@ -4696,7 +4697,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      setup_superadmin: { Args: { admin_email: string }; Returns: string }
       submit_transfer_request: {
         Args: { notes: string; target_branch_id: string }
         Returns: string
