@@ -2025,6 +2025,117 @@ export type Database = {
           },
         ]
       }
+      event_incident_responders: {
+        Row: {
+          arrived_at: string | null
+          assigned_at: string | null
+          completed_at: string | null
+          en_route_at: string | null
+          id: string
+          incident_id: string
+          staff_id: string
+          status: Database["public"]["Enums"]["responder_status"]
+        }
+        Insert: {
+          arrived_at?: string | null
+          assigned_at?: string | null
+          completed_at?: string | null
+          en_route_at?: string | null
+          id?: string
+          incident_id: string
+          staff_id: string
+          status?: Database["public"]["Enums"]["responder_status"]
+        }
+        Update: {
+          arrived_at?: string | null
+          assigned_at?: string | null
+          completed_at?: string | null
+          en_route_at?: string | null
+          id?: string
+          incident_id?: string
+          staff_id?: string
+          status?: Database["public"]["Enums"]["responder_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_incident_responders_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "event_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_incident_responders_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_incidents: {
+        Row: {
+          assigned_to: string[] | null
+          created_at: string | null
+          description: string | null
+          event_id: string
+          gps_location: Json | null
+          id: string
+          location_details: string | null
+          priority_score: number | null
+          reporter_id: string | null
+          resolved_at: string | null
+          severity: Database["public"]["Enums"]["incident_severity"]
+          status: Database["public"]["Enums"]["incident_status"]
+          type: Database["public"]["Enums"]["incident_type"]
+        }
+        Insert: {
+          assigned_to?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          event_id: string
+          gps_location?: Json | null
+          id?: string
+          location_details?: string | null
+          priority_score?: number | null
+          reporter_id?: string | null
+          resolved_at?: string | null
+          severity?: Database["public"]["Enums"]["incident_severity"]
+          status?: Database["public"]["Enums"]["incident_status"]
+          type?: Database["public"]["Enums"]["incident_type"]
+        }
+        Update: {
+          assigned_to?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          event_id?: string
+          gps_location?: Json | null
+          id?: string
+          location_details?: string | null
+          priority_score?: number | null
+          reporter_id?: string | null
+          resolved_at?: string | null
+          severity?: Database["public"]["Enums"]["incident_severity"]
+          status?: Database["public"]["Enums"]["incident_status"]
+          type?: Database["public"]["Enums"]["incident_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_incidents_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_incidents_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_quotas: {
         Row: {
           branch_id: string | null
@@ -3573,6 +3684,7 @@ export type Database = {
           phone: string | null
           profile_photo: string | null
           role: Database["public"]["Enums"]["app_role"] | null
+          skills: string[] | null
           updated_at: string | null
         }
         Insert: {
@@ -3588,6 +3700,7 @@ export type Database = {
           phone?: string | null
           profile_photo?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
+          skills?: string[] | null
           updated_at?: string | null
         }
         Update: {
@@ -3603,6 +3716,7 @@ export type Database = {
           phone?: string | null
           profile_photo?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
+          skills?: string[] | null
           updated_at?: string | null
         }
         Relationships: [
@@ -4535,6 +4649,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_member_id: { Args: never; Returns: string }
       get_student_attendance_percentage: {
         Args: { student_id: string }
         Returns: {
@@ -4582,7 +4697,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      setup_superadmin: { Args: { admin_email: string }; Returns: string }
       submit_transfer_request: {
         Args: { notes: string; target_branch_id: string }
         Returns: string
@@ -4625,6 +4739,15 @@ export type Database = {
       first_timer_status: "new" | "contacted" | "followed_up" | "converted"
       follow_up_status: "pending" | "called" | "visited" | "completed"
       gender: "male" | "female"
+      incident_severity: "low" | "medium" | "high" | "critical"
+      incident_status: "open" | "dispatched" | "resolved" | "false_alarm"
+      incident_type:
+        | "medical"
+        | "security"
+        | "maintenance"
+        | "other"
+        | "fire"
+        | "crowd_control"
       job_status: "pending" | "processing" | "done" | "error"
       leader_role:
         | "pastor"
@@ -4637,6 +4760,7 @@ export type Database = {
       permission_action: "view" | "create" | "update" | "delete" | "manage"
       priority_level: "low" | "medium" | "high"
       provision_type: "auto_baptized" | "admin_initiated"
+      responder_status: "assigned" | "en_route" | "arrived" | "completed"
       role_type: "account" | "member" | "leader" | "admin" | "pastor" | "worker"
       scope_type_v2: "global" | "branch"
       stream_platform: "youtube" | "facebook" | "vimeo" | "custom" | "supabase"
@@ -4812,6 +4936,16 @@ export const Constants = {
       first_timer_status: ["new", "contacted", "followed_up", "converted"],
       follow_up_status: ["pending", "called", "visited", "completed"],
       gender: ["male", "female"],
+      incident_severity: ["low", "medium", "high", "critical"],
+      incident_status: ["open", "dispatched", "resolved", "false_alarm"],
+      incident_type: [
+        "medical",
+        "security",
+        "maintenance",
+        "other",
+        "fire",
+        "crowd_control",
+      ],
       job_status: ["pending", "processing", "done", "error"],
       leader_role: [
         "pastor",
@@ -4825,6 +4959,7 @@ export const Constants = {
       permission_action: ["view", "create", "update", "delete", "manage"],
       priority_level: ["low", "medium", "high"],
       provision_type: ["auto_baptized", "admin_initiated"],
+      responder_status: ["assigned", "en_route", "arrived", "completed"],
       role_type: ["account", "member", "leader", "admin", "pastor", "worker"],
       scope_type_v2: ["global", "branch"],
       stream_platform: ["youtube", "facebook", "vimeo", "custom", "supabase"],
